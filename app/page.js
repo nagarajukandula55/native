@@ -20,7 +20,7 @@ export default function Home() {
           backgroundColor: "transparent",
         }}
       >
-        <img src="/logo.png" alt="Native" style={{ height: "70px" }} />
+        <img src="/logo.png" alt="Native" style={{ height: "80px", objectFit: "contain" }} />
 
         <div style={{ display: "flex", gap: "40px", fontSize: "18px" }}>
           <span style={{ cursor: "pointer" }}>Home</span>
