@@ -1,21 +1,17 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+const API = process.env.NEXT_PUBLIC_API_URL!;
 
-export async function apiRequest(
-  endpoint: string,
-  method = "GET",
-  body?: any,
-  token?: string
-) {
-  const res = await fetch(`${API_URL}${endpoint}`, {
-    method,
+export async function apiFetch(endpoint: string, options: RequestInit = {}) {
+  const token =
+    typeof window !== "undefined"
+      ? localStorage.getItem("token")
+      : null;
+
+  return fetch(`${API}${endpoint}`, {
+    ...options,
     headers: {
       "Content-Type": "application/json",
-      ...(token && { Authorization: `Bearer ${token}` }),
-    },
-    body: body ? JSON.stringify(body) : undefined,
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(options.headers || {})
+    }
   });
-
-  if (!res.ok) throw new Error("API Error");
-
-  return res.json();
 }
