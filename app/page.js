@@ -1,69 +1,112 @@
+"use client";
+
 export default function Home() {
   return (
-    <main style={{ minHeight: "100vh", backgroundColor: "#fdf6ec" }}>
+    <main
+      style={{
+        minHeight: "100vh",
+        margin: 0,
+        padding: 0,
+        fontFamily: "'Georgia', serif",
+        backgroundColor: "#f4efe6",
+        backgroundImage:
+          "url('https://images.unsplash.com/photo-1603046891744-7610fdb6fb3d')",
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        position: "relative",
+      }}
+    >
+      {/* Overlay */}
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          backgroundColor: "rgba(244, 239, 230, 0.92)",
+          backdropFilter: "blur(2px)",
+        }}
+      />
 
-      <section style={{ textAlign: "center", padding: "80px 20px" }}>
-        <h1 style={{ fontSize: "48px", fontWeight: "bold", marginBottom: "20px" }}>
-          Welcome to Our Store
-        </h1>
-        <p style={{ fontSize: "18px", color: "#555", marginBottom: "30px" }}>
-          Premium Quality Products. Best Prices. Fast Delivery.
-        </p>
-        <button style={{
-          backgroundColor: "black",
-          color: "white",
-          padding: "12px 30px",
-          borderRadius: "30px",
-          border: "none",
-          cursor: "pointer"
-        }}>
-          Shop Now
-        </button>
-      </section>
+      {/* Content */}
+      <div
+        style={{
+          position: "relative",
+          zIndex: 2,
+          minHeight: "100vh",
+        }}
+      >
+        {/* Navbar */}
+        <nav
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            padding: "30px 80px",
+          }}
+        >
+          <img
+            src="/logo.png"
+            alt="Native"
+            style={{ height: "85px" }}
+          />
 
-      <section style={{ padding: "60px 20px", backgroundColor: "white" }}>
-        <h2 style={{ textAlign: "center", fontSize: "32px", marginBottom: "40px" }}>
-          Featured Products
-        </h2>
+          <div style={{ display: "flex", gap: "40px", fontSize: "18px" }}>
+            <span style={{ cursor: "pointer" }}>Home</span>
+            <span style={{ cursor: "pointer" }}>Products</span>
+            <span style={{ cursor: "pointer" }}>About</span>
+            <span style={{ cursor: "pointer" }}>Contact</span>
+          </div>
+        </nav>
 
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
-          gap: "20px"
-        }}>
-          {[1,2,3].map((item) => (
-            <div key={item} style={{
-              border: "1px solid #ddd",
-              padding: "20px",
-              borderRadius: "10px",
-              textAlign: "center"
-            }}>
-              <h3>Product {item}</h3>
-              <p style={{ color: "#777" }}>₹{item * 500}</p>
-              <button style={{
-                backgroundColor: "black",
-                color: "white",
-                padding: "8px 20px",
-                borderRadius: "6px",
-                border: "none",
-                cursor: "pointer"
-              }}>
-                View
-              </button>
-            </div>
-          ))}
-        </div>
-      </section>
+        {/* Hero Section */}
+        <section
+          style={{
+            textAlign: "center",
+            paddingTop: "120px",
+            maxWidth: "900px",
+            margin: "0 auto",
+          }}
+        >
+          <h1
+            style={{
+              fontSize: "70px",
+              marginBottom: "25px",
+              fontWeight: "normal",
+              color: "#3a2a1c",
+            }}
+          >
+            Welcome to Native
+          </h1>
 
-      <footer style={{
-        backgroundColor: "black",
-        color: "white",
-        textAlign: "center",
-        padding: "20px"
-      }}>
-        © 2026 Native. All rights reserved.
-      </footer>
+          <p
+            style={{
+              fontSize: "22px",
+              lineHeight: "1.8",
+              marginBottom: "50px",
+              color: "#5c4634",
+            }}
+          >
+            Eat Healthy, Stay Healthy.  
+            Authentic Indian products refined from the source —
+            crafted with purity, tradition and trust.
+          </p>
 
+          <button
+            style={{
+              padding: "16px 55px",
+              fontSize: "18px",
+              borderRadius: "50px",
+              border: "2px solid #c28b45",
+              backgroundColor: "#c28b45",
+              color: "#fff",
+              cursor: "pointer",
+              letterSpacing: "1px",
+              boxShadow: "0 8px 20px rgba(0,0,0,0.1)",
+            }}
+          >
+            Explore Products
+          </button>
+        </section>
+      </div>
     </main>
   );
 }
