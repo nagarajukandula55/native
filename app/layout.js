@@ -1,5 +1,3 @@
-import "./globals.css";
-
 export const metadata = {
   title: "Native | Authentic Indian Products",
   description: "Premium Indian traditional products.",
