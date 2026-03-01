@@ -1,112 +1,58 @@
-"use client";
-
 export default function Home() {
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        margin: 0,
-        padding: 0,
-        fontFamily: "'Georgia', serif",
-        backgroundColor: "#f4efe6",
-        backgroundImage:
-          "url('https://images.unsplash.com/photo-1603046891744-7610fdb6fb3d')",
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        position: "relative",
-      }}
-    >
-      {/* Overlay */}
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          backgroundColor: "rgba(244, 239, 230, 0.92)",
-          backdropFilter: "blur(2px)",
-        }}
-      />
+    <main className="min-h-screen bg-[#fdf6ec]">
 
-      {/* Content */}
-      <div
-        style={{
-          position: "relative",
-          zIndex: 2,
-          minHeight: "100vh",
-        }}
-      >
-        {/* Navbar */}
-        <nav
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            padding: "30px 80px",
-          }}
-        >
-          <img
-            src="/logo.png"
-            alt="Native"
-            style={{ height: "85px" }}
-          />
+      {/* HERO SECTION */}
+      <section className="text-center py-20 px-6">
+        <h1 className="text-5xl font-bold mb-6">
+          Welcome to Our Store
+        </h1>
+        <p className="text-lg text-gray-600 mb-8">
+          Premium Quality Products. Best Prices. Fast Delivery.
+        </p>
+        <button className="bg-black text-white px-8 py-3 rounded-full hover:bg-gray-800 transition">
+          Shop Now
+        </button>
+      </section>
 
-          <div style={{ display: "flex", gap: "40px", fontSize: "18px" }}>
-            <span style={{ cursor: "pointer" }}>Home</span>
-            <span style={{ cursor: "pointer" }}>Products</span>
-            <span style={{ cursor: "pointer" }}>About</span>
-            <span style={{ cursor: "pointer" }}>Contact</span>
+      {/* FEATURED PRODUCTS */}
+      <section className="px-6 py-16 bg-white">
+        <h2 className="text-3xl font-semibold text-center mb-10">
+          Featured Products
+        </h2>
+
+        <div className="grid md:grid-cols-3 gap-8">
+          <div className="border p-6 rounded-lg text-center shadow-sm hover:shadow-md transition">
+            <h3 className="text-xl font-medium mb-2">Product 1</h3>
+            <p className="text-gray-500 mb-4">₹999</p>
+            <button className="bg-black text-white px-4 py-2 rounded">
+              View
+            </button>
           </div>
-        </nav>
 
-        {/* Hero Section */}
-        <section
-          style={{
-            textAlign: "center",
-            paddingTop: "120px",
-            maxWidth: "900px",
-            margin: "0 auto",
-          }}
-        >
-          <h1
-            style={{
-              fontSize: "70px",
-              marginBottom: "25px",
-              fontWeight: "normal",
-              color: "#3a2a1c",
-            }}
-          >
-            Welcome to Native
-          </h1>
+          <div className="border p-6 rounded-lg text-center shadow-sm hover:shadow-md transition">
+            <h3 className="text-xl font-medium mb-2">Product 2</h3>
+            <p className="text-gray-500 mb-4">₹1499</p>
+            <button className="bg-black text-white px-4 py-2 rounded">
+              View
+            </button>
+          </div>
 
-          <p
-            style={{
-              fontSize: "22px",
-              lineHeight: "1.8",
-              marginBottom: "50px",
-              color: "#5c4634",
-            }}
-          >
-            Eat Healthy, Stay Healthy.  
-            Authentic Indian products refined from the source —
-            crafted with purity, tradition and trust.
-          </p>
+          <div className="border p-6 rounded-lg text-center shadow-sm hover:shadow-md transition">
+            <h3 className="text-xl font-medium mb-2">Product 3</h3>
+            <p className="text-gray-500 mb-4">₹1999</p>
+            <button className="bg-black text-white px-4 py-2 rounded">
+              View
+            </button>
+          </div>
+        </div>
+      </section>
 
-          <button
-            style={{
-              padding: "16px 55px",
-              fontSize: "18px",
-              borderRadius: "50px",
-              border: "2px solid #c28b45",
-              backgroundColor: "#c28b45",
-              color: "#fff",
-              cursor: "pointer",
-              letterSpacing: "1px",
-              boxShadow: "0 8px 20px rgba(0,0,0,0.1)",
-            }}
-          >
-            Explore Products
-          </button>
-        </section>
-      </div>
+      {/* FOOTER */}
+      <footer className="bg-black text-white text-center py-6">
+        © 2026 Your Brand. All rights reserved.
+      </footer>
+
     </main>
   );
 }
