@@ -1,24 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
-
 export default function Home() {
-  const [isDark, setIsDark] = useState(false);
-
-  useEffect(() => {
-    const hour = new Date().getHours();
-    setIsDark(hour >= 18 || hour < 6);
-  }, []);
-
   return (
     <main
       style={{
         minHeight: "100vh",
-        backgroundColor: "#3b2a1d",
-        backgroundImage:
-          "radial-gradient(circle at center, rgba(90,60,30,0.6), rgba(30,20,10,0.95))",
-        color: "#f5e6cc",
+        backgroundColor: "#f6f1e7",
         fontFamily: "'Georgia', serif",
+        color: "#3b2a1d",
       }}
     >
       {/* Navbar */}
@@ -27,12 +16,13 @@ export default function Home() {
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          padding: "20px 60px",
+          padding: "30px 80px",
+          backgroundColor: "transparent",
         }}
       >
-        <img src="/logo.png" alt="Native Logo" style={{ height: "60px" }} />
+        <img src="/logo.png" alt="Native" style={{ height: "70px" }} />
 
-        <div style={{ display: "flex", gap: "30px", fontSize: "18px" }}>
+        <div style={{ display: "flex", gap: "40px", fontSize: "18px" }}>
           <span style={{ cursor: "pointer" }}>Home</span>
           <span style={{ cursor: "pointer" }}>Products</span>
           <span style={{ cursor: "pointer" }}>About</span>
@@ -41,18 +31,19 @@ export default function Home() {
       </nav>
 
       {/* Hero Section */}
-      <div
+      <section
         style={{
           textAlign: "center",
-          marginTop: "100px",
-          padding: "0 20px",
+          padding: "120px 20px",
+          maxWidth: "1000px",
+          margin: "0 auto",
         }}
       >
         <h1
           style={{
             fontSize: "64px",
-            marginBottom: "20px",
-            letterSpacing: "2px",
+            marginBottom: "30px",
+            fontWeight: "normal",
           }}
         >
           Welcome to Native
@@ -61,30 +52,31 @@ export default function Home() {
         <p
           style={{
             fontSize: "22px",
-            maxWidth: "700px",
-            margin: "0 auto 40px",
-            lineHeight: "1.6",
+            lineHeight: "1.8",
+            marginBottom: "50px",
+            color: "#5a4634",
           }}
         >
           Eat Healthy, Stay Healthy.  
-          Refined from the source. Crafted with purity, tradition and trust.
+          Authentic Indian products refined from the source —
+          crafted with purity, tradition and trust.
         </p>
 
         <button
           style={{
-            padding: "14px 40px",
+            padding: "16px 50px",
             fontSize: "18px",
-            borderRadius: "30px",
-            border: "none",
+            borderRadius: "50px",
+            border: "2px solid #c28b45",
+            backgroundColor: "transparent",
+            color: "#c28b45",
             cursor: "pointer",
-            backgroundColor: "#c28b45",
-            color: "#3b2a1d",
-            fontWeight: "bold",
+            letterSpacing: "1px",
           }}
         >
           Explore Products
         </button>
-      </div>
+      </section>
     </main>
   );
 }
