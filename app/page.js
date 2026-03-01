@@ -1,56 +1,67 @@
 export default function Home() {
   return (
-    <main className="min-h-screen bg-[#fdf6ec]">
+    <main style={{ minHeight: "100vh", backgroundColor: "#fdf6ec" }}>
 
-      {/* HERO SECTION */}
-      <section className="text-center py-20 px-6">
-        <h1 className="text-5xl font-bold mb-6">
+      <section style={{ textAlign: "center", padding: "80px 20px" }}>
+        <h1 style={{ fontSize: "48px", fontWeight: "bold", marginBottom: "20px" }}>
           Welcome to Our Store
         </h1>
-        <p className="text-lg text-gray-600 mb-8">
+        <p style={{ fontSize: "18px", color: "#555", marginBottom: "30px" }}>
           Premium Quality Products. Best Prices. Fast Delivery.
         </p>
-        <button className="bg-black text-white px-8 py-3 rounded-full hover:bg-gray-800 transition">
+        <button style={{
+          backgroundColor: "black",
+          color: "white",
+          padding: "12px 30px",
+          borderRadius: "30px",
+          border: "none",
+          cursor: "pointer"
+        }}>
           Shop Now
         </button>
       </section>
 
-      {/* FEATURED PRODUCTS */}
-      <section className="px-6 py-16 bg-white">
-        <h2 className="text-3xl font-semibold text-center mb-10">
+      <section style={{ padding: "60px 20px", backgroundColor: "white" }}>
+        <h2 style={{ textAlign: "center", fontSize: "32px", marginBottom: "40px" }}>
           Featured Products
         </h2>
 
-        <div className="grid md:grid-cols-3 gap-8">
-          <div className="border p-6 rounded-lg text-center shadow-sm hover:shadow-md transition">
-            <h3 className="text-xl font-medium mb-2">Product 1</h3>
-            <p className="text-gray-500 mb-4">₹999</p>
-            <button className="bg-black text-white px-4 py-2 rounded">
-              View
-            </button>
-          </div>
-
-          <div className="border p-6 rounded-lg text-center shadow-sm hover:shadow-md transition">
-            <h3 className="text-xl font-medium mb-2">Product 2</h3>
-            <p className="text-gray-500 mb-4">₹1499</p>
-            <button className="bg-black text-white px-4 py-2 rounded">
-              View
-            </button>
-          </div>
-
-          <div className="border p-6 rounded-lg text-center shadow-sm hover:shadow-md transition">
-            <h3 className="text-xl font-medium mb-2">Product 3</h3>
-            <p className="text-gray-500 mb-4">₹1999</p>
-            <button className="bg-black text-white px-4 py-2 rounded">
-              View
-            </button>
-          </div>
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
+          gap: "20px"
+        }}>
+          {[1,2,3].map((item) => (
+            <div key={item} style={{
+              border: "1px solid #ddd",
+              padding: "20px",
+              borderRadius: "10px",
+              textAlign: "center"
+            }}>
+              <h3>Product {item}</h3>
+              <p style={{ color: "#777" }}>₹{item * 500}</p>
+              <button style={{
+                backgroundColor: "black",
+                color: "white",
+                padding: "8px 20px",
+                borderRadius: "6px",
+                border: "none",
+                cursor: "pointer"
+              }}>
+                View
+              </button>
+            </div>
+          ))}
         </div>
       </section>
 
-      {/* FOOTER */}
-      <footer className="bg-black text-white text-center py-6">
-        © 2026 Your Brand. All rights reserved.
+      <footer style={{
+        backgroundColor: "black",
+        color: "white",
+        textAlign: "center",
+        padding: "20px"
+      }}>
+        © 2026 Native. All rights reserved.
       </footer>
 
     </main>
