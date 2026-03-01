@@ -7,52 +7,50 @@ export default function Home() {
 
   useEffect(() => {
     const hour = new Date().getHours();
-    if (hour >= 18 || hour < 6) {
-      setIsDark(true);
-    } else {
-      setIsDark(false);
-    }
+    setIsDark(hour >= 18 || hour < 6);
   }, []);
 
   return (
     <main
       style={{
         minHeight: "100vh",
+        backgroundColor: "#3b2a1d",
         backgroundImage:
-          "url('https://images.unsplash.com/photo-1506806732259-39c2d0268443')",
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        position: "relative",
+          "radial-gradient(circle at center, rgba(90,60,30,0.6), rgba(30,20,10,0.95))",
+        color: "#f5e6cc",
         fontFamily: "'Georgia', serif",
       }}
     >
-      <div
+      {/* Navbar */}
+      <nav
         style={{
-          position: "absolute",
-          inset: 0,
-          backgroundColor: isDark
-            ? "rgba(40, 25, 10, 0.85)"
-            : "rgba(255, 248, 235, 0.85)",
-        }}
-      />
-
-      <div
-        style={{
-          position: "relative",
-          zIndex: 2,
-          height: "100vh",
           display: "flex",
-          flexDirection: "column",
+          justifyContent: "space-between",
           alignItems: "center",
-          justifyContent: "center",
+          padding: "20px 60px",
+        }}
+      >
+        <img src="/logo.png" alt="Native Logo" style={{ height: "60px" }} />
+
+        <div style={{ display: "flex", gap: "30px", fontSize: "18px" }}>
+          <span style={{ cursor: "pointer" }}>Home</span>
+          <span style={{ cursor: "pointer" }}>Products</span>
+          <span style={{ cursor: "pointer" }}>About</span>
+          <span style={{ cursor: "pointer" }}>Contact</span>
+        </div>
+      </nav>
+
+      {/* Hero Section */}
+      <div
+        style={{
           textAlign: "center",
-          color: isDark ? "#f5f5dc" : "#3e2c1c",
-          padding: "20px",
+          marginTop: "100px",
+          padding: "0 20px",
         }}
       >
         <h1
           style={{
-            fontSize: "60px",
+            fontSize: "64px",
             marginBottom: "20px",
             letterSpacing: "2px",
           }}
@@ -63,24 +61,25 @@ export default function Home() {
         <p
           style={{
             fontSize: "22px",
-            maxWidth: "600px",
-            marginBottom: "30px",
+            maxWidth: "700px",
+            margin: "0 auto 40px",
+            lineHeight: "1.6",
           }}
         >
-          Refined from the source. Authentic Indian products crafted with purity,
-          tradition and trust.
+          Eat Healthy, Stay Healthy.  
+          Refined from the source. Crafted with purity, tradition and trust.
         </p>
 
         <button
           style={{
-            padding: "14px 32px",
+            padding: "14px 40px",
             fontSize: "18px",
             borderRadius: "30px",
             border: "none",
             cursor: "pointer",
-            backgroundColor: "#8b5e3c",
-            color: "#fff",
-            transition: "0.3s",
+            backgroundColor: "#c28b45",
+            color: "#3b2a1d",
+            fontWeight: "bold",
           }}
         >
           Explore Products
