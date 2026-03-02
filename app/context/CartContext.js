@@ -38,5 +38,3 @@ export function CartProvider({ children }) {
 }
 
 export const useCart = () => useContext(CartContext);
-
-this is mhy current cartcontext.js
