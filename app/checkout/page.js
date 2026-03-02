@@ -48,38 +48,36 @@ export default function CheckoutPage() {
     });
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  setLoading(true);
 
-    setLoading(true);
+  try {
+    const response = await fetch("/api/orders", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        customer: formData,
+        items: cart,
+      }),
+    });
 
-    try {
-      const response = await fetch("/api/orders", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          customer: formData,
-          items: cart,
-        }),
-      });
+    const data = await response.json();
 
-      const data = await response.json();
-
-      if (response.ok) {
-        alert(`Order Created Successfully! Order ID: ${data.orderId}`);
-        clearCart();
-        router.push("/");
-      } else {
-        alert(data.message || "Something went wrong");
-      }
-    } catch (error) {
-      alert("Server error. Try again.");
+    if (response.ok) {
+      clearCart();
+      router.push(`/order-success?orderId=${data.orderId}`);
+    } else {
+      alert(data.message || "Something went wrong");
     }
+  } catch (error) {
+    alert("Server error. Try again.");
+  }
 
-    setLoading(false);
-  };
+  setLoading(false);
+};
 
   return (
     <div style={{ padding: "80px 60px", minHeight: "100vh" }}>
