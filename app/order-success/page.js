@@ -2,13 +2,10 @@
 
 import { useSearchParams, useRouter } from "next/navigation";
 
-// Prevent Next.js from prerendering this page
-export const dynamic = "force-dynamic";
-
 export default function OrderSuccessPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const orderId = searchParams.get("orderId") || "N/A";
+  const orderId = searchParams.get("orderId") || "N/A"; // fallback if missing
 
   return (
     <div
@@ -20,31 +17,26 @@ export default function OrderSuccessPage() {
         backgroundColor: "#f4efe6",
       }}
     >
-      <h1
-        style={{
-          fontSize: "40px",
-          color: "#2e7d32",
-          marginBottom: "20px",
-        }}
-      >
+      <h1 style={{ fontSize: "40px", color: "#2e7d32", marginBottom: "20px" }}>
         🎉 Order Placed Successfully!
       </h1>
 
-      <p style={{ fontSize: "18px", marginBottom: "10px" }}>
+      <p style={{ marginTop: "20px", fontSize: "18px", color: "#3a2a1c" }}>
         Your Order ID:
       </p>
 
-      <h2 style={{ color: "#c28b45", fontSize: "28px", marginBottom: "30px" }}>
+      <h2 style={{ marginTop: "10px", color: "#c28b45", fontSize: "28px" }}>
         {orderId}
       </h2>
 
-      <p style={{ fontSize: "16px", marginBottom: "40px" }}>
+      <p style={{ marginTop: "30px", fontSize: "16px", color: "#5c4634" }}>
         We will contact you shortly regarding payment and delivery.
       </p>
 
       <button
         onClick={() => router.push("/")}
         style={{
+          marginTop: "40px",
           padding: "12px 30px",
           borderRadius: "25px",
           border: "none",
