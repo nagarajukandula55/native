@@ -1,6 +1,11 @@
+"use client";
+
 import Link from "next/link";
+import { useCart } from "../context/CartContext";
 
 export default function Products() {
+  const { addToCart } = useCart();
+
   const products = [
     {
       id: "1",
@@ -83,6 +88,24 @@ export default function Products() {
               >
                 ₹{product.price}
               </p>
+
+              {/* Add to Cart Button */}
+              <button
+                onClick={() => addToCart(product)}
+                style={{
+                  padding: "10px 25px",
+                  borderRadius: "25px",
+                  backgroundColor: "#8b5e3c",
+                  color: "#fff",
+                  border: "none",
+                  cursor: "pointer",
+                  marginBottom: "15px",
+                }}
+              >
+                Add to Cart
+              </button>
+
+              <br />
 
               <Link
                 href={`/products/${product.id}`}
