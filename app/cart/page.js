@@ -1,9 +1,12 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useCart } from "../context/CartContext";
 
 export default function CartPage() {
-  const { cart } = useCart();
+  const cartContext = useCart();
+  const cart = cartContext?.cart || [];
 
   const total = cart.reduce((sum, item) => sum + item.price, 0);
 
@@ -13,9 +16,7 @@ Hello Native Team,
 
 I would like to place an order:
 
-${cart
-  .map((item) => `• ${item.name} - ₹${item.price}`)
-  .join("\n")}
+${cart.map((item) => `• ${item.name} - ₹${item.price}`).join("\n")}
 
 Total: ₹${total}
 
@@ -53,7 +54,6 @@ Please assist with the payment process.
           <h2 style={{ marginTop: "30px" }}>Total: ₹{total}</h2>
 
           <div style={{ marginTop: "40px", display: "flex", gap: "20px" }}>
-            {/* Future Payment Button */}
             <button
               style={{
                 padding: "12px 30px",
@@ -67,7 +67,6 @@ Please assist with the payment process.
               Proceed to Payment
             </button>
 
-            {/* WhatsApp Button */}
             <a
               href={generateWhatsAppLink()}
               target="_blank"
