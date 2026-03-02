@@ -34,15 +34,6 @@ export default function Home() {
           minHeight: "100vh",
         }}
       >
-        {/* Navbar */}
-        <nav
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            padding: "30px 80px",
-          }}
-        >
           <img
             src="/logo.png"
             alt="Native"
