@@ -4,8 +4,6 @@ export const metadata = {
   description: "Premium Indian traditional products.",
 };
 
-import { CartProvider } from "./context/CartContext"; // ✅ Correct Named Import
-
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
