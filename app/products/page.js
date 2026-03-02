@@ -1,13 +1,103 @@
 export default function Products() {
+  const products = [
+    {
+      id: 1,
+      name: "A2 Desi Cow Ghee",
+      price: 1299,
+      image: "https://images.unsplash.com/photo-1585238342028-4e7c17a94c1a",
+    },
+    {
+      id: 2,
+      name: "Cold Pressed Groundnut Oil",
+      price: 899,
+      image: "https://images.unsplash.com/photo-1601050690597-df0568f70950",
+    },
+    {
+      id: 3,
+      name: "Organic Turmeric Powder",
+      price: 499,
+      image: "https://images.unsplash.com/photo-1615485925600-97237c4fc1ec",
+    },
+  ];
+
   return (
-    <div style={{ padding: "100px 60px", fontFamily: "Georgia, serif" }}>
-      <h1 style={{ fontSize: "48px", marginBottom: "30px" }}>
+    <div
+      style={{
+        padding: "80px 60px",
+        backgroundColor: "#f4efe6",
+        minHeight: "100vh",
+      }}
+    >
+      <h1
+        style={{
+          fontSize: "48px",
+          marginBottom: "60px",
+          textAlign: "center",
+          color: "#3a2a1c",
+        }}
+      >
         Our Products
       </h1>
 
-      <p style={{ fontSize: "20px", color: "#5c4634" }}>
-        Product listing will appear here.
-      </p>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+          gap: "40px",
+        }}
+      >
+        {products.map((product) => (
+          <div
+            key={product.id}
+            style={{
+              backgroundColor: "#fff",
+              borderRadius: "15px",
+              overflow: "hidden",
+              boxShadow: "0 10px 25px rgba(0,0,0,0.08)",
+              textAlign: "center",
+            }}
+          >
+            <img
+              src={product.image}
+              alt={product.name}
+              style={{
+                width: "100%",
+                height: "250px",
+                objectFit: "cover",
+              }}
+            />
+
+            <div style={{ padding: "25px" }}>
+              <h2 style={{ fontSize: "22px", marginBottom: "10px" }}>
+                {product.name}
+              </h2>
+
+              <p
+                style={{
+                  fontSize: "18px",
+                  color: "#7a5c3e",
+                  marginBottom: "20px",
+                }}
+              >
+                ₹{product.price}
+              </p>
+
+              <button
+                style={{
+                  padding: "10px 25px",
+                  borderRadius: "25px",
+                  border: "none",
+                  backgroundColor: "#c28b45",
+                  color: "#fff",
+                  cursor: "pointer",
+                }}
+              >
+                View Product
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
