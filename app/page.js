@@ -51,7 +51,9 @@ export default function Home() {
 
           <div style={{ display: "flex", gap: "40px", fontSize: "18px" }}>
             <span style={{ cursor: "pointer" }}>Home</span>
-            <span style={{ cursor: "pointer" }}>Products</span>
+            <a href="/products" style={{ cursor: "pointer", textDecoration: "none", color: "inherit" }}>
+  Products
+</a>
             <span style={{ cursor: "pointer" }}>About</span>
             <span style={{ cursor: "pointer" }}>Contact</span>
           </div>
