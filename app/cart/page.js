@@ -4,13 +4,16 @@ import { useCart } from "../context/CartContext";
 import { useRouter } from "next/navigation";
 
 export default function CartPage() {
-  const { cart, removeFromCart } = useCart();
-  const router = useRouter();
+  const {
+    cart,
+    removeFromCart,
+    increaseQuantity,
+    decreaseQuantity,
+    clearCart,
+    cartTotal,
+  } = useCart();
 
-  const total = cart.reduce(
-    (sum, item) => sum + item.price * item.quantity,
-    0
-  );
+  const router = useRouter();
 
   const generateWhatsAppLink = () => {
     const message = `
@@ -27,7 +30,7 @@ ${cart
   )
   .join("\n")}
 
-Total: ₹${total}
+Total: ₹${cartTotal}
 
 Please assist with the payment process.
     `;
@@ -58,9 +61,41 @@ Please assist with the payment process.
               }}
             >
               <h3>{item.name}</h3>
+
               <p>Price: ₹{item.price}</p>
-              <p>Quantity: {item.quantity}</p>
-              <p>
+
+              {/* Quantity Controls */}
+              <div style={{ display: "flex", alignItems: "center", gap: "10px", marginTop: "10px" }}>
+                <button
+                  onClick={() => decreaseQuantity(item.id)}
+                  style={{
+                    padding: "5px 10px",
+                    borderRadius: "5px",
+                    border: "1px solid #ccc",
+                    cursor: "pointer",
+                  }}
+                >
+                  −
+                </button>
+
+                <span style={{ fontSize: "16px", minWidth: "20px", textAlign: "center" }}>
+                  {item.quantity}
+                </span>
+
+                <button
+                  onClick={() => increaseQuantity(item.id)}
+                  style={{
+                    padding: "5px 10px",
+                    borderRadius: "5px",
+                    border: "1px solid #ccc",
+                    cursor: "pointer",
+                  }}
+                >
+                  +
+                </button>
+              </div>
+
+              <p style={{ marginTop: "10px" }}>
                 Item Total: ₹{item.price * item.quantity}
               </p>
 
@@ -81,9 +116,24 @@ Please assist with the payment process.
             </div>
           ))}
 
-          <h2 style={{ marginTop: "30px" }}>Total: ₹{total}</h2>
+          <h2 style={{ marginTop: "30px" }}>Total: ₹{cartTotal}</h2>
 
-          <div style={{ marginTop: "40px", display: "flex", gap: "20px" }}>
+          <div style={{ marginTop: "20px" }}>
+            <button
+              onClick={clearCart}
+              style={{
+                padding: "8px 20px",
+                borderRadius: "20px",
+                border: "1px solid #ccc",
+                backgroundColor: "#f5f5f5",
+                cursor: "pointer",
+              }}
+            >
+              Clear Cart
+            </button>
+          </div>
+
+          <div style={{ marginTop: "40px", display: "flex", gap: "20px", flexWrap: "wrap" }}>
             <button
               onClick={() => router.push("/checkout")}
               style={{
@@ -95,7 +145,7 @@ Please assist with the payment process.
                 cursor: "pointer",
               }}
             >
-              Proceed to Payment
+              Proceed to Checkout
             </button>
 
             <a
