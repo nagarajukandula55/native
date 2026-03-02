@@ -90,13 +90,15 @@ export default function Products() {
               </p>
 
               {/* Add to Cart Button */}
-              <button
-                onClick={() => {
-                  alert("Button Clicked");
-                }}
-              >
-                Add to Cart
-              </button>
+                <button
+                  onClick={() => {
+                    alert("Clicked");
+                    addToCart(product);
+                    console.log("Added:", product);
+                  }}
+                >
+                  Add to Cart
+                </button>
 
               <br />
 
