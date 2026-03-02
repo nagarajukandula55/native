@@ -1,3 +1,4 @@
+import Link from "next/link";
 export const metadata = {
   title: "Native | Authentic Indian Products",
   description: "Premium Indian traditional products.",
@@ -45,11 +46,11 @@ export default function RootLayout({ children }) {
                 alignItems: "center",
               }}
             >
-              <a href="/" style={linkStyle}>Home</a>
-              <a href="/products" style={linkStyle}>Products</a>
-              <a href="/about" style={linkStyle}>About</a>
-              <a href="/contact" style={linkStyle}>Contact</a>
-              <a href="/cart" style={cartStyle}>Cart 🛒</a>
+              <Link href="/" style={linkStyle}>Home</Link>
+              <Link href="/products" style={linkStyle}>Products</Link>
+              <Link href="/about" style={linkStyle}>About</Link>
+              <Link href="/contact" style={linkStyle}>Contact</Link>
+              <Link href="/cart" style={cartStyle}>Cart 🛒</Link>
             </div>
           </nav>
 
