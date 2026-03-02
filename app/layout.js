@@ -3,7 +3,7 @@ export const metadata = {
   description: "Premium Indian traditional products.",
 };
 
-import CartProvider from "./context/CartContext";
+import { CartProvider } from "./context/CartContext"; // ✅ Correct Named Import
 
 export default function RootLayout({ children }) {
   return (
@@ -28,7 +28,6 @@ export default function RootLayout({ children }) {
               borderBottom: "1px solid #e5dccf",
             }}
           >
-            {/* Logo */}
             <a href="/" style={{ textDecoration: "none" }}>
               <img
                 src="/logo.png"
@@ -37,7 +36,6 @@ export default function RootLayout({ children }) {
               />
             </a>
 
-            {/* Navigation Links */}
             <div
               style={{
                 display: "flex",
@@ -55,17 +53,10 @@ export default function RootLayout({ children }) {
             </div>
           </nav>
 
-          {/* Page Content */}
-          <main
-            style={{
-              minHeight: "80vh",
-              padding: "60px 80px",
-            }}
-          >
+          <main style={{ minHeight: "80vh", padding: "60px 80px" }}>
             {children}
           </main>
 
-          {/* Footer */}
           <footer
             style={{
               backgroundColor: "#f4efe6",
