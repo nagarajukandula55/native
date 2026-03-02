@@ -1,19 +1,21 @@
+import Link from "next/link";
+
 export default function Products() {
   const products = [
     {
-      id: 1,
+      id: "1",
       name: "A2 Desi Cow Ghee",
       price: 1299,
       image: "https://images.unsplash.com/photo-1585238342028-4e7c17a94c1a",
     },
     {
-      id: 2,
+      id: "2",
       name: "Cold Pressed Groundnut Oil",
       price: 899,
       image: "https://images.unsplash.com/photo-1601050690597-df0568f70950",
     },
     {
-      id: 3,
+      id: "3",
       name: "Organic Turmeric Powder",
       price: 499,
       image: "https://images.unsplash.com/photo-1615485925600-97237c4fc1ec",
@@ -82,18 +84,19 @@ export default function Products() {
                 ₹{product.price}
               </p>
 
-              <button
+              <Link
+                href={`/products/${product.id}`}
                 style={{
                   padding: "10px 25px",
                   borderRadius: "25px",
-                  border: "none",
                   backgroundColor: "#c28b45",
                   color: "#fff",
-                  cursor: "pointer",
+                  textDecoration: "none",
+                  display: "inline-block",
                 }}
               >
                 View Product
-              </button>
+              </Link>
             </div>
           </div>
         ))}
