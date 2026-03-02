@@ -91,15 +91,8 @@ export default function Products() {
 
               {/* Add to Cart Button */}
               <button
-                onClick={() => addToCart(product)}
-                style={{
-                  padding: "10px 25px",
-                  borderRadius: "25px",
-                  backgroundColor: "#8b5e3c",
-                  color: "#fff",
-                  border: "none",
-                  cursor: "pointer",
-                  marginBottom: "15px",
+                onClick={() => {
+                  alert("Button Clicked");
                 }}
               >
                 Add to Cart
