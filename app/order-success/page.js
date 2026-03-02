@@ -2,10 +2,13 @@
 
 import { useSearchParams, useRouter } from "next/navigation";
 
+// Prevent Next.js from prerendering this page
+export const dynamic = "force-dynamic";
+
 export default function OrderSuccessPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const orderId = searchParams.get("orderId") || "N/A"; // fallback if missing
+  const orderId = searchParams.get("orderId") || "N/A";
 
   return (
     <div
