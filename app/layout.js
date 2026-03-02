@@ -1,47 +1,42 @@
-"use client";
+import { CartProvider } from "./context/CartContext";
+import Navbar from "./components/Navbar";
 
-import Link from "next/link";
-import { useCart } from "./context/CartContext";
+export const metadata = {
+  title: "Native | Authentic Indian Products",
+  description: "Premium Indian traditional products.",
+};
 
-export default function Navbar() {
-  const { cart } = useCart();
-
-  const totalItems = cart.reduce(
-    (sum, item) => sum + item.quantity,
-    0
-  );
-
+export default function RootLayout({ children }) {
   return (
-    <nav
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        padding: "25px 80px",
-        backgroundColor: "#f4efe6",
-      }}
-    >
-      <Link href="/">
-        <img src="/logo.png" alt="Native" style={{ height: "75px" }} />
-      </Link>
+    <html lang="en">
+      <body
+        style={{
+          margin: 0,
+          fontFamily: "'Georgia', serif",
+          backgroundColor: "#fffdf9",
+          color: "#3a2a1c",
+        }}
+      >
+        <CartProvider>
+          <Navbar />
 
-      <div style={{ display: "flex", gap: "40px" }}>
-        <Link href="/">Home</Link>
-        <Link href="/products">Products</Link>
-        <Link href="/about">About</Link>
-        <Link href="/contact">Contact</Link>
+          <main style={{ minHeight: "80vh", padding: "60px 80px" }}>
+            {children}
+          </main>
 
-        <Link
-          href="/cart"
-          style={{
-            background: "#8b5e3c",
-            color: "#fff",
-            padding: "8px 18px",
-            borderRadius: "6px",
-          }}
-        >
-          Cart 🛒 ({totalItems})
-        </Link>
-      </div>
-    </nav>
+          <footer
+            style={{
+              backgroundColor: "#f4efe6",
+              textAlign: "center",
+              padding: "30px",
+              fontSize: "14px",
+              borderTop: "1px solid #e5dccf",
+            }}
+          >
+            © {new Date().getFullYear()} Native. All Rights Reserved.
+          </footer>
+        </CartProvider>
+      </body>
+    </html>
   );
 }
