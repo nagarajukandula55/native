@@ -25,3 +25,10 @@ export async function deleteProduct(id) {
   const db = client.db("native");
   return db.collection("products").deleteOne({ _id: new ObjectId(id) });
 }
+export async function addProduct(product) {
+  const client = await clientPromise;
+  const db = client.db("native");
+  // Add description default empty string if missing
+  const newProduct = { ...product, description: product.description || "" };
+  return db.collection("products").insertOne(newProduct);
+}
