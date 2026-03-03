@@ -1,8 +1,27 @@
-import mongoose from "mongoose";
+import clientPromise from "@/lib/mongodb";
 
-const ProductSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  price: { type: Number, required: true },
-});
+export async function getProducts() {
+  const client = await clientPromise;
+  const db = client.db("native"); // Database name
+  return db.collection("products").find({}).toArray();
+}
 
-export default mongoose.models.Product || mongoose.model("Product", ProductSchema);
+export async function addProduct(product) {
+  const client = await clientPromise;
+  const db = client.db("native");
+  return db.collection("products").insertOne(product);
+}
+
+export async function updateProduct(id, updatedFields) {
+  const client = await clientPromise;
+  const db = client.db("native");
+  return db
+    .collection("products")
+    .updateOne({ _id: new ObjectId(id) }, { $set: updatedFields });
+}
+
+export async function deleteProduct(id) {
+  const client = await clientPromise;
+  const db = client.db("native");
+  return db.collection("products").deleteOne({ _id: new ObjectId(id) });
+}
