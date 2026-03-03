@@ -1,30 +1,26 @@
 "use client";
 
 import { useCart } from "./context/CartContext";
-
-const sampleProducts = [
-  {
-    id: "p1",
-    name: "Handmade Indian Basket",
-    price: 499,
-    image: "/products/basket.jpg",
-  },
-  {
-    id: "p2",
-    name: "Traditional Clay Pot",
-    price: 299,
-    image: "/products/clay-pot.jpg",
-  },
-  {
-    id: "p3",
-    name: "Premium Scented Incense",
-    price: 199,
-    image: "/products/incense.jpg",
-  },
-];
+import { useEffect, useState } from "react";
 
 export default function Home() {
   const { addToCart } = useCart();
+  const [products, setProducts] = useState([]);
+
+  // Fetch products from MongoDB API
+  const fetchProducts = async () => {
+    try {
+      const res = await fetch("/api/admin/products");
+      const data = await res.json();
+      setProducts(data);
+    } catch (error) {
+      console.error("Failed to fetch products:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchProducts();
+  }, []);
 
   return (
     <main
@@ -81,7 +77,7 @@ export default function Home() {
           }}
         >
           Eat Healthy, Stay Healthy.  
-          Authentic Indian products refined from the source —
+          Authentic Indian products refined from the source — 
           crafted with purity, tradition and trust.
         </p>
 
@@ -129,46 +125,59 @@ export default function Home() {
             gap: "30px",
           }}
         >
-          {sampleProducts.map((product) => (
-            <div
-              key={product.id}
-              style={{
-                border: "1px solid #ddd",
-                borderRadius: "10px",
-                padding: "20px",
-                textAlign: "center",
-                backgroundColor: "#fff",
-                boxShadow: "0 4px 10px rgba(0,0,0,0.05)",
-              }}
-            >
-              <img
-                src={product.image}
-                alt={product.name}
+          {products.length === 0 ? (
+            <p style={{ textAlign: "center", gridColumn: "1/-1" }}>
+              No products available.
+            </p>
+          ) : (
+            products.map((product) => (
+              <div
+                key={product._id}
                 style={{
-                  width: "100%",
-                  height: "200px",
-                  objectFit: "cover",
+                  border: "1px solid #ddd",
                   borderRadius: "10px",
-                  marginBottom: "15px",
-                }}
-              />
-              <h3 style={{ marginBottom: "10px" }}>{product.name}</h3>
-              <p style={{ fontWeight: "bold", marginBottom: "15px" }}>₹{product.price}</p>
-              <button
-                onClick={() => addToCart(product)}
-                style={{
-                  padding: "10px 20px",
-                  borderRadius: "25px",
-                  border: "none",
-                  backgroundColor: "#c28b45",
-                  color: "#fff",
-                  cursor: "pointer",
+                  padding: "20px",
+                  textAlign: "center",
+                  backgroundColor: "#fff",
+                  boxShadow: "0 4px 10px rgba(0,0,0,0.05)",
                 }}
               >
-                Add to Cart
-              </button>
-            </div>
-          ))}
+                {product.image && (
+                  <img
+                    src={product.image}
+                    alt={product.name}
+                    style={{
+                      width: "100%",
+                      height: "200px",
+                      objectFit: "cover",
+                      borderRadius: "10px",
+                      marginBottom: "15px",
+                    }}
+                  />
+                )}
+                <h3 style={{ marginBottom: "10px" }}>{product.name}</h3>
+                <p style={{ fontWeight: "bold", marginBottom: "10px" }}>₹{product.price}</p>
+                {product.description && (
+                  <p style={{ marginBottom: "15px", fontSize: "14px", color: "#555" }}>
+                    {product.description}
+                  </p>
+                )}
+                <button
+                  onClick={() => addToCart(product)}
+                  style={{
+                    padding: "10px 20px",
+                    borderRadius: "25px",
+                    border: "none",
+                    backgroundColor: "#c28b45",
+                    color: "#fff",
+                    cursor: "pointer",
+                  }}
+                >
+                  Add to Cart
+                </button>
+              </div>
+            ))
+          )}
         </div>
       </section>
     </main>
