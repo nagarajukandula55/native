@@ -1,26 +1,28 @@
-import { getProducts, addProduct, updateProduct, deleteProduct } from "@/models/Product";
-import { NextResponse } from "next/server";
+"use client";
+import { useEffect, useState } from "react";
+import { useCart } from "../context/CartContext";
 
-export async function GET() {
-  const products = await getProducts();
-  return NextResponse.json(products);
-}
+export default function ProductsPage() {
+  const [products, setProducts] = useState([]);
+  const { addToCart } = useCart();
 
-export async function POST(req) {
-  const product = await req.json();
-  const result = await addProduct(product);
-  return NextResponse.json(result);
-}
+  useEffect(() => {
+    fetch("/api/admin/products")
+      .then((res) => res.json())
+      .then((data) => setProducts(data));
+  }, []);
 
-// For update and delete, use PATCH/DELETE with query param `id`
-export async function PATCH(req) {
-  const { id, ...fields } = await req.json();
-  const result = await updateProduct(id, fields);
-  return NextResponse.json(result);
-}
-
-export async function DELETE(req) {
-  const { id } = await req.json();
-  const result = await deleteProduct(id);
-  return NextResponse.json(result);
+  return (
+    <div style={{ padding: "60px" }}>
+      {products.map((p) => (
+        <div key={p._id} style={{ marginBottom: "20px", border: "1px solid #ddd", padding: "20px" }}>
+          <h3>{p.name}</h3>
+          <p>{p.description}</p>
+          <p>Price: ₹{p.price}</p>
+          {p.image && <img src={p.image} alt={p.name} style={{ width: "120px" }} />}
+          <button onClick={() => addToCart(p)}>Add to Cart</button>
+        </div>
+      ))}
+    </div>
+  );
 }
