@@ -6,8 +6,8 @@ export async function POST(req) {
   const { email, password } = await req.json();
 
   // Dummy admin credentials
-  const adminEmail = process.env.ADMIN_EMAIL;
-  const adminPasswordHash = process.env.ADMIN_PASSWORD_HASH;
+  const adminEmail = process.env.admin@shopnative.in;
+  const adminPasswordHash = process.env.$2a$12$48tMRVzkqKMAoiBW//3pzOKRd967FNmieY95vRZa1jIfpntvnJFSm;
 
   if (!adminEmail || !adminPasswordHash)
     return new Response("Admin credentials not configured", { status: 500 });
