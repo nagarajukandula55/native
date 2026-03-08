@@ -5,23 +5,26 @@ import { useEffect, useState } from "react";
 
 export default function Home() {
   const { addToCart } = useCart();
+
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Fetch products from MongoDB API
   const fetchProducts = async () => {
     try {
-      const res = await fetch("/api/admin/products");
+      const res = await fetch("/api/admin/products", {
+        cache: "no-store",
+      });
+
       const data = await res.json();
 
       console.log("Homepage API:", data);
 
-      // ✅ FIX: ensure products is always an array
-      if (data.success && Array.isArray(data.products)) {
-        setProducts(data.products);
-      } else {
-        setProducts([]);
-      }
+      // Always normalize to array
+      const safeProducts = Array.isArray(data?.products)
+        ? data.products
+        : [];
+
+      setProducts(safeProducts);
 
     } catch (error) {
       console.error("Failed to fetch products:", error);
@@ -58,7 +61,7 @@ export default function Home() {
         }}
       />
 
-      {/* Hero Content */}
+      {/* Hero */}
       <div
         style={{
           position: "relative",
@@ -115,7 +118,7 @@ export default function Home() {
         </button>
       </div>
 
-      {/* Product Listing Section */}
+      {/* Products Section */}
       <section
         id="product-section"
         style={{
@@ -142,15 +145,18 @@ export default function Home() {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
+              gridTemplateColumns:
+                "repeat(auto-fit, minmax(250px, 1fr))",
               gap: "30px",
             }}
           >
-            {products.length === 0 ? (
+            {products.length === 0 && (
               <p style={{ textAlign: "center", gridColumn: "1/-1" }}>
                 No products available.
               </p>
-            ) : (
+            )}
+
+            {Array.isArray(products) &&
               products.map((product) => (
                 <div
                   key={product.id}
@@ -160,7 +166,8 @@ export default function Home() {
                     padding: "20px",
                     textAlign: "center",
                     backgroundColor: "#fff",
-                    boxShadow: "0 4px 10px rgba(0,0,0,0.05)",
+                    boxShadow:
+                      "0 4px 10px rgba(0,0,0,0.05)",
                   }}
                 >
                   {product.image && (
@@ -177,7 +184,9 @@ export default function Home() {
                     />
                   )}
 
-                  <h3 style={{ marginBottom: "10px" }}>{product.name}</h3>
+                  <h3 style={{ marginBottom: "10px" }}>
+                    {product.name}
+                  </h3>
 
                   <p
                     style={{
@@ -214,8 +223,7 @@ export default function Home() {
                     Add to Cart
                   </button>
                 </div>
-              ))
-            )}
+              ))}
           </div>
         )}
       </section>
