@@ -8,50 +8,38 @@ export default function ProductDetailPage() {
   const { slug } = useParams();
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
 
   useEffect(() => {
     const loadProduct = async () => {
-      setLoading(true);
-      setError("");
       try {
-        // Fetch single product by slug
-        const res = await fetch(`/api/products/${slug}`);
-        if (!res.ok) throw new Error("Product not found");
-
+        const res = await fetch("/api/admin/products");
         const data = await res.json();
-        if (!data.product) throw new Error("Product not found");
-
-        setProduct(data.product);
+        const found = data.products.find((p) => p.slug === slug);
+        setProduct(found || null);
       } catch (err) {
         console.error(err);
-        setError(err.message || "Failed to load product");
         setProduct(null);
       } finally {
         setLoading(false);
       }
     };
-
     if (slug) loadProduct();
   }, [slug]);
 
   if (loading) return <p style={{ padding: "40px" }}>Loading...</p>;
-  if (error)
+  if (!product)
     return (
       <div style={{ padding: "40px" }}>
-        <p>{error}</p>
-        <Link href="/products" style={{ color: "#1890ff" }}>
-          &larr; Back to Products
-        </Link>
+        <p>Product not found.</p>
+        <Link href="/products" style={{ color: "#1890ff" }}>Back to Products</Link>
       </div>
     );
 
   return (
-    <div style={{ padding: "40px", fontFamily: "'Arial', sans-serif" }}>
+    <div style={{ padding: "40px", fontFamily: "'Arial', sans-serif'" }}>
       <Link href="/products" style={{ color: "#1890ff", marginBottom: "20px", display: "inline-block" }}>
         &larr; Back
       </Link>
-
       <div style={{ maxWidth: "800px", margin: "0 auto" }}>
         {product.image && (
           <img
@@ -65,19 +53,8 @@ export default function ProductDetailPage() {
         <p>{product.description}</p>
         <p>Stock: {product.stock}</p>
         <p>Category: {product.category}</p>
-        {product.featured && (
-          <p style={{ color: "#ff4d4f", fontWeight: "bold" }}>★ Featured Product</p>
-        )}
-        <button
-          style={{
-            padding: "10px 15px",
-            background: "#1890ff",
-            color: "#fff",
-            border: "none",
-            borderRadius: "5px",
-            cursor: "pointer",
-          }}
-        >
+        {product.featured && <p style={{ color: "#ff4d4f", fontWeight: "bold" }}>★ Featured Product</p>}
+        <button style={{ padding: "10px 15px", background: "#1890ff", color: "#fff", border: "none", borderRadius: "5px", cursor: "pointer" }}>
           Add to Cart
         </button>
       </div>
