@@ -6,9 +6,9 @@ import Product from "@/models/Product";
 export async function GET() {
   try {
     await connectToDB();
-    const products = await Product.find({});
 
-    // Map _id to id for frontend convenience
+    const products = await Product.find({}).lean();
+
     const mappedProducts = products.map((p) => ({
       id: p._id.toString(),
       name: p.name,
@@ -17,51 +17,77 @@ export async function GET() {
       image: p.image || "",
     }));
 
-    return NextResponse.json(mappedProducts, { status: 200 });
+    return NextResponse.json({
+      success: true,
+      products: mappedProducts,
+    });
+
   } catch (error) {
     console.error("GET /api/admin/products error:", error);
+
     return NextResponse.json(
-      { error: "Failed to fetch products" },
+      {
+        success: false,
+        message: "Failed to fetch products",
+      },
       { status: 500 }
     );
   }
 }
 
-// POST a new product
+
+// ADD new product
 export async function POST(req) {
   try {
     await connectToDB();
-    const data = await req.json();
 
-    const { name, description = "", price, image = "" } = data;
+    const body = await req.json();
+
+    const name = body.name?.trim();
+    const description = body.description?.trim() || "";
+    const image = body.image?.trim() || "";
+    const price = Number(body.price);
 
     if (!name || !price) {
       return NextResponse.json(
-        { error: "Name and Price are required" },
+        {
+          success: false,
+          message: "Name and Price are required",
+        },
         { status: 400 }
       );
     }
 
-    const newProduct = new Product({ name, description, price, image });
-    await newProduct.save();
-
-    // Return product with id field
-    const responseProduct = {
-      id: newProduct._id.toString(),
-      name: newProduct.name,
-      description: newProduct.description,
-      price: newProduct.price,
-      image: newProduct.image,
-    };
+    const product = await Product.create({
+      name,
+      description,
+      price,
+      image,
+    });
 
     return NextResponse.json(
-      { message: "Product added successfully", product: responseProduct },
+      {
+        success: true,
+        message: "Product added successfully",
+        product: {
+          id: product._id.toString(),
+          name: product.name,
+          description: product.description,
+          price: product.price,
+          image: product.image,
+        },
+      },
       { status: 201 }
     );
+
   } catch (error) {
     console.error("POST /api/admin/products error:", error);
+
     return NextResponse.json(
-      { error: "Failed to save product" },
+      {
+        success: false,
+        message: "Failed to save product",
+      },
       { status: 500 }
     );
   }
