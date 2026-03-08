@@ -9,17 +9,17 @@ export async function GET() {
 
     const products = await Product.find({}).lean();
 
-    console.log("Products from DB:", products);
+    const formattedProducts = products.map((p) => ({
+      id: p._id.toString(),
+      name: p.name,
+      description: p.description || "",
+      price: p.price,
+      image: p.image || "",
+    }));
 
     return NextResponse.json({
       success: true,
-      products: products.map((p) => ({
-        id: p._id.toString(),
-        name: p.name,
-        description: p.description || "",
-        price: p.price,
-        image: p.image || "",
-      })),
+      products: formattedProducts,
     });
 
   } catch (error) {
@@ -42,14 +42,22 @@ export async function POST(req) {
 
     const product = await Product.create({
       name: body.name,
-      description: body.description,
+      description: body.description || "",
       price: Number(body.price),
-      image: body.image,
+      image: body.image || "",
     });
+
+    const formattedProduct = {
+      id: product._id.toString(),
+      name: product.name,
+      description: product.description,
+      price: product.price,
+      image: product.image,
+    };
 
     return NextResponse.json({
       success: true,
-      product,
+      product: formattedProduct,
     });
 
   } catch (error) {
