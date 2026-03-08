@@ -68,7 +68,7 @@ export default function ProductsAdmin() {
     const res = await fetch("/api/upload", { method: "POST", body: formData });
     const data = await res.json();
     if (!data.success) throw new Error(data.message || "Upload failed");
-    return data.url; // get uploaded image URL
+    return data; // contains success, url, public_id
   };
 
   // ------------------------
@@ -81,7 +81,8 @@ export default function ProductsAdmin() {
     try {
       let imageUrl = form.image || "";
       if (form.imageFile) {
-        imageUrl = await uploadImage(form.imageFile); // ✅ inside async function
+        const uploaded = await uploadImage(form.imageFile);
+        imageUrl = uploaded.url; // use only URL string for DB
       }
 
       const payload = {
@@ -120,6 +121,7 @@ export default function ProductsAdmin() {
       setPreview(null);
       setEditingId(null);
 
+      // Reload products
       await loadProducts();
       alert(editingId ? "Product updated!" : "Product added!");
     } catch (err) {
@@ -190,7 +192,7 @@ export default function ProductsAdmin() {
           <input name="featured" type="checkbox" checked={form.featured} onChange={handleChange} /> Featured
         </label>
         <input type="file" accept="image/*" onChange={handleImage} />
-        {preview && <img src={preview} width="150" style={{ borderRadius: "10px" }} alt="preview" />}
+        {preview && <img src={preview} width="150" style={{ borderRadius: "10px" }} alt="Preview" />}
         <button type="submit" disabled={loading}>
           {loading ? (editingId ? "Updating..." : "Adding...") : editingId ? "Update Product" : "Add Product"}
         </button>
