@@ -5,29 +5,24 @@ import { useEffect, useState } from "react";
 
 export default function Home() {
   const { addToCart } = useCart();
-
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // ------------------------
+  // Fetch products from API
+  // ------------------------
   const fetchProducts = async () => {
     try {
-      const res = await fetch("/api/admin/products", {
-        cache: "no-store",
-      });
-
+      const res = await fetch("/api/admin/products");
       const data = await res.json();
 
-      console.log("Homepage API:", data);
-
-      // Always normalize to array
-      const safeProducts = Array.isArray(data?.products)
-        ? data.products
-        : [];
-
-      setProducts(safeProducts);
-
-    } catch (error) {
-      console.error("Failed to fetch products:", error);
+      if (data.success && Array.isArray(data.products)) {
+        setProducts(data.products);
+      } else {
+        setProducts([]);
+      }
+    } catch (err) {
+      console.error("Failed to fetch products:", err);
       setProducts([]);
     } finally {
       setLoading(false);
@@ -44,8 +39,7 @@ export default function Home() {
         minHeight: "100vh",
         fontFamily: "'Georgia', serif",
         backgroundColor: "#f4efe6",
-        backgroundImage:
-          "url('https://images.unsplash.com/photo-1603046891744-7610fdb6fb3d')",
+        backgroundImage: "url('https://images.unsplash.com/photo-1603046891744-7610fdb6fb3d')",
         backgroundSize: "cover",
         backgroundPosition: "center",
         position: "relative",
@@ -61,7 +55,7 @@ export default function Home() {
         }}
       />
 
-      {/* Hero */}
+      {/* Hero Section */}
       <div
         style={{
           position: "relative",
@@ -73,35 +67,14 @@ export default function Home() {
           margin: "0 auto",
         }}
       >
-        <h1
-          style={{
-            fontSize: "70px",
-            marginBottom: "25px",
-            fontWeight: "normal",
-            color: "#3a2a1c",
-          }}
-        >
+        <h1 style={{ fontSize: "70px", marginBottom: "25px", fontWeight: "normal", color: "#3a2a1c" }}>
           Welcome to Native
         </h1>
-
-        <p
-          style={{
-            fontSize: "22px",
-            lineHeight: "1.8",
-            marginBottom: "50px",
-            color: "#5c4634",
-          }}
-        >
-          Eat Healthy, Stay Healthy. Authentic Indian products refined from the
-          source — crafted with purity, tradition and trust.
+        <p style={{ fontSize: "22px", lineHeight: "1.8", marginBottom: "50px", color: "#5c4634" }}>
+          Eat Healthy, Stay Healthy. Authentic Indian products refined from the source — crafted with purity, tradition and trust.
         </p>
-
         <button
-          onClick={() =>
-            document
-              .getElementById("product-section")
-              ?.scrollIntoView({ behavior: "smooth" })
-          }
+          onClick={() => document.getElementById("product-section")?.scrollIntoView({ behavior: "smooth" })}
           style={{
             padding: "16px 55px",
             fontSize: "18px",
@@ -129,15 +102,7 @@ export default function Home() {
           margin: "0 auto",
         }}
       >
-        <h2
-          style={{
-            fontSize: "36px",
-            marginBottom: "40px",
-            textAlign: "center",
-          }}
-        >
-          Our Products
-        </h2>
+        <h2 style={{ fontSize: "36px", marginBottom: "40px", textAlign: "center" }}>Our Products</h2>
 
         {loading ? (
           <p style={{ textAlign: "center" }}>Loading products...</p>
@@ -145,72 +110,68 @@ export default function Home() {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns:
-                "repeat(auto-fit, minmax(250px, 1fr))",
+              gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
               gap: "30px",
             }}
           >
-            {products.length === 0 && (
-              <p style={{ textAlign: "center", gridColumn: "1/-1" }}>
-                No products available.
-              </p>
-            )}
-
-            {Array.isArray(products) &&
-              products.map((product) => (
+            {products.length === 0 ? (
+              <p style={{ textAlign: "center", gridColumn: "1/-1" }}>No products available.</p>
+            ) : (
+              products.map((p) => (
                 <div
-                  key={product.id}
+                  key={p.id}
                   style={{
                     border: "1px solid #ddd",
                     borderRadius: "10px",
                     padding: "20px",
                     textAlign: "center",
                     backgroundColor: "#fff",
-                    boxShadow:
-                      "0 4px 10px rgba(0,0,0,0.05)",
+                    boxShadow: "0 4px 15px rgba(0,0,0,0.08)",
+                    position: "relative",
+                    overflow: "hidden",
+                    transition: "transform 0.2s",
                   }}
+                  onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.03)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
                 >
-                  {product.image && (
-                    <img
-                      src={product.image}
-                      alt={product.name}
+                  {/* Featured Badge */}
+                  {p.featured && (
+                    <span
                       style={{
-                        width: "100%",
-                        height: "200px",
-                        objectFit: "cover",
-                        borderRadius: "10px",
-                        marginBottom: "15px",
-                      }}
-                    />
-                  )}
-
-                  <h3 style={{ marginBottom: "10px" }}>
-                    {product.name}
-                  </h3>
-
-                  <p
-                    style={{
-                      fontWeight: "bold",
-                      marginBottom: "10px",
-                    }}
-                  >
-                    ₹{product.price}
-                  </p>
-
-                  {product.description && (
-                    <p
-                      style={{
-                        marginBottom: "15px",
-                        fontSize: "14px",
-                        color: "#555",
+                        position: "absolute",
+                        top: "10px",
+                        left: "-40px",
+                        transform: "rotate(-45deg)",
+                        backgroundColor: "#c28b45",
+                        color: "#fff",
+                        padding: "5px 50px",
+                        fontWeight: "bold",
                       }}
                     >
-                      {product.description}
-                    </p>
+                      FEATURED
+                    </span>
                   )}
 
+                  {/* Product Image */}
+                  <img
+                    src={p.image || "https://via.placeholder.com/250x200?text=No+Image"}
+                    alt={p.name}
+                    style={{ width: "100%", height: "200px", objectFit: "cover", borderRadius: "10px", marginBottom: "15px" }}
+                  />
+
+                  {/* Product Info */}
+                  <h3 style={{ marginBottom: "10px" }}>{p.name}</h3>
+                  <p style={{ fontWeight: "bold", marginBottom: "10px" }}>₹{p.price}</p>
+                  {p.description && (
+                    <p style={{ marginBottom: "15px", fontSize: "14px", color: "#555" }}>{p.description}</p>
+                  )}
+                  <p style={{ fontSize: "13px", color: "#888", marginBottom: "10px" }}>
+                    Stock: {p.stock || "N/A"} | Category: {p.category || "General"}
+                  </p>
+
+                  {/* Add to Cart */}
                   <button
-                    onClick={() => addToCart(product)}
+                    onClick={() => addToCart(p)}
                     style={{
                       padding: "10px 20px",
                       borderRadius: "25px",
@@ -218,12 +179,15 @@ export default function Home() {
                       backgroundColor: "#c28b45",
                       color: "#fff",
                       cursor: "pointer",
+                      fontWeight: "bold",
+                      letterSpacing: "0.5px",
                     }}
                   >
                     Add to Cart
                   </button>
                 </div>
-              ))}
+              ))
+            )}
           </div>
         )}
       </section>
