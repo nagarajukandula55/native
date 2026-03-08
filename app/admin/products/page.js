@@ -12,7 +12,7 @@ export default function ProductsAdmin() {
     stock: 100,
     category: "General",
     featured: false,
-    imageFile: null, // for uploading
+    imageFile: null,
   });
   const [preview, setPreview] = useState(null);
   const [editingId, setEditingId] = useState(null);
@@ -64,10 +64,12 @@ export default function ProductsAdmin() {
   const uploadImage = async (file) => {
     const formData = new FormData();
     formData.append("file", file);
+
     const res = await fetch("/api/upload", { method: "POST", body: formData });
     const data = await res.json();
+
     if (!data.success) throw new Error(data.message || "Image upload failed");
-    return data.url;
+    return data.url; // ✅ return only the image URL
   };
 
   // ------------------------
@@ -119,7 +121,6 @@ export default function ProductsAdmin() {
       setPreview(null);
       setEditingId(null);
 
-      // Reload products
       await loadProducts();
       alert(editingId ? "Product updated!" : "Product added!");
     } catch (err) {
@@ -190,7 +191,7 @@ export default function ProductsAdmin() {
           <input name="featured" type="checkbox" checked={form.featured} onChange={handleChange} /> Featured
         </label>
         <input type="file" accept="image/*" onChange={handleImage} />
-        {preview && <img src={preview} width="150" style={{ borderRadius: "10px" }} />}
+        {preview && <img src={preview} width="150" style={{ borderRadius: "10px" }} alt="Preview" />}
         <button type="submit" disabled={loading}>
           {loading ? (editingId ? "Updating..." : "Adding...") : editingId ? "Update Product" : "Add Product"}
         </button>
