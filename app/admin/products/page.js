@@ -97,6 +97,12 @@ if (form.imageFile) {
     } finally { setLoading(false); }
   };
 
+  const payload = {
+  ...form,
+  price: Number(form.price),
+  image: imageUrl, // must be string
+};
+
   const startEdit = (product) => {
     setEditingId(product.id);
     setForm({
