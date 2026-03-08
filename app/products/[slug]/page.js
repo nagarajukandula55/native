@@ -24,15 +24,27 @@ export default function ProductDetailPage() {
         setLoading(false);
       }
     };
+
     if (slug) loadProduct();
+
+    // Load cart from localStorage
+    const storedCart = localStorage.getItem("cart");
+    if (storedCart) setCart(JSON.parse(storedCart));
   }, [slug]);
 
-  const addToCart = () => {
-    if (!product) return;
-    const exists = cart.find((p) => p.id === product.id);
-    if (!exists) setCart([...cart, { ...product, quantity: 1 }]);
-    else setCart(cart.map((p) => (p.id === product.id ? { ...p, quantity: p.quantity + 1 } : p)));
-    alert(`${product.name} added to cart`);
+  const addToCart = (product) => {
+    const existing = cart.find((p) => p.id === product.id);
+    let updatedCart;
+    if (existing) {
+      updatedCart = cart.map((p) =>
+        p.id === product.id ? { ...p, quantity: p.quantity + 1 } : p
+      );
+    } else {
+      updatedCart = [...cart, { ...product, quantity: 1 }];
+    }
+    setCart(updatedCart);
+    localStorage.setItem("cart", JSON.stringify(updatedCart));
+    alert(`${product.name} added to cart!`);
   };
 
   if (loading) return <p style={{ padding: "40px" }}>Loading...</p>;
@@ -66,8 +78,8 @@ export default function ProductDetailPage() {
         <p>Category: {product.category}</p>
         {product.featured && <p style={{ color: "#ff4d4f", fontWeight: "bold" }}>★ Featured Product</p>}
         <button
-          onClick={addToCart}
-          style={{ padding: "10px 15px", background: "#1890ff", color: "#fff", border: "none", borderRadius: "5px", cursor: "pointer" }}
+          onClick={() => addToCart(product)}
+          style={{ padding: "10px 15px", background: "#52c41a", color: "#fff", border: "none", borderRadius: "5px", cursor: "pointer" }}
         >
           Add to Cart
         </button>
