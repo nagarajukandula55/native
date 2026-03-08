@@ -1,183 +1,63 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
+import Link from "next/link";
 
-export default function ProductsAdmin() {
-  const [products, setProducts] = useState([]);
-  const [form, setForm] = useState({
-    name: "",
-    price: "",
-    description: "",
-    image: "",
-    stock: 100,
-    category: "General",
-    featured: false,
-    imageFile: null,
-  });
-  const [preview, setPreview] = useState(null);
-  const [editingId, setEditingId] = useState(null);
-  const [loading, setLoading] = useState(false);
-
-  // Load products
-  const loadProducts = async () => {
-    try {
-      const res = await fetch("/api/admin/products");
-      const data = await res.json();
-      setProducts(data.products || []);
-    } catch (err) {
-      console.error("Failed to load products", err);
-      setProducts([]);
-    }
-  };
+export default function ProductDetailPage() {
+  const { slug } = useParams();
+  const [product, setProduct] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadProducts();
-  }, []);
-
-  // Handle form changes
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setForm((prev) => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : value,
-    }));
-  };
-
-  // Handle image selection
-  const handleImage = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setForm((prev) => ({ ...prev, imageFile: file }));
-      setPreview(URL.createObjectURL(file));
-    }
-  };
-
-  // Upload image to Cloudinary
-  const uploadImage = async (file) => {
-    const formData = new FormData();
-    formData.append("file", file);
-    const res = await fetch("/api/upload", { method: "POST", body: formData });
-    const data = await res.json();
-    return data.url; // cloud URL returned by your API
-  };
-
-  // Add or update product
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      let imageUrl = form.image || "";
-      if (form.imageFile) imageUrl = await uploadImage(form.imageFile);
-
-      const payload = { ...form, price: Number(form.price), image: imageUrl };
-
-      if (editingId) {
-        await fetch("/api/admin/products", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...payload, id: editingId }),
-        });
-      } else {
-        await fetch("/api/admin/products", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
+    const loadProduct = async () => {
+      try {
+        const res = await fetch("/api/admin/products");
+        const data = await res.json();
+        const found = data.products.find((p) => p.slug === slug);
+        setProduct(found || null);
+      } catch (err) {
+        console.error(err);
+        setProduct(null);
+      } finally {
+        setLoading(false);
       }
+    };
+    if (slug) loadProduct();
+  }, [slug]);
 
-      setForm({
-        name: "",
-        price: "",
-        description: "",
-        image: "",
-        stock: 100,
-        category: "General",
-        featured: false,
-        imageFile: null,
-      });
-      setPreview(null);
-      setEditingId(null);
-      await loadProducts();
-    } catch (err) {
-      console.error("Error saving product:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Edit product
-  const startEdit = (p) => {
-    setEditingId(p.id);
-    setForm({
-      name: p.name,
-      price: p.price,
-      description: p.description,
-      image: p.image,
-      stock: p.stock,
-      category: p.category,
-      featured: p.featured,
-      imageFile: null,
-    });
-    setPreview(p.image);
-  };
-
-  // Delete product
-  const deleteProduct = async (id) => {
-    if (!confirm("Are you sure you want to delete this product?")) return;
-    setLoading(true);
-    try {
-      await fetch("/api/admin/products", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id }),
-      });
-      await loadProducts();
-    } catch (err) {
-      console.error("Failed to delete product:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  if (loading) return <p style={{ padding: "40px" }}>Loading...</p>;
+  if (!product)
+    return (
+      <div style={{ padding: "40px" }}>
+        <p>Product not found.</p>
+        <Link href="/products" style={{ color: "#1890ff" }}>Back to Products</Link>
+      </div>
+    );
 
   return (
-    <div style={{ padding: "40px", fontFamily: "'Georgia', serif" }}>
-      <h2>{editingId ? "Edit Product" : "Add Product"}</h2>
-      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "10px", maxWidth: "500px" }}>
-        <input name="name" placeholder="Product Name" value={form.name} onChange={handleChange} required />
-        <input name="price" type="number" placeholder="Price" value={form.price} onChange={handleChange} required />
-        <textarea name="description" placeholder="Description" value={form.description} onChange={handleChange} rows={3} />
-        <input name="stock" type="number" placeholder="Stock" value={form.stock} onChange={handleChange} />
-        <input name="category" type="text" placeholder="Category" value={form.category} onChange={handleChange} />
-        <label>
-          <input name="featured" type="checkbox" checked={form.featured} onChange={handleChange} /> Featured
-        </label>
-        <input type="file" accept="image/*" onChange={handleImage} />
-        {preview && <img src={preview} width="150" style={{ borderRadius: "10px" }} />}
-        <button type="submit" disabled={loading}>
-          {loading ? (editingId ? "Updating..." : "Adding...") : editingId ? "Update Product" : "Add Product"}
+    <div style={{ padding: "40px", fontFamily: "'Arial', sans-serif'" }}>
+      <Link href="/products" style={{ color: "#1890ff", marginBottom: "20px", display: "inline-block" }}>
+        &larr; Back
+      </Link>
+      <div style={{ maxWidth: "800px", margin: "0 auto" }}>
+        {product.image && (
+          <img
+            src={product.image}
+            alt={product.alt || product.name}
+            style={{ width: "100%", height: "400px", objectFit: "cover", borderRadius: "10px" }}
+          />
+        )}
+        <h1>{product.name}</h1>
+        <p style={{ fontWeight: "bold", fontSize: "20px" }}>₹{product.price}</p>
+        <p>{product.description}</p>
+        <p>Stock: {product.stock}</p>
+        <p>Category: {product.category}</p>
+        {product.featured && <p style={{ color: "#ff4d4f", fontWeight: "bold" }}>★ Featured Product</p>}
+        <button style={{ padding: "10px 15px", background: "#1890ff", color: "#fff", border: "none", borderRadius: "5px", cursor: "pointer" }}>
+          Add to Cart
         </button>
-      </form>
-
-      <hr style={{ margin: "40px 0" }} />
-      <h2>Products List</h2>
-      {products.length === 0 && <p>No products found</p>}
-
-      {products.map((p) => (
-        <div key={p.id} style={{ marginBottom: "25px", border: "1px solid #ccc", padding: "10px", borderRadius: "8px" }}>
-          {p.image && <img src={p.image} width="120" style={{ borderRadius: "8px" }} />}
-          <h4>{p.name}</h4>
-          <p>₹{p.price}</p>
-          <p>{p.description}</p>
-          <p>Stock: {p.stock}</p>
-          <p>Category: {p.category}</p>
-          <p>Featured: {p.featured ? "Yes" : "No"}</p>
-          <div style={{ marginTop: "10px" }}>
-            <button onClick={() => startEdit(p)} style={{ marginRight: "10px" }}>Edit</button>
-            <button onClick={() => deleteProduct(p.id)}>Delete</button>
-            <a href={`/products/${p.slug}`} style={{ marginLeft: "10px", color: "#1890ff" }}>View Product</a>
-          </div>
-        </div>
-      ))}
+      </div>
     </div>
   );
 }
