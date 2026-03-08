@@ -14,13 +14,12 @@ export async function POST(req) {
     const buffer = Buffer.from(bytes);
 
     const uploadResult = await new Promise((resolve, reject) => {
-      cloudinary.uploader.upload_stream(
-        { folder: "products", resource_type: "image" },
-        (error, result) => {
+      cloudinary.uploader
+        .upload_stream({ folder: "products", resource_type: "image" }, (error, result) => {
           if (error) reject(error);
           else resolve(result);
-        }
-      ).end(buffer);
+        })
+        .end(buffer);
     });
 
     return NextResponse.json({
@@ -30,9 +29,6 @@ export async function POST(req) {
     });
   } catch (error) {
     console.error("UPLOAD ERROR:", error);
-    return NextResponse.json(
-      { success: false, message: "Failed to upload image" },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, message: "Failed to upload image" }, { status: 500 });
   }
 }
