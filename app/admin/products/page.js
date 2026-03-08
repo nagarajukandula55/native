@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 
 export default function ProductsAdmin() {
   const [products, setProducts] = useState([]);
@@ -30,13 +30,20 @@ export default function ProductsAdmin() {
     }
   };
 
-  useEffect(() => loadProducts(), []);
+  useEffect(() => {
+    loadProducts();
+  }, []);
 
+  // Handle form changes
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setForm((prev) => ({ ...prev, [name]: type === "checkbox" ? checked : value }));
+    setForm((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }));
   };
 
+  // Handle image selection
   const handleImage = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -45,14 +52,16 @@ export default function ProductsAdmin() {
     }
   };
 
+  // Upload image to Cloudinary
   const uploadImage = async (file) => {
     const formData = new FormData();
     formData.append("file", file);
     const res = await fetch("/api/upload", { method: "POST", body: formData });
     const data = await res.json();
-    return data.url;
+    return data.url; // cloud URL returned by your API
   };
 
+  // Add or update product
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -96,6 +105,7 @@ export default function ProductsAdmin() {
     }
   };
 
+  // Edit product
   const startEdit = (p) => {
     setEditingId(p.id);
     setForm({
@@ -108,9 +118,10 @@ export default function ProductsAdmin() {
       featured: p.featured,
       imageFile: null,
     });
-    setPreview(p.image || null);
+    setPreview(p.image);
   };
 
+  // Delete product
   const deleteProduct = async (id) => {
     if (!confirm("Are you sure you want to delete this product?")) return;
     setLoading(true);
@@ -122,23 +133,23 @@ export default function ProductsAdmin() {
       });
       await loadProducts();
     } catch (err) {
-      console.error("Delete failed:", err);
+      console.error("Failed to delete product:", err);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div style={{ padding: "40px", fontFamily: "'Arial', sans-serif" }}>
+    <div style={{ padding: "40px", fontFamily: "'Georgia', serif" }}>
       <h2>{editingId ? "Edit Product" : "Add Product"}</h2>
       <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "10px", maxWidth: "500px" }}>
-        <input name="name" placeholder="Name" value={form.name} onChange={handleChange} required />
+        <input name="name" placeholder="Product Name" value={form.name} onChange={handleChange} required />
         <input name="price" type="number" placeholder="Price" value={form.price} onChange={handleChange} required />
         <textarea name="description" placeholder="Description" value={form.description} onChange={handleChange} rows={3} />
         <input name="stock" type="number" placeholder="Stock" value={form.stock} onChange={handleChange} />
         <input name="category" type="text" placeholder="Category" value={form.category} onChange={handleChange} />
         <label>
-          <input type="checkbox" name="featured" checked={form.featured} onChange={handleChange} /> Featured
+          <input name="featured" type="checkbox" checked={form.featured} onChange={handleChange} /> Featured
         </label>
         <input type="file" accept="image/*" onChange={handleImage} />
         {preview && <img src={preview} width="150" style={{ borderRadius: "10px" }} />}
@@ -160,8 +171,11 @@ export default function ProductsAdmin() {
           <p>Stock: {p.stock}</p>
           <p>Category: {p.category}</p>
           <p>Featured: {p.featured ? "Yes" : "No"}</p>
-          <button onClick={() => startEdit(p)} style={{ marginRight: "10px" }}>Edit</button>
-          <button onClick={() => deleteProduct(p.id)}>Delete</button>
+          <div style={{ marginTop: "10px" }}>
+            <button onClick={() => startEdit(p)} style={{ marginRight: "10px" }}>Edit</button>
+            <button onClick={() => deleteProduct(p.id)}>Delete</button>
+            <a href={`/products/${p.slug}`} style={{ marginLeft: "10px", color: "#1890ff" }}>View Product</a>
+          </div>
         </div>
       ))}
     </div>
