@@ -1,60 +1,132 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
-export default function AdminProductsPage() {
-  const [products, setProducts] = useState([]);
-  const [name, setName] = useState("");
-  const [price, setPrice] = useState("");
+export default function ProductsAdmin(){
 
-  const fetchProducts = () => {
-    fetch("/api/admin/products")
-      .then((res) => res.json())
-      .then((data) => setProducts(data))
-      .catch(console.error);
-  };
+const [name,setName]=useState("");
+const [price,setPrice]=useState("");
+const [description,setDescription]=useState("");
+const [imageFile,setImageFile]=useState(null);
+const [preview,setPreview]=useState(null);
 
-  useEffect(() => {
-    fetchProducts();
-  }, []);
+const handleImage=(e)=>{
 
-  const handleAdd = async () => {
-    await fetch("/api/admin/products", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, price: parseFloat(price) }),
-    });
-    setName("");
-    setPrice("");
-    fetchProducts();
-  };
+const file=e.target.files[0];
 
-  return (
-    <div style={{ padding: "60px" }}>
-      <h1>Manage Products</h1>
+if(file){
+setImageFile(file);
+setPreview(URL.createObjectURL(file));
+}
 
-      <div>
-        <input
-          placeholder="Product Name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
-        <input
-          placeholder="Price"
-          value={price}
-          onChange={(e) => setPrice(e.target.value)}
-          type="number"
-        />
-        <button onClick={handleAdd}>Add Product</button>
-      </div>
+}
 
-      <ul>
-        {products.map((p) => (
-          <li key={p._id}>
-            {p.name} — ₹{p.price}
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
+const handleSubmit=async(e)=>{
+
+e.preventDefault();
+
+let imageUrl="";
+
+if(imageFile){
+
+const formData=new FormData();
+formData.append("file",imageFile);
+
+const upload=await fetch("/api/upload",{
+method:"POST",
+body:formData
+});
+
+const data=await upload.json();
+imageUrl=data.url;
+
+}
+
+await fetch("/api/products",{
+
+method:"POST",
+
+headers:{
+"Content-Type":"application/json"
+},
+
+body:JSON.stringify({
+name,
+price,
+description,
+image:imageUrl
+})
+
+});
+
+alert("Product added");
+
+}
+
+return(
+
+<div style={{padding:"40px"}}>
+
+<h2>Add Product</h2>
+
+<form onSubmit={handleSubmit}>
+
+<input
+placeholder="Product Name"
+value={name}
+onChange={(e)=>setName(e.target.value)}
+required
+/>
+
+<br/><br/>
+
+<input
+type="number"
+placeholder="Price"
+value={price}
+onChange={(e)=>setPrice(e.target.value)}
+required
+/>
+
+<br/><br/>
+
+<textarea
+placeholder="Description"
+value={description}
+onChange={(e)=>setDescription(e.target.value)}
+/>
+
+<br/><br/>
+
+<input
+type="file"
+accept="image/*"
+onChange={handleImage}
+/>
+
+<br/><br/>
+
+{preview && (
+
+<img
+src={preview}
+width="200"
+/>
+
+)}
+
+<br/><br/>
+
+<button type="submit">
+
+Add Product
+
+</button>
+
+</form>
+
+</div>
+
+)
+
 }
