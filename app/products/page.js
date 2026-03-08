@@ -6,15 +6,19 @@ import { useEffect, useState } from "react";
 export default function Products() {
   const { addToCart } = useCart();
   const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Fetch products from API
   const fetchProducts = async () => {
     try {
       const res = await fetch("/api/admin/products");
       const data = await res.json();
-      setProducts(data);
+
+      // IMPORTANT FIX
+      setProducts(data.products || []);
     } catch (error) {
       console.error("Failed to fetch products:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -28,6 +32,12 @@ export default function Products() {
         Our Products
       </h1>
 
+      {loading && (
+        <p style={{ textAlign: "center", marginTop: "40px" }}>
+          Loading products...
+        </p>
+      )}
+
       <div
         style={{
           display: "grid",
@@ -36,78 +46,83 @@ export default function Products() {
           marginTop: "50px",
         }}
       >
-        {products.length === 0 ? (
+        {!loading && products.length === 0 && (
           <p style={{ textAlign: "center", gridColumn: "1/-1" }}>
             No products available.
           </p>
-        ) : (
-          products.map((product) => (
-            <div
-              key={product._id}
+        )}
+
+        {products?.map((product) => (
+          <div
+            key={product.id}
+            style={{
+              background: "#fff",
+              borderRadius: "15px",
+              padding: "20px",
+              textAlign: "center",
+              boxShadow: "0 4px 10px rgba(0,0,0,0.05)",
+            }}
+          >
+            {product.image && (
+              <img
+                src={product.image}
+                alt={product.name}
+                style={{
+                  width: "100%",
+                  height: "200px",
+                  objectFit: "cover",
+                  borderRadius: "10px",
+                  marginBottom: "15px",
+                }}
+              />
+            )}
+
+            <h2>{product.name}</h2>
+
+            <p style={{ fontWeight: "bold", marginBottom: "10px" }}>
+              ₹{product.price}
+            </p>
+
+            {product.description && (
+              <p
+                style={{
+                  fontSize: "14px",
+                  color: "#555",
+                  marginBottom: "15px",
+                }}
+              >
+                {product.description}
+              </p>
+            )}
+
+            <button
+              onClick={() => addToCart(product)}
               style={{
-                background: "#fff",
-                borderRadius: "15px",
-                padding: "20px",
-                textAlign: "center",
+                padding: "10px 20px",
+                marginBottom: "10px",
+                backgroundColor: "#8b5e3c",
+                color: "#fff",
+                border: "none",
+                borderRadius: "6px",
+                cursor: "pointer",
               }}
             >
-              {product.image && (
-                <img
-                  src={product.image}
-                  alt={product.name}
-                  style={{
-                    width: "100%",
-                    height: "200px",
-                    objectFit: "cover",
-                    borderRadius: "10px",
-                    marginBottom: "15px",
-                  }}
-                />
-              )}
+              Add to Cart
+            </button>
 
-              <h2>{product.name}</h2>
-              <p>₹{product.price}</p>
-              {product.description && (
-                <p
-                  style={{
-                    fontSize: "14px",
-                    color: "#555",
-                    marginBottom: "10px",
-                  }}
-                >
-                  {product.description}
-                </p>
-              )}
+            <br />
 
-              <button
-                onClick={() => addToCart(product)}
-                style={{
-                  padding: "10px 20px",
-                  marginBottom: "10px",
-                  backgroundColor: "#8b5e3c",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: "6px",
-                  cursor: "pointer",
-                }}
-              >
-                Add to Cart
-              </button>
-
-              <br />
-
-              <a
-                href={`/products/${product._id}`}
-                style={{
-                  color: "#c28b45",
-                  textDecoration: "none",
-                }}
-              >
-                View Product
-              </a>
-            </div>
-          ))
-        )}
+            <a
+              href={`/products/${product.id}`}
+              style={{
+                color: "#c28b45",
+                textDecoration: "none",
+              }}
+            >
+              View Product
+            </a>
+          </div>
+        ))}
       </div>
     </div>
   );
