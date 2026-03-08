@@ -18,9 +18,7 @@ export default function ProductsAdmin() {
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // ------------------------
-  // Load products from API
-  // ------------------------
+  // Load products
   const loadProducts = async () => {
     try {
       const res = await fetch("/api/admin/products");
@@ -36,9 +34,7 @@ export default function ProductsAdmin() {
     loadProducts();
   }, []);
 
-  // ------------------------
-  // Handle form change
-  // ------------------------
+  // Form change
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setForm((prev) => ({
@@ -47,9 +43,7 @@ export default function ProductsAdmin() {
     }));
   };
 
-  // ------------------------
   // Handle image selection
-  // ------------------------
   const handleImage = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -58,9 +52,7 @@ export default function ProductsAdmin() {
     }
   };
 
-  // ------------------------
-  // Upload image to Cloudinary
-  // ------------------------
+  // Upload image to Cloudinary API
   const uploadImage = async (file) => {
     const formData = new FormData();
     formData.append("file", file);
@@ -68,21 +60,18 @@ export default function ProductsAdmin() {
     const res = await fetch("/api/upload", { method: "POST", body: formData });
     const data = await res.json();
     if (!data.success) throw new Error(data.message || "Image upload failed");
-    return data.url;
+    return data.url; // only return the URL
   };
 
-  // ------------------------
-  // Add or Update Product
-  // ------------------------
+  // Add or update product
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
 
     try {
       let imageUrl = form.image || "";
-
       if (form.imageFile) {
-        imageUrl = await uploadImage(form.imageFile);
+        imageUrl = await uploadImage(form.imageFile); // corrected
       }
 
       const payload = {
@@ -92,14 +81,12 @@ export default function ProductsAdmin() {
       };
 
       if (editingId) {
-        // Update product
         await fetch("/api/admin/products", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ ...payload, id: editingId }),
         });
       } else {
-        // Add new product
         await fetch("/api/admin/products", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -107,7 +94,6 @@ export default function ProductsAdmin() {
         });
       }
 
-      // Reset form
       setForm({
         name: "",
         price: "",
@@ -121,7 +107,6 @@ export default function ProductsAdmin() {
       setPreview(null);
       setEditingId(null);
 
-      // Reload products
       await loadProducts();
       alert(editingId ? "Product updated!" : "Product added!");
     } catch (err) {
@@ -132,9 +117,7 @@ export default function ProductsAdmin() {
     }
   };
 
-  // ------------------------
   // Start editing a product
-  // ------------------------
   const startEdit = (product) => {
     setEditingId(product.id);
     setForm({
@@ -150,9 +133,7 @@ export default function ProductsAdmin() {
     setPreview(product.image || null);
   };
 
-  // ------------------------
-  // Delete a product
-  // ------------------------
+  // Delete product
   const deleteProduct = async (id) => {
     if (!confirm("Are you sure you want to delete this product?")) return;
     setLoading(true);
@@ -172,11 +153,8 @@ export default function ProductsAdmin() {
     }
   };
 
-  // ------------------------
-  // Render
-  // ------------------------
   return (
-    <div style={{ padding: "40px", fontFamily: "'Arial', sans-serif" }}>
+    <div style={{ padding: "40px", fontFamily: "'Arial', sans-serif'" }}>
       <h2>{editingId ? "Edit Product" : "Add Product"}</h2>
 
       <form
