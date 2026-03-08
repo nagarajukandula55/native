@@ -8,7 +8,6 @@ export default function ProductDetailPage() {
   const { slug } = useParams();
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [cart, setCart] = useState([]);
 
   useEffect(() => {
     const loadProduct = async () => {
@@ -24,26 +23,13 @@ export default function ProductDetailPage() {
         setLoading(false);
       }
     };
-
     if (slug) loadProduct();
-
-    // Load cart from localStorage
-    const storedCart = localStorage.getItem("cart");
-    if (storedCart) setCart(JSON.parse(storedCart));
   }, [slug]);
 
   const addToCart = (product) => {
-    const existing = cart.find((p) => p.id === product.id);
-    let updatedCart;
-    if (existing) {
-      updatedCart = cart.map((p) =>
-        p.id === product.id ? { ...p, quantity: p.quantity + 1 } : p
-      );
-    } else {
-      updatedCart = [...cart, { ...product, quantity: 1 }];
-    }
-    setCart(updatedCart);
-    localStorage.setItem("cart", JSON.stringify(updatedCart));
+    let cart = JSON.parse(localStorage.getItem("cart") || "[]");
+    cart.push({ ...product, quantity: 1 });
+    localStorage.setItem("cart", JSON.stringify(cart));
     alert(`${product.name} added to cart!`);
   };
 
@@ -79,7 +65,7 @@ export default function ProductDetailPage() {
         {product.featured && <p style={{ color: "#ff4d4f", fontWeight: "bold" }}>★ Featured Product</p>}
         <button
           onClick={() => addToCart(product)}
-          style={{ padding: "10px 15px", background: "#52c41a", color: "#fff", border: "none", borderRadius: "5px", cursor: "pointer" }}
+          style={{ padding: "10px 15px", background: "#1890ff", color: "#fff", border: "none", borderRadius: "5px", cursor: "pointer" }}
         >
           Add to Cart
         </button>
