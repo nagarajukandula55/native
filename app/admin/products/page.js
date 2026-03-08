@@ -3,237 +3,202 @@
 import { useState, useEffect } from "react";
 
 export default function ProductsAdmin() {
-
-const [products,setProducts]=useState([]);
-
-const [name,setName]=useState("");
-const [price,setPrice]=useState("");
-const [description,setDescription]=useState("");
-
-const [imageFile,setImageFile]=useState(null);
-const [preview,setPreview]=useState(null);
-
-
-// LOAD PRODUCTS
-useEffect(()=>{
-
-loadProducts();
-
-},[])
-
-
-async function loadProducts(){
-
-try{
-
-const res=await fetch("/api/admin/products");
-
-const data=await res.json();
-
-setProducts(data.products || []);
-
-}catch(err){
-
-console.error("Failed to load products",err);
-
-}
-
-}
-
-
-// IMAGE PREVIEW
-function handleImage(e){
-
-const file=e.target.files[0];
-
-if(file){
-
-setImageFile(file);
-
-setPreview(URL.createObjectURL(file));
-
-}
-
-}
-
-
-// ADD PRODUCT
-async function handleSubmit(e){
-
-e.preventDefault();
-
-let imageUrl="";
-
-try{
-
-// UPLOAD IMAGE
-if(imageFile){
-
-const formData=new FormData();
-
-formData.append("file",imageFile);
-
-const upload=await fetch("/api/upload",{
-
-method:"POST",
-body:formData
-
-});
-
-const uploadData=await upload.json();
-
-imageUrl=uploadData.url;
-
-}
-
-
-// SAVE PRODUCT
-await fetch("/api/admin/products",{
-
-method:"POST",
-
-headers:{
-"Content-Type":"application/json"
-},
-
-body:JSON.stringify({
-
-name,
-price,
-description,
-image:imageUrl
-
-})
-
-});
-
-
-// RESET FORM
-setName("");
-setPrice("");
-setDescription("");
-setImageFile(null);
-setPreview(null);
-
-
-// RELOAD PRODUCTS
-loadProducts();
-
-alert("Product added");
-
-}catch(err){
-
-console.error("Product upload error",err);
-
-}
-
-}
-
-
-return(
-
-<div style={{padding:"40px"}}>
-
-<h2>Add Product</h2>
-
-<form onSubmit={handleSubmit}>
-
-<input
-placeholder="Product Name"
-value={name}
-onChange={(e)=>setName(e.target.value)}
-required
-/>
-
-<br/><br/>
-
-<input
-type="number"
-placeholder="Price"
-value={price}
-onChange={(e)=>setPrice(e.target.value)}
-required
-/>
-
-<br/><br/>
-
-<textarea
-placeholder="Description"
-value={description}
-onChange={(e)=>setDescription(e.target.value)}
-/>
-
-<br/><br/>
-
-<input
-type="file"
-accept="image/*"
-onChange={handleImage}
-/>
-
-<br/><br/>
-
-{preview && (
-
-<img
-src={preview}
-width="150"
-style={{borderRadius:"10px"}}
-/>
-
-)}
-
-<br/><br/>
-
-<button type="submit">
-
-Add Product
-
-</button>
-
-</form>
-
-
-<hr style={{margin:"40px 0"}}/>
-
-
-<h2>Products</h2>
-
-
-{Array.isArray(products) && products.length === 0 && (
-
-<p>No products found</p>
-
-)}
-
-
-{Array.isArray(products) && products.map((p)=> (
-
-<div key={p.id} style={{marginBottom:"25px"}}>
-
-{p.image && (
-
-<img
-src={p.image}
-width="120"
-style={{borderRadius:"8px"}}
-/>
-
-)}
-
-<h4>{p.name}</h4>
-
-<p>₹{p.price}</p>
-
-<p>{p.description}</p>
-
-</div>
-
-))}
-
-
-</div>
-
-)
-
+  const [products, setProducts] = useState([]);
+  const [form, setForm] = useState({
+    name: "",
+    price: "",
+    description: "",
+    image: "",
+    stock: 100,
+    category: "General",
+    featured: false,
+    imageFile: null, // for uploading
+  });
+  const [preview, setPreview] = useState(null);
+  const [editingId, setEditingId] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  // ------------------------
+  // Load Products
+  // ------------------------
+  const loadProducts = async () => {
+    try {
+      const res = await fetch("/api/admin/products");
+      const data = await res.json();
+      setProducts(data.products || []);
+    } catch (err) {
+      console.error("Failed to load products", err);
+      setProducts([]);
+    }
+  };
+
+  useEffect(() => {
+    loadProducts();
+  }, []);
+
+  // ------------------------
+  // Handle form change
+  // ------------------------
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setForm((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }));
+  };
+
+  // ------------------------
+  // Handle Image Selection
+  // ------------------------
+  const handleImage = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setForm((prev) => ({ ...prev, imageFile: file }));
+      setPreview(URL.createObjectURL(file));
+    }
+  };
+
+  // ------------------------
+  // Upload image to API/Cloudinary
+  // ------------------------
+  const uploadImage = async (file) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    const res = await fetch("/api/upload", { method: "POST", body: formData });
+    const data = await res.json();
+    return data.url; // cloud URL returned by your API
+  };
+
+  // ------------------------
+  // Add or Update Product
+  // ------------------------
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      let imageUrl = form.image || "";
+      if (form.imageFile) {
+        imageUrl = await uploadImage(form.imageFile);
+      }
+
+      const payload = { ...form, price: Number(form.price), image: imageUrl };
+
+      if (editingId) {
+        // Update product
+        await fetch("/api/admin/products", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...payload, id: editingId }),
+        });
+      } else {
+        // Add new product
+        await fetch("/api/admin/products", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+      }
+
+      // Reset form
+      setForm({
+        name: "",
+        price: "",
+        description: "",
+        image: "",
+        stock: 100,
+        category: "General",
+        featured: false,
+        imageFile: null,
+      });
+      setPreview(null);
+      setEditingId(null);
+
+      // Reload products
+      loadProducts();
+    } catch (err) {
+      console.error("Error saving product:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ------------------------
+  // Edit Product
+  // ------------------------
+  const startEdit = (product) => {
+    setEditingId(product.id);
+    setForm({
+      name: product.name,
+      price: product.price,
+      description: product.description || "",
+      image: product.image || "",
+      stock: product.stock || 100,
+      category: product.category || "General",
+      featured: product.featured || false,
+      imageFile: null,
+    });
+    setPreview(product.image || null);
+  };
+
+  // ------------------------
+  // Delete Product
+  // ------------------------
+  const deleteProduct = async (id) => {
+    if (!confirm("Are you sure you want to delete this product?")) return;
+    setLoading(true);
+    try {
+      await fetch("/api/admin/products", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      await loadProducts();
+    } catch (err) {
+      console.error("Failed to delete product:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{ padding: "40px", fontFamily: "'Georgia', serif" }}>
+      <h2>{editingId ? "Edit Product" : "Add Product"}</h2>
+
+      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "10px", maxWidth: "500px" }}>
+        <input name="name" placeholder="Product Name" value={form.name} onChange={handleChange} required />
+        <input name="price" type="number" placeholder="Price" value={form.price} onChange={handleChange} required />
+        <textarea name="description" placeholder="Description" value={form.description} onChange={handleChange} rows={3} />
+        <input name="stock" type="number" placeholder="Stock" value={form.stock} onChange={handleChange} />
+        <input name="category" type="text" placeholder="Category" value={form.category} onChange={handleChange} />
+        <label>
+          <input name="featured" type="checkbox" checked={form.featured} onChange={handleChange} /> Featured
+        </label>
+        <input type="file" accept="image/*" onChange={handleImage} />
+        {preview && <img src={preview} width="150" style={{ borderRadius: "10px" }} />}
+        <button type="submit" disabled={loading}>
+          {loading ? (editingId ? "Updating..." : "Adding...") : editingId ? "Update Product" : "Add Product"}
+        </button>
+      </form>
+
+      <hr style={{ margin: "40px 0" }} />
+
+      <h2>Products List</h2>
+      {products.length === 0 && <p>No products found</p>}
+
+      {products.map((p) => (
+        <div key={p.id} style={{ marginBottom: "25px", border: "1px solid #ccc", padding: "10px", borderRadius: "8px" }}>
+          {p.image && <img src={p.image} width="120" style={{ borderRadius: "8px" }} />}
+          <h4>{p.name}</h4>
+          <p>₹{p.price}</p>
+          <p>{p.description}</p>
+          <p>Stock: {p.stock}</p>
+          <p>Category: {p.category}</p>
+          <p>Featured: {p.featured ? "Yes" : "No"}</p>
+          <button onClick={() => startEdit(p)} style={{ marginRight: "10px" }}>Edit</button>
+          <button onClick={() => deleteProduct(p.id)}>Delete</button>
+        </div>
+      ))}
+    </div>
+  );
 }
