@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import connectToDB from "@/lib/mongodb";
 import Product from "@/models/Product";
-import slugify from "slugify"; // npm install slugify
+import slugify from "slugify";
 
 // Helper: generate SEO-friendly slug
 const generateSlug = (name) => slugify(name || "", { lower: true, strict: true });
@@ -14,23 +14,28 @@ export async function GET() {
     await connectToDB();
     const products = await Product.find({}).lean();
 
-    const formattedProducts = products.map((p) => ({
-      id: p._id.toString(),
-      name: p.name || "",
-      description: p.description || "",
-      price: p.price || 0,
-      image: p.image || "",
-      alt: p.alt || p.name || "",
-      category: p.category || "General",
-      stock: p.stock || 100,
-      featured: p.featured || false,
-      slug: p.slug || generateSlug(p.name),
-    }));
+    const formattedProducts = Array.isArray(products)
+      ? products.map((p) => ({
+          id: p._id.toString(),
+          name: p.name || "",
+          description: p.description || "",
+          price: p.price || 0,
+          image: p.image || "",
+          alt: p.alt || p.name || "",
+          category: p.category || "General",
+          stock: p.stock || 100,
+          featured: p.featured || false,
+          slug: p.slug || generateSlug(p.name),
+        }))
+      : [];
 
     return NextResponse.json({ success: true, products: formattedProducts });
   } catch (error) {
     console.error("GET PRODUCTS ERROR:", error);
-    return NextResponse.json({ success: false, products: [], message: "Failed to fetch products" }, { status: 500 });
+    return NextResponse.json(
+      { success: false, products: [], message: "Failed to fetch products" },
+      { status: 500 }
+    );
   }
 }
 
@@ -43,16 +48,13 @@ export async function POST(req) {
     const body = await req.json();
 
     if (!body.name || !body.price) {
-      return NextResponse.json({ success: false, message: "Name and price are required" }, { status: 400 });
+      return NextResponse.json(
+        { success: false, message: "Name and price are required" },
+        { status: 400 }
+      );
     }
 
     const slug = generateSlug(body.name);
-
-    // Check if slug already exists
-    const existing = await Product.findOne({ slug });
-    if (existing) {
-      return NextResponse.json({ success: false, message: "Product with same name exists" }, { status: 409 });
-    }
 
     const product = await Product.create({
       name: body.name,
@@ -66,10 +68,16 @@ export async function POST(req) {
       slug,
     });
 
-    return NextResponse.json({ success: true, product: { ...product.toObject(), id: product._id.toString() } });
+    return NextResponse.json({
+      success: true,
+      product: { ...product.toObject(), id: product._id.toString() },
+    });
   } catch (error) {
     console.error("POST PRODUCT ERROR:", error);
-    return NextResponse.json({ success: false, message: "Failed to add product" }, { status: 500 });
+    return NextResponse.json(
+      { success: false, message: "Failed to add product" },
+      { status: 500 }
+    );
   }
 }
 
@@ -82,17 +90,14 @@ export async function PATCH(req) {
     const body = await req.json();
     const { id, name } = body;
 
-    if (!id) return NextResponse.json({ success: false, message: "Product ID is required" }, { status: 400 });
+    if (!id) {
+      return NextResponse.json(
+        { success: false, message: "Product ID is required" },
+        { status: 400 }
+      );
+    }
 
     const slug = name ? generateSlug(name) : undefined;
-
-    // Ensure slug uniqueness
-    if (slug) {
-      const exists = await Product.findOne({ slug, _id: { $ne: id } });
-      if (exists) {
-        return NextResponse.json({ success: false, message: "Another product with same name exists" }, { status: 409 });
-      }
-    }
 
     const updated = await Product.findByIdAndUpdate(
       id,
@@ -100,12 +105,23 @@ export async function PATCH(req) {
       { new: true, runValidators: true }
     ).lean();
 
-    if (!updated) return NextResponse.json({ success: false, message: "Product not found" }, { status: 404 });
+    if (!updated) {
+      return NextResponse.json(
+        { success: false, message: "Product not found" },
+        { status: 404 }
+      );
+    }
 
-    return NextResponse.json({ success: true, product: { ...updated, id: updated._id.toString() } });
+    return NextResponse.json({
+      success: true,
+      product: { ...updated, id: updated._id.toString() },
+    });
   } catch (error) {
     console.error("PATCH PRODUCT ERROR:", error);
-    return NextResponse.json({ success: false, message: "Failed to update product" }, { status: 500 });
+    return NextResponse.json(
+      { success: false, message: "Failed to update product" },
+      { status: 500 }
+    );
   }
 }
 
@@ -117,15 +133,28 @@ export async function DELETE(req) {
     await connectToDB();
     const { id } = await req.json();
 
-    if (!id) return NextResponse.json({ success: false, message: "Product ID is required" }, { status: 400 });
+    if (!id) {
+      return NextResponse.json(
+        { success: false, message: "Product ID is required" },
+        { status: 400 }
+      );
+    }
 
     const deleted = await Product.findByIdAndDelete(id);
 
-    if (!deleted) return NextResponse.json({ success: false, message: "Product not found" }, { status: 404 });
+    if (!deleted) {
+      return NextResponse.json(
+        { success: false, message: "Product not found" },
+        { status: 404 }
+      );
+    }
 
     return NextResponse.json({ success: true, message: "Product deleted" });
   } catch (error) {
     console.error("DELETE PRODUCT ERROR:", error);
-    return NextResponse.json({ success: false, message: "Failed to delete product" }, { status: 500 });
+    return NextResponse.json(
+      { success: false, message: "Failed to delete product" },
+      { status: 500 }
+    );
   }
 }
