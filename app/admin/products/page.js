@@ -1,5 +1,4 @@
 "use client";
-export const dynamic = "force-dynamic"; // disables static prerendering
 
 import { useState, useEffect } from "react";
 
@@ -13,12 +12,15 @@ export default function ProductsAdmin() {
     stock: 100,
     category: "General",
     featured: false,
-    imageFile: null,
+    imageFile: null, // for uploading
   });
   const [preview, setPreview] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(false);
 
+  // ------------------------
+  // Load products from API
+  // ------------------------
   const loadProducts = async () => {
     try {
       const res = await fetch("/api/admin/products");
@@ -30,92 +32,107 @@ export default function ProductsAdmin() {
     }
   };
 
-  useEffect(() => { loadProducts(); }, []);
+  useEffect(() => {
+    loadProducts();
+  }, []);
 
+  // ------------------------
+  // Handle form input change
+  // ------------------------
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setForm(prev => ({ ...prev, [name]: type === "checkbox" ? checked : value }));
+    setForm((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }));
   };
 
+  // ------------------------
+  // Handle image selection
+  // ------------------------
   const handleImage = (e) => {
     const file = e.target.files[0];
     if (file) {
-      setForm(prev => ({ ...prev, imageFile: file }));
+      setForm((prev) => ({ ...prev, imageFile: file }));
       setPreview(URL.createObjectURL(file));
     }
   };
 
+  // ------------------------
+  // Upload image to Cloudinary API
+  // ------------------------
   const uploadImage = async (file) => {
-  const formData = new FormData();
-  formData.append("file", file);
+    const formData = new FormData();
+    formData.append("file", file);
 
-  const res = await fetch("/api/upload", { method: "POST", body: formData });
-  const data = await res.json();
+    const res = await fetch("/api/upload", { method: "POST", body: formData });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.message || "Upload failed");
+    return data.url; // get uploaded image URL
+  };
 
-  if (!data.success) throw new Error(data.message || "Upload failed");
-  return data.url; // <-- return only the URL string
-};
-  let imageUrl = form.image || "";
-if (form.imageFile) {
-  imageUrl = await uploadImage(form.imageFile); // this is now a string
-}
-
+  // ------------------------
+  // Add or Update Product
+  // ------------------------
   const handleSubmit = async (e) => {
-  e.preventDefault();
-  setLoading(true);
+    e.preventDefault();
+    setLoading(true);
 
-  try {
-    // 1️⃣ Image upload inside async function
-    let imageUrl = form.image || "";
-    if (form.imageFile) {
-      imageUrl = await uploadImage(form.imageFile); // ✅ correct: inside async
-    }
+    try {
+      let imageUrl = form.image || "";
+      if (form.imageFile) {
+        imageUrl = await uploadImage(form.imageFile); // ✅ inside async function
+      }
 
-    // 2️⃣ Prepare payload
-    const payload = {
-      ...form,
-      price: Number(form.price),
-      image: imageUrl, // must be string
-    };
+      const payload = {
+        ...form,
+        price: Number(form.price),
+        image: imageUrl,
+      };
 
-    // 3️⃣ Add or update product
-    if (editingId) {
-      await fetch("/api/admin/products", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...payload, id: editingId }),
+      if (editingId) {
+        // Update product
+        await fetch("/api/admin/products", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...payload, id: editingId }),
+        });
+      } else {
+        // Add new product
+        await fetch("/api/admin/products", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+      }
+
+      // Reset form
+      setForm({
+        name: "",
+        price: "",
+        description: "",
+        image: "",
+        stock: 100,
+        category: "General",
+        featured: false,
+        imageFile: null,
       });
-    } else {
-      await fetch("/api/admin/products", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      setPreview(null);
+      setEditingId(null);
+
+      await loadProducts();
+      alert(editingId ? "Product updated!" : "Product added!");
+    } catch (err) {
+      console.error("Error saving product:", err);
+      alert("Error saving product. See console.");
+    } finally {
+      setLoading(false);
     }
+  };
 
-    // 4️⃣ Reset form & reload
-    setForm({
-      name: "",
-      price: "",
-      description: "",
-      image: "",
-      stock: 100,
-      category: "General",
-      featured: false,
-      imageFile: null,
-    });
-    setPreview(null);
-    setEditingId(null);
-    await loadProducts();
-    alert(editingId ? "Product updated!" : "Product added!");
-  } catch (err) {
-    console.error("Error saving product:", err);
-    alert("Error saving product. See console.");
-  } finally {
-    setLoading(false);
-  }
-};
-
+  // ------------------------
+  // Start editing a product
+  // ------------------------
   const startEdit = (product) => {
     setEditingId(product.id);
     setForm({
@@ -126,11 +143,14 @@ if (form.imageFile) {
       stock: product.stock || 100,
       category: product.category || "General",
       featured: product.featured || false,
-      imageFile: null
+      imageFile: null,
     });
     setPreview(product.image || null);
   };
 
+  // ------------------------
+  // Delete a product
+  // ------------------------
   const deleteProduct = async (id) => {
     if (!confirm("Are you sure you want to delete this product?")) return;
     setLoading(true);
@@ -145,13 +165,22 @@ if (form.imageFile) {
     } catch (err) {
       console.error("Failed to delete product:", err);
       alert("Failed to delete product.");
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   };
 
+  // ------------------------
+  // Render
+  // ------------------------
   return (
     <div style={{ padding: "40px", fontFamily: "'Arial', sans-serif" }}>
       <h2>{editingId ? "Edit Product" : "Add Product"}</h2>
-      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "10px", maxWidth: "500px" }}>
+
+      <form
+        onSubmit={handleSubmit}
+        style={{ display: "flex", flexDirection: "column", gap: "10px", maxWidth: "500px" }}
+      >
         <input name="name" placeholder="Product Name" value={form.name} onChange={handleChange} required />
         <input name="price" type="number" placeholder="Price" value={form.price} onChange={handleChange} required />
         <textarea name="description" placeholder="Description" value={form.description} onChange={handleChange} rows={3} />
@@ -161,7 +190,7 @@ if (form.imageFile) {
           <input name="featured" type="checkbox" checked={form.featured} onChange={handleChange} /> Featured
         </label>
         <input type="file" accept="image/*" onChange={handleImage} />
-        {preview && <img src={preview} width="150" style={{ borderRadius: "10px" }} alt="Preview" />}
+        {preview && <img src={preview} width="150" style={{ borderRadius: "10px" }} alt="preview" />}
         <button type="submit" disabled={loading}>
           {loading ? (editingId ? "Updating..." : "Adding...") : editingId ? "Update Product" : "Add Product"}
         </button>
@@ -171,7 +200,8 @@ if (form.imageFile) {
 
       <h2>Products List</h2>
       {products.length === 0 && <p>No products found</p>}
-      {products.map(p => (
+
+      {products.map((p) => (
         <div key={p.id} style={{ marginBottom: "25px", border: "1px solid #ccc", padding: "10px", borderRadius: "8px" }}>
           {p.image && <img src={p.image} width="120" style={{ borderRadius: "8px" }} alt={p.alt || p.name} />}
           <h4>{p.name}</h4>
