@@ -46,13 +46,19 @@ export default function ProductsAdmin() {
   };
 
   const uploadImage = async (file) => {
-    const formData = new FormData();
-    formData.append("file", file);
-    const res = await fetch("/api/upload", { method: "POST", body: formData });
-    const data = await res.json();
-    if (!data.success) throw new Error(data.message || "Upload failed");
-    return data.url;
-  };
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const res = await fetch("/api/upload", { method: "POST", body: formData });
+  const data = await res.json();
+
+  if (!data.success) throw new Error(data.message || "Upload failed");
+  return data.url; // <-- return only the URL string
+};
+  let imageUrl = form.image || "";
+if (form.imageFile) {
+  imageUrl = await uploadImage(form.imageFile); // this is now a string
+}
 
   const handleSubmit = async (e) => {
     e.preventDefault();
