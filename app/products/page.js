@@ -6,19 +6,19 @@ import { useEffect, useState } from "react";
 export default function Products() {
   const { addToCart } = useCart();
   const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
 
   const fetchProducts = async () => {
     try {
       const res = await fetch("/api/admin/products");
       const data = await res.json();
 
-      // IMPORTANT FIX
+      console.log("API RESPONSE:", data);
+
       setProducts(data.products || []);
+
     } catch (error) {
       console.error("Failed to fetch products:", error);
-    } finally {
-      setLoading(false);
+      setProducts([]);
     }
   };
 
@@ -28,99 +28,36 @@ export default function Products() {
 
   return (
     <div style={{ padding: "80px 60px", background: "#f4efe6" }}>
-      <h1 style={{ fontSize: "48px", textAlign: "center" }}>
-        Our Products
-      </h1>
+      <h1 style={{ textAlign: "center" }}>Our Products</h1>
 
-      {loading && (
-        <p style={{ textAlign: "center", marginTop: "40px" }}>
-          Loading products...
-        </p>
+      {products.length === 0 && (
+        <p style={{ textAlign: "center" }}>No products available</p>
       )}
 
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+          gridTemplateColumns: "repeat(auto-fit,minmax(250px,1fr))",
           gap: "40px",
-          marginTop: "50px",
+          marginTop: "40px",
         }}
       >
-        {!loading && products.length === 0 && (
-          <p style={{ textAlign: "center", gridColumn: "1/-1" }}>
-            No products available.
-          </p>
-        )}
+        {products.map((product) => (
+          <div key={product.id}>
+            <h2>{product.name}</h2>
+            <p>₹{product.price}</p>
 
-        {products?.map((product) => (
-          <div
-            key={product.id}
-            style={{
-              background: "#fff",
-              borderRadius: "15px",
-              padding: "20px",
-              textAlign: "center",
-              boxShadow: "0 4px 10px rgba(0,0,0,0.05)",
-            }}
-          >
             {product.image && (
               <img
                 src={product.image}
                 alt={product.name}
-                style={{
-                  width: "100%",
-                  height: "200px",
-                  objectFit: "cover",
-                  borderRadius: "10px",
-                  marginBottom: "15px",
-                }}
+                width={200}
               />
             )}
 
-            <h2>{product.name}</h2>
-
-            <p style={{ fontWeight: "bold", marginBottom: "10px" }}>
-              ₹{product.price}
-            </p>
-
-            {product.description && (
-              <p
-                style={{
-                  fontSize: "14px",
-                  color: "#555",
-                  marginBottom: "15px",
-                }}
-              >
-                {product.description}
-              </p>
-            )}
-
-            <button
-              onClick={() => addToCart(product)}
-              style={{
-                padding: "10px 20px",
-                marginBottom: "10px",
-                backgroundColor: "#8b5e3c",
-                color: "#fff",
-                border: "none",
-                borderRadius: "6px",
-                cursor: "pointer",
-              }}
-            >
+            <button onClick={() => addToCart(product)}>
               Add to Cart
             </button>
-
-            <br />
-
-            <a
-              href={`/products/${product.id}`}
-              style={{
-                color: "#c28b45",
-                textDecoration: "none",
-              }}
-            >
-              View Product
-            </a>
           </div>
         ))}
       </div>
