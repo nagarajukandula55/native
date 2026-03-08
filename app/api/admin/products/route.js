@@ -3,7 +3,7 @@ import connectToDB from "@/lib/mongodb";
 import Product from "@/models/Product";
 import slugify from "slugify";
 
-// Helper: generate SEO-friendly slug
+// Generate SEO-friendly slug
 const generateSlug = (name) => slugify(name || "", { lower: true, strict: true });
 
 // --------------------
@@ -12,7 +12,6 @@ const generateSlug = (name) => slugify(name || "", { lower: true, strict: true }
 export async function GET() {
   try {
     await connectToDB();
-
     const products = await Product.find({}).lean();
 
     const formattedProducts = Array.isArray(products)
@@ -20,19 +19,19 @@ export async function GET() {
           id: p._id.toString(),
           name: p.name || "",
           description: p.description || "",
-          price: p.price ?? 0,
+          price: p.price || 0,
           image: p.image || "",
           alt: p.alt || p.name || "",
           category: p.category || "General",
-          stock: p.stock ?? 100,
-          featured: p.featured ?? false,
+          stock: p.stock || 100,
+          featured: p.featured || false,
           slug: p.slug || generateSlug(p.name),
         }))
       : [];
 
     return NextResponse.json({ success: true, products: formattedProducts });
   } catch (error) {
-    console.error("[GET PRODUCTS ERROR]", error);
+    console.error("GET PRODUCTS ERROR:", error);
     return NextResponse.json(
       { success: false, products: [], message: "Failed to fetch products" },
       { status: 500 }
@@ -48,7 +47,6 @@ export async function POST(req) {
     await connectToDB();
     const body = await req.json();
 
-    // Basic validation
     if (!body.name || !body.price) {
       return NextResponse.json(
         { success: false, message: "Name and price are required" },
@@ -65,8 +63,8 @@ export async function POST(req) {
       image: body.image || "",
       alt: body.alt || body.name,
       category: body.category || "General",
-      stock: Number(body.stock ?? 100),
-      featured: body.featured ?? false,
+      stock: body.stock || 100,
+      featured: body.featured || false,
       slug,
     });
 
@@ -75,7 +73,7 @@ export async function POST(req) {
       product: { ...product.toObject(), id: product._id.toString() },
     });
   } catch (error) {
-    console.error("[POST PRODUCT ERROR]", error);
+    console.error("POST PRODUCT ERROR:", error);
     return NextResponse.json(
       { success: false, message: "Failed to add product" },
       { status: 500 }
@@ -119,7 +117,7 @@ export async function PATCH(req) {
       product: { ...updated, id: updated._id.toString() },
     });
   } catch (error) {
-    console.error("[PATCH PRODUCT ERROR]", error);
+    console.error("PATCH PRODUCT ERROR:", error);
     return NextResponse.json(
       { success: false, message: "Failed to update product" },
       { status: 500 }
@@ -151,9 +149,9 @@ export async function DELETE(req) {
       );
     }
 
-    return NextResponse.json({ success: true, message: "Product deleted successfully" });
+    return NextResponse.json({ success: true, message: "Product deleted" });
   } catch (error) {
-    console.error("[DELETE PRODUCT ERROR]", error);
+    console.error("DELETE PRODUCT ERROR:", error);
     return NextResponse.json(
       { success: false, message: "Failed to delete product" },
       { status: 500 }
