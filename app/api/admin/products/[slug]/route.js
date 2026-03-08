@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import connectToDB from "@/lib/mongodb";
 import Product from "@/models/Product";
 
-// GET product by slug
+// --------------------
+// GET PRODUCT BY SLUG (ADMIN)
+// --------------------
 export async function GET(req, { params }) {
   try {
     await connectToDB();
@@ -24,7 +26,6 @@ export async function GET(req, { params }) {
       );
     }
 
-    // Format the product to send
     const formatted = {
       id: product._id.toString(),
       name: product.name,
