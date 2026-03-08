@@ -30,6 +30,9 @@ export async function POST(req) {
     });
   } catch (error) {
     console.error("UPLOAD ERROR:", error);
-    return NextResponse.json({ success: false, message: "Failed to upload image" }, { status: 500 });
+    return NextResponse.json(
+      { success: false, message: "Failed to upload image" },
+      { status: 500 }
+    );
   }
 }
