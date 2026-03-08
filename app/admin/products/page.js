@@ -61,46 +61,59 @@ if (form.imageFile) {
 }
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      let imageUrl = form.image || "";
-      if (form.imageFile) imageUrl = await uploadImage(form.imageFile);
+  e.preventDefault();
+  setLoading(true);
 
-      const payload = { ...form, price: Number(form.price), image: imageUrl };
+  try {
+    // 1️⃣ Image upload inside async function
+    let imageUrl = form.image || "";
+    if (form.imageFile) {
+      imageUrl = await uploadImage(form.imageFile); // ✅ correct: inside async
+    }
 
-      if (editingId) {
-        await fetch("/api/admin/products", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...payload, id: editingId }),
-        });
-      } else {
-        await fetch("/api/admin/products", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-      }
+    // 2️⃣ Prepare payload
+    const payload = {
+      ...form,
+      price: Number(form.price),
+      image: imageUrl, // must be string
+    };
 
-      setForm({
-        name: "", price: "", description: "", image: "",
-        stock: 100, category: "General", featured: false, imageFile: null
+    // 3️⃣ Add or update product
+    if (editingId) {
+      await fetch("/api/admin/products", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...payload, id: editingId }),
       });
-      setPreview(null);
-      setEditingId(null);
-      await loadProducts();
-      alert(editingId ? "Product updated!" : "Product added!");
-    } catch (err) {
-      console.error("Error saving product:", err);
-      alert("Error saving product. See console.");
-    } finally { setLoading(false); }
-  };
+    } else {
+      await fetch("/api/admin/products", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+    }
 
-  const payload = {
-  ...form,
-  price: Number(form.price),
-  image: imageUrl, // must be string
+    // 4️⃣ Reset form & reload
+    setForm({
+      name: "",
+      price: "",
+      description: "",
+      image: "",
+      stock: 100,
+      category: "General",
+      featured: false,
+      imageFile: null,
+    });
+    setPreview(null);
+    setEditingId(null);
+    await loadProducts();
+    alert(editingId ? "Product updated!" : "Product added!");
+  } catch (err) {
+    console.error("Error saving product:", err);
+    alert("Error saving product. See console.");
+  } finally {
+    setLoading(false);
+  }
 };
 
   const startEdit = (product) => {
