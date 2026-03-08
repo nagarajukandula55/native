@@ -13,5 +13,6 @@
     "mongoose": "^7.6.1",
     "bcrypt": "^5.1.0",
     "jsonwebtoken": "^9.0.2"
+    "cloudinary": "^1.41.0"
   }
 }
