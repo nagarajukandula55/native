@@ -8,15 +8,16 @@ export async function GET() {
     await connectToDB();
 
     const products = await Product.find({}).lean();
-    console.log("PRODUCTS FROM DB:", products);
 
-    const formattedProducts = products.map((p) => ({
-      id: p._id.toString(),
-      name: p.name,
-      description: p.description || "",
-      price: p.price,
-      image: p.image || "",
-    }));
+    const formattedProducts = Array.isArray(products)
+      ? products.map((p) => ({
+          id: p._id.toString(),
+          name: p.name || "",
+          description: p.description || "",
+          price: p.price || 0,
+          image: p.image || "",
+        }))
+      : [];
 
     return NextResponse.json({
       success: true,
@@ -27,7 +28,11 @@ export async function GET() {
     console.error("GET PRODUCTS ERROR:", error);
 
     return NextResponse.json(
-      { success: false, message: "Failed to fetch products" },
+      {
+        success: false,
+        products: [],
+        message: "Failed to fetch products",
+      },
       { status: 500 }
     );
   }
@@ -51,9 +56,9 @@ export async function POST(req) {
     const formattedProduct = {
       id: product._id.toString(),
       name: product.name,
-      description: product.description,
+      description: product.description || "",
       price: product.price,
-      image: product.image,
+      image: product.image || "",
     };
 
     return NextResponse.json({
@@ -65,7 +70,10 @@ export async function POST(req) {
     console.error("POST PRODUCT ERROR:", error);
 
     return NextResponse.json(
-      { success: false, message: "Failed to add product" },
+      {
+        success: false,
+        message: "Failed to add product",
+      },
       { status: 500 }
     );
   }
