@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import connectToDB from "@/lib/mongodb";
 import Product from "@/models/Product";
+import slugify from "slugify"; // run `npm install slugify`
+
+// Helper: generate SEO-friendly slug
+const generateSlug = (name) => slugify(name || "", { lower: true, strict: true });
 
 // --------------------
 // GET PRODUCTS
@@ -8,7 +12,6 @@ import Product from "@/models/Product";
 export async function GET() {
   try {
     await connectToDB();
-
     const products = await Product.find({}).lean();
 
     const formattedProducts = Array.isArray(products)
@@ -18,13 +21,15 @@ export async function GET() {
           description: p.description || "",
           price: p.price || 0,
           image: p.image || "",
+          alt: p.alt || p.name || "",
+          category: p.category || "General",
+          stock: p.stock || 100,
+          featured: p.featured || false,
+          slug: p.slug || generateSlug(p.name),
         }))
       : [];
 
-    return NextResponse.json({
-      success: true,
-      products: formattedProducts,
-    });
+    return NextResponse.json({ success: true, products: formattedProducts });
   } catch (error) {
     console.error("GET PRODUCTS ERROR:", error);
     return NextResponse.json(
@@ -49,22 +54,24 @@ export async function POST(req) {
       );
     }
 
+    const slug = generateSlug(body.name);
+
     const product = await Product.create({
       name: body.name,
       description: body.description || "",
       price: Number(body.price),
       image: body.image || "",
+      alt: body.alt || body.name,
+      category: body.category || "General",
+      stock: body.stock || 100,
+      featured: body.featured || false,
+      slug,
     });
 
-    const formattedProduct = {
-      id: product._id.toString(),
-      name: product.name,
-      description: product.description || "",
-      price: product.price,
-      image: product.image || "",
-    };
-
-    return NextResponse.json({ success: true, product: formattedProduct });
+    return NextResponse.json({
+      success: true,
+      product: { ...product.toObject(), id: product._id.toString() },
+    });
   } catch (error) {
     console.error("POST PRODUCT ERROR:", error);
     return NextResponse.json(
@@ -81,24 +88,22 @@ export async function PATCH(req) {
   try {
     await connectToDB();
     const body = await req.json();
+    const { id, name } = body;
 
-    if (!body.id) {
+    if (!id) {
       return NextResponse.json(
         { success: false, message: "Product ID is required" },
         { status: 400 }
       );
     }
 
+    const slug = name ? generateSlug(name) : undefined;
+
     const updated = await Product.findByIdAndUpdate(
-      body.id,
-      {
-        name: body.name,
-        description: body.description || "",
-        price: Number(body.price),
-        image: body.image || "",
-      },
-      { new: true } // return updated document
-    );
+      id,
+      { ...body, slug },
+      { new: true, runValidators: true }
+    ).lean();
 
     if (!updated) {
       return NextResponse.json(
@@ -107,15 +112,10 @@ export async function PATCH(req) {
       );
     }
 
-    const formattedProduct = {
-      id: updated._id.toString(),
-      name: updated.name,
-      description: updated.description || "",
-      price: updated.price,
-      image: updated.image || "",
-    };
-
-    return NextResponse.json({ success: true, product: formattedProduct });
+    return NextResponse.json({
+      success: true,
+      product: { ...updated, id: updated._id.toString() },
+    });
   } catch (error) {
     console.error("PATCH PRODUCT ERROR:", error);
     return NextResponse.json(
@@ -131,16 +131,16 @@ export async function PATCH(req) {
 export async function DELETE(req) {
   try {
     await connectToDB();
-    const body = await req.json();
+    const { id } = await req.json();
 
-    if (!body.id) {
+    if (!id) {
       return NextResponse.json(
         { success: false, message: "Product ID is required" },
         { status: 400 }
       );
     }
 
-    const deleted = await Product.findByIdAndDelete(body.id);
+    const deleted = await Product.findByIdAndDelete(id);
 
     if (!deleted) {
       return NextResponse.json(
