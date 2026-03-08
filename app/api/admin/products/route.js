@@ -8,6 +8,7 @@ export async function GET() {
     await connectToDB();
 
     const products = await Product.find({}).lean();
+    console.log("PRODUCTS FROM DB:", products);
 
     const formattedProducts = products.map((p) => ({
       id: p._id.toString(),
