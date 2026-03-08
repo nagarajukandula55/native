@@ -8,6 +8,7 @@ export default function ProductDetailPage() {
   const { slug } = useParams();
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [cart, setCart] = useState([]);
 
   useEffect(() => {
     const loadProduct = async () => {
@@ -26,12 +27,22 @@ export default function ProductDetailPage() {
     if (slug) loadProduct();
   }, [slug]);
 
+  const addToCart = () => {
+    if (!product) return;
+    const exists = cart.find((p) => p.id === product.id);
+    if (!exists) setCart([...cart, { ...product, quantity: 1 }]);
+    else setCart(cart.map((p) => (p.id === product.id ? { ...p, quantity: p.quantity + 1 } : p)));
+    alert(`${product.name} added to cart`);
+  };
+
   if (loading) return <p style={{ padding: "40px" }}>Loading...</p>;
   if (!product)
     return (
       <div style={{ padding: "40px" }}>
         <p>Product not found.</p>
-        <Link href="/products" style={{ color: "#1890ff" }}>Back to Products</Link>
+        <Link href="/products" style={{ color: "#1890ff" }}>
+          Back to Products
+        </Link>
       </div>
     );
 
@@ -54,7 +65,10 @@ export default function ProductDetailPage() {
         <p>Stock: {product.stock}</p>
         <p>Category: {product.category}</p>
         {product.featured && <p style={{ color: "#ff4d4f", fontWeight: "bold" }}>★ Featured Product</p>}
-        <button style={{ padding: "10px 15px", background: "#1890ff", color: "#fff", border: "none", borderRadius: "5px", cursor: "pointer" }}>
+        <button
+          onClick={addToCart}
+          style={{ padding: "10px 15px", background: "#1890ff", color: "#fff", border: "none", borderRadius: "5px", cursor: "pointer" }}
+        >
           Add to Cart
         </button>
       </div>
