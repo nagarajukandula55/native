@@ -18,14 +18,14 @@ export default function ProductsAdmin() {
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // Load products
+  // Load products from API
   const loadProducts = async () => {
     try {
       const res = await fetch("/api/admin/products");
       const data = await res.json();
       setProducts(data.products || []);
     } catch (err) {
-      console.error("Failed to load products", err);
+      console.error("Failed to load products:", err);
       setProducts([]);
     }
   };
@@ -34,7 +34,7 @@ export default function ProductsAdmin() {
     loadProducts();
   }, []);
 
-  // Form change
+  // Handle form input change
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setForm((prev) => ({
@@ -52,52 +52,53 @@ export default function ProductsAdmin() {
     }
   };
 
-  // Upload image to Cloudinary API
+  // Upload image to Cloudinary
   const uploadImage = async (file) => {
-    const formData = new FormData();
-    formData.append("file", file);
-  
-    const res = await fetch("/api/upload", { method: "POST", body: formData });
-    const data = await res.json();
-  
-    if (!data.success) {
-      throw new Error(data.message || "Image upload failed");
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      const data = await res.json();
+
+      if (!data.success || !data.url) {
+        throw new Error(data.message || "Image upload failed");
+      }
+
+      return data.url;
+    } catch (err) {
+      console.error("Upload failed:", err);
+      throw err;
     }
-  
-    return data.url; // <-- only return URL string
   };
 
   // Add or update product
-    const handleSubmit = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-  
+
     try {
       let imageUrl = form.image || "";
       if (form.imageFile) {
-        imageUrl = await uploadImage(form.imageFile); // now this is a string URL
+        imageUrl = await uploadImage(form.imageFile);
       }
-  
-      const payload = {
-        ...form,
-        price: Number(form.price),
-        image: imageUrl, // <-- ensure only string goes to DB
-      };
-  
-      if (editingId) {
-        await fetch("/api/admin/products", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...payload, id: editingId }),
-        });
-      } else {
-        await fetch("/api/admin/products", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
+
+      const payload = { ...form, price: Number(form.price), image: imageUrl };
+
+      const method = editingId ? "PATCH" : "POST";
+      const body = editingId ? { ...payload, id: editingId } : payload;
+
+      const res = await fetch("/api/admin/products", {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      const result = await res.json();
+      if (!result.success) {
+        throw new Error(result.message || "Failed to save product");
       }
-  
+
       // Reset form
       setForm({
         name: "",
@@ -111,7 +112,7 @@ export default function ProductsAdmin() {
       });
       setPreview(null);
       setEditingId(null);
-  
+
       await loadProducts();
       alert(editingId ? "Product updated!" : "Product added!");
     } catch (err) {
@@ -121,7 +122,7 @@ export default function ProductsAdmin() {
       setLoading(false);
     }
   };
-  
+
   // Start editing a product
   const startEdit = (product) => {
     setEditingId(product.id);
@@ -138,28 +139,30 @@ export default function ProductsAdmin() {
     setPreview(product.image || null);
   };
 
-  // Delete product
+  // Delete a product
   const deleteProduct = async (id) => {
     if (!confirm("Are you sure you want to delete this product?")) return;
     setLoading(true);
     try {
-      await fetch("/api/admin/products", {
+      const res = await fetch("/api/admin/products", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id }),
       });
+      const result = await res.json();
+      if (!result.success) throw new Error(result.message || "Delete failed");
       await loadProducts();
       alert("Product deleted!");
     } catch (err) {
       console.error("Failed to delete product:", err);
-      alert("Failed to delete product.");
+      alert("Failed to delete product. See console.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div style={{ padding: "40px", fontFamily: "'Arial', sans-serif'" }}>
+    <div style={{ padding: "40px", fontFamily: "'Arial', sans-serif" }}>
       <h2>{editingId ? "Edit Product" : "Add Product"}</h2>
 
       <form
@@ -175,7 +178,7 @@ export default function ProductsAdmin() {
           <input name="featured" type="checkbox" checked={form.featured} onChange={handleChange} /> Featured
         </label>
         <input type="file" accept="image/*" onChange={handleImage} />
-        {preview && <img src={preview} width="150" style={{ borderRadius: "10px" }} alt="Preview" />}
+        {preview && <img src={preview} width="150" style={{ borderRadius: "10px" }} alt="preview" />}
         <button type="submit" disabled={loading}>
           {loading ? (editingId ? "Updating..." : "Adding...") : editingId ? "Update Product" : "Add Product"}
         </button>
