@@ -193,7 +193,7 @@ margin:"10px 0"
 </p>
 
 <button
-onClick={()=>addToCart(product)}
+onClick={()=>window.location.href=`/product/${product.slug}`}
 style={{
 padding:"10px 20px",
 borderRadius:"25px",
