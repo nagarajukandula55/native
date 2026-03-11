@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import Image from "next/image"
 
 export default function AdminProducts() {
 
@@ -23,9 +24,12 @@ export default function AdminProducts() {
   }, [])
 
   async function fetchProducts() {
+
     const res = await fetch("/api/admin/products")
     const data = await res.json()
+
     setProducts(data)
+
   }
 
   function handleChange(e) {
@@ -36,6 +40,7 @@ export default function AdminProducts() {
       ...form,
       [name]: type === "checkbox" ? checked : value
     })
+
   }
 
   async function handleImageUpload(e) {
@@ -47,7 +52,6 @@ export default function AdminProducts() {
     setUploading(true)
 
     const formData = new FormData()
-
     formData.append("file", file)
 
     const res = await fetch("/api/upload", {
@@ -63,28 +67,28 @@ export default function AdminProducts() {
     })
 
     setUploading(false)
+
   }
 
   async function handleSubmit(e) {
 
     e.preventDefault()
 
-    const payload = {
-      ...form,
-      alt: form.name
-    }
-
     await fetch("/api/admin/products", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
       },
-      body: JSON.stringify(payload)
+      body: JSON.stringify({
+        ...form,
+        alt: form.name
+      })
     })
 
     setForm(emptyForm)
 
     fetchProducts()
+
   }
 
   async function deleteProduct(slug) {
@@ -96,6 +100,7 @@ export default function AdminProducts() {
     })
 
     fetchProducts()
+
   }
 
   return (
@@ -154,19 +159,22 @@ export default function AdminProducts() {
         />
 
         <div>
-
           <input type="file" onChange={handleImageUpload} />
-
-          {uploading && <p className="text-sm text-gray-500">Uploading...</p>}
-
+          {uploading && <p>Uploading...</p>}
         </div>
 
         {form.image && (
 
-          <img
-            src={form.image}
-            className="h-24 w-24 object-cover rounded"
-          />
+          <div className="w-24 h-24 relative border rounded overflow-hidden">
+
+            <Image
+              src={form.image}
+              alt="preview"
+              fill
+              className="object-cover"
+            />
+
+          </div>
 
         )}
 
@@ -216,10 +224,16 @@ export default function AdminProducts() {
 
                 {product.image && (
 
-                  <img
-                    src={product.image}
-                    className="h-14 w-14 object-cover rounded"
-                  />
+                  <div className="w-16 h-16 relative">
+
+                    <Image
+                      src={product.image}
+                      alt={product.name}
+                      fill
+                      className="object-cover rounded"
+                    />
+
+                  </div>
 
                 )}
 
