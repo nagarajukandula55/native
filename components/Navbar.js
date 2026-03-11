@@ -25,36 +25,32 @@ export default function Navbar() {
 
       {/* LOGO */}
 
-      <Link href="/" style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+      <Link href="/">
         <img
           src="/logo.png"
           alt="Native"
-          style={{ height: "50px", width: "50px", objectFit: "contain" }}
-        />
-
-        <span
           style={{
-            fontSize: "22px",
-            fontWeight: "600",
-            color: "#3a2a1c"
+            height: "60px",
+            objectFit: "contain"
           }}
-        >
-          Native
-        </span>
+        />
       </Link>
 
 
-      {/* NAVIGATION */}
+      {/* MENU */}
 
       <nav
         style={{
           display: "flex",
           gap: "30px",
-          alignItems: "center"
+          alignItems: "center",
+          fontSize: "16px"
         }}
       >
 
         <Link href="/">Home</Link>
+
+        <a href="#products">Products</a>
 
         <Link href="/cart">
           Cart ({cart.length})
@@ -67,5 +63,6 @@ export default function Navbar() {
       </nav>
 
     </header>
+
   )
 }
