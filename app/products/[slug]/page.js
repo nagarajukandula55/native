@@ -35,8 +35,8 @@ export default async function ProductPage({params}){
           objectFit:"cover",
           borderRadius:"8px"
         }}
-      <AddToCartButton product={product} />
       />
+        <AddToCartButton product={product} />
 
       <div>
 
