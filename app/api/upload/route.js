@@ -3,6 +3,7 @@ import cloudinary from "@/lib/cloudinary"
 
 export async function POST(req) {
   try {
+
     const formData = await req.formData()
     const file = formData.get("file")
 
@@ -13,7 +14,7 @@ export async function POST(req) {
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
 
-    const uploadResult = await new Promise((resolve, reject) => {
+    const result = await new Promise((resolve, reject) => {
       const stream = cloudinary.uploader.upload_stream(
         { folder: "products" },
         (error, result) => {
@@ -26,14 +27,15 @@ export async function POST(req) {
     })
 
     return NextResponse.json({
-      url: uploadResult.secure_url
+      url: result.secure_url
     })
 
   } catch (error) {
+
     console.error("UPLOAD ERROR:", error)
 
     return NextResponse.json(
-      { error: "Upload failed", details: error.message },
+      { error: error.message },
       { status: 500 }
     )
   }
