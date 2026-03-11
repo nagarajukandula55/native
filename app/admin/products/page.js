@@ -1,7 +1,7 @@
+
 "use client"
 
 import { useState, useEffect } from "react"
-import Image from "next/image"
 
 export default function AdminProducts() {
 
@@ -24,12 +24,9 @@ export default function AdminProducts() {
   }, [])
 
   async function loadProducts() {
-
     const res = await fetch("/api/admin/products")
     const data = await res.json()
-
     setProducts(data)
-
   }
 
   function handleChange(e) {
@@ -110,112 +107,68 @@ export default function AdminProducts() {
 
   return (
 
-    <div className="max-w-6xl mx-auto p-6">
+    <div style={{maxWidth:"1100px", margin:"auto", padding:"20px"}}>
 
-      <h1 className="text-3xl font-bold mb-8">
+      <h1 style={{fontSize:"28px", fontWeight:"bold", marginBottom:"20px"}}>
         Product Manager
       </h1>
 
-      {/* FORM */}
+      <form onSubmit={handleSubmit} style={{display:"grid", gap:"10px", marginBottom:"30px"}}>
 
-      <form onSubmit={handleSubmit} className="grid md:grid-cols-2 gap-4 mb-10">
+        <input name="name" placeholder="Product Name" value={form.name} onChange={handleChange} required/>
 
-        <input
-          name="name"
-          placeholder="Product Name"
-          className="border p-2 rounded"
-          value={form.name}
-          onChange={handleChange}
-          required
-        />
+        <input name="price" type="number" placeholder="Price" value={form.price} onChange={handleChange}/>
 
-        <input
-          name="price"
-          type="number"
-          placeholder="Price"
-          className="border p-2 rounded"
-          value={form.price}
-          onChange={handleChange}
-        />
+        <input name="category" placeholder="Category" value={form.category} onChange={handleChange}/>
 
-        <input
-          name="category"
-          placeholder="Category"
-          className="border p-2 rounded"
-          value={form.category}
-          onChange={handleChange}
-        />
+        <input name="stock" type="number" placeholder="Stock" value={form.stock} onChange={handleChange}/>
 
-        <input
-          name="stock"
-          type="number"
-          placeholder="Stock"
-          className="border p-2 rounded"
-          value={form.stock}
-          onChange={handleChange}
-        />
+        <textarea name="description" placeholder="Description" value={form.description} onChange={handleChange}/>
 
-        <textarea
-          name="description"
-          placeholder="Description"
-          className="border p-2 rounded md:col-span-2"
-          value={form.description}
-          onChange={handleChange}
-        />
+        <input type="file" onChange={handleImageUpload}/>
 
-        <div>
-          <input type="file" onChange={handleImageUpload} />
-          {uploading && <p>Uploading...</p>}
-        </div>
+        {uploading && <p>Uploading...</p>}
 
         {form.image && (
-
-          <div className="relative w-[100px] h-[100px] border rounded">
-
-            <Image
-              src={form.image}
-              alt="preview"
-              fill
-              sizes="100px"
-              className="object-cover rounded"
-            />
-
-          </div>
-
+          <img
+            src={form.image}
+            alt="preview"
+            style={{
+              width:"100px",
+              height:"100px",
+              objectFit:"cover",
+              borderRadius:"6px"
+            }}
+          />
         )}
 
-        <label className="flex items-center gap-2">
+        <label>
 
-          <input
-            type="checkbox"
-            name="featured"
-            checked={form.featured}
-            onChange={handleChange}
-          />
+          <input type="checkbox" name="featured" checked={form.featured} onChange={handleChange}/>
 
           Featured Product
 
         </label>
 
-        <button className="bg-black text-white px-6 py-2 rounded">
+        <button style={{padding:"10px", background:"black", color:"white"}}>
           Add Product
         </button>
 
       </form>
 
-      {/* PRODUCTS TABLE */}
+      <table style={{width:"100%", borderCollapse:"collapse"}}>
 
-      <table className="w-full border">
+        <thead>
 
-        <thead className="bg-gray-100">
+          <tr style={{background:"#eee"}}>
 
-          <tr>
-            <th className="p-2">Image</th>
+            <th>Image</th>
             <th>Name</th>
             <th>Price</th>
             <th>Stock</th>
             <th>Category</th>
             <th>Action</th>
+
           </tr>
 
         </thead>
@@ -224,25 +177,19 @@ export default function AdminProducts() {
 
           {products.map(product => (
 
-            <tr key={product._id} className="border-t">
+            <tr key={product._id}>
 
-              <td className="p-2">
+              <td>
 
-                {product.image && (
-
-                  <div className="relative w-[60px] h-[60px]">
-
-                    <Image
-                      src={product.image}
-                      alt={product.name}
-                      fill
-                      sizes="60px"
-                      className="object-cover rounded"
-                    />
-
-                  </div>
-
-                )}
+                <img
+                  src={product.image}
+                  alt={product.name}
+                  style={{
+                    width:"60px",
+                    height:"60px",
+                    objectFit:"cover"
+                  }}
+                />
 
               </td>
 
@@ -256,10 +203,7 @@ export default function AdminProducts() {
 
               <td>
 
-                <button
-                  onClick={() => deleteProduct(product.slug)}
-                  className="text-red-600"
-                >
+                <button onClick={()=>deleteProduct(product.slug)}>
                   Delete
                 </button>
 
@@ -274,7 +218,7 @@ export default function AdminProducts() {
       </table>
 
     </div>
+
   )
 
 }
-
