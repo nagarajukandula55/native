@@ -1,7 +1,7 @@
-
 "use client"
 
 import { useEffect, useState } from "react"
+import Image from "next/image"
 import Link from "next/link"
 
 export default function ProductsPage() {
@@ -10,16 +10,16 @@ export default function ProductsPage() {
 
   useEffect(() => {
 
-    async function fetchProducts() {
+    async function loadProducts() {
 
       const res = await fetch("/api/admin/products")
-
       const data = await res.json()
 
       setProducts(data)
+
     }
 
-    fetchProducts()
+    loadProducts()
 
   }, [])
 
@@ -35,26 +35,24 @@ export default function ProductsPage() {
 
         {products.map(product => (
 
-          <Link
-            key={product._id}
-            href={"/products/" + product.slug}
-          >
+          <Link key={product._id} href={"/products/" + product.slug}>
 
             <div className="border rounded-lg overflow-hidden hover:shadow-lg transition">
 
-              <div className="aspect-square bg-gray-100">
+              <div className="w-full h-56 relative bg-gray-100">
 
-                <img
+                <Image
                   src={product.image}
                   alt={product.name}
-                  className="w-full h-full object-cover"
+                  fill
+                  className="object-cover"
                 />
 
               </div>
 
               <div className="p-4">
 
-                <h2 className="font-semibold text-lg">
+                <h2 className="font-semibold">
                   {product.name}
                 </h2>
 
@@ -77,5 +75,7 @@ export default function ProductsPage() {
       </div>
 
     </div>
+
   )
+
 }
