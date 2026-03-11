@@ -1,118 +1,63 @@
-import { NextResponse } from "next/server"
-import mongoose from "mongoose"
-import Product from "@/models/Product"
 
-const MONGODB_URI = process.env.MONGODB_URI
+import Image from "next/image"
 
-async function connectDB() {
+async function getProduct(slug) {
 
-  if (mongoose.connection.readyState === 1) return
+  const res = await fetch(
+    process.env.NEXT_PUBLIC_BASE_URL + "/api/admin/products/" + slug,
+    { cache: "no-store" }
+  )
 
-  await mongoose.connect(MONGODB_URI)
-
-}
-
-
-/* GET PRODUCT BY SLUG */
-
-export async function GET(req, { params }) {
-
-  try {
-
-    await connectDB()
-
-    const product = await Product.findOne({
-      slug: params.slug
-    })
-
-    if (!product) {
-
-      return NextResponse.json(
-        { error: "Product not found" },
-        { status: 404 }
-      )
-
-    }
-
-    return NextResponse.json(product)
-
-  }
-
-  catch (error) {
-
-    console.error("GET PRODUCT ERROR:", error)
-
-    return NextResponse.json(
-      { error: "Failed to fetch product" },
-      { status: 500 }
-    )
-
-  }
+  return res.json()
 
 }
 
+export default async function ProductPage({ params }) {
 
-/* DELETE PRODUCT */
+  const product = await getProduct(params.slug)
 
-export async function DELETE(req, { params }) {
+  return (
 
-  try {
+    <div className="max-w-6xl mx-auto p-8 grid md:grid-cols-2 gap-10">
 
-    await connectDB()
+      {/* IMAGE */}
 
-    await Product.findOneAndDelete({
-      slug: params.slug
-    })
+      <div className="relative w-full h-[450px] border rounded">
 
-    return NextResponse.json({
-      message: "Product deleted"
-    })
+        <Image
+          src={product.image}
+          alt={product.name}
+          fill
+          sizes="500px"
+          className="object-cover"
+        />
 
-  }
+      </div>
 
-  catch (error) {
+      {/* DETAILS */}
 
-    console.error("DELETE PRODUCT ERROR:", error)
+      <div>
 
-    return NextResponse.json(
-      { error: "Failed to delete product" },
-      { status: 500 }
-    )
+        <h1 className="text-3xl font-bold mb-4">
+          {product.name}
+        </h1>
 
-  }
+        <p className="text-gray-600 mb-4">
+          {product.description}
+        </p>
 
-}
+        <p className="text-2xl font-bold text-green-700 mb-4">
+          ₹{product.price}
+        </p>
 
+        <p className="text-sm text-gray-500">
+          Category: {product.category}
+        </p>
 
-/* UPDATE PRODUCT */
+      </div>
 
-export async function PUT(req, { params }) {
+    </div>
 
-  try {
-
-    await connectDB()
-
-    const body = await req.json()
-
-    const updatedProduct = await Product.findOneAndUpdate(
-      { slug: params.slug },
-      body,
-      { new: true }
-    )
-
-    return NextResponse.json(updatedProduct)
-
-  }
-
-  catch (error) {
-
-    console.error("UPDATE PRODUCT ERROR:", error)
-
-    return NextResponse.json(
-      { error: "Failed to update product" },
-      { status: 500 }
-    )
-
-  }
+  )
 
 }
