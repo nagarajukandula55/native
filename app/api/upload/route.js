@@ -3,27 +3,21 @@ import cloudinary from "@/lib/cloudinary"
 
 export async function POST(req) {
   try {
-
-    const formData = await req.formData()
-    const file = formData.get("file")
+    const data = await req.formData()
+    const file = data.get("file")
 
     if (!file) {
-      return NextResponse.json({ error: "No file uploaded" }, { status: 400 })
+      return NextResponse.json({ error: "No file provided" }, { status: 400 })
     }
 
+    // Convert file to base64
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
 
-    const result = await new Promise((resolve, reject) => {
-      const stream = cloudinary.uploader.upload_stream(
-        { folder: "products" },
-        (error, result) => {
-          if (error) reject(error)
-          else resolve(result)
-        }
-      )
+    const base64 = `data:${file.type};base64,${buffer.toString("base64")}`
 
-      stream.end(buffer)
+    const result = await cloudinary.uploader.upload(base64, {
+      folder: "products"
     })
 
     return NextResponse.json({
@@ -31,11 +25,10 @@ export async function POST(req) {
     })
 
   } catch (error) {
-
     console.error("UPLOAD ERROR:", error)
 
     return NextResponse.json(
-      { error: error.message },
+      { error: error.message || "Upload failed" },
       { status: 500 }
     )
   }
