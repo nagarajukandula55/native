@@ -1,6 +1,7 @@
 "use client"
 
-import { useCart } from "./context/CartContext";
+import { createContext, useContext, useState } from "react"
+import { useCart } from "@/context/CartContext";
 import { useEffect, useState } from "react";
 
 export default function Home() {
