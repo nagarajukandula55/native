@@ -55,7 +55,7 @@ export default function ProductsPage() {
                 <img
                   src={product.image}
                   alt={product.alt || product.name}
-                  className="w-full h-60 object-cover mb-3"
+                  className="w-full h-56 object-cover rounded-md"
                 />
               )}
 
