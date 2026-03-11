@@ -1,61 +1,107 @@
-import AddToCartButton from "@/components/AddToCartButton"
-async function getProduct(slug){
+"use client"
 
-  const res = await fetch(
-    process.env.NEXT_PUBLIC_BASE_URL + "/api/admin/products/" + slug,
-    { cache:"no-store" }
-  )
+import { useEffect,useState } from "react"
+import { useParams } from "next/navigation"
+import { useCart } from "@/context/CartContext"
 
-  return res.json()
+export default function ProductPage(){
+
+const { slug } = useParams()
+const { addToCart } = useCart()
+
+const [product,setProduct] = useState(null)
+
+useEffect(()=>{
+
+const fetchProduct = async()=>{
+
+const res = await fetch(`/api/products/${slug}`)
+const data = await res.json()
+
+if(data.success){
+setProduct(data.product)
+}
 
 }
 
-export default async function ProductPage({params}){
+fetchProduct()
 
-  const product = await getProduct(params.slug)
+},[slug])
 
-  return(
 
-    <div style={{
-      maxWidth:"1100px",
-      margin:"auto",
-      padding:"40px",
-      display:"grid",
-      gridTemplateColumns:"1fr 1fr",
-      gap:"40px"
-    }}>
+if(!product){
+return <p style={{padding:"80px"}}>Loading...</p>
+}
 
-      <img
-        src={product.image}
-        alt={product.name}
-        style={{
-          width:"100%",
-          maxWidth:"450px",
-          height:"450px",
-          objectFit:"cover",
-          borderRadius:"8px"
-        }}
-      />
-        <AddToCartButton product={product} />
 
-      <div>
+return(
 
-        <h1 style={{fontSize:"30px", fontWeight:"bold"}}>
-          {product.name}
-        </h1>
+<div
+style={{
+maxWidth:"1200px",
+margin:"auto",
+padding:"80px 20px",
+display:"grid",
+gridTemplateColumns:"1fr 1fr",
+gap:"50px"
+}}
+>
 
-        <p style={{marginTop:"15px"}}>
-          {product.description}
-        </p>
+<img
+src={product.image}
+style={{
+width:"100%",
+borderRadius:"10px"
+}}
+/>
 
-        <h2 style={{marginTop:"20px"}}>
-          ₹{product.price}
-        </h2>
+<div>
 
-      </div>
+<h1
+style={{
+fontSize:"40px",
+marginBottom:"20px"
+}}
+>
+{product.name}
+</h1>
 
-    </div>
+<p
+style={{
+fontSize:"18px",
+marginBottom:"20px"
+}}
+>
+{product.description}
+</p>
 
-  )
+<h2
+style={{
+color:"#c28b45",
+marginBottom:"20px"
+}}
+>
+₹{product.price}
+</h2>
+
+<button
+onClick={()=>addToCart(product)}
+style={{
+padding:"12px 30px",
+borderRadius:"30px",
+border:"none",
+background:"#c28b45",
+color:"#fff",
+cursor:"pointer"
+}}
+>
+Add to Cart
+</button>
+
+</div>
+
+</div>
+
+)
 
 }
