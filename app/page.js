@@ -119,7 +119,7 @@ export default function Home() {
             ) : (
               products.map((p) => (
                 <div
-                  key={p.id}
+                  key={p._id}
                   style={{
                     border: "1px solid #ddd",
                     borderRadius: "10px",
