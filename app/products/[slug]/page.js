@@ -1,58 +1,55 @@
 
-import Image from "next/image"
-
-async function getProduct(slug) {
+async function getProduct(slug){
 
   const res = await fetch(
     process.env.NEXT_PUBLIC_BASE_URL + "/api/admin/products/" + slug,
-    { cache: "no-store" }
+    { cache:"no-store" }
   )
 
   return res.json()
 
 }
 
-export default async function ProductPage({ params }) {
+export default async function ProductPage({params}){
 
   const product = await getProduct(params.slug)
 
-  return (
+  return(
 
-    <div className="max-w-6xl mx-auto p-8 grid md:grid-cols-2 gap-10">
+    <div style={{
+      maxWidth:"1100px",
+      margin:"auto",
+      padding:"40px",
+      display:"grid",
+      gridTemplateColumns:"1fr 1fr",
+      gap:"40px"
+    }}>
 
-      {/* IMAGE */}
-
-      <div className="relative w-full h-[450px] border rounded">
-
-        <Image
-          src={product.image}
-          alt={product.name}
-          fill
-          sizes="500px"
-          className="object-cover"
-        />
-
-      </div>
-
-      {/* DETAILS */}
+      <img
+        src={product.image}
+        alt={product.name}
+        style={{
+          width:"100%",
+          maxWidth:"450px",
+          height:"450px",
+          objectFit:"cover",
+          borderRadius:"8px"
+        }}
+      />
 
       <div>
 
-        <h1 className="text-3xl font-bold mb-4">
+        <h1 style={{fontSize:"30px", fontWeight:"bold"}}>
           {product.name}
         </h1>
 
-        <p className="text-gray-600 mb-4">
+        <p style={{marginTop:"15px"}}>
           {product.description}
         </p>
 
-        <p className="text-2xl font-bold text-green-700 mb-4">
+        <h2 style={{marginTop:"20px"}}>
           ₹{product.price}
-        </p>
-
-        <p className="text-sm text-gray-500">
-          Category: {product.category}
-        </p>
+        </h2>
 
       </div>
 
