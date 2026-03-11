@@ -10,16 +10,17 @@ export default function ProductsPage() {
 
   useEffect(() => {
 
-    async function loadProducts() {
+    async function fetchProducts() {
 
       const res = await fetch("/api/admin/products")
+
       const data = await res.json()
 
       setProducts(data)
 
     }
 
-    loadProducts()
+    fetchProducts()
 
   }, [])
 
@@ -35,16 +36,20 @@ export default function ProductsPage() {
 
         {products.map(product => (
 
-          <Link key={product._id} href={"/products/" + product.slug}>
+          <Link
+            key={product._id}
+            href={"/products/" + product.slug}
+          >
 
             <div className="border rounded-lg overflow-hidden hover:shadow-lg transition">
 
-              <div className="w-full h-56 relative bg-gray-100">
+              <div className="relative w-full h-[220px] bg-gray-100">
 
                 <Image
                   src={product.image}
                   alt={product.name}
                   fill
+                  sizes="300px"
                   className="object-cover"
                 />
 
