@@ -1,4 +1,4 @@
-"use client";
+"use client"
 
 import { useCart } from "../context/CartContext";
 import { useState } from "react";
