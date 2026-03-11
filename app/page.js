@@ -59,17 +59,26 @@ background:"#f4efe6"
 <div style={{maxWidth:"800px"}}>
 
 <h1
-className="brand-font"
 style={{
-fontSize:"clamp(42px,6vw,72px)",
+fontSize:"clamp(48px,7vw,80px)",
 color:"#3a2a1c",
-marginBottom:"20px"
+marginBottom:"10px",
+fontFamily:"Cinzel, serif",
+fontWeight:"600"
 }}
 >
-
 Welcome to Native
-
 </h1>
+
+<p
+style={{
+fontSize:"20px",
+marginBottom:"25px",
+color:"#5c4634"
+}}
+>
+Eat Healthy, Stay Healthy
+</p>
 
 <p
 style={{
@@ -79,10 +88,8 @@ marginBottom:"30px",
 color:"#5c4634"
 }}
 >
-
-Eat Healthy, Stay Healthy.  
-Authentic natural products refined directly from the source.
-
+Authentic natural food products refined directly from the source.
+Pure, traditional and healthy for everyday life.
 </p>
 
 <button
