@@ -1,73 +1,71 @@
+
 "use client"
 
 import { useEffect, useState } from "react"
-import Image from "next/image"
 import Link from "next/link"
 
 export default function ProductsPage() {
 
   const [products, setProducts] = useState([])
 
-  useEffect(() => {
+  useEffect(()=>{
 
-    async function fetchProducts() {
+    async function load(){
 
       const res = await fetch("/api/admin/products")
-
       const data = await res.json()
 
       setProducts(data)
 
     }
 
-    fetchProducts()
+    load()
 
-  }, [])
+  },[])
 
-  return (
+  return(
 
-    <div className="max-w-7xl mx-auto p-6">
+    <div style={{maxWidth:"1200px", margin:"auto", padding:"20px"}}>
 
-      <h1 className="text-3xl font-bold mb-8">
+      <h1 style={{fontSize:"28px", fontWeight:"bold", marginBottom:"30px"}}>
         Our Products
       </h1>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+      <div style={{
+        display:"grid",
+        gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))",
+        gap:"20px"
+      }}>
 
-        {products.map(product => (
+        {products.map(product=> (
 
-          <Link
-            key={product._id}
-            href={"/products/" + product.slug}
-          >
+          <Link key={product._id} href={"/products/"+product.slug}>
 
-            <div className="border rounded-lg overflow-hidden hover:shadow-lg transition">
+            <div style={{
+              border:"1px solid #ddd",
+              borderRadius:"8px",
+              overflow:"hidden"
+            }}>
 
-              <div className="relative w-full h-[220px] bg-gray-100">
+              <img
+                src={product.image}
+                alt={product.name}
+                style={{
+                  width:"100%",
+                  height:"200px",
+                  objectFit:"cover"
+                }}
+              />
 
-                <Image
-                  src={product.image}
-                  alt={product.name}
-                  fill
-                  sizes="300px"
-                  className="object-cover"
-                />
+              <div style={{padding:"12px"}}>
 
-              </div>
+                <h3>{product.name}</h3>
 
-              <div className="p-4">
-
-                <h2 className="font-semibold">
-                  {product.name}
-                </h2>
-
-                <p className="text-gray-500 text-sm">
+                <p style={{color:"#777"}}>
                   {product.category}
                 </p>
 
-                <p className="font-bold text-green-700 mt-2">
-                  ₹{product.price}
-                </p>
+                <b>₹{product.price}</b>
 
               </div>
 
