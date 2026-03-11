@@ -11,26 +11,20 @@ export default function AdminProducts() {
     category: "",
     stock: "",
     featured: false,
-    slug: "",
-    image: "",
-    alt: ""
+    image: ""
   }
 
   const [form, setForm] = useState(emptyForm)
   const [products, setProducts] = useState([])
   const [uploading, setUploading] = useState(false)
-  const [editingSlug, setEditingSlug] = useState(null)
 
   useEffect(() => {
     fetchProducts()
   }, [])
 
   async function fetchProducts() {
-
     const res = await fetch("/api/admin/products")
-
     const data = await res.json()
-
     setProducts(data)
   }
 
@@ -56,25 +50,17 @@ export default function AdminProducts() {
 
     formData.append("file", file)
 
-    try {
+    const res = await fetch("/api/upload", {
+      method: "POST",
+      body: formData
+    })
 
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        body: formData
-      })
+    const data = await res.json()
 
-      const data = await res.json()
-
-      setForm({
-        ...form,
-        image: data.url
-      })
-
-    } catch (error) {
-
-      console.error("Upload error:", error)
-
-    }
+    setForm({
+      ...form,
+      image: data.url
+    })
 
     setUploading(false)
   }
@@ -83,40 +69,27 @@ export default function AdminProducts() {
 
     e.preventDefault()
 
-    const method = editingSlug ? "PUT" : "POST"
+    const payload = {
+      ...form,
+      alt: form.name
+    }
 
-    const url = editingSlug
-      ? "/api/admin/products/" + editingSlug
-      : "/api/admin/products"
-
-    await fetch(url, {
-      method: method,
+    await fetch("/api/admin/products", {
+      method: "POST",
       headers: {
         "Content-Type": "application/json"
       },
-      body: JSON.stringify(form)
+      body: JSON.stringify(payload)
     })
 
     setForm(emptyForm)
-    setEditingSlug(null)
 
     fetchProducts()
   }
 
-  function editProduct(product) {
-
-    setForm(product)
-
-    setEditingSlug(product.slug)
-
-    window.scrollTo({ top: 0, behavior: "smooth" })
-  }
-
   async function deleteProduct(slug) {
 
-    const confirmDelete = window.confirm("Delete this product?")
-
-    if (!confirmDelete) return
+    if (!window.confirm("Delete this product?")) return
 
     await fetch("/api/admin/products/" + slug, {
       method: "DELETE"
@@ -130,27 +103,18 @@ export default function AdminProducts() {
     <div className="max-w-6xl mx-auto p-6">
 
       <h1 className="text-3xl font-bold mb-8">
-        Admin Product Manager
+        Product Manager
       </h1>
 
-      {/* PRODUCT FORM */}
+      {/* FORM */}
 
       <form onSubmit={handleSubmit} className="grid md:grid-cols-2 gap-4 mb-10">
 
         <input
           name="name"
           placeholder="Product Name"
-          className="border p-2"
+          className="border p-2 rounded"
           value={form.name}
-          onChange={handleChange}
-          required
-        />
-
-        <input
-          name="slug"
-          placeholder="Slug"
-          className="border p-2"
-          value={form.slug}
           onChange={handleChange}
           required
         />
@@ -159,7 +123,7 @@ export default function AdminProducts() {
           name="price"
           type="number"
           placeholder="Price"
-          className="border p-2"
+          className="border p-2 rounded"
           value={form.price}
           onChange={handleChange}
         />
@@ -167,7 +131,7 @@ export default function AdminProducts() {
         <input
           name="category"
           placeholder="Category"
-          className="border p-2"
+          className="border p-2 rounded"
           value={form.category}
           onChange={handleChange}
         />
@@ -176,56 +140,35 @@ export default function AdminProducts() {
           name="stock"
           type="number"
           placeholder="Stock"
-          className="border p-2"
+          className="border p-2 rounded"
           value={form.stock}
-          onChange={handleChange}
-        />
-
-        <input
-          name="alt"
-          placeholder="Image Alt Text"
-          className="border p-2"
-          value={form.alt}
           onChange={handleChange}
         />
 
         <textarea
           name="description"
           placeholder="Description"
-          className="border p-2 md:col-span-2"
+          className="border p-2 rounded md:col-span-2"
           value={form.description}
           onChange={handleChange}
         />
 
-        {/* IMAGE UPLOAD */}
-
         <div>
 
-          <input
-            type="file"
-            onChange={handleImageUpload}
-          />
+          <input type="file" onChange={handleImageUpload} />
 
-          {uploading && (
-            <p className="text-sm text-gray-500">
-              Uploading...
-            </p>
-          )}
+          {uploading && <p className="text-sm text-gray-500">Uploading...</p>}
 
         </div>
-
-        {/* IMAGE PREVIEW */}
 
         {form.image && (
 
           <img
             src={form.image}
-            className="h-32 object-cover rounded"
+            className="h-24 w-24 object-cover rounded"
           />
 
         )}
-
-        {/* FEATURED */}
 
         <label className="flex items-center gap-2">
 
@@ -241,32 +184,24 @@ export default function AdminProducts() {
         </label>
 
         <button className="bg-black text-white px-6 py-2 rounded">
-
-          {editingSlug ? "Update Product" : "Add Product"}
-
+          Add Product
         </button>
 
       </form>
 
       {/* PRODUCT TABLE */}
 
-      <h2 className="text-2xl font-semibold mb-4">
-        Existing Products
-      </h2>
-
       <table className="w-full border">
 
         <thead className="bg-gray-100">
 
           <tr>
-
             <th className="p-2">Image</th>
             <th>Name</th>
             <th>Price</th>
             <th>Stock</th>
             <th>Category</th>
-            <th>Actions</th>
-
+            <th>Action</th>
           </tr>
 
         </thead>
@@ -298,14 +233,7 @@ export default function AdminProducts() {
 
               <td>{product.category}</td>
 
-              <td className="space-x-3">
-
-                <button
-                  onClick={() => editProduct(product)}
-                  className="text-blue-600"
-                >
-                  Edit
-                </button>
+              <td>
 
                 <button
                   onClick={() => deleteProduct(product.slug)}
