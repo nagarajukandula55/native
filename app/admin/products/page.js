@@ -20,10 +20,10 @@ export default function AdminProducts() {
   const [uploading, setUploading] = useState(false)
 
   useEffect(() => {
-    fetchProducts()
+    loadProducts()
   }, [])
 
-  async function fetchProducts() {
+  async function loadProducts() {
 
     const res = await fetch("/api/admin/products")
     const data = await res.json()
@@ -52,6 +52,7 @@ export default function AdminProducts() {
     setUploading(true)
 
     const formData = new FormData()
+
     formData.append("file", file)
 
     const res = await fetch("/api/upload", {
@@ -75,19 +76,23 @@ export default function AdminProducts() {
     e.preventDefault()
 
     await fetch("/api/admin/products", {
+
       method: "POST",
+
       headers: {
         "Content-Type": "application/json"
       },
+
       body: JSON.stringify({
         ...form,
         alt: form.name
       })
+
     })
 
     setForm(emptyForm)
 
-    fetchProducts()
+    loadProducts()
 
   }
 
@@ -99,7 +104,7 @@ export default function AdminProducts() {
       method: "DELETE"
     })
 
-    fetchProducts()
+    loadProducts()
 
   }
 
@@ -165,13 +170,14 @@ export default function AdminProducts() {
 
         {form.image && (
 
-          <div className="w-24 h-24 relative border rounded overflow-hidden">
+          <div className="relative w-[100px] h-[100px] border rounded">
 
             <Image
               src={form.image}
               alt="preview"
               fill
-              className="object-cover"
+              sizes="100px"
+              className="object-cover rounded"
             />
 
           </div>
@@ -197,7 +203,7 @@ export default function AdminProducts() {
 
       </form>
 
-      {/* PRODUCT TABLE */}
+      {/* PRODUCTS TABLE */}
 
       <table className="w-full border">
 
@@ -224,12 +230,13 @@ export default function AdminProducts() {
 
                 {product.image && (
 
-                  <div className="w-16 h-16 relative">
+                  <div className="relative w-[60px] h-[60px]">
 
                     <Image
                       src={product.image}
                       alt={product.name}
                       fill
+                      sizes="60px"
                       className="object-cover rounded"
                     />
 
@@ -268,4 +275,6 @@ export default function AdminProducts() {
 
     </div>
   )
+
 }
+
