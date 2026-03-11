@@ -1,68 +1,38 @@
+```javascript
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 
 export default function AdminProducts() {
 
+  const [products, setProducts] = useState([])
   const [form, setForm] = useState({
     name: "",
     description: "",
     price: "",
+    image: "",
     category: "",
     stock: "",
     featured: false,
-    image: ""
+    slug: ""
   })
 
-  const [uploading, setUploading] = useState(false)
+  useEffect(() => {
+    fetchProducts()
+  }, [])
 
-  const handleChange = (e) => {
+  async function fetchProducts() {
 
-    const { name, value, type, checked } = e.target
-
-    setForm({
-      ...form,
-      [name]: type === "checkbox" ? checked : value
-    })
-  }
-
-  const uploadImage = async (file) => {
-
-    if (!file) return
-
-    setUploading(true)
-
-    const formData = new FormData()
-    formData.append("file", file)
-
-    const res = await fetch("/api/upload", {
-      method: "POST",
-      body: formData
-    })
-
+    const res = await fetch("/api/admin/products")
     const data = await res.json()
 
-    if (data.url) {
-
-      setForm((prev) => ({
-        ...prev,
-        image: data.url
-      }))
-
-    } else {
-
-      alert("Image upload failed")
-
-    }
-
-    setUploading(false)
+    setProducts(data)
   }
 
-  const handleSubmit = async (e) => {
-
+  async function handleSubmit(e) {
     e.preventDefault()
 
-    const res = await fetch("/api/admin/products", {
+    await fetch("/api/admin/products", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
@@ -70,122 +40,133 @@ export default function AdminProducts() {
       body: JSON.stringify(form)
     })
 
-    if (res.ok) {
+    setForm({
+      name: "",
+      description: "",
+      price: "",
+      image: "",
+      category: "",
+      stock: "",
+      featured: false,
+      slug: ""
+    })
 
-      alert("Product added successfully")
+    fetchProducts()
+  }
 
-      setForm({
-        name: "",
-        description: "",
-        price: "",
-        category: "",
-        stock: "",
-        featured: false,
-        image: ""
-      })
+  async function deleteProduct(slug) {
 
-    } else {
+    if (!confirm("Delete this product?")) return
 
-      alert("Error saving product")
+    await fetch(`/api/admin/products/${slug}`, {
+      method: "DELETE"
+    })
 
-    }
+    fetchProducts()
   }
 
   return (
 
-    <div style={{ padding: "40px" }}>
+    <div className="p-8">
 
-      <h1>Add Product</h1>
+      <h1 className="text-2xl font-bold mb-6">
+        Admin Products
+      </h1>
 
-      <form onSubmit={handleSubmit}>
+      {/* ADD PRODUCT FORM */}
+
+      <form onSubmit={handleSubmit} className="space-y-3 mb-10">
 
         <input
-          name="name"
-          placeholder="Product Name"
+          placeholder="Name"
+          className="border p-2 w-full"
           value={form.name}
-          onChange={handleChange}
-          required
+          onChange={e => setForm({...form, name: e.target.value})}
         />
-
-        <br /><br />
-
-        <textarea
-          name="description"
-          placeholder="Description"
-          value={form.description}
-          onChange={handleChange}
-        />
-
-        <br /><br />
 
         <input
-          name="price"
-          type="number"
+          placeholder="Slug"
+          className="border p-2 w-full"
+          value={form.slug}
+          onChange={e => setForm({...form, slug: e.target.value})}
+        />
+
+        <input
           placeholder="Price"
+          className="border p-2 w-full"
           value={form.price}
-          onChange={handleChange}
-          required
+          onChange={e => setForm({...form, price: e.target.value})}
         />
 
-        <br /><br />
-
         <input
-          name="category"
           placeholder="Category"
+          className="border p-2 w-full"
           value={form.category}
-          onChange={handleChange}
+          onChange={e => setForm({...form, category: e.target.value})}
         />
 
-        <br /><br />
-
         <input
-          name="stock"
-          type="number"
           placeholder="Stock"
+          className="border p-2 w-full"
           value={form.stock}
-          onChange={handleChange}
+          onChange={e => setForm({...form, stock: e.target.value})}
         />
 
-        <br /><br />
-
-        <label>
-          Featured
-          <input
-            type="checkbox"
-            name="featured"
-            checked={form.featured}
-            onChange={handleChange}
-          />
-        </label>
-
-        <br /><br />
-
-        <input
-          type="file"
-          onChange={(e) => uploadImage(e.target.files[0])}
-        />
-
-        {uploading && <p>Uploading image...</p>}
-
-        {form.image && (
-          <div>
-            <p>Image Preview</p>
-            <img
-              src={form.image}
-              width="150"
-              alt="preview"
-            />
-          </div>
-        )}
-
-        <br /><br />
-
-        <button type="submit">
+        <button className="bg-black text-white px-6 py-2">
           Add Product
         </button>
 
       </form>
 
+      {/* PRODUCT LIST */}
+
+      <h2 className="text-xl font-semibold mb-4">
+        Existing Products
+      </h2>
+
+      <table className="w-full border">
+
+        <thead className="bg-gray-100">
+          <tr>
+            <th className="p-2">Name</th>
+            <th>Price</th>
+            <th>Stock</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+
+        <tbody>
+
+          {products.map(product => (
+
+            <tr key={product._id} className="border-t">
+
+              <td className="p-2">{product.name}</td>
+
+              <td>₹{product.price}</td>
+
+              <td>{product.stock}</td>
+
+              <td className="space-x-3">
+
+                <button
+                  className="text-red-600"
+                  onClick={() => deleteProduct(product.slug)}
+                >
+                  Delete
+                </button>
+
+              </td>
+
+            </tr>
+
+          ))}
+
+        </tbody>
+
+      </table>
+
     </div>
   )
 }
+```
