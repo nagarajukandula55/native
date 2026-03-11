@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useEffect, useState } from "react"
@@ -11,18 +12,11 @@ export default function ProductsPage() {
 
     async function fetchProducts() {
 
-      try {
+      const res = await fetch("/api/admin/products")
 
-        const res = await fetch("/api/admin/products")
+      const data = await res.json()
 
-        const data = await res.json()
-
-        setProducts(data)
-
-      } catch (error) {
-        console.error("Error fetching products:", error)
-      }
-
+      setProducts(data)
     }
 
     fetchProducts()
@@ -30,51 +24,50 @@ export default function ProductsPage() {
   }, [])
 
   return (
-    <div className="container mx-auto p-6">
 
-      <h1 className="text-3xl font-bold mb-6">
+    <div className="max-w-7xl mx-auto p-6">
+
+      <h1 className="text-3xl font-bold mb-8">
         Our Products
       </h1>
 
-      {products.length === 0 && (
-        <p>No products found</p>
-      )}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-
-        {products.map((product) => (
+        {products.map(product => (
 
           <Link
             key={product._id}
-            href={`/products/${product.slug}`}
+            href={"/products/" + product.slug}
           >
 
-            <div className="border rounded-lg p-4 hover:shadow-lg transition">
+            <div className="border rounded-lg overflow-hidden hover:shadow-lg transition">
 
-              {product.image && (
+              <div className="aspect-square bg-gray-100">
+
                 <img
                   src={product.image}
                   alt={product.name}
-                  className="w-full h-56 object-cover rounded-md mb-3"
+                  className="w-full h-full object-cover"
                 />
-              )}
-            
-              <h2 className="text-lg font-semibold">
-                {product.name}
-              </h2>
-            
-              <p className="text-gray-500 text-sm mb-2">
-                {product.category}
-              </p>
-            
-              <p className="font-bold text-xl text-green-700">
-                ₹{product.price}
-              </p>
-            
-              <p className="text-sm text-gray-600 mt-2">
-                Stock: {product.stock}
-              </p>
-            
+
+              </div>
+
+              <div className="p-4">
+
+                <h2 className="font-semibold text-lg">
+                  {product.name}
+                </h2>
+
+                <p className="text-gray-500 text-sm">
+                  {product.category}
+                </p>
+
+                <p className="font-bold text-green-700 mt-2">
+                  ₹{product.price}
+                </p>
+
+              </div>
+
             </div>
 
           </Link>
