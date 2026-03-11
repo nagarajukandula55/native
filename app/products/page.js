@@ -49,24 +49,32 @@ export default function ProductsPage() {
             href={`/products/${product.slug}`}
           >
 
-            <div className="border p-4 rounded hover:shadow">
+            <div className="border rounded-lg p-4 hover:shadow-lg transition">
 
               {product.image && (
                 <img
                   src={product.image}
-                  alt={product.alt || product.name}
-                  className="w-full h-56 object-cover rounded-md"
+                  alt={product.name}
+                  className="w-full h-56 object-cover rounded-md mb-3"
                 />
               )}
-
-              <h2 className="text-xl font-semibold">
+            
+              <h2 className="text-lg font-semibold">
                 {product.name}
               </h2>
-
-              <p className="text-gray-600">
+            
+              <p className="text-gray-500 text-sm mb-2">
+                {product.category}
+              </p>
+            
+              <p className="font-bold text-xl text-green-700">
                 ₹{product.price}
               </p>
-
+            
+              <p className="text-sm text-gray-600 mt-2">
+                Stock: {product.stock}
+              </p>
+            
             </div>
 
           </Link>
