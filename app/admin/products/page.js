@@ -1,4 +1,3 @@
-```javascript
 "use client"
 
 import { useState, useEffect } from "react"
@@ -9,13 +8,10 @@ export default function AdminProducts() {
 
   const [form, setForm] = useState({
     name: "",
-    description: "",
+    slug: "",
     price: "",
-    image: "",
     category: "",
-    stock: "",
-    featured: false,
-    slug: ""
+    stock: ""
   })
 
   useEffect(() => {
@@ -24,36 +20,50 @@ export default function AdminProducts() {
 
   async function fetchProducts() {
 
-    const res = await fetch("/api/admin/products")
-    const data = await res.json()
+    try {
 
-    setProducts(data)
+      const res = await fetch("/api/admin/products")
+
+      const data = await res.json()
+
+      setProducts(data)
+
+    } catch (error) {
+
+      console.error("Error fetching products:", error)
+
+    }
   }
 
   async function handleSubmit(e) {
 
     e.preventDefault()
 
-    await fetch("/api/admin/products", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(form)
-    })
+    try {
 
-    setForm({
-      name: "",
-      description: "",
-      price: "",
-      image: "",
-      category: "",
-      stock: "",
-      featured: false,
-      slug: ""
-    })
+      await fetch("/api/admin/products", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(form)
+      })
 
-    fetchProducts()
+      setForm({
+        name: "",
+        slug: "",
+        price: "",
+        category: "",
+        stock: ""
+      })
+
+      fetchProducts()
+
+    } catch (error) {
+
+      console.error("Error saving product:", error)
+
+    }
   }
 
   async function deleteProduct(slug) {
@@ -62,11 +72,20 @@ export default function AdminProducts() {
 
     if (!confirmDelete) return
 
-    await fetch(`/api/admin/products/${slug}`, {
-      method: "DELETE"
-    })
+    try {
 
-    fetchProducts()
+      await fetch("/api/admin/products/" + slug, {
+        method: "DELETE"
+      })
+
+      fetchProducts()
+
+    } catch (error) {
+
+      console.error("Delete failed:", error)
+
+    }
+
   }
 
   return (
@@ -77,12 +96,12 @@ export default function AdminProducts() {
         Admin Products
       </h1>
 
-      {/* ADD PRODUCT FORM */}
+      {/* Add Product Form */}
 
       <form onSubmit={handleSubmit} className="space-y-3 mb-10">
 
         <input
-          placeholder="Name"
+          placeholder="Product Name"
           className="border p-2 w-full"
           value={form.name}
           onChange={(e) =>
@@ -126,13 +145,13 @@ export default function AdminProducts() {
           }
         />
 
-        <button className="bg-black text-white px-6 py-2">
+        <button className="bg-black text-white px-6 py-2 rounded">
           Add Product
         </button>
 
       </form>
 
-      {/* PRODUCT LIST */}
+      {/* Product List */}
 
       <h2 className="text-xl font-semibold mb-4">
         Existing Products
@@ -141,12 +160,27 @@ export default function AdminProducts() {
       <table className="w-full border">
 
         <thead className="bg-gray-100">
+
           <tr>
-            <th className="p-2 text-left">Name</th>
-            <th>Price</th>
-            <th>Stock</th>
-            <th>Action</th>
+
+            <th className="p-2 text-left">
+              Name
+            </th>
+
+            <th>
+              Price
+            </th>
+
+            <th>
+              Stock
+            </th>
+
+            <th>
+              Action
+            </th>
+
           </tr>
+
         </thead>
 
         <tbody>
@@ -189,4 +223,3 @@ export default function AdminProducts() {
     </div>
   )
 }
-```
