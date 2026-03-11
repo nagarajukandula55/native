@@ -50,7 +50,7 @@ export default function Navbar() {
 
         <Link href="/">Home</Link>
 
-        <a href="#products">Products</a>
+        <Link href="/products">Products</Link>
 
         <Link href="/cart">
           Cart ({cart.length})
