@@ -1,14 +1,29 @@
 import { NextResponse } from "next/server"
-import { connectDB } from "@/lib/mongodb"
+import mongoose from "mongoose"
 import Product from "@/models/Product"
-import slugify from "slugify"
+
+const MONGODB_URI = process.env.MONGODB_URI
+
+async function connectDB() {
+  if (mongoose.connections[0].readyState) return
+  await mongoose.connect(MONGODB_URI)
+}
 
 export async function GET() {
-  await connectDB()
+  try {
+    await connectDB()
 
-  const products = await Product.find().sort({ createdAt: -1 })
+    const products = await Product.find().sort({ createdAt: -1 })
 
-  return NextResponse.json(products)
+    return NextResponse.json(products)
+  } catch (error) {
+    console.error("GET PRODUCTS ERROR:", error)
+
+    return NextResponse.json(
+      { error: "Failed to fetch products" },
+      { status: 500 }
+    )
+  }
 }
 
 export async function POST(req) {
@@ -17,20 +32,38 @@ export async function POST(req) {
 
     const body = await req.json()
 
+    const {
+      name,
+      description,
+      price,
+      image,
+      alt,
+      category,
+      stock,
+      featured,
+      slug
+    } = body
+
     const product = await Product.create({
-      name: body.name,
-      slug: slugify(body.name, { lower: true }),
-      price: body.price,
-      description: body.description,
-      category: body.category,
-      stock: body.stock,
-      featured: body.featured,
-      image: body.image
+      name,
+      description,
+      price,
+      image,
+      alt,
+      category,
+      stock,
+      featured,
+      slug
     })
 
     return NextResponse.json(product)
+
   } catch (error) {
-    console.error(error)
-    return NextResponse.json({ error: "Failed to create product" }, { status: 500 })
+    console.error("CREATE PRODUCT ERROR:", error)
+
+    return NextResponse.json(
+      { error: error.message },
+      { status: 500 }
+    )
   }
 }
