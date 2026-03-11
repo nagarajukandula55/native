@@ -1,32 +1,80 @@
-"use client";
-import { useEffect, useState } from "react";
-import Link from "next/link";
+"use client"
+
+import { useEffect, useState } from "react"
+import Link from "next/link"
 
 export default function ProductsPage() {
-  const [products, setProducts] = useState([]);
+
+  const [products, setProducts] = useState([])
+
   useEffect(() => {
-    const fetchProducts = async () => {
-      const res = await fetch("/api/admin/products");
-      const data = await res.json();
-      setProducts(data.products || []);
-    };
-    fetchProducts();
-  }, []);
+
+    async function fetchProducts() {
+
+      try {
+
+        const res = await fetch("/api/admin/products")
+
+        const data = await res.json()
+
+        setProducts(data)
+
+      } catch (error) {
+        console.error("Error fetching products:", error)
+      }
+
+    }
+
+    fetchProducts()
+
+  }, [])
 
   return (
-    <div style={{ padding: "40px" }}>
-      <h1>Products</h1>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: "20px" }}>
-        {products.map(p => (
-          <div key={p.id} style={{ border: "1px solid #ccc", padding: "10px", borderRadius: "8px", width: "200px" }}>
-            {p.image && <img src={p.image} alt={p.alt || p.name} style={{ width: "100%", height: "150px", objectFit: "cover", borderRadius: "6px" }} />}
-            <h4>{p.name}</h4>
-            <p>₹{p.price}</p>
-            <Link href={`/products/${p.slug}`} style={{ color: "#1890ff" }}>View Product</Link>
-            <button style={{ marginTop: "5px", padding: "5px 10px", background: "#1890ff", color: "#fff", borderRadius: "4px" }}>Add to Cart</button>
-          </div>
+    <div className="container mx-auto p-6">
+
+      <h1 className="text-3xl font-bold mb-6">
+        Our Products
+      </h1>
+
+      {products.length === 0 && (
+        <p>No products found</p>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+        {products.map((product) => (
+
+          <Link
+            key={product._id}
+            href={`/products/${product.slug}`}
+          >
+
+            <div className="border p-4 rounded hover:shadow">
+
+              {product.image && (
+                <img
+                  src={product.image}
+                  alt={product.alt || product.name}
+                  className="w-full h-60 object-cover mb-3"
+                />
+              )}
+
+              <h2 className="text-xl font-semibold">
+                {product.name}
+              </h2>
+
+              <p className="text-gray-600">
+                ₹{product.price}
+              </p>
+
+            </div>
+
+          </Link>
+
         ))}
+
       </div>
+
     </div>
-  );
+  )
 }
