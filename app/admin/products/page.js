@@ -6,6 +6,7 @@ import { useState, useEffect } from "react"
 export default function AdminProducts() {
 
   const [products, setProducts] = useState([])
+
   const [form, setForm] = useState({
     name: "",
     description: "",
@@ -30,6 +31,7 @@ export default function AdminProducts() {
   }
 
   async function handleSubmit(e) {
+
     e.preventDefault()
 
     await fetch("/api/admin/products", {
@@ -56,7 +58,9 @@ export default function AdminProducts() {
 
   async function deleteProduct(slug) {
 
-    if (!confirm("Delete this product?")) return
+    const confirmDelete = window.confirm("Delete this product?")
+
+    if (!confirmDelete) return
 
     await fetch(`/api/admin/products/${slug}`, {
       method: "DELETE"
@@ -81,35 +85,45 @@ export default function AdminProducts() {
           placeholder="Name"
           className="border p-2 w-full"
           value={form.name}
-          onChange={e => setForm({...form, name: e.target.value})}
+          onChange={(e) =>
+            setForm({ ...form, name: e.target.value })
+          }
         />
 
         <input
           placeholder="Slug"
           className="border p-2 w-full"
           value={form.slug}
-          onChange={e => setForm({...form, slug: e.target.value})}
+          onChange={(e) =>
+            setForm({ ...form, slug: e.target.value })
+          }
         />
 
         <input
           placeholder="Price"
           className="border p-2 w-full"
           value={form.price}
-          onChange={e => setForm({...form, price: e.target.value})}
+          onChange={(e) =>
+            setForm({ ...form, price: e.target.value })
+          }
         />
 
         <input
           placeholder="Category"
           className="border p-2 w-full"
           value={form.category}
-          onChange={e => setForm({...form, category: e.target.value})}
+          onChange={(e) =>
+            setForm({ ...form, category: e.target.value })
+          }
         />
 
         <input
           placeholder="Stock"
           className="border p-2 w-full"
           value={form.stock}
-          onChange={e => setForm({...form, stock: e.target.value})}
+          onChange={(e) =>
+            setForm({ ...form, stock: e.target.value })
+          }
         />
 
         <button className="bg-black text-white px-6 py-2">
@@ -128,30 +142,36 @@ export default function AdminProducts() {
 
         <thead className="bg-gray-100">
           <tr>
-            <th className="p-2">Name</th>
+            <th className="p-2 text-left">Name</th>
             <th>Price</th>
             <th>Stock</th>
-            <th>Actions</th>
+            <th>Action</th>
           </tr>
         </thead>
 
         <tbody>
 
-          {products.map(product => (
+          {products.map((product) => (
 
             <tr key={product._id} className="border-t">
 
-              <td className="p-2">{product.name}</td>
+              <td className="p-2">
+                {product.name}
+              </td>
 
-              <td>₹{product.price}</td>
+              <td>
+                ₹{product.price}
+              </td>
 
-              <td>{product.stock}</td>
+              <td>
+                {product.stock}
+              </td>
 
-              <td className="space-x-3">
+              <td>
 
                 <button
-                  className="text-red-600"
                   onClick={() => deleteProduct(product.slug)}
+                  className="text-red-600"
                 >
                   Delete
                 </button>
