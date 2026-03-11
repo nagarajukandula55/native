@@ -1,4 +1,4 @@
-
+import AddToCartButton from "@/components/AddToCartButton"
 async function getProduct(slug){
 
   const res = await fetch(
@@ -35,6 +35,7 @@ export default async function ProductPage({params}){
           objectFit:"cover",
           borderRadius:"8px"
         }}
+      <AddToCartButton product={product} />
       />
 
       <div>
