@@ -6,8 +6,8 @@ export default function AdminProducts() {
 
   const [form, setForm] = useState({
     name: "",
-    price: "",
     description: "",
+    price: "",
     category: "",
     stock: "",
     featured: false,
@@ -17,6 +17,7 @@ export default function AdminProducts() {
   const [uploading, setUploading] = useState(false)
 
   const handleChange = (e) => {
+
     const { name, value, type, checked } = e.target
 
     setForm({
@@ -26,6 +27,9 @@ export default function AdminProducts() {
   }
 
   const uploadImage = async (file) => {
+
+    if (!file) return
+
     setUploading(true)
 
     const formData = new FormData()
@@ -38,15 +42,24 @@ export default function AdminProducts() {
 
     const data = await res.json()
 
-    setForm((prev) => ({
-      ...prev,
-      image: data.url
-    }))
+    if (data.url) {
+
+      setForm((prev) => ({
+        ...prev,
+        image: data.url
+      }))
+
+    } else {
+
+      alert("Image upload failed")
+
+    }
 
     setUploading(false)
   }
 
   const handleSubmit = async (e) => {
+
     e.preventDefault()
 
     const res = await fetch("/api/admin/products", {
@@ -58,24 +71,29 @@ export default function AdminProducts() {
     })
 
     if (res.ok) {
+
       alert("Product added successfully")
 
       setForm({
         name: "",
-        price: "",
         description: "",
+        price: "",
         category: "",
         stock: "",
         featured: false,
         image: ""
       })
+
     } else {
+
       alert("Error saving product")
+
     }
   }
 
   return (
-    <div style={{ padding: 40 }}>
+
+    <div style={{ padding: "40px" }}>
 
       <h1>Add Product</h1>
 
@@ -83,11 +101,22 @@ export default function AdminProducts() {
 
         <input
           name="name"
-          placeholder="Product name"
+          placeholder="Product Name"
           value={form.name}
           onChange={handleChange}
           required
         />
+
+        <br /><br />
+
+        <textarea
+          name="description"
+          placeholder="Description"
+          value={form.description}
+          onChange={handleChange}
+        />
+
+        <br /><br />
 
         <input
           name="price"
@@ -98,12 +127,7 @@ export default function AdminProducts() {
           required
         />
 
-        <textarea
-          name="description"
-          placeholder="Description"
-          value={form.description}
-          onChange={handleChange}
-        />
+        <br /><br />
 
         <input
           name="category"
@@ -112,6 +136,8 @@ export default function AdminProducts() {
           onChange={handleChange}
         />
 
+        <br /><br />
+
         <input
           name="stock"
           type="number"
@@ -119,6 +145,8 @@ export default function AdminProducts() {
           value={form.stock}
           onChange={handleChange}
         />
+
+        <br /><br />
 
         <label>
           Featured
@@ -137,20 +165,23 @@ export default function AdminProducts() {
           onChange={(e) => uploadImage(e.target.files[0])}
         />
 
-        {uploading && <p>Uploading...</p>}
+        {uploading && <p>Uploading image...</p>}
 
         {form.image && (
-          <img
-            src={form.image}
-            width={120}
-            alt="preview"
-          />
+          <div>
+            <p>Image Preview</p>
+            <img
+              src={form.image}
+              width="150"
+              alt="preview"
+            />
+          </div>
         )}
 
         <br /><br />
 
         <button type="submit">
-          Save Product
+          Add Product
         </button>
 
       </form>
