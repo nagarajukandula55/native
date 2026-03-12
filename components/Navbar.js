@@ -42,91 +42,91 @@ export default function Navbar() {
 
     <>
 
-    <header
-      style={{
-        display:"flex",
-        justifyContent:"space-between",
-        alignItems:"center",
-        padding:"15px 30px",
-        borderBottom:"1px solid #eee",
-        background:"#fff",
-        position:"sticky",
-        top:0,
-        zIndex:1000,
-        flexWrap:"wrap",
-        gap:"15px"
-      }}
-    >
-
-      {/* LOGO */}
-
-      <Link href="/">
-        <img
-          src="/logo.png"
-          alt="Native"
-          style={{height:"60px"}}
-        />
-      </Link>
-
-
-      {/* SEARCH */}
-
-      <form
-        onSubmit={handleSearch}
+      <header
         style={{
           display:"flex",
-          gap:"10px"
+          justifyContent:"space-between",
+          alignItems:"center",
+          padding:"15px 30px",
+          borderBottom:"1px solid #eee",
+          background:"#fff",
+          position:"sticky",
+          top:0,
+          zIndex:1000,
+          flexWrap:"wrap",
+          gap:"15px"
         }}
       >
 
-        <input
-          type="text"
-          placeholder="Search products..."
-          value={search}
-          onChange={(e)=>setSearch(e.target.value)}
+        {/* LOGO */}
+
+        <Link href="/">
+          <img
+            src="/logo.png"
+            alt="Native"
+            style={{height:"60px"}}
+          />
+        </Link>
+
+
+        {/* SEARCH */}
+
+        <form
+          onSubmit={handleSearch}
           style={{
-            padding:"8px 15px",
-            borderRadius:"20px",
-            border:"1px solid #ccc",
-            width:"200px"
-          }}
-        />
-
-      </form>
-
-
-      {/* MENU */}
-
-      <nav
-        style={{
-          display:"flex",
-          gap:"20px",
-          alignItems:"center"
-        }}
-      >
-
-        <Link href="/">Home</Link>
-
-        <Link href="/products">Products</Link>
-
-        <button
-          onClick={()=>setCartOpen(true)}
-          style={{
-            border:"none",
-            background:"none",
-            cursor:"pointer"
+            display:"flex",
+            gap:"10px"
           }}
         >
-          Cart ({cart.length})
-        </button>
 
-        <Link href="/login">Login</Link>
+          <input
+            type="text"
+            placeholder="Search products..."
+            value={search}
+            onChange={(e)=>setSearch(e.target.value)}
+            style={{
+              padding:"8px 15px",
+              borderRadius:"20px",
+              border:"1px solid #ccc",
+              width:"200px"
+            }}
+          />
 
-      </nav>
+        </form>
 
-    </header>
 
-    <CartDrawer open={cartOpen} setOpen={setCartOpen}/>
+        {/* MENU */}
+
+        <nav
+          style={{
+            display:"flex",
+            gap:"20px",
+            alignItems:"center"
+          }}
+        >
+
+          <Link href="/">Home</Link>
+
+          <Link href="/products">Products</Link>
+
+          <button
+            onClick={()=>setCartOpen(true)}
+            style={{
+              border:"none",
+              background:"none",
+              cursor:"pointer"
+            }}
+          >
+            Cart ({cart.length})
+          </button>
+
+          <Link href="/login">Login</Link>
+
+        </nav>
+
+      </header>
+
+      <CartDrawer open={cartOpen} setOpen={setCartOpen} />
 
     </>
 
