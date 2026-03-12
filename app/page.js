@@ -16,12 +16,11 @@ export default function Home() {
 
       try{
 
-        const res = await fetch("/api/products")
+        const res = await fetch("/api/admin/products")
         const data = await res.json()
 
-        if(data.success){
-          setProducts(data.products)
-        }
+        // API returns array
+        setProducts(data)
 
       }catch(err){
         console.log(err)
@@ -127,7 +126,6 @@ margin:"auto"
 >
 
 <h2
-className="brand-font"
 style={{
 textAlign:"center",
 fontSize:"36px",
@@ -143,6 +141,12 @@ Our Products
 {loading ?
 
 <p style={{textAlign:"center"}}>Loading products...</p>
+
+:
+
+products.length === 0 ?
+
+<p style={{textAlign:"center"}}>No products available</p>
 
 :
 
@@ -193,7 +197,10 @@ margin:"10px 0"
 </p>
 
 <button
-onClick={()=>window.location.href=`/product/${product.slug}`}
+onClick={()=>{
+addToCart(product)
+window.dispatchEvent(new Event("cart-open"))
+}}
 style={{
 padding:"10px 20px",
 borderRadius:"25px",
