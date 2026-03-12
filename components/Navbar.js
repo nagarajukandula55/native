@@ -1,5 +1,7 @@
 "use client"
 
+import { useState } from "react"
+import CartDrawer from "./CartDrawer"
 import Link from "next/link"
 import { useCart } from "@/context/CartContext"
 
