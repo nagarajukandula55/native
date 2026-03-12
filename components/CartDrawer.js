@@ -1,126 +1,114 @@
+
 "use client"
 
-import Link from "next/link"
-import { useCart } from "@/context/CartContext"
+import { createContext, useContext, useEffect, useState } from "react"
 
-export default function CartDrawer({open,setOpen}){
+const CartContext = createContext()
 
-const {cart,cartTotal,removeFromCart} = useCart()
+export function CartProvider({ children }) {
 
-return(
+  const [cart, setCart] = useState([])
 
-<div
-style={{
-position:"fixed",
-top:0,
-right: open ? "0" : "-400px",
-width:"350px",
-height:"100%",
-background:"#fff",
-boxShadow:"-5px 0 20px rgba(0,0,0,0.1)",
-padding:"20px",
-transition:"0.3s",
-zIndex:9999,
-display:"flex",
-flexDirection:"column"
-}}
->
+  useEffect(() => {
 
-<h2 style={{marginBottom:"20px"}}>Your Cart</h2>
+    const storedCart = localStorage.getItem("cart")
 
-{cart.length === 0 ? (
+    if (storedCart) {
+      setCart(JSON.parse(storedCart))
+    }
 
-<p>Cart is empty</p>
+  }, [])
 
-) : (
+  useEffect(() => {
 
-<>
-<div style={{flex:1,overflowY:"auto"}}>
+    localStorage.setItem("cart", JSON.stringify(cart))
 
-{cart.map(item=>(
+  }, [cart])
 
-<div
-key={item._id}
-style={{
-display:"flex",
-justifyContent:"space-between",
-marginBottom:"15px",
-borderBottom:"1px solid #eee",
-paddingBottom:"10px"
-}}
->
 
-<div>
-<p style={{fontWeight:"500"}}>{item.name}</p>
-<p style={{fontSize:"14px"}}>Qty: {item.quantity}</p>
-</div>
+  function addToCart(product) {
 
-<div>
+    const exists = cart.find(item => item._id === product._id)
 
-<p>₹{item.price * item.quantity}</p>
+    if (exists) {
 
-<button
-onClick={()=>removeFromCart(item._id)}
-style={{
-border:"none",
-background:"none",
-color:"red",
-cursor:"pointer"
-}}
->
-Remove
-</button>
+      setCart(
+        cart.map(item =>
+          item._id === product._id
+            ? { ...item, quantity: item.quantity + 1 }
+            : item
+        )
+      )
 
-</div>
+    } else {
 
-</div>
+      setCart([...cart, { ...product, quantity: 1 }])
 
-))}
+    }
 
-</div>
+  }
 
-<h3 style={{marginTop:"20px"}}>Total: ₹{cartTotal}</h3>
 
-<Link href="/checkout">
+  function removeFromCart(id) {
 
-<button
-style={{
-marginTop:"15px",
-width:"100%",
-padding:"12px",
-background:"#c28b45",
-border:"none",
-borderRadius:"25px",
-color:"#fff",
-cursor:"pointer"
-}}
->
-Checkout
-</button>
+    setCart(cart.filter(item => item._id !== id))
 
-</Link>
+  }
 
-</>
 
-)}
+  function increaseQty(id) {
 
-<button
-onClick={()=>setOpen(false)}
-style={{
-position:"absolute",
-top:"15px",
-right:"15px",
-border:"none",
-background:"none",
-fontSize:"20px",
-cursor:"pointer"
-}}
->
-✕
-</button>
+    setCart(
+      cart.map(item =>
+        item._id === id
+          ? { ...item, quantity: item.quantity + 1 }
+          : item
+      )
+    )
 
-</div>
+  }
 
-)
 
+  function decreaseQty(id) {
+
+    setCart(
+      cart.map(item =>
+        item._id === id
+          ? { ...item, quantity: Math.max(1, item.quantity - 1) }
+          : item
+      )
+    )
+
+  }
+
+
+  function clearCart() {
+    setCart([])
+  }
+
+
+  return (
+
+    <CartContext.Provider
+      value={{
+        cart,
+        addToCart,
+        removeFromCart,
+        increaseQty,
+        decreaseQty,
+        clearCart
+      }}
+    >
+
+      {children}
+
+    </CartContext.Provider>
+
+  )
+
+}
+
+
+export function useCart() {
+  return useContext(CartContext)
 }
