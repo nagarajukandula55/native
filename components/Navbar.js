@@ -2,16 +2,18 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { useCart } from "@/context/CartContext"
 import CartDrawer from "./CartDrawer"
 
 export default function Navbar() {
 
   const { cart } = useCart()
+  const router = useRouter()
 
   const [cartOpen, setCartOpen] = useState(false)
+  const [search, setSearch] = useState("")
 
-  // open cart when product added
   useEffect(() => {
 
     const openCart = () => setCartOpen(true)
@@ -24,50 +26,82 @@ export default function Navbar() {
 
   }, [])
 
+  function handleSearch(e) {
+
+    e.preventDefault()
+
+    if(!search.trim()) return
+
+    router.push(`/products?search=${search}`)
+
+    setSearch("")
+
+  }
+
   return (
 
     <>
-    
+
     <header
       style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        padding: "15px 30px",
-        borderBottom: "1px solid #eee",
-        background: "#fff",
-        position: "sticky",
-        top: 0,
-        zIndex: 1000,
-        flexWrap:"wrap"
+        display:"flex",
+        justifyContent:"space-between",
+        alignItems:"center",
+        padding:"15px 30px",
+        borderBottom:"1px solid #eee",
+        background:"#fff",
+        position:"sticky",
+        top:0,
+        zIndex:1000,
+        flexWrap:"wrap",
+        gap:"15px"
       }}
     >
 
       {/* LOGO */}
 
       <Link href="/">
-
         <img
           src="/logo.png"
           alt="Native"
+          style={{height:"60px"}}
+        />
+      </Link>
+
+
+      {/* SEARCH */}
+
+      <form
+        onSubmit={handleSearch}
+        style={{
+          display:"flex",
+          gap:"10px"
+        }}
+      >
+
+        <input
+          type="text"
+          placeholder="Search products..."
+          value={search}
+          onChange={(e)=>setSearch(e.target.value)}
           style={{
-            height: "60px",
-            objectFit: "contain",
-            cursor:"pointer"
+            padding:"8px 15px",
+            borderRadius:"20px",
+            border:"1px solid #ccc",
+            width:"200px"
           }}
         />
 
-      </Link>
+      </form>
 
 
       {/* MENU */}
 
       <nav
         style={{
-          display: "flex",
-          gap: "25px",
-          alignItems: "center",
-          fontSize: "16px"
+          display:"flex",
+          gap:"20px",
+          alignItems:"center"
         }}
       >
 
@@ -75,35 +109,27 @@ export default function Navbar() {
 
         <Link href="/products">Products</Link>
 
-
-        {/* CART BUTTON */}
-
         <button
-          onClick={() => setCartOpen(true)}
+          onClick={()=>setCartOpen(true)}
           style={{
-            border: "none",
-            background: "none",
-            cursor: "pointer",
-            fontSize: "16px"
+            border:"none",
+            background:"none",
+            cursor:"pointer"
           }}
         >
           Cart ({cart.length})
         </button>
 
-
-        <Link href="/login">
-          Login
-        </Link>
+        <Link href="/login">Login</Link>
 
       </nav>
 
     </header>
 
-    {/* CART DRAWER */}
-
-    <CartDrawer open={cartOpen} setOpen={setCartOpen} />
+    <CartDrawer open={cartOpen} setOpen={setCartOpen}/>
 
     </>
+
   )
 
 }
