@@ -1,114 +1,104 @@
-
 "use client"
 
-import { createContext, useContext, useEffect, useState } from "react"
+import { useCart } from "@/context/CartContext"
 
-const CartContext = createContext()
+export default function CartDrawer({ open, setOpen }) {
 
-export function CartProvider({ children }) {
+  const { cart, increaseQty, decreaseQty, removeFromCart } = useCart()
 
-  const [cart, setCart] = useState([])
+  const total = cart.reduce((sum,item)=>sum + item.price * item.quantity,0)
 
-  useEffect(() => {
+  if(!open) return null
 
-    const storedCart = localStorage.getItem("cart")
+  return(
 
-    if (storedCart) {
-      setCart(JSON.parse(storedCart))
-    }
-
-  }, [])
-
-  useEffect(() => {
-
-    localStorage.setItem("cart", JSON.stringify(cart))
-
-  }, [cart])
-
-
-  function addToCart(product) {
-
-    const exists = cart.find(item => item._id === product._id)
-
-    if (exists) {
-
-      setCart(
-        cart.map(item =>
-          item._id === product._id
-            ? { ...item, quantity: item.quantity + 1 }
-            : item
-        )
-      )
-
-    } else {
-
-      setCart([...cart, { ...product, quantity: 1 }])
-
-    }
-
-  }
-
-
-  function removeFromCart(id) {
-
-    setCart(cart.filter(item => item._id !== id))
-
-  }
-
-
-  function increaseQty(id) {
-
-    setCart(
-      cart.map(item =>
-        item._id === id
-          ? { ...item, quantity: item.quantity + 1 }
-          : item
-      )
-    )
-
-  }
-
-
-  function decreaseQty(id) {
-
-    setCart(
-      cart.map(item =>
-        item._id === id
-          ? { ...item, quantity: Math.max(1, item.quantity - 1) }
-          : item
-      )
-    )
-
-  }
-
-
-  function clearCart() {
-    setCart([])
-  }
-
-
-  return (
-
-    <CartContext.Provider
-      value={{
-        cart,
-        addToCart,
-        removeFromCart,
-        increaseQty,
-        decreaseQty,
-        clearCart
-      }}
+    <div
+    style={{
+      position:"fixed",
+      top:0,
+      right:0,
+      width:"350px",
+      height:"100%",
+      background:"#fff",
+      boxShadow:"-4px 0 15px rgba(0,0,0,0.1)",
+      padding:"20px",
+      zIndex:2000,
+      overflowY:"auto"
+    }}
     >
 
-      {children}
+      <h2>Cart</h2>
 
-    </CartContext.Provider>
+      <button
+      onClick={()=>setOpen(false)}
+      style={{
+        position:"absolute",
+        top:"10px",
+        right:"10px",
+        border:"none",
+        background:"none",
+        fontSize:"20px",
+        cursor:"pointer"
+      }}
+      >
+        ✕
+      </button>
+
+      {cart.length === 0 ? (
+
+        <p>Your cart is empty</p>
+
+      ) : (
+
+        cart.map(item=>(
+
+          <div
+          key={item._id}
+          style={{
+            borderBottom:"1px solid #eee",
+            padding:"10px 0"
+          }}
+          >
+
+            <h4>{item.name}</h4>
+
+            <p>₹{item.price}</p>
+
+            <div style={{display:"flex",gap:"10px",alignItems:"center"}}>
+
+              <button onClick={()=>decreaseQty(item._id)}>-</button>
+
+              <span>{item.quantity}</span>
+
+              <button onClick={()=>increaseQty(item._id)}>+</button>
+
+            </div>
+
+            <button
+            onClick={()=>removeFromCart(item._id)}
+            style={{
+              marginTop:"5px",
+              background:"none",
+              border:"none",
+              color:"red",
+              cursor:"pointer"
+            }}
+            >
+              Remove
+            </button>
+
+          </div>
+
+        ))
+
+      )}
+
+      <h3 style={{marginTop:"20px"}}>
+        Total: ₹{total}
+      </h3>
+
+    </div>
 
   )
 
-}
-
-
-export function useCart() {
-  return useContext(CartContext)
 }
