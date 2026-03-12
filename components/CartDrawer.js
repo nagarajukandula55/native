@@ -5,7 +5,12 @@ import Link from "next/link"
 
 export default function CartDrawer({ open, setOpen }) {
 
-const { cart, increaseQty, decreaseQty, removeFromCart } = useCart()
+const cartContext = useCart()
+
+const cart = cartContext?.cart || []
+const increaseQty = cartContext?.increaseQty
+const decreaseQty = cartContext?.decreaseQty
+const removeFromCart = cartContext?.removeFromCart
 
 const total = cart.reduce(
 (sum,item)=> sum + item.price * item.quantity,
@@ -86,16 +91,16 @@ return (
         }}
       >
 
-        <button onClick={()=>decreaseQty(item._id)}>-</button>
+        <button onClick={()=>decreaseQty?.(item._id)}>-</button>
 
         <span>{item.quantity}</span>
 
-        <button onClick={()=>increaseQty(item._id)}>+</button>
+        <button onClick={()=>increaseQty?.(item._id)}>+</button>
 
       </div>
 
       <button
-        onClick={()=>removeFromCart(item._id)}
+        onClick={()=>removeFromCart?.(item._id)}
         style={{
           marginTop:"5px",
           background:"none",
