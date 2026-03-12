@@ -1,81 +1,182 @@
-
 "use client"
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
+import { useCart } from "@/context/CartContext"
 
 export default function ProductsPage() {
 
-  const [products, setProducts] = useState([])
+  const { addToCart } = useCart()
+
+  const [products,setProducts] = useState([])
+  const [loading,setLoading] = useState(true)
 
   useEffect(()=>{
 
-    async function load(){
+    const fetchProducts = async()=>{
 
-      const res = await fetch("/api/admin/products")
-      const data = await res.json()
+      try{
 
-      setProducts(data)
+        const res = await fetch("/api/products")
+        const data = await res.json()
+
+        if(data.success){
+          setProducts(data.products)
+        }
+
+      }catch(err){
+        console.log(err)
+      }
+      finally{
+        setLoading(false)
+      }
 
     }
 
-    load()
+    fetchProducts()
 
   },[])
 
   return(
 
-    <div style={{maxWidth:"1200px", margin:"auto", padding:"20px"}}>
+    <div
+    style={{
+      maxWidth:"1300px",
+      margin:"auto",
+      padding:"60px 20px"
+    }}
+    >
 
-      <h1 style={{fontSize:"28px", fontWeight:"bold", marginBottom:"30px"}}>
+      <h1
+      style={{
+        fontSize:"42px",
+        marginBottom:"40px",
+        textAlign:"center"
+      }}
+      >
         Our Products
       </h1>
 
-      <div style={{
-        display:"grid",
-        gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))",
-        gap:"20px"
-      }}>
+      {loading ? (
 
-        {products.map(product=> (
+        <p style={{textAlign:"center"}}>Loading products...</p>
 
-          <Link key={product._id} href={"/products/"+product.slug}>
+      ) : (
 
-            <div style={{
-              border:"1px solid #ddd",
-              borderRadius:"8px",
-              overflow:"hidden"
-            }}>
+        <div
+        style={{
+          display:"grid",
+          gridTemplateColumns:"repeat(auto-fit,minmax(260px,1fr))",
+          gap:"30px"
+        }}
+        >
 
-              <img
+          {products.map((product)=>(
+
+            <div
+            key={product._id}
+            style={{
+              border:"1px solid #eee",
+              borderRadius:"12px",
+              overflow:"hidden",
+              background:"#fff",
+              transition:"0.3s",
+              boxShadow:"0 5px 20px rgba(0,0,0,0.05)"
+            }}
+            >
+
+              {/* PRODUCT IMAGE */}
+
+              <Link href={`/product/${product.slug}`}>
+
+                <img
                 src={product.image}
                 alt={product.name}
                 style={{
                   width:"100%",
-                  height:"200px",
+                  height:"220px",
                   objectFit:"cover"
                 }}
-              />
+                />
 
-              <div style={{padding:"12px"}}>
+              </Link>
 
-                <h3>{product.name}</h3>
 
-                <p style={{color:"#777"}}>
-                  {product.category}
+              {/* PRODUCT INFO */}
+
+              <div style={{padding:"18px"}}>
+
+                <Link href={`/product/${product.slug}`} style={{textDecoration:"none"}}>
+
+                  <h3
+                  style={{
+                    fontSize:"18px",
+                    marginBottom:"10px",
+                    color:"#333"
+                  }}
+                  >
+                    {product.name}
+                  </h3>
+
+                </Link>
+
+
+                <p
+                style={{
+                  color:"#777",
+                  fontSize:"14px",
+                  marginBottom:"12px"
+                }}
+                >
+                  {product.shortDescription || "Natural healthy product"}
                 </p>
 
-                <b>₹{product.price}</b>
+
+                <div
+                style={{
+                  display:"flex",
+                  justifyContent:"space-between",
+                  alignItems:"center"
+                }}
+                >
+
+                  <span
+                  style={{
+                    fontSize:"18px",
+                    fontWeight:"600",
+                    color:"#c28b45"
+                  }}
+                  >
+                    ₹{product.price}
+                  </span>
+
+
+                  <button
+                  onClick={()=>addToCart(product)}
+                  style={{
+                    padding:"8px 16px",
+                    border:"none",
+                    borderRadius:"20px",
+                    background:"#c28b45",
+                    color:"#fff",
+                    cursor:"pointer",
+                    fontSize:"14px"
+                  }}
+                  >
+                    Add
+                  </button>
+
+                </div>
 
               </div>
 
             </div>
 
-          </Link>
+          ))}
 
-        ))}
+        </div>
 
-      </div>
+      )}
 
     </div>
 
