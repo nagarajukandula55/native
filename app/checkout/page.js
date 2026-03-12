@@ -1,200 +1,214 @@
-
 "use client"
 
 import { useCart } from "@/context/CartContext"
 import { useState } from "react"
-import { useRouter } from "next/navigation"
 
 export default function CheckoutPage() {
 
-  const { cart, clearCart } = useCart()
-  const router = useRouter()
+const { cart } = useCart()
 
-  const cartTotal = cart.reduce(
-    (total, item) => total + item.price * item.quantity,
-    0
-  )
+const [form, setForm] = useState({
+name: "",
+phone: "",
+address: "",
+city: "",
+pincode: "",
+payment: "COD"
+})
 
-  const [loading, setLoading] = useState(false)
+const total = cart.reduce(
+(sum,item)=> sum + item.price * item.quantity,
+0
+)
 
-  const [formData, setFormData] = useState({
-    name: "",
-    phone: "",
-    address: "",
-    pincode: "",
-    city: "",
-    state: "",
-  })
+function handleChange(e){
 
+```
+setForm({
+  ...form,
+  [e.target.name]: e.target.value
+})
+```
 
-  if (cart.length === 0) {
-    return (
-      <div style={{ padding: "80px 60px" }}>
-        <h2>Your cart is empty.</h2>
+}
 
-        <button
-          onClick={() => router.push("/")}
-          style={{
-            marginTop: "20px",
-            padding: "10px 20px",
-            borderRadius: "20px",
-            border: "none",
-            backgroundColor: "#c28b45",
-            color: "#fff",
-            cursor: "pointer",
-          }}
-        >
-          Go to Products
-        </button>
-      </div>
-    )
-  }
+function placeOrder(){
 
+```
+if(cart.length === 0){
+  alert("Cart is empty")
+  return
+}
 
-  const handleChange = (e) => {
+alert("Order placed (next step we will save it)")
+```
 
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    })
+}
 
-  }
+return(
 
+```
+<div
+style={{
+  maxWidth:"1100px",
+  margin:"auto",
+  padding:"60px 20px",
+  display:"grid",
+  gridTemplateColumns:"1fr 400px",
+  gap:"40px"
+}}
+>
 
-  const handleSubmit = async (e) => {
+  {/* CUSTOMER FORM */}
 
-    e.preventDefault()
-    setLoading(true)
+  <div>
 
-    try {
+    <h2 style={{marginBottom:"20px"}}>Delivery Details</h2>
 
-      const response = await fetch("/api/orders", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          customer: formData,
-          items: cart,
-        }),
-      })
+    <input
+    name="name"
+    placeholder="Full Name"
+    value={form.name}
+    onChange={handleChange}
+    style={input}
+    />
 
-      const data = await response.json()
+    <input
+    name="phone"
+    placeholder="Phone Number"
+    value={form.phone}
+    onChange={handleChange}
+    style={input}
+    />
 
-      if (response.ok) {
+    <textarea
+    name="address"
+    placeholder="Address"
+    value={form.address}
+    onChange={handleChange}
+    style={input}
+    />
 
-        clearCart()
-        router.push(`/order-success?orderId=${data.orderId}`)
+    <input
+    name="city"
+    placeholder="City"
+    value={form.city}
+    onChange={handleChange}
+    style={input}
+    />
 
-      } else {
+    <input
+    name="pincode"
+    placeholder="Pincode"
+    value={form.pincode}
+    onChange={handleChange}
+    style={input}
+    />
 
-        alert(data.message || "Something went wrong")
+    <h3 style={{marginTop:"20px"}}>Payment Method</h3>
 
-      }
+    <label style={{display:"block",marginTop:"10px"}}>
 
-    } catch (error) {
+      <input
+      type="radio"
+      name="payment"
+      value="COD"
+      checked={form.payment==="COD"}
+      onChange={handleChange}
+      />
 
-      alert("Server error. Try again.")
+      Cash on Delivery
 
-    }
+    </label>
 
-    setLoading(false)
+    <label style={{display:"block",marginTop:"10px"}}>
 
-  }
+      <input
+      type="radio"
+      name="payment"
+      value="ONLINE"
+      checked={form.payment==="ONLINE"}
+      onChange={handleChange}
+      />
 
+      Pay Online
 
-  return (
+    </label>
 
-    <div style={{ padding: "80px 60px", minHeight: "100vh" }}>
-
-      <h1 style={{ fontSize: "40px", marginBottom: "40px" }}>
-        Checkout
-      </h1>
-
-      <div style={{ display: "flex", gap: "60px", flexWrap: "wrap" }}>
-
-        {/* Customer Form */}
-
-        <form
-          onSubmit={handleSubmit}
-          style={{
-            flex: "1",
-            minWidth: "300px",
-            display: "flex",
-            flexDirection: "column",
-            gap: "15px",
-          }}
-        >
-
-          <input name="name" placeholder="Full Name" required onChange={handleChange} />
-
-          <input name="phone" placeholder="Phone Number" required onChange={handleChange} />
-
-          <textarea name="address" placeholder="Full Address" required onChange={handleChange} />
-
-          <input name="pincode" placeholder="Pincode" required onChange={handleChange} />
-
-          <input name="city" placeholder="City" required onChange={handleChange} />
-
-          <input name="state" placeholder="State" required onChange={handleChange} />
-
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              padding: "12px",
-              borderRadius: "25px",
-              border: "none",
-              backgroundColor: "#c28b45",
-              color: "#fff",
-              cursor: "pointer",
-              marginTop: "10px",
-            }}
-          >
-            {loading ? "Placing Order..." : "Place Order"}
-          </button>
-
-        </form>
+  </div>
 
 
-        {/* Order Summary */}
+  {/* ORDER SUMMARY */}
 
-        <div
-          style={{
-            flex: "1",
-            minWidth: "300px",
-            border: "1px solid #ddd",
-            padding: "20px",
-            borderRadius: "10px",
-          }}
-        >
+  <div
+  style={{
+    border:"1px solid #eee",
+    padding:"20px",
+    borderRadius:"10px",
+    background:"#fff",
+    height:"fit-content"
+  }}
+  >
 
-          <h3>Order Summary</h3>
+    <h3 style={{marginBottom:"20px"}}>Order Summary</h3>
 
-          {cart.map((item) => (
+    {cart.map(item=>(
+      <div
+      key={item._id}
+      style={{
+        display:"flex",
+        justifyContent:"space-between",
+        marginBottom:"10px"
+      }}
+      >
 
-            <div key={item._id} style={{ marginBottom: "10px" }}>
+        <span>
+          {item.name} × {item.quantity}
+        </span>
 
-              <p>
-                {item.name} × {item.quantity}
-              </p>
-
-              <p>₹{item.price * item.quantity}</p>
-
-            </div>
-
-          ))}
-
-          <hr />
-
-          <h3>Total: ₹{cartTotal}</h3>
-
-        </div>
+        <span>
+          ₹{item.price * item.quantity}
+        </span>
 
       </div>
+    ))}
 
-    </div>
+    <hr style={{margin:"15px 0"}}/>
 
-  )
+    <h3>Total: ₹{total}</h3>
 
+    <button
+    onClick={placeOrder}
+    style={{
+      width:"100%",
+      marginTop:"20px",
+      padding:"12px",
+      border:"none",
+      background:"#c28b45",
+      color:"#fff",
+      borderRadius:"6px",
+      fontSize:"16px",
+      cursor:"pointer"
+    }}
+    >
+
+      Place Order
+
+    </button>
+
+  </div>
+
+</div>
+```
+
+)
+
+}
+
+const input = {
+width:"100%",
+padding:"10px",
+marginBottom:"10px",
+border:"1px solid #ccc",
+borderRadius:"6px"
 }
