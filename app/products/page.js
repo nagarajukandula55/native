@@ -3,10 +3,14 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useCart } from "@/context/CartContext"
+import { useSearchParams } from "next/navigation"
 
 export default function ProductsPage() {
 
   const { addToCart } = useCart()
+
+  const searchParams = useSearchParams()
+  const search = searchParams.get("search")
 
   const [products,setProducts] = useState([])
   const [loading,setLoading] = useState(true)
@@ -20,7 +24,6 @@ export default function ProductsPage() {
         const res = await fetch("/api/admin/products")
         const data = await res.json()
 
-        // your API returns an array directly
         setProducts(data)
 
       }catch(err){
@@ -36,6 +39,15 @@ export default function ProductsPage() {
 
   },[])
 
+
+  /* SEARCH FILTER */
+
+  const filteredProducts = products.filter(product =>
+    !search ||
+    product.name.toLowerCase().includes(search.toLowerCase())
+  )
+
+
   return(
 
     <div
@@ -49,20 +61,36 @@ export default function ProductsPage() {
       <h1
       style={{
         fontSize:"42px",
-        marginBottom:"40px",
+        marginBottom:"10px",
         textAlign:"center"
       }}
       >
         Our Products
       </h1>
 
+
+      {search && (
+
+        <p
+        style={{
+          textAlign:"center",
+          marginBottom:"30px",
+          color:"#777"
+        }}
+        >
+          Showing results for "<b>{search}</b>"
+        </p>
+
+      )}
+
+
       {loading ? (
 
         <p style={{textAlign:"center"}}>Loading products...</p>
 
-      ) : products.length === 0 ? (
+      ) : filteredProducts.length === 0 ? (
 
-        <p style={{textAlign:"center"}}>No products available</p>
+        <p style={{textAlign:"center"}}>No products found</p>
 
       ) : (
 
@@ -74,7 +102,7 @@ export default function ProductsPage() {
         }}
         >
 
-          {products.map((product)=>(
+          {filteredProducts.map((product)=>(
 
             <div
             key={product._id}
