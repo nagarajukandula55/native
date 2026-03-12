@@ -5,41 +5,40 @@ import { useCart } from "@/context/CartContext"
 
 export default function Home() {
 
-  const { addToCart } = useCart()
+const { addToCart } = useCart()
 
-  const [products,setProducts] = useState([])
-  const [loading,setLoading] = useState(true)
+const [products,setProducts] = useState([])
+const [loading,setLoading] = useState(true)
 
-  useEffect(()=>{
+useEffect(()=>{
 
-    const fetchProducts = async()=>{
+const fetchProducts = async()=>{
 
-      try{
+try{
 
-        const res = await fetch("/api/admin/products")
-        const data = await res.json()
+const res = await fetch("/api/admin/products")
+const data = await res.json()
 
-        // API returns array
-        setProducts(data)
+setProducts(data)
 
-      }catch(err){
-        console.log(err)
-      }
-      finally{
-        setLoading(false)
-      }
+}catch(err){
+console.log(err)
+}
+finally{
+setLoading(false)
+}
 
-    }
+}
 
-    fetchProducts()
+fetchProducts()
 
-  },[])
-
+},[])
 
 
-  return(
+return(
 
-    <div>
+<div>
+
 
 {/* HERO SECTION */}
 
@@ -51,7 +50,7 @@ alignItems:"center",
 justifyContent:"center",
 textAlign:"center",
 padding:"40px 20px",
-background:"#f4efe6"
+background:"linear-gradient(to bottom,#f4efe6,#faf8f3)"
 }}
 >
 
@@ -71,8 +70,8 @@ Welcome to Native
 
 <p
 style={{
-fontSize:"20px",
-marginBottom:"25px",
+fontSize:"22px",
+marginBottom:"20px",
 color:"#5c4634"
 }}
 >
@@ -114,7 +113,43 @@ Explore Products
 
 
 
-{/* PRODUCTS */}
+{/* CATEGORY SECTION */}
+
+<section
+style={{
+padding:"70px 20px",
+maxWidth:"1200px",
+margin:"auto",
+textAlign:"center"
+}}
+>
+
+<h2 style={{fontSize:"36px",marginBottom:"40px"}}>
+
+Our Categories
+
+</h2>
+
+<div
+style={{
+display:"grid",
+gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",
+gap:"25px"
+}}
+>
+
+<div style={categoryCard}>Batter Mix</div>
+<div style={categoryCard}>Cold Pressed Oils</div>
+<div style={categoryCard}>Traditional Foods</div>
+<div style={categoryCard}>Natural Products</div>
+
+</div>
+
+</section>
+
+
+
+{/* FEATURED PRODUCTS */}
 
 <section
 id="products"
@@ -132,21 +167,13 @@ fontSize:"36px",
 marginBottom:"50px"
 }}
 >
-
-Our Products
-
+Featured Products
 </h2>
 
 
 {loading ?
 
 <p style={{textAlign:"center"}}>Loading products...</p>
-
-:
-
-products.length === 0 ?
-
-<p style={{textAlign:"center"}}>No products available</p>
 
 :
 
@@ -164,10 +191,11 @@ gap:"30px"
 key={product._id}
 style={{
 border:"1px solid #eee",
-borderRadius:"10px",
+borderRadius:"12px",
 padding:"20px",
 textAlign:"center",
-background:"#fff"
+background:"#fff",
+boxShadow:"0 5px 15px rgba(0,0,0,0.05)"
 }}
 >
 
@@ -223,8 +251,76 @@ Add to Cart
 
 </section>
 
+
+
+{/* WHY NATIVE */}
+
+<section
+style={{
+background:"#f4efe6",
+padding:"70px 20px",
+textAlign:"center"
+}}
+>
+
+<h2 style={{fontSize:"36px",marginBottom:"40px"}}>
+
+Why Choose Native
+
+</h2>
+
+<div
+style={{
+maxWidth:"1000px",
+margin:"auto",
+display:"grid",
+gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))",
+gap:"30px"
+}}
+>
+
+<div style={featureCard}>
+🌿 <br/> 100% Natural
 </div>
 
-  )
+<div style={featureCard}>
+🚜 <br/> Direct From Farmers
+</div>
 
+<div style={featureCard}>
+🧂 <br/> Traditional Methods
+</div>
+
+<div style={featureCard}>
+❤️ <br/> Healthy Lifestyle
+</div>
+
+</div>
+
+</section>
+
+
+</div>
+
+)
+}
+
+
+/* STYLES */
+
+const categoryCard = {
+background:"#fff",
+padding:"40px 20px",
+borderRadius:"10px",
+fontSize:"18px",
+fontWeight:"500",
+boxShadow:"0 5px 15px rgba(0,0,0,0.05)"
+}
+
+const featureCard = {
+background:"#fff",
+padding:"30px",
+borderRadius:"10px",
+fontSize:"18px",
+boxShadow:"0 5px 15px rgba(0,0,0,0.05)"
 }
