@@ -17,15 +17,14 @@ export default function ProductsPage() {
 
       try{
 
-        const res = await fetch("/api/products")
+        const res = await fetch("/api/admin/products")
         const data = await res.json()
 
-        if(data.success){
-          setProducts(data.products)
-        }
+        // your API returns an array directly
+        setProducts(data)
 
       }catch(err){
-        console.log(err)
+        console.log("Product fetch error:",err)
       }
       finally{
         setLoading(false)
@@ -60,6 +59,10 @@ export default function ProductsPage() {
       {loading ? (
 
         <p style={{textAlign:"center"}}>Loading products...</p>
+
+      ) : products.length === 0 ? (
+
+        <p style={{textAlign:"center"}}>No products available</p>
 
       ) : (
 
@@ -106,7 +109,10 @@ export default function ProductsPage() {
 
               <div style={{padding:"18px"}}>
 
-                <Link href={`/product/${product.slug}`} style={{textDecoration:"none"}}>
+                <Link
+                href={`/product/${product.slug}`}
+                style={{textDecoration:"none"}}
+                >
 
                   <h3
                   style={{
@@ -128,7 +134,7 @@ export default function ProductsPage() {
                   marginBottom:"12px"
                 }}
                 >
-                  {product.shortDescription || "Natural healthy product"}
+                  {product.description?.slice(0,60) || "Natural healthy product"}
                 </p>
 
 
