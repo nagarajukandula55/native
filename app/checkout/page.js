@@ -7,7 +7,8 @@ import { useState } from "react"
 
 export default function CheckoutPage() {
 
-const { cart } = useCart()
+const cartContext = useCart()
+const cart = cartContext?.cart || []
 
 const [form, setForm] = useState({
 name: "",
