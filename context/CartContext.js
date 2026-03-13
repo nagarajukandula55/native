@@ -9,7 +9,7 @@ export function CartProvider({ children }) {
   const [cart,setCart] = useState([])
   const [drawerOpen,setDrawerOpen] = useState(false)
 
-  // LOAD CART
+  // LOAD CART FROM LOCAL STORAGE
   useEffect(()=>{
     const saved = localStorage.getItem("cart")
     if(saved){
@@ -30,6 +30,12 @@ export function CartProvider({ children }) {
     setDrawerOpen(false)
   }
 
+  function clearCart(){
+    setCart([])
+    setDrawerOpen(false)
+    localStorage.removeItem("cart")
+  }
+
   function addToCart(product){
 
     setCart(prev=>{
@@ -47,7 +53,7 @@ export function CartProvider({ children }) {
       return [...prev,{...product, quantity:1}]
     })
 
-    // ⭐ auto open drawer
+    // auto open drawer
     setDrawerOpen(true)
   }
 
@@ -82,6 +88,7 @@ export function CartProvider({ children }) {
         drawerOpen,
         openCart,
         closeCart,
+        clearCart,
         addToCart,
         increaseQty,
         decreaseQty,
