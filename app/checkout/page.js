@@ -35,17 +35,22 @@ try{
 
 const res = await fetch("/api/orders",{
 method:"POST",
-headers:{ "Content-Type":"application/json"},
+headers:{ "Content-Type":"application/json" },
 body: JSON.stringify({
-customer: form,
-items: cart
+customerName:name,
+phone,
+email,
+address,
+pincode,
+items:cart
 })
 })
 
 const data = await res.json()
 
 clearCart()
-router.push("/order-success")
+
+router.push(`/order-success?orderId=${data.orderId}`)
 
 }catch(err){
 alert("Order failed")
