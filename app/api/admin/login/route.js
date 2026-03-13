@@ -1,21 +1,46 @@
-import jwt from "jsonwebtoken";
-import bcrypt from "bcrypt";
+import { NextResponse } from "next/server"
+import connectDB from "@/lib/mongodb"
+import Admin from "@/models/Admin"
+import bcrypt from "bcryptjs"
+import { cookies } from "next/headers"
 
-export async function POST(req) {
-  const { email, password } = await req.json();
+export async function POST(req){
 
-  // Read from environment variables
-  const adminEmail = process.env.ADMIN_EMAIL;
-  const adminPasswordHash = process.env.ADMIN_PASSWORD_HASH;
+  try{
 
-  if (!adminEmail || !adminPasswordHash) {
-    return new Response("Admin credentials not configured", { status: 500 });
+    await connectDB()
+
+    const body = await req.json()
+
+    const admin = await Admin.findOne({ email:body.email })
+
+    if(!admin){
+      return NextResponse.json({ success:false, message:"Invalid Email" })
+    }
+
+    const match = await bcrypt.compare(body.password, admin.password)
+
+    if(!match){
+      return NextResponse.json({ success:false, message:"Invalid Password" })
+    }
+
+    // ⭐ create session cookie
+    cookies().set("adminToken", admin._id.toString(), {
+      httpOnly:true,
+      path:"/"
+    })
+
+    return NextResponse.json({
+      success:true
+    })
+
+  }catch(err){
+
+    return NextResponse.json({
+      success:false,
+      message:"Login failed"
+    })
+
   }
 
-  const isValid = email === adminEmail && (await bcrypt.compare(password, adminPasswordHash));
-  if (!isValid) return new Response("Invalid credentials", { status: 401 });
-
-  const token = jwt.sign({ email }, process.env.JWT_SECRET, { expiresIn: "7d" });
-
-  return new Response(JSON.stringify({ token }), { status: 200 });
 }
