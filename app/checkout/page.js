@@ -1,243 +1,90 @@
 "use client"
 
-export const dynamic = "force-dynamic"
-
 import { useCart } from "@/context/CartContext"
-import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { useState } from "react"
 
-export default function CheckoutPage() {
+export default function Checkout(){
 
-const cartContext = useCart()
+const { cart } = useCart()
+const router = useRouter()
 
-const cart = cartContext?.cart || []
-
-const [mounted,setMounted] = useState(false)
-
-useEffect(()=>{
-setMounted(true)
-},[])
+const [loading,setLoading] = useState(false)
 
 const [form,setForm] = useState({
 name:"",
 phone:"",
 address:"",
-city:"",
-pincode:"",
-payment:"COD"
+pincode:""
 })
+
+function handleChange(e){
+setForm({...form,[e.target.name]:e.target.value})
+}
+
+async function placeOrder(){
+
+if(!form.name || !form.phone || !form.address){
+alert("Fill all details")
+return
+}
+
+setLoading(true)
+
+try{
+
+const res = await fetch("/api/orders",{
+method:"POST",
+headers:{ "Content-Type":"application/json"},
+body: JSON.stringify({
+customer: form,
+items: cart
+})
+})
+
+const data = await res.json()
+
+router.push("/order-success")
+
+}catch(err){
+alert("Order failed")
+}
+
+setLoading(false)
+
+}
 
 const total = cart.reduce(
 (sum,item)=> sum + item.price * item.quantity,
 0
 )
 
-function handleChange(e){
-
-setForm({
-...form,
-[e.target.name]: e.target.value
-})
-
-}
-
-async function placeOrder(){
-
-if(cart.length === 0){
-alert("Cart is empty")
-return
-}
-
-try{
-
-const res = await fetch("/api/orders",{
-method:"POST",
-headers:{
-"Content-Type":"application/json"
-},
-body:JSON.stringify({
-customerName: form.name,
-phone: form.phone,
-address: form.address,
-city: form.city,
-pincode: form.pincode,
-paymentMethod: form.payment,
-items: cart,
-total: total
-})
-})
-
-const data = await res.json()
-
-if(res.ok){
-
-alert("Order placed successfully!")
-
-}else{
-
-alert("Order failed")
-
-}
-
-}catch(err){
-
-console.log(err)
-alert("Server error")
-
-}
-
-}
-
-if(!mounted) return null
-
 return(
 
-<div
-style={{
-maxWidth:"1100px",
-margin:"auto",
-padding:"60px 20px",
-display:"grid",
-gridTemplateColumns:"1fr 400px",
-gap:"40px"
-}}
->
+<div style={{maxWidth:"600px",margin:"50px auto"}}>
 
-<div>
+<h2>Checkout</h2>
 
-<h2 style={{marginBottom:"20px"}}>Delivery Details</h2>
+<input name="name" placeholder="Name" onChange={handleChange}/>
+<br/><br/>
 
-<input
-name="name"
-placeholder="Full Name"
-value={form.name}
-onChange={handleChange}
-style={input}
-/>
+<input name="phone" placeholder="Phone" onChange={handleChange}/>
+<br/><br/>
 
-<input
-name="phone"
-placeholder="Phone Number"
-value={form.phone}
-onChange={handleChange}
-style={input}
-/>
+<textarea name="address" placeholder="Address" onChange={handleChange}/>
+<br/><br/>
 
-<textarea
-name="address"
-placeholder="Address"
-value={form.address}
-onChange={handleChange}
-style={input}
-/>
+<input name="pincode" placeholder="Pincode" onChange={handleChange}/>
+<br/><br/>
 
-<input
-name="city"
-placeholder="City"
-value={form.city}
-onChange={handleChange}
-style={input}
-/>
+<h3>Total ₹{total}</h3>
 
-<input
-name="pincode"
-placeholder="Pincode"
-value={form.pincode}
-onChange={handleChange}
-style={input}
-/>
-
-<h3 style={{marginTop:"20px"}}>Payment Method</h3>
-
-<label>
-<input
-type="radio"
-name="payment"
-value="COD"
-checked={form.payment==="COD"}
-onChange={handleChange}
-/>
-Cash on Delivery
-</label>
-
-<br/>
-
-<label>
-<input
-type="radio"
-name="payment"
-value="ONLINE"
-checked={form.payment==="ONLINE"}
-onChange={handleChange}
-/>
-Pay Online
-</label>
-
-</div>
-
-<div
-style={{
-border:"1px solid #eee",
-padding:"20px",
-borderRadius:"10px",
-background:"#fff"
-}}
->
-
-<h3 style={{marginBottom:"20px"}}>Order Summary</h3>
-
-{cart.map(item=>(
-<div
-key={item._id}
-style={{
-display:"flex",
-justifyContent:"space-between",
-marginBottom:"10px"
-}}
->
-
-<span>
-{item.name} × {item.quantity}
-</span>
-
-<span>
-₹{item.price * item.quantity}
-</span>
-
-</div>
-))}
-
-<hr style={{margin:"15px 0"}}/>
-
-<h3>Total: ₹{total}</h3>
-
-<button
-onClick={placeOrder}
-style={{
-width:"100%",
-marginTop:"20px",
-padding:"12px",
-border:"none",
-background:"#c28b45",
-color:"#fff",
-borderRadius:"6px",
-cursor:"pointer"
-}}
->
-Place Order
+<button onClick={placeOrder}>
+{loading ? "Placing..." : "Place Order"}
 </button>
-
-</div>
 
 </div>
 
 )
 
-}
-
-const input = {
-width:"100%",
-padding:"10px",
-marginBottom:"10px",
-border:"1px solid #ccc",
-borderRadius:"6px"
 }
