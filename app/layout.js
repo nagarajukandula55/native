@@ -7,49 +7,40 @@ import { Cinzel, Poppins } from "next/font/google"
 export const dynamic = "force-dynamic"
 
 const cinzel = Cinzel({
-subsets: ["latin"],
-weight: ["400", "600"],
-variable: "--font-brand"
+  subsets: ["latin"],
+  weight: ["400", "600"],
+  variable: "--font-brand"
 })
 
 const poppins = Poppins({
-subsets: ["latin"],
-weight: ["300","400","500"],
-variable: "--font-body"
+  subsets: ["latin"],
+  weight: ["300","400","500"],
+  variable: "--font-body"
 })
 
 export const metadata = {
-title: "Native | Eat Healthy Stay Healthy",
-description: "Authentic natural food products refined directly from the source"
+  title: "Native | Eat Healthy Stay Healthy",
+  description: "Authentic natural food products refined directly from the source"
 }
 
 export default function RootLayout({ children }) {
-return (
-<html lang="en" className={`${cinzel.variable} ${poppins.variable}`}>
-<body
-style={{
-margin: 0,
-background: "#faf8f3",
-fontFamily: "var(--font-body)"
-}}
->
-
-```
-    <CartProvider>
-
-      <Navbar />
-
-      <main style={{ minHeight: "80vh" }}>
-        {children}
-      </main>
-
-      <Footer />
-
-    </CartProvider>
-
-  </body>
-</html>
-```
-
-)
+  return (
+    <html lang="en" className={`${cinzel.variable} ${poppins.variable}`}>
+      <body
+        style={{
+          margin: 0,
+          background: "#faf8f3",
+          fontFamily: "var(--font-body)"
+        }}
+      >
+        <CartProvider>
+          <Navbar />
+          <main style={{ minHeight: "80vh" }}>
+            {children}
+          </main>
+          <Footer />
+        </CartProvider>
+      </body>
+    </html>
+  )
 }
