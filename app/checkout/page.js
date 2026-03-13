@@ -44,6 +44,7 @@ items: cart
 
 const data = await res.json()
 
+clearCart()
 router.push("/order-success")
 
 }catch(err){
