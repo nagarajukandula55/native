@@ -2,24 +2,18 @@ import mongoose from "mongoose"
 
 const OrderSchema = new mongoose.Schema({
 
-customerName: String,
-phone: String,
-address: String,
-city: String,
-pincode: String,
+customer:{
+name:String,
+phone:String,
+address:String,
+pincode:String
+},
 
-items: [
-{
-productId: String,
-name: String,
-price: Number,
-quantity: Number
-}
-],
-
-total: Number,
-
-paymentMethod: String,
+items:[{
+name:String,
+price:Number,
+quantity:Number
+}],
 
 status:{
 type:String,
@@ -33,4 +27,5 @@ default:Date.now
 
 })
 
-export default mongoose.models.Order || mongoose.model("Order",OrderSchema)
+export default mongoose.models.Order ||
+mongoose.model("Order", OrderSchema)
