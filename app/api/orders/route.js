@@ -22,10 +22,12 @@ orderId: order._id
 
 }catch(err){
 
-return NextResponse.json({
-success:false,
-message:"Order failed"
-},{ status:500 })
+  console.log("ORDER ERROR → ", err)
+
+  return NextResponse.json({
+    success:false,
+    message: err.message
+  })
 
 }
 
