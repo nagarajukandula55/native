@@ -65,3 +65,27 @@ export async function POST(req){
   }
 
 }
+
+export async function GET(){
+
+  try{
+
+    await connectDB()
+
+    const orders = await Order.find().sort({ createdAt:-1 })
+
+    return NextResponse.json({
+      success:true,
+      orders
+    })
+
+  }catch(err){
+
+    return NextResponse.json({
+      success:false,
+      message:"Failed to fetch orders"
+    })
+
+  }
+
+}
