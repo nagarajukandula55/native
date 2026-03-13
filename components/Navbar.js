@@ -1,47 +1,34 @@
 "use client"
 
-import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { useState } from "react"
 import { useCart } from "@/context/CartContext"
 import CartDrawer from "./CartDrawer"
 
 export default function Navbar() {
 
-  const { cart } = useCart()
+  const {
+    cart,
+    drawerOpen,
+    openCart,
+    closeCart
+  } = useCart()
+
   const router = useRouter()
+  const [search,setSearch] = useState("")
 
-  const [cartOpen, setCartOpen] = useState(false)
-  const [search, setSearch] = useState("")
-
-  useEffect(() => {
-
-    const openCart = () => setCartOpen(true)
-
-    window.addEventListener("cart-open", openCart)
-
-    return () => {
-      window.removeEventListener("cart-open", openCart)
-    }
-
-  }, [])
-
-  function handleSearch(e) {
-
+  function handleSearch(e){
     e.preventDefault()
 
     if(!search.trim()) return
 
     router.push(`/products?search=${search}`)
-
     setSearch("")
-
   }
 
   return (
-
     <>
-
       <header
         style={{
           display:"flex",
@@ -59,26 +46,19 @@ export default function Navbar() {
       >
 
         {/* LOGO */}
-
         <Link href="/">
           <img
             src="/logo.png"
             alt="Native"
-            style={{height:"60px"}}
+            style={{height:"60px",cursor:"pointer"}}
           />
         </Link>
 
-
         {/* SEARCH */}
-
         <form
           onSubmit={handleSearch}
-          style={{
-            display:"flex",
-            gap:"10px"
-          }}
+          style={{display:"flex",gap:"10px"}}
         >
-
           <input
             type="text"
             placeholder="Search products..."
@@ -91,12 +71,9 @@ export default function Navbar() {
               width:"200px"
             }}
           />
-
         </form>
 
-
         {/* MENU */}
-
         <nav
           style={{
             display:"flex",
@@ -106,15 +83,15 @@ export default function Navbar() {
         >
 
           <Link href="/">Home</Link>
-
           <Link href="/products">Products</Link>
 
           <button
-            onClick={()=>setCartOpen(true)}
+            onClick={openCart}
             style={{
               border:"none",
               background:"none",
-              cursor:"pointer"
+              cursor:"pointer",
+              fontWeight:"500"
             }}
           >
             Cart ({cart.length})
@@ -126,10 +103,9 @@ export default function Navbar() {
 
       </header>
 
-      <CartDrawer open={cartOpen} setOpen={setCartOpen} />
+      {/* ⭐ GLOBAL CART DRAWER */}
+      <CartDrawer open={drawerOpen} setOpen={closeCart} />
 
     </>
-
   )
-
 }
