@@ -117,7 +117,10 @@ export default function CartDrawer({ open, setOpen }) {
 
           <h3>Total: ₹{total}</h3>
 
-          <Link href="/checkout">
+          <Link
+            href="/checkout"
+            onClick={() => setOpen()}
+          >
             <button
               style={{
                 width:"100%",
