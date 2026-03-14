@@ -10,9 +10,11 @@ export async function POST(req){
 
     const body = await req.json()
 
+    const cleanPhone = body.phone.replace(/\D/g,"")   // remove +91 spaces
+
     const order = await Order.findOne({
-      orderId: body.orderId,
-      phone: body.phone
+      orderId: body.orderId.trim(),
+      phone: { $regex: cleanPhone }   // flexible match
     })
 
     if(!order){
