@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import connectDB from "@/lib/mongodb"
 import Order from "@/models/Order"
+import { sendTelegram } from "@/lib/telegram"
 
 // ⭐ ORDER ID GENERATOR
 function generateOrderId(){
@@ -47,6 +48,15 @@ export async function POST(req){
       totalAmount: total
 
     })
+
+    await sendTelegram(`
+    🛒 NEW ORDER
+    
+    Order ID: ${order.orderId}
+    Name: ${order.customerName}
+    Phone: ${order.phone}
+    Amount: ₹${order.totalAmount}
+    `)
 
     return NextResponse.json({
       success:true,
