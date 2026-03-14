@@ -32,7 +32,14 @@ export default function AdminProducts(){
     try{
       const res = await fetch("/api/admin/products")
       const data = await res.json()
-      setProducts(data)
+
+      // ⭐ SAFE handling (API may return {success,products})
+      if(data.success){
+        setProducts(data.products)
+      }else{
+        setProducts(data)
+      }
+
     }catch{
       alert("Failed to load products")
     }
@@ -101,7 +108,7 @@ export default function AdminProducts(){
 
     setForm(emptyForm)
 
-    loadProducts()
+    await loadProducts()
 
     setSaving(false)
 
@@ -122,24 +129,19 @@ export default function AdminProducts(){
 
   return(
 
-    <div style={{
-      maxWidth:1200,
-      margin:"auto",
-      padding:30
-    }}>
+    <div style={{maxWidth:1200,margin:"auto",padding:30}}>
 
       <h1 style={{fontSize:30,fontWeight:"bold"}}>
         🛍 Admin Product Manager
       </h1>
 
       {message && (
-        <p style={{
-          color:"green",
-          marginTop:10
-        }}>{message}</p>
+        <p style={{color:"green",marginTop:10}}>
+          {message}
+        </p>
       )}
 
-      {/* ADD FORM */}
+      {/* ADD PRODUCT FORM */}
 
       <form
         onSubmit={handleSubmit}
@@ -216,11 +218,12 @@ export default function AdminProducts(){
 
       </form>
 
-      {/* PRODUCTS LIST */}
+      {/* PRODUCT LIST */}
 
       {loading ? (
         <h3 style={{marginTop:40}}>Loading products...</h3>
       ):(
+
         <div style={{marginTop:40}}>
 
           <h2>All Products ({products.length})</h2>
@@ -246,12 +249,11 @@ export default function AdminProducts(){
             <tbody>
 
               {products.map(p=>(
-                <tr key={p._id}
-                  style={{borderBottom:"1px solid #eee"}}
-                >
+                <tr key={p._id} style={{borderBottom:"1px solid #eee"}}>
 
                   <td>
-                    <img src={p.image}
+                    <img
+                      src={p.image}
                       style={{
                         width:60,
                         height:60,
@@ -261,35 +263,27 @@ export default function AdminProducts(){
                   </td>
 
                   <td>{p.name}</td>
-
                   <td>₹{p.price}</td>
-
                   <td>{p.stock}</td>
-
                   <td>{p.category}</td>
+                  <td>{p.featured ? "⭐ Yes" : "No"}</td>
 
-                  <td>
-                    {p.featured ? "⭐ Yes" : "No"}
-                  </td>
+                  <td style={{display:"flex",gap:"10px"}}>
 
-                  <td style={{display:"flex", gap:"10px"}}>
-
-                    <a href={"/admin/products/edit/"+product.slug}>
-                      <button
-                        style={{
-                          background:"#0a7cff",
-                          color:"#fff",
-                          padding:"6px 12px",
-                          borderRadius:"4px",
-                          cursor:"pointer"
-                        }}
-                      >
+                    <a href={"/admin/products/edit/"+p.slug}>
+                      <button style={{
+                        background:"#0a7cff",
+                        color:"#fff",
+                        padding:"6px 12px",
+                        borderRadius:"4px",
+                        cursor:"pointer"
+                      }}>
                         Edit
                       </button>
                     </a>
-                  
+
                     <button
-                      onClick={()=>deleteProduct(product.slug)}
+                      onClick={()=>deleteProduct(p.slug)}
                       style={{
                         background:"red",
                         color:"#fff",
@@ -300,7 +294,7 @@ export default function AdminProducts(){
                     >
                       Delete
                     </button>
-                  
+
                   </td>
 
                 </tr>
@@ -311,6 +305,7 @@ export default function AdminProducts(){
           </table>
 
         </div>
+
       )}
 
     </div>
