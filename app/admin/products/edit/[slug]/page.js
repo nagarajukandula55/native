@@ -22,7 +22,7 @@ export default function EditProduct(){
     const res = await fetch("/api/admin/products/"+slug)
     const data = await res.json()
 
-    setForm(data)
+    setForm(data.product)
 
     setLoading(false)
   }
