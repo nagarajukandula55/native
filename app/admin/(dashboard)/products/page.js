@@ -272,18 +272,35 @@ export default function AdminProducts(){
                     {p.featured ? "⭐ Yes" : "No"}
                   </td>
 
-                  <td>
+                  <td style={{display:"flex", gap:"10px"}}>
+
+                    <a href={"/admin/products/edit/"+product.slug}>
+                      <button
+                        style={{
+                          background:"#0a7cff",
+                          color:"#fff",
+                          padding:"6px 12px",
+                          borderRadius:"4px",
+                          cursor:"pointer"
+                        }}
+                      >
+                        Edit
+                      </button>
+                    </a>
+                  
                     <button
-                      onClick={()=>deleteProduct(p.slug)}
+                      onClick={()=>deleteProduct(product.slug)}
                       style={{
                         background:"red",
                         color:"#fff",
-                        padding:"6px 10px",
-                        borderRadius:4
+                        padding:"6px 12px",
+                        borderRadius:"4px",
+                        cursor:"pointer"
                       }}
                     >
                       Delete
                     </button>
+                  
                   </td>
 
                 </tr>
