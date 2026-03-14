@@ -1,221 +1,300 @@
-
 "use client"
 
 import { useState, useEffect } from "react"
 
-export default function AdminProducts() {
+export default function AdminProducts(){
 
   const emptyForm = {
-    name: "",
-    description: "",
-    price: "",
-    category: "",
-    stock: "",
-    featured: false,
-    image: ""
+    name:"",
+    description:"",
+    price:"",
+    category:"",
+    stock:"",
+    featured:false,
+    image:""
   }
 
-  const [form, setForm] = useState(emptyForm)
-  const [products, setProducts] = useState([])
-  const [uploading, setUploading] = useState(false)
+  const [form,setForm] = useState(emptyForm)
+  const [products,setProducts] = useState([])
+  const [loading,setLoading] = useState(true)
+  const [saving,setSaving] = useState(false)
+  const [uploading,setUploading] = useState(false)
+  const [message,setMessage] = useState("")
 
-  useEffect(() => {
+  useEffect(()=>{
     loadProducts()
-  }, [])
+  },[])
 
-  async function loadProducts() {
-    const res = await fetch("/api/admin/products")
-    const data = await res.json()
-    setProducts(data)
+  async function loadProducts(){
+
+    setLoading(true)
+
+    try{
+      const res = await fetch("/api/admin/products")
+      const data = await res.json()
+      setProducts(data)
+    }catch{
+      alert("Failed to load products")
+    }
+
+    setLoading(false)
   }
 
-  function handleChange(e) {
+  function handleChange(e){
 
-    const { name, value, type, checked } = e.target
+    const {name,value,type,checked} = e.target
 
-    setForm({
-      ...form,
-      [name]: type === "checkbox" ? checked : value
-    })
-
+    setForm(prev=>({
+      ...prev,
+      [name]: type==="checkbox" ? checked : value
+    }))
   }
 
-  async function handleImageUpload(e) {
+  async function handleImageUpload(e){
 
     const file = e.target.files[0]
-
-    if (!file) return
+    if(!file) return
 
     setUploading(true)
 
-    const formData = new FormData()
+    const fd = new FormData()
+    fd.append("file",file)
 
-    formData.append("file", file)
-
-    const res = await fetch("/api/upload", {
-      method: "POST",
-      body: formData
+    const res = await fetch("/api/upload",{
+      method:"POST",
+      body:fd
     })
 
     const data = await res.json()
 
-    setForm({
-      ...form,
-      image: data.url
-    })
+    setForm(prev=>({
+      ...prev,
+      image:data.url
+    }))
 
     setUploading(false)
-
   }
 
-  async function handleSubmit(e) {
+  async function handleSubmit(e){
 
     e.preventDefault()
 
-    await fetch("/api/admin/products", {
+    if(!form.name || !form.price){
+      alert("Name & Price required")
+      return
+    }
 
-      method: "POST",
+    setSaving(true)
 
-      headers: {
-        "Content-Type": "application/json"
+    await fetch("/api/admin/products",{
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json"
       },
-
       body: JSON.stringify({
         ...form,
         alt: form.name
       })
-
     })
+
+    setMessage("✅ Product Added Successfully")
 
     setForm(emptyForm)
 
     loadProducts()
 
+    setSaving(false)
+
+    setTimeout(()=>setMessage(""),2000)
   }
 
-  async function deleteProduct(slug) {
+  async function deleteProduct(slug){
 
-    if (!window.confirm("Delete this product?")) return
+    const ok = confirm("Delete this product?")
+    if(!ok) return
 
-    await fetch("/api/admin/products/" + slug, {
-      method: "DELETE"
+    await fetch("/api/admin/products/"+slug,{
+      method:"DELETE"
     })
 
     loadProducts()
-
   }
 
-  return (
+  return(
 
-    <div style={{maxWidth:"1100px", margin:"auto", padding:"20px"}}>
+    <div style={{
+      maxWidth:1200,
+      margin:"auto",
+      padding:30
+    }}>
 
-      <h1 style={{fontSize:"28px", fontWeight:"bold", marginBottom:"20px"}}>
-        Product Manager
+      <h1 style={{fontSize:30,fontWeight:"bold"}}>
+        🛍 Admin Product Manager
       </h1>
 
-      <form onSubmit={handleSubmit} style={{display:"grid", gap:"10px", marginBottom:"30px"}}>
+      {message && (
+        <p style={{
+          color:"green",
+          marginTop:10
+        }}>{message}</p>
+      )}
 
-        <input name="name" placeholder="Product Name" value={form.name} onChange={handleChange} required/>
+      {/* ADD FORM */}
 
-        <input name="price" type="number" placeholder="Price" value={form.price} onChange={handleChange}/>
+      <form
+        onSubmit={handleSubmit}
+        style={{
+          marginTop:25,
+          padding:20,
+          border:"1px solid #eee",
+          borderRadius:10,
+          display:"grid",
+          gap:10
+        }}
+      >
 
-        <input name="category" placeholder="Category" value={form.category} onChange={handleChange}/>
+        <input name="name" placeholder="Product Name"
+          value={form.name} onChange={handleChange} required />
 
-        <input name="stock" type="number" placeholder="Stock" value={form.stock} onChange={handleChange}/>
+        <input name="price" type="number"
+          placeholder="Price"
+          value={form.price}
+          onChange={handleChange}
+          required />
 
-        <textarea name="description" placeholder="Description" value={form.description} onChange={handleChange}/>
+        <input name="category"
+          placeholder="Category"
+          value={form.category}
+          onChange={handleChange} />
 
-        <input type="file" onChange={handleImageUpload}/>
+        <input name="stock" type="number"
+          placeholder="Stock"
+          value={form.stock}
+          onChange={handleChange} />
 
-        {uploading && <p>Uploading...</p>}
+        <textarea name="description"
+          placeholder="Description"
+          value={form.description}
+          onChange={handleChange} />
+
+        <input type="file" onChange={handleImageUpload} />
+
+        {uploading && <p>Uploading image...</p>}
 
         {form.image && (
           <img
             src={form.image}
-            alt="preview"
             style={{
-              width:"100px",
-              height:"100px",
+              width:90,
+              height:90,
               objectFit:"cover",
-              borderRadius:"6px"
+              borderRadius:6
             }}
           />
         )}
 
         <label>
-
-          <input type="checkbox" name="featured" checked={form.featured} onChange={handleChange}/>
-
+          <input type="checkbox"
+            name="featured"
+            checked={form.featured}
+            onChange={handleChange} />
           Featured Product
-
         </label>
 
-        <button style={{padding:"10px", background:"black", color:"white"}}>
-          Add Product
+        <button
+          disabled={saving}
+          style={{
+            padding:12,
+            background:"black",
+            color:"#fff",
+            borderRadius:6,
+            cursor:"pointer"
+          }}
+        >
+          {saving ? "Saving..." : "Add Product"}
         </button>
 
       </form>
 
-      <table style={{width:"100%", borderCollapse:"collapse"}}>
+      {/* PRODUCTS LIST */}
 
-        <thead>
+      {loading ? (
+        <h3 style={{marginTop:40}}>Loading products...</h3>
+      ):(
+        <div style={{marginTop:40}}>
 
-          <tr style={{background:"#eee"}}>
+          <h2>All Products ({products.length})</h2>
 
-            <th>Image</th>
-            <th>Name</th>
-            <th>Price</th>
-            <th>Stock</th>
-            <th>Category</th>
-            <th>Action</th>
+          <table style={{
+            width:"100%",
+            marginTop:15,
+            borderCollapse:"collapse"
+          }}>
 
-          </tr>
+            <thead>
+              <tr style={{background:"#f5f5f5"}}>
+                <th>Image</th>
+                <th>Name</th>
+                <th>Price</th>
+                <th>Stock</th>
+                <th>Category</th>
+                <th>Featured</th>
+                <th>Action</th>
+              </tr>
+            </thead>
 
-        </thead>
+            <tbody>
 
-        <tbody>
+              {products.map(p=>(
+                <tr key={p._id}
+                  style={{borderBottom:"1px solid #eee"}}
+                >
 
-          {products.map(product => (
+                  <td>
+                    <img src={p.image}
+                      style={{
+                        width:60,
+                        height:60,
+                        objectFit:"cover"
+                      }}
+                    />
+                  </td>
 
-            <tr key={product._id}>
+                  <td>{p.name}</td>
 
-              <td>
+                  <td>₹{p.price}</td>
 
-                <img
-                  src={product.image}
-                  alt={product.name}
-                  style={{
-                    width:"60px",
-                    height:"60px",
-                    objectFit:"cover"
-                  }}
-                />
+                  <td>{p.stock}</td>
 
-              </td>
+                  <td>{p.category}</td>
 
-              <td>{product.name}</td>
+                  <td>
+                    {p.featured ? "⭐ Yes" : "No"}
+                  </td>
 
-              <td>₹{product.price}</td>
+                  <td>
+                    <button
+                      onClick={()=>deleteProduct(p.slug)}
+                      style={{
+                        background:"red",
+                        color:"#fff",
+                        padding:"6px 10px",
+                        borderRadius:4
+                      }}
+                    >
+                      Delete
+                    </button>
+                  </td>
 
-              <td>{product.stock}</td>
+                </tr>
+              ))}
 
-              <td>{product.category}</td>
+            </tbody>
 
-              <td>
+          </table>
 
-                <button onClick={()=>deleteProduct(product.slug)}>
-                  Delete
-                </button>
-
-              </td>
-
-            </tr>
-
-          ))}
-
-        </tbody>
-
-      </table>
+        </div>
+      )}
 
     </div>
 
