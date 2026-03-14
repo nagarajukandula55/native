@@ -1,50 +1,96 @@
-import { NextResponse } from "next/server";
-import connectToDB from "@/lib/mongodb";
-import Product from "@/models/Product";
+import { NextResponse } from "next/server"
+import connectToDB from "@/lib/mongodb"
+import Product from "@/models/Product"
 
-// --------------------
-// GET PRODUCT BY SLUG (ADMIN)
-// --------------------
-export async function GET(req, { params }) {
-  try {
-    await connectToDB();
-    const { slug } = params;
+// ==========================
+// ⭐ GET SINGLE PRODUCT
+// ==========================
+export async function GET(req,{ params }){
 
-    if (!slug) {
-      return NextResponse.json(
-        { success: false, message: "Slug is required" },
-        { status: 400 }
-      );
+  try{
+
+    await connectToDB()
+
+    const product = await Product.findOne({ slug: params.slug }).lean()
+
+    if(!product){
+      return NextResponse.json({
+        success:false,
+        message:"Product not found"
+      })
     }
 
-    const product = await Product.findOne({ slug }).lean();
+    return NextResponse.json({
+      success:true,
+      product
+    })
 
-    if (!product) {
-      return NextResponse.json(
-        { success: false, message: "Product not found" },
-        { status: 404 }
-      );
-    }
+  }catch(err){
 
-    const formatted = {
-      id: product._id.toString(),
-      name: product.name,
-      description: product.description || "",
-      price: product.price || 0,
-      image: product.image || "",
-      alt: product.alt || product.name,
-      category: product.category || "General",
-      stock: product.stock || 100,
-      featured: product.featured || false,
-      slug: product.slug,
-    };
+    return NextResponse.json({
+      success:false,
+      message:"Failed to fetch product"
+    })
 
-    return NextResponse.json({ success: true, product: formatted });
-  } catch (error) {
-    console.error("GET PRODUCT BY SLUG ERROR:", error);
-    return NextResponse.json(
-      { success: false, message: "Failed to fetch product" },
-      { status: 500 }
-    );
   }
+
+}
+
+// ==========================
+// ⭐ UPDATE PRODUCT
+// ==========================
+export async function PUT(req,{ params }){
+
+  try{
+
+    await connectToDB()
+
+    const body = await req.json()
+
+    const updated = await Product.findOneAndUpdate(
+      { slug: params.slug },
+      body,
+      { new:true }
+    )
+
+    return NextResponse.json({
+      success:true,
+      product: updated
+    })
+
+  }catch(err){
+
+    return NextResponse.json({
+      success:false,
+      message:"Update failed"
+    })
+
+  }
+
+}
+
+// ==========================
+// ⭐ DELETE PRODUCT
+// ==========================
+export async function DELETE(req,{ params }){
+
+  try{
+
+    await connectToDB()
+
+    await Product.findOneAndDelete({ slug: params.slug })
+
+    return NextResponse.json({
+      success:true
+    })
+
+  }catch(err){
+
+    return NextResponse.json({
+      success:false,
+      message:"Delete failed"
+    })
+
+  }
+
 }
