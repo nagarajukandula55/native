@@ -89,3 +89,33 @@ export async function GET(){
   }
 
 }
+
+export async function PUT(req){
+
+  try{
+
+    await connectDB()
+
+    const body = await req.json()
+
+    const order = await Order.findByIdAndUpdate(
+      body.orderId,
+      { status: body.status },
+      { new:true }
+    )
+
+    return NextResponse.json({
+      success:true,
+      order
+    })
+
+  }catch(err){
+
+    return NextResponse.json({
+      success:false,
+      message:"Status update failed"
+    })
+
+  }
+
+}
