@@ -27,7 +27,7 @@ const orderSchema = new mongoose.Schema({
 
   status:{
     type:String,
-    default:"PLACED"
+    default:"Order Placed"
   },
 
   createdAt:{
