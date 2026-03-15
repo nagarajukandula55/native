@@ -6,7 +6,7 @@ const OrderSchema = new mongoose.Schema({
     type:String,
     required:true,
     unique:true,
-    index:true   // ⭐ fast tracking search
+    index:true
   },
 
   customerName:{
@@ -75,8 +75,12 @@ const OrderSchema = new mongoose.Schema({
   }
 
 },{
-  timestamps:true   // ⭐ auto createdAt + updatedAt
+  timestamps:true,
+  collection:"orders"   // ⭐⭐⭐ CRITICAL FINAL FIX
 })
 
-export default mongoose.models.Order ||
-mongoose.model("Order",OrderSchema)
+const Order =
+  mongoose.models.Order ||
+  mongoose.model("Order",OrderSchema)
+
+export default Order
