@@ -15,13 +15,11 @@ export default function AdminOrders(){
   async function loadOrders(){
 
     try{
-
-      const res = await fetch("/api/orders")
+      const res = await fetch("/api/orders",{ cache:"no-store" })
       const data = await res.json()
 
       if(data.success){
 
-        // ⭐ latest first
         const sorted = data.orders.sort(
           (a,b)=> new Date(b.createdAt) - new Date(a.createdAt)
         )
@@ -38,23 +36,29 @@ export default function AdminOrders(){
 
   async function updateStatus(id,status){
 
-    setUpdatingId(id)
+    try{
 
-    const res = await fetch("/api/orders",{
-      method:"PUT",
-      headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify({
-        orderId:id,
-        status
+      setUpdatingId(id)
+
+      const res = await fetch("/api/orders",{
+        method:"PUT",
+        headers:{ "Content-Type":"application/json" },
+        body: JSON.stringify({
+          id:id,              // ⭐⭐⭐ CORRECT FIELD
+          status:status
+        })
       })
-    })
 
-    const data = await res.json()
+      const data = await res.json()
 
-    if(data.success){
-      loadOrders()
-    }else{
-      alert("❌ Failed to update status")
+      if(data.success){
+        await loadOrders()
+      }else{
+        alert("❌ Failed to update status")
+      }
+
+    }catch(e){
+      alert("Server error")
     }
 
     setUpdatingId(null)
@@ -97,9 +101,7 @@ export default function AdminOrders(){
 
         return(
 
-          <div key={order._id}
-            style={card}
-          >
+          <div key={order._id} style={card}>
 
             <h3 style={{marginBottom:"8px"}}>
               Order ID: {order.orderId}
@@ -136,8 +138,6 @@ export default function AdminOrders(){
                 {item.name} — {item.quantity} × ₹{item.price}
               </p>
             ))}
-
-            {/* ⭐ ACTION BUTTONS */}
 
             <div style={btnWrap}>
 
@@ -187,7 +187,7 @@ export default function AdminOrders(){
 
 }
 
-/* ⭐ STYLES */
+/* STYLES */
 
 const card = {
   background:"#fff",
