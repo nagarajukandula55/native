@@ -4,6 +4,39 @@ import Order from "@/models/Order"
 
 
 
+/* ⭐ TELEGRAM FUNCTION (ADDED) */
+async function sendTelegramMessage(text){
+
+  try{
+
+    const token = process.env.TELEGRAM_BOT_TOKEN
+    const chatId = process.env.TELEGRAM_CHAT_ID
+
+    if(!token || !chatId){
+      console.log("Telegram ENV missing")
+      return
+    }
+
+    await fetch(
+      `https://api.telegram.org/bot${token}/sendMessage`,
+      {
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text
+        })
+      }
+    )
+
+  }catch(e){
+    console.log("Telegram Error:",e)
+  }
+
+}
+
+
+
 /* ⭐ ORDER ID GENERATOR */
 function generateOrderId(){
 
@@ -32,7 +65,6 @@ export async function POST(req){
 
     const body = await req.json()
 
-    // ⭐ basic validation
     if(
       !body.customerName ||
       !body.phone ||
@@ -47,14 +79,12 @@ export async function POST(req){
       })
     }
 
-    // ⭐ calculate total safely
     const totalAmount = body.items.reduce(
       (sum,item)=>
         sum + (Number(item.price) * Number(item.quantity)),
       0
     )
 
-    // ⭐ ensure unique orderId
     let orderId = generateOrderId()
 
     const exists = await Order.findOne({ orderId })
@@ -79,6 +109,19 @@ export async function POST(req){
       status:"Order Placed"
 
     })
+
+
+    /* ⭐⭐ TELEGRAM TRIGGER ADDED */
+    await sendTelegramMessage(
+`🛒 NEW ORDER RECEIVED
+
+Order ID: ${order.orderId}
+Customer: ${order.customerName}
+Phone: ${order.phone}
+Amount: ₹${order.totalAmount}
+Status: ${order.status}`
+    )
+
 
     return NextResponse.json({
       success:true,
