@@ -2,30 +2,10 @@
 
 import { useState } from "react"
 
-export default function TrackPage(){
-
-  const [orderId,setOrderId] = useState("")
-  const [order,setOrder] = useState(null)
-  const [loading,setLoading] = useState(false)
-
-  async function trackOrder(){
-
-    if(!orderId) return
-
-    setLoading(true)
-
-    const res = await fetch(`/api/order-track?id=${orderId}`)
-    const data = await res.json()
-
-    if(data.success){
-      setOrder(data.order)
-    }else{
-      alert("Order not found")
-      setOrder(null)
-    }
-
-    setLoading(false)
-  }
+export default function TrackPage() {
+  const [orderId, setOrderId] = useState("")
+  const [order, setOrder] = useState(null)
+  const [loading, setLoading] = useState(false)
 
   const steps = [
     "Order Placed",
@@ -35,119 +15,165 @@ export default function TrackPage(){
     "Delivered"
   ]
 
-  function stepIndex(status){
+  function stepIndex(status) {
     return steps.indexOf(status)
   }
 
-  return(
+  function getStepTime(status) {
+    if (!order) return null
+    const history = order.statusHistory || []
+    const entry = history.find(e => e.status === status)
+    if (entry) return new Date(entry.time).toLocaleString()
+    if (status === order.status) return new Date(order.createdAt).toLocaleString()
+    return null
+  }
 
-    <div style={{maxWidth:800,margin:"auto",padding:"40px"}}>
+  function getStepETA(i) {
+    if (!order) return null
+    const orderDate = new Date(order.createdAt)
+    let eta = new Date(orderDate)
 
+    switch (i) {
+      case 0: // Order Placed
+        return eta.toLocaleDateString()
+      case 1: // Packed
+        eta.setDate(eta.getDate() + 1)
+        return eta.toLocaleDateString()
+      case 2: // Shipped
+        eta.setDate(eta.getDate() + 2) // 1+1
+        return eta.toLocaleDateString()
+      case 3: // Out For Delivery
+        eta.setDate(eta.getDate() + 4) // 1+1+2
+        return eta.toLocaleDateString()
+      case 4: // Delivered
+        eta.setDate(eta.getDate() + 5) // 1+1+2+1
+        return eta.toLocaleDateString()
+      default:
+        return null
+    }
+  }
+
+  async function trackOrder() {
+    if (!orderId) return
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/order-track?id=${orderId}`)
+      const data = await res.json()
+      if (data.success) {
+        setOrder(data.order)
+      } else {
+        alert("Order not found")
+        setOrder(null)
+      }
+    } catch (e) {
+      console.log(e)
+      alert("Error fetching order")
+    }
+    setLoading(false)
+  }
+
+  return (
+    <div style={{ maxWidth: 800, margin: "auto", padding: "20px 10px" }}>
       <h1>📦 Track Order</h1>
 
       <input
         placeholder="Enter Order ID"
         value={orderId}
-        onChange={e=>setOrderId(e.target.value)}
-        style={{padding:10,width:"100%",marginTop:10}}
+        onChange={e => setOrderId(e.target.value)}
+        style={{ padding: 10, width: "100%", marginTop: 10 }}
       />
 
       <button
         onClick={trackOrder}
         style={{
-          marginTop:10,
-          padding:"10px 20px",
-          background:"#111",
-          color:"#fff",
-          border:"none",
-          cursor:"pointer"
+          marginTop: 10,
+          padding: "10px 20px",
+          background: "#111",
+          color: "#fff",
+          border: "none",
+          cursor: "pointer"
         }}
       >
         {loading ? "Tracking..." : "Track"}
       </button>
 
-
       {order && (
-
         <div style={{
-          marginTop:40,
-          background:"#fff",
-          padding:25,
-          borderRadius:12,
-          boxShadow:"0 4px 14px rgba(0,0,0,0.1)"
+          marginTop: 30,
+          background: "#fff",
+          padding: 20,
+          borderRadius: 12,
+          boxShadow: "0 4px 14px rgba(0,0,0,0.1)"
         }}>
-
           <h3>Order ID: {order.orderId}</h3>
           <p><b>Name:</b> {order.customerName}</p>
           <p><b>Phone:</b> {order.phone}</p>
-
-          <p>
-            <b>Address:</b><br/>
-            {order.address} - {order.pincode}
-          </p>
-
+          <p><b>Address:</b><br />{order.address} - {order.pincode}</p>
           <p><b>Total:</b> ₹ {order.totalAmount}</p>
 
-          <h4 style={{marginTop:20}}>Items</h4>
-
-          {order.items?.map((item,i)=>(
+          <h4 style={{ marginTop: 20 }}>Items</h4>
+          {order.items?.map((item, i) => (
             <p key={i}>
               {item.name} — {item.quantity} × ₹{item.price}
             </p>
           ))}
 
-
           {/* ⭐ TIMELINE */}
-
-          <div style={{marginTop:30}}>
-
-            {steps.map((s,i)=>{
-
+          <div style={{ marginTop: 30, position: "relative", paddingLeft: 24 }}>
+            {steps.map((s, i) => {
               const current = stepIndex(order.status)
+              const completed = i < current
+              const isCurrent = i === current
+              const time = getStepTime(s)
+              const eta = getStepETA(i)
 
-              let bg = "#ddd"
+              return (
+                <div key={i} style={{ display: "flex", alignItems: "flex-start", position: "relative", marginBottom: 40 }}>
+                  {/* Line connector */}
+                  {i < steps.length - 1 && (
+                    <div style={{
+                      position: "absolute",
+                      top: 18,
+                      left: 8,
+                      width: 2,
+                      height: 40,
+                      background: i < current ? "green" : "#ddd",
+                      zIndex: 0
+                    }} />
+                  )}
 
-              if(i < current) bg = "green"
-              if(i === current) bg = "#111"
-
-              return(
-
-                <div key={i}
-                  style={{
-                    display:"flex",
-                    alignItems:"center",
-                    marginBottom:15
-                  }}
-                >
-
+                  {/* Dot */}
                   <div style={{
-                    width:18,
-                    height:18,
-                    borderRadius:"50%",
-                    background:bg,
-                    marginRight:12
-                  }}/>
-
-                  <div style={{
-                    fontWeight: i === current ? "bold":"normal"
+                    width: 20,
+                    height: 20,
+                    minWidth: 20,
+                    minHeight: 20,
+                    borderRadius: "50%",
+                    background: completed || isCurrent ? "#111" : "#ddd",
+                    color: "#fff",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    zIndex: 1,
+                    flexShrink: 0,
+                    fontSize: 12
                   }}>
-                    {s}
+                    {completed ? "✓" : ""}
                   </div>
 
+                  {/* Step label */}
+                  <div style={{ marginLeft: 12, flex: 1 }}>
+                    <div style={{ fontWeight: isCurrent ? "bold" : "normal" }}>{s}</div>
+                    <div style={{ fontSize: 12, color: "#666" }}>
+                      {time ? time : `ETA: ${eta}`}
+                    </div>
+                  </div>
                 </div>
-
               )
-
             })}
-
           </div>
-
         </div>
-
       )}
-
     </div>
-
   )
-
 }
