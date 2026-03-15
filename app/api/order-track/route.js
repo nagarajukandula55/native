@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic"
+
 import { NextResponse } from "next/server"
 import connectDB from "@/lib/mongodb"
 import mongoose from "mongoose"
@@ -18,7 +20,6 @@ export async function GET(req){
       })
     }
 
-    // ⭐ use RAW collection query (no model dependency)
     const db = mongoose.connection.db
 
     const order = await db
@@ -40,11 +41,11 @@ export async function GET(req){
   }
   catch(e){
 
-    console.log("TRACK API CRASH:", e)
+    console.log("TRACK ERROR:",e)
 
     return NextResponse.json({
       success:false,
-      error: String(e)   // ⭐ VERY IMPORTANT for debugging
+      error:String(e)
     })
 
   }
