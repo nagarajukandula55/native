@@ -2,40 +2,58 @@ import { connectDB } from "@/lib/db"
 import Order from "@/models/Order"
 import { NextResponse } from "next/server"
 
-export async function GET(req){
+function generateOrderId(){
+
+  const now = new Date()
+
+  const y = now.getFullYear().toString().slice(-2)
+  const m = String(now.getMonth()+1).padStart(2,"0")
+  const d = String(now.getDate()).padStart(2,"0")
+
+  const rand = Math.random().toString(36).substring(2,6).toUpperCase()
+
+  return `NAT-${y}${m}${d}-${rand}`
+
+}
+
+export async function POST(req){
 
   try{
 
     await connectDB()
 
-    const { searchParams } = new URL(req.url)
+    const body = await req.json()
 
-    let id = searchParams.get("id")
+    const orderId = generateOrderId()
 
-    if(!id){
-      return NextResponse.json({ success:false })
-    }
+    const newOrder = await Order.create({
 
-    // ⭐ normalize
-    id = id.trim()
+      orderId,   // ⭐ VERY IMPORTANT
+      customer:{
+        name: body.name,
+        phone: body.phone,
+        address: body.address,
+        pincode: body.pincode
+      },
 
-    // ⭐ case-insensitive search
-    const order = await Order.findOne({
-      orderId: { $regex: "^" + id + "$", $options: "i" }
+      items: body.items,
+
+      totalAmount: body.total,
+
+      status: "Order Placed"
+
     })
-
-    if(!order){
-      return NextResponse.json({ success:false })
-    }
 
     return NextResponse.json({
       success:true,
-      order
+      orderId: newOrder.orderId
     })
 
   }catch(e){
 
-    return NextResponse.json({ success:false })
+    return NextResponse.json({
+      success:false
+    })
 
   }
 
