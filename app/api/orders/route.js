@@ -2,6 +2,9 @@ import { NextResponse } from "next/server"
 import connectDB from "@/lib/mongodb"
 import Order from "@/models/Order"
 
+
+
+/* ⭐ ORDER ID GENERATOR */
 function generateOrderId(){
 
   const now = new Date()
@@ -19,7 +22,8 @@ function generateOrderId(){
 }
 
 
-// ✅ CREATE ORDER
+
+/* ⭐ CREATE ORDER */
 export async function POST(req){
 
   try{
@@ -28,23 +32,49 @@ export async function POST(req){
 
     const body = await req.json()
 
-    const total = body.items.reduce(
-      (sum,i)=> sum + i.price * i.quantity,
+    // ⭐ basic validation
+    if(
+      !body.customerName ||
+      !body.phone ||
+      !body.address ||
+      !body.pincode ||
+      !body.items ||
+      body.items.length === 0
+    ){
+      return NextResponse.json({
+        success:false,
+        msg:"Missing fields"
+      })
+    }
+
+    // ⭐ calculate total safely
+    const totalAmount = body.items.reduce(
+      (sum,item)=>
+        sum + (Number(item.price) * Number(item.quantity)),
       0
     )
 
+    // ⭐ ensure unique orderId
+    let orderId = generateOrderId()
+
+    const exists = await Order.findOne({ orderId })
+    if(exists){
+      orderId = generateOrderId()
+    }
+
     const order = await Order.create({
 
-      orderId: generateOrderId(),
+      orderId,
 
       customerName: body.customerName,
       phone: body.phone,
-      email: body.email,
+      email: body.email || "",
+
       address: body.address,
       pincode: body.pincode,
 
       items: body.items,
-      totalAmount: total,
+      totalAmount,
 
       status:"Order Placed"
 
@@ -52,12 +82,43 @@ export async function POST(req){
 
     return NextResponse.json({
       success:true,
-      orderId:order.orderId
+      orderId: order.orderId
     })
 
-  }catch(e){
+  }
+  catch(e){
 
-    console.log("ORDER ERROR",e)
+    console.log("CREATE ORDER ERROR:",e)
+
+    return NextResponse.json({
+      success:false,
+      msg:"Server error"
+    })
+
+  }
+
+}
+
+
+
+/* ⭐ ADMIN FETCH ORDERS */
+export async function GET(){
+
+  try{
+
+    await connectDB()
+
+    const orders = await Order
+      .find()
+      .sort({ createdAt:-1 })
+
+    return NextResponse.json({
+      success:true,
+      orders
+    })
+
+  }
+  catch(e){
 
     return NextResponse.json({
       success:false
@@ -68,34 +129,33 @@ export async function POST(req){
 }
 
 
-// ✅ ADMIN FETCH
-export async function GET(){
 
-  await connectDB()
-
-  const orders = await Order.find()
-    .sort({createdAt:-1})
-
-  return NextResponse.json({
-    success:true,
-    orders
-  })
-
-}
-
-
-// ✅ STATUS UPDATE
+/* ⭐ ADMIN UPDATE STATUS */
 export async function PUT(req){
 
-  await connectDB()
+  try{
 
-  const body = await req.json()
+    await connectDB()
 
-  await Order.findByIdAndUpdate(
-    body.id,
-    { status: body.status }
-  )
+    const body = await req.json()
 
-  return NextResponse.json({ success:true })
+    if(!body.id || !body.status){
+      return NextResponse.json({ success:false })
+    }
+
+    await Order.findByIdAndUpdate(
+      body.id,
+      { status: body.status },
+      { new:true }
+    )
+
+    return NextResponse.json({ success:true })
+
+  }
+  catch(e){
+
+    return NextResponse.json({ success:false })
+
+  }
 
 }
