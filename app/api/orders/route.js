@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server"
 import connectDB from "@/lib/mongodb"
 import Order from "@/models/Order"
-import { sendTelegram } from "@/lib/telegram"
 
 // ⭐ ORDER ID GENERATOR
 function generateOrderId(){
@@ -12,7 +11,10 @@ function generateOrderId(){
   const mm = String(now.getMonth()+1).padStart(2,"0")
   const dd = String(now.getDate()).padStart(2,"0")
 
-  const random = Math.random().toString(36).substring(2,6).toUpperCase()
+  const random = Math.random()
+    .toString(36)
+    .substring(2,6)
+    .toUpperCase()
 
   return `NAT-${yy}${mm}${dd}-${random}`
 }
@@ -25,64 +27,57 @@ export async function POST(req){
 
     const body = await req.json()
 
-    const orderId = generateOrderId()
-
-    // ⭐ SAFE TOTAL
+    // ⭐ CALCULATE TOTAL SAFE
     const total = body.items.reduce(
-      (sum,item)=> sum + (item.price || 0) * (item.quantity || 1),
+      (sum,item)=> sum + item.price * item.quantity,
       0
     )
 
-    const order = await Order.create({
+    const newOrder = await Order.create({
 
-      orderId: orderId,   // ⭐ VERY IMPORTANT
+      orderId: generateOrderId(),
 
       customerName: body.customerName,
       phone: body.phone,
-      email: body.email,
+      email: body.email || "",
       address: body.address,
       pincode: body.pincode,
 
       items: body.items,
 
-      totalAmount: total
+      totalAmount: total,
+
+      status:"Order Placed"
 
     })
 
-    await sendTelegram(`
-    🛒 NEW ORDER
-    
-    Order ID: ${order.orderId}
-    Name: ${order.customerName}
-    Phone: ${order.phone}
-    Amount: ₹${order.totalAmount}
-    `)
-
     return NextResponse.json({
       success:true,
-      orderId: order.orderId
+      orderId:newOrder.orderId
     })
 
   }catch(err){
 
-    console.log("ORDER ERROR → ", err)
+    console.log("ORDER CREATE ERROR → ",err)
 
     return NextResponse.json({
       success:false,
-      message: err.message
+      message:"Server error"
     })
 
   }
 
 }
 
+// ⭐ ADMIN GET ALL ORDERS
 export async function GET(){
 
   try{
 
     await connectDB()
 
-    const orders = await Order.find().sort({ createdAt:-1 })
+    const orders = await Order.find()
+      .sort({ createdAt:-1 })
 
     return NextResponse.json({
       success:true,
@@ -92,14 +87,14 @@ export async function GET(){
   }catch(err){
 
     return NextResponse.json({
-      success:false,
-      message:"Failed to fetch orders"
+      success:false
     })
 
   }
 
 }
 
+// ⭐ UPDATE ORDER STATUS
 export async function PUT(req){
 
   try{
@@ -108,22 +103,21 @@ export async function PUT(req){
 
     const body = await req.json()
 
-    const order = await Order.findByIdAndUpdate(
-      body.orderId,
+    const updated = await Order.findByIdAndUpdate(
+      body.id,
       { status: body.status },
       { new:true }
     )
 
     return NextResponse.json({
       success:true,
-      order
+      order:updated
     })
 
   }catch(err){
 
     return NextResponse.json({
-      success:false,
-      message:"Status update failed"
+      success:false
     })
 
   }
