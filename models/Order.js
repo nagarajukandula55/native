@@ -1,5 +1,26 @@
 import mongoose from "mongoose"
 
+const StatusHistorySchema = new mongoose.Schema(
+  {
+    status: {
+      type: String,
+      enum: [
+        "Order Placed",
+        "Packed",
+        "Shipped",
+        "Out For Delivery",
+        "Delivered",
+        "Cancelled"
+      ]
+    },
+    time: {
+      type: Date,
+      default: Date.now
+    }
+  },
+  { _id: false }
+)
+
 const OrderSchema = new mongoose.Schema({
 
   orderId:{
@@ -72,11 +93,22 @@ const OrderSchema = new mongoose.Schema({
       "Cancelled"
     ],
     default:"Order Placed"
+  },
+
+  // ⭐⭐⭐ NEW FIELD — Timeline tracking
+  statusHistory:{
+    type:[StatusHistorySchema],
+    default:[
+      {
+        status:"Order Placed",
+        time:new Date()
+      }
+    ]
   }
 
 },{
   timestamps:true,
-  collection:"orders"   // ⭐⭐⭐ CRITICAL FINAL FIX
+  collection:"orders"
 })
 
 const Order =
