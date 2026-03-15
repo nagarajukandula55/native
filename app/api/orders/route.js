@@ -1,45 +1,10 @@
 import { NextResponse } from "next/server"
-import connectDB from "@/lib/mongodb"
-import Order from "@/models/Order"
 
-export async function GET(req){
+export async function POST(){
 
-  try{
-
-    await connectDB()
-
-    const { searchParams } = new URL(req.url)
-    const id = searchParams.get("id")
-
-    if(!id){
-      return NextResponse.json({
-        success:false,
-        message:"OrderId required"
-      })
-    }
-
-    const order = await Order.findOne({ orderId:id })
-
-    if(!order){
-      return NextResponse.json({
-        success:false,
-        message:"Order not found"
-      })
-    }
-
-    return NextResponse.json({
-      success:true,
-      order
-    })
-
-  }catch(err){
-
-    console.log("TRACK ERROR",err)
-
-    return NextResponse.json({
-      success:false
-    })
-
-  }
+  return NextResponse.json({
+    success:true,
+    msg:"Orders API working"
+  })
 
 }
