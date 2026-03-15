@@ -9,29 +9,21 @@ export async function GET(req){
     await connectDB()
 
     const { searchParams } = new URL(req.url)
-    const id = searchParams.get("id")
+
+    const id =
+      searchParams.get("id") ||
+      searchParams.get("orderId")
 
     if(!id){
-      return NextResponse.json({
-        success:false,
-        message:"No id"
-      })
+      return NextResponse.json({ success:false })
     }
 
-    console.log("TRACK SEARCH ID:", id)
-
-    // ⭐ IMPORTANT → FETCH ALL & FIND MANUALLY
-    const orders = await Order.find()
-
-    const order = orders.find(
-      o => o.orderId.trim().toUpperCase() === id.trim().toUpperCase()
-    )
+    const order = await Order.findOne({
+      orderId: id.trim()
+    })
 
     if(!order){
-      return NextResponse.json({
-        success:false,
-        message:"Order not found"
-      })
+      return NextResponse.json({ success:false })
     }
 
     return NextResponse.json({
@@ -43,9 +35,7 @@ export async function GET(req){
 
     console.log("TRACK ERROR",e)
 
-    return NextResponse.json({
-      success:false
-    })
+    return NextResponse.json({ success:false })
 
   }
 
