@@ -35,32 +35,27 @@ export default function TrackPage(){
     "Delivered"
   ]
 
-  function getStepIndex(status){
+  function stepIndex(status){
     return steps.indexOf(status)
   }
 
   return(
 
-    <div style={{padding:"40px",maxWidth:700,margin:"auto"}}>
+    <div style={{maxWidth:800,margin:"auto",padding:"40px"}}>
 
-      <h1 style={{marginBottom:"20px"}}>
-        📦 Track Your Order
-      </h1>
+      <h1>📦 Track Order</h1>
 
       <input
         placeholder="Enter Order ID"
         value={orderId}
         onChange={e=>setOrderId(e.target.value)}
-        style={{
-          padding:"10px",
-          width:"100%",
-          marginBottom:"10px"
-        }}
+        style={{padding:10,width:"100%",marginTop:10}}
       />
 
       <button
         onClick={trackOrder}
         style={{
+          marginTop:10,
           padding:"10px 20px",
           background:"#111",
           color:"#fff",
@@ -75,27 +70,45 @@ export default function TrackPage(){
       {order && (
 
         <div style={{
-          marginTop:"40px",
+          marginTop:40,
           background:"#fff",
-          padding:"25px",
-          borderRadius:"12px",
-          boxShadow:"0 4px 14px rgba(0,0,0,0.08)"
+          padding:25,
+          borderRadius:12,
+          boxShadow:"0 4px 14px rgba(0,0,0,0.1)"
         }}>
 
           <h3>Order ID: {order.orderId}</h3>
-          <p>Customer: {order.customerName}</p>
-          <p>Total: ₹ {order.totalAmount}</p>
+          <p><b>Name:</b> {order.customerName}</p>
+          <p><b>Phone:</b> {order.phone}</p>
 
-          <div style={{marginTop:"30px"}}>
+          <p>
+            <b>Address:</b><br/>
+            {order.address} - {order.pincode}
+          </p>
 
-            {steps.map((step,i)=>{
+          <p><b>Total:</b> ₹ {order.totalAmount}</p>
 
-              const current = getStepIndex(order.status)
+          <h4 style={{marginTop:20}}>Items</h4>
 
-              let color = "#ccc"
+          {order.items?.map((item,i)=>(
+            <p key={i}>
+              {item.name} — {item.quantity} × ₹{item.price}
+            </p>
+          ))}
 
-              if(i < current) color = "green"
-              if(i === current) color = "#111"
+
+          {/* ⭐ TIMELINE */}
+
+          <div style={{marginTop:30}}>
+
+            {steps.map((s,i)=>{
+
+              const current = stepIndex(order.status)
+
+              let bg = "#ddd"
+
+              if(i < current) bg = "green"
+              if(i === current) bg = "#111"
 
               return(
 
@@ -103,22 +116,22 @@ export default function TrackPage(){
                   style={{
                     display:"flex",
                     alignItems:"center",
-                    marginBottom:"15px"
+                    marginBottom:15
                   }}
                 >
 
                   <div style={{
-                    width:20,
-                    height:20,
+                    width:18,
+                    height:18,
                     borderRadius:"50%",
-                    background:color,
-                    marginRight:"15px"
-                  }} />
+                    background:bg,
+                    marginRight:12
+                  }}/>
 
                   <div style={{
                     fontWeight: i === current ? "bold":"normal"
                   }}>
-                    {step}
+                    {s}
                   </div>
 
                 </div>
