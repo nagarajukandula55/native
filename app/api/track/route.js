@@ -1,55 +1,42 @@
-import { connectDB } from "@/lib/db"
-import Order from "@/models/Order"
 import { NextResponse } from "next/server"
+import connectDB from "@/lib/mongodb"
+import Order from "@/models/Order"
 
-function generateOrderId(){
-
-  const now = new Date()
-
-  const y = now.getFullYear().toString().slice(-2)
-  const m = String(now.getMonth()+1).padStart(2,"0")
-  const d = String(now.getDate()).padStart(2,"0")
-
-  const rand = Math.random().toString(36).substring(2,6).toUpperCase()
-
-  return `NAT-${y}${m}${d}-${rand}`
-
-}
-
-export async function POST(req){
+export async function GET(req){
 
   try{
 
     await connectDB()
 
-    const body = await req.json()
+    const { searchParams } = new URL(req.url)
+    const id = searchParams.get("id")
 
-    const orderId = generateOrderId()
+    if(!id){
+      return NextResponse.json({
+        success:false,
+        message:"Order id missing"
+      })
+    }
 
-    const newOrder = await Order.create({
-
-      orderId,   // ⭐ VERY IMPORTANT
-      customer:{
-        name: body.name,
-        phone: body.phone,
-        address: body.address,
-        pincode: body.pincode
-      },
-
-      items: body.items,
-
-      totalAmount: body.total,
-
-      status: "Order Placed"
-
+    const order = await Order.findOne({
+      orderId:id
     })
+
+    if(!order){
+      return NextResponse.json({
+        success:false,
+        message:"Order not found"
+      })
+    }
 
     return NextResponse.json({
       success:true,
-      orderId: newOrder.orderId
+      order
     })
 
   }catch(e){
+
+    console.log("TRACK ERROR",e)
 
     return NextResponse.json({
       success:false
