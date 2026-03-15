@@ -9,24 +9,21 @@ export async function GET(req){
     await connectDB()
 
     const { searchParams } = new URL(req.url)
-    const id = searchParams.get("id")
+
+    let id = searchParams.get("id")
 
     if(!id){
-      return NextResponse.json({
-        success:false,
-        message:"Order id missing"
-      })
+      return NextResponse.json({ success:false })
     }
 
+    id = id.trim()
+
     const order = await Order.findOne({
-      orderId:id
+      orderId: { $regex: "^"+id+"$", $options:"i" }
     })
 
     if(!order){
-      return NextResponse.json({
-        success:false,
-        message:"Order not found"
-      })
+      return NextResponse.json({ success:false })
     }
 
     return NextResponse.json({
@@ -38,9 +35,7 @@ export async function GET(req){
 
     console.log("TRACK ERROR",e)
 
-    return NextResponse.json({
-      success:false
-    })
+    return NextResponse.json({ success:false })
 
   }
 
