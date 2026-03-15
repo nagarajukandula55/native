@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server"
 import connectDB from "@/lib/mongodb"
-import Order from "@/models/Order"
-
-
+import mongoose from "mongoose"
 
 export async function GET(req){
 
@@ -16,13 +14,16 @@ export async function GET(req){
     if(!id){
       return NextResponse.json({
         success:false,
-        msg:"OrderId missing"
+        msg:"Order id missing"
       })
     }
 
-    const order = await Order.findOne({
-      orderId: id.trim()
-    })
+    // ⭐ use RAW collection query (no model dependency)
+    const db = mongoose.connection.db
+
+    const order = await db
+      .collection("orders")
+      .findOne({ orderId: id })
 
     if(!order){
       return NextResponse.json({
@@ -39,11 +40,11 @@ export async function GET(req){
   }
   catch(e){
 
-    console.log("TRACK ERROR:",e)
+    console.log("TRACK API CRASH:", e)
 
     return NextResponse.json({
       success:false,
-      msg:"Server error"
+      error: String(e)   // ⭐ VERY IMPORTANT for debugging
     })
 
   }
