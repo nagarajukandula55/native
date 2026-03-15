@@ -1,24 +1,51 @@
 import { NextResponse } from "next/server"
-import mongoose from "mongoose"
 import connectDB from "@/lib/mongodb"
 import Order from "@/models/Order"
 
+
+
 export async function GET(req){
 
-  await connectDB()
+  try{
 
-  const dbName = mongoose.connection.db.databaseName
+    await connectDB()
 
-  const collections =
-    await mongoose.connection.db.listCollections().toArray()
+    const { searchParams } = new URL(req.url)
+    const id = searchParams.get("id")
 
-  const orders = await Order.find().select("orderId")
+    if(!id){
+      return NextResponse.json({
+        success:false,
+        msg:"OrderId missing"
+      })
+    }
 
-  return NextResponse.json({
-    db: dbName,
-    collections,
-    totalOrders: orders.length,
-    sample: orders.slice(0,5)
-  })
+    const order = await Order.findOne({
+      orderId: id.trim()
+    })
+
+    if(!order){
+      return NextResponse.json({
+        success:false,
+        msg:"Order not found"
+      })
+    }
+
+    return NextResponse.json({
+      success:true,
+      order
+    })
+
+  }
+  catch(e){
+
+    console.log("TRACK ERROR:",e)
+
+    return NextResponse.json({
+      success:false,
+      msg:"Server error"
+    })
+
+  }
 
 }
