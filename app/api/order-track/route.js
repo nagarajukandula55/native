@@ -1,38 +1,24 @@
 import { NextResponse } from "next/server"
+import mongoose from "mongoose"
 import connectDB from "@/lib/mongodb"
 import Order from "@/models/Order"
 
 export async function GET(req){
 
-  try{
+  await connectDB()
 
-    await connectDB()
+  const dbName = mongoose.connection.db.databaseName
 
-    const { searchParams } = new URL(req.url)
-    const id = searchParams.get("id")
+  const collections =
+    await mongoose.connection.db.listCollections().toArray()
 
-    if(!id){
-      return NextResponse.json({ success:false })
-    }
+  const orders = await Order.find().select("orderId")
 
-    const order = await Order.findOne({
-      orderId: id.trim()
-    })
-
-    if(!order){
-      return NextResponse.json({ success:false })
-    }
-
-    return NextResponse.json({
-      success:true,
-      order
-    })
-
-  }catch(e){
-
-    console.log(e)
-
-    return NextResponse.json({ success:false })
-  }
+  return NextResponse.json({
+    db: dbName,
+    collections,
+    totalOrders: orders.length,
+    sample: orders.slice(0,5)
+  })
 
 }
