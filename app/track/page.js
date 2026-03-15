@@ -5,100 +5,138 @@ import { useState } from "react"
 export default function TrackOrder(){
 
   const [orderId,setOrderId] = useState("")
-  const [phone,setPhone] = useState("")
   const [order,setOrder] = useState(null)
-  const [msg,setMsg] = useState("")
+  const [loading,setLoading] = useState(false)
 
   async function track(){
 
-    setMsg("Checking...")
-    setOrder(null)
+    if(!orderId) return alert("Enter Order ID")
 
-    const res = await fetch("/api/track",{
-      method:"POST",
-      headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify({ orderId, phone })
-    })
+    setLoading(true)
 
+    const res = await fetch("/api/track?id="+orderId)
     const data = await res.json()
 
     if(data.success){
       setOrder(data.order)
-      setMsg("")
     }else{
-      setMsg("Order not found")
+      alert("Order not found")
+      setOrder(null)
     }
 
+    setLoading(false)
+  }
+
+  function stepDone(step){
+
+    const status = order?.status || "Order Placed"
+
+    const flow = [
+      "Order Placed",
+      "Packed",
+      "Shipped",
+      "Out For Delivery",
+      "Delivered"
+    ]
+
+    return flow.indexOf(status) >= flow.indexOf(step)
   }
 
   return(
 
     <div style={{
-      maxWidth:"500px",
-      margin:"80px auto",
-      padding:"20px"
+      maxWidth:800,
+      margin:"auto",
+      padding:30
     }}>
 
-      <h1>Track Your Order</h1>
+      <h1 style={{fontSize:28,fontWeight:"bold"}}>
+        📦 Track Your Order
+      </h1>
 
-      <input
-        placeholder="Order ID"
-        value={orderId}
-        onChange={e=>setOrderId(e.target.value)}
-        style={input}
-      />
+      <div style={{marginTop:20,display:"flex",gap:10}}>
+        <input
+          value={orderId}
+          onChange={(e)=>setOrderId(e.target.value)}
+          placeholder="Enter Order ID"
+          style={{flex:1,padding:12}}
+        />
 
-      <input
-        placeholder="Phone Number"
-        value={phone}
-        onChange={e=>setPhone(e.target.value)}
-        style={input}
-      />
+        <button
+          onClick={track}
+          style={{
+            padding:"12px 20px",
+            background:"black",
+            color:"#fff",
+            borderRadius:6
+          }}
+        >
+          Track
+        </button>
+      </div>
 
-      <button onClick={track} style={btn}>
-        Track Order
-      </button>
-
-      <p>{msg}</p>
+      {loading && <p style={{marginTop:20}}>Checking...</p>}
 
       {order && (
 
         <div style={{
-          marginTop:"20px",
-          padding:"20px",
-          border:"1px solid #ddd",
-          borderRadius:"8px"
+          marginTop:40,
+          padding:25,
+          border:"1px solid #eee",
+          borderRadius:12
         }}>
 
-          <h3>Status: {order.status}</h3>
+          <h3>Order ID: {order.orderId}</h3>
+          <p>Total: ₹{order.totalAmount}</p>
 
-          <p>Total: ₹ {order.totalAmount}</p>
+          {/* ⭐ TIMELINE */}
 
-          <p>Date:
-            {new Date(order.createdAt).toLocaleString()}
-          </p>
+          <div style={{marginTop:30}}>
+
+            <Step title="Order Placed" done={stepDone("Order Placed")} />
+            <Step title="Packed" done={stepDone("Packed")} />
+            <Step title="Shipped" done={stepDone("Shipped")} />
+            <Step title="Out For Delivery" done={stepDone("Out For Delivery")} />
+            <Step title="Delivered" done={stepDone("Delivered")} />
+
+          </div>
 
         </div>
 
       )}
 
     </div>
+
   )
 
 }
 
-const input = {
-  width:"100%",
-  padding:"10px",
-  marginTop:"10px"
-}
+function Step({title,done}){
 
-const btn = {
-  marginTop:"15px",
-  padding:"10px",
-  width:"100%",
-  background:"#111",
-  color:"#fff",
-  border:"none",
-  cursor:"pointer"
+  return(
+
+    <div style={{
+      display:"flex",
+      alignItems:"center",
+      marginBottom:18
+    }}>
+
+      <div style={{
+        width:22,
+        height:22,
+        borderRadius:"50%",
+        background: done ? "green" : "#ccc",
+        marginRight:12
+      }} />
+
+      <div style={{
+        fontWeight: done ? "bold" : "normal"
+      }}>
+        {title}
+      </div>
+
+    </div>
+
+  )
+
 }
