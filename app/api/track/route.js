@@ -10,16 +10,22 @@ export async function GET(req){
 
     const { searchParams } = new URL(req.url)
 
-    const id = searchParams.get("id")
+    let id = searchParams.get("id")
 
+    if(!id){
+      return NextResponse.json({ success:false })
+    }
+
+    // ⭐ normalize
+    id = id.trim()
+
+    // ⭐ case-insensitive search
     const order = await Order.findOne({
-      orderId: id
+      orderId: { $regex: "^" + id + "$", $options: "i" }
     })
 
     if(!order){
-      return NextResponse.json({
-        success:false
-      })
+      return NextResponse.json({ success:false })
     }
 
     return NextResponse.json({
@@ -29,9 +35,7 @@ export async function GET(req){
 
   }catch(e){
 
-    return NextResponse.json({
-      success:false
-    })
+    return NextResponse.json({ success:false })
 
   }
 
