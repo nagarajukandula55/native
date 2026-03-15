@@ -1,141 +1,204 @@
-"use client"
+import { NextResponse } from "next/server"
+import connectDB from "@/lib/mongodb"
+import Order from "@/models/Order"
 
-import { useState } from "react"
 
-export default function TrackPage(){
 
-  const [orderId,setOrderId] = useState("")
-  const [order,setOrder] = useState(null)
-  const [loading,setLoading] = useState(false)
-  const [error,setError] = useState("")
+/* ⭐ TELEGRAM FUNCTION (ADDED) */
+async function sendTelegramMessage(text){
 
-  async function handleTrack(){
+  try{
 
-    if(!orderId){
-      alert("Please enter Order ID")
+    const token = process.env.TELEGRAM_BOT_TOKEN
+    const chatId = process.env.TELEGRAM_CHAT_ID
+
+    if(!token || !chatId){
+      console.log("Telegram ENV missing")
       return
     }
 
-    setLoading(true)
-    setError("")
-    setOrder(null)
-
-    try{
-
-      const res = await fetch(
-        "/api/order-track?id=" + orderId.trim()
-      )
-
-      const data = await res.json()
-
-      console.log("TRACK RESPONSE:",data)
-
-      if(data.success){
-        setOrder(data.order)
-      }else{
-        setError("❌ Order not found")
+    await fetch(
+      `https://api.telegram.org/bot${token}/sendMessage`,
+      {
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text
+        })
       }
+    )
 
-    }catch(e){
-      setError("⚠️ Server error")
-    }
-
-    setLoading(false)
+  }catch(e){
+    console.log("Telegram Error:",e)
   }
 
-  return(
+}
 
-    <div style={{
-      padding:"50px",
-      maxWidth:"700px",
-      margin:"auto"
-    }}>
 
-      <h1 style={{marginBottom:"20px"}}>
-        📦 Track Your Order
-      </h1>
 
-      <div style={{display:"flex", gap:"10px"}}>
+/* ⭐ ORDER ID GENERATOR */
+function generateOrderId(){
 
-        <input
-          value={orderId}
-          onChange={e=>setOrderId(e.target.value)}
-          placeholder="Enter Order ID (Example: NAT-260315-KLE8)"
-          style={{
-            padding:"12px",
-            flex:1,
-            border:"1px solid #ccc",
-            borderRadius:"6px"
-          }}
-        />
+  const now = new Date()
 
-        <button
-          onClick={handleTrack}
-          style={{
-            padding:"12px 20px",
-            background:"#000",
-            color:"#fff",
-            border:"none",
-            borderRadius:"6px",
-            cursor:"pointer"
-          }}
-        >
-          Track
-        </button>
+  const yy = now.getFullYear().toString().slice(-2)
+  const mm = String(now.getMonth()+1).padStart(2,"0")
+  const dd = String(now.getDate()).padStart(2,"0")
 
-      </div>
+  const rand = Math.random()
+    .toString(36)
+    .substring(2,6)
+    .toUpperCase()
 
-      {loading && (
-        <p style={{marginTop:"20px"}}>
-          Checking order…
-        </p>
-      )}
+  return `NAT-${yy}${mm}${dd}-${rand}`
+}
 
-      {error && (
-        <p style={{marginTop:"20px",color:"red"}}>
-          {error}
-        </p>
-      )}
 
-      {order && (
 
-        <div style={{
-          marginTop:"30px",
-          padding:"25px",
-          background:"#fff",
-          borderRadius:"10px",
-          boxShadow:"0 2px 10px rgba(0,0,0,0.08)"
-        }}>
+/* ⭐ CREATE ORDER */
+export async function POST(req){
 
-          <h3>Order ID: {order.orderId}</h3>
+  try{
 
-          <p>
-            <b>Status:</b> {order.status}
-          </p>
+    await connectDB()
 
-          <p>
-            <b>Total:</b> ₹ {order.totalAmount}
-          </p>
+    const body = await req.json()
 
-          <p>
-            <b>Date:</b>{" "}
-            {new Date(order.createdAt).toLocaleString()}
-          </p>
+    if(
+      !body.customerName ||
+      !body.phone ||
+      !body.address ||
+      !body.pincode ||
+      !body.items ||
+      body.items.length === 0
+    ){
+      return NextResponse.json({
+        success:false,
+        msg:"Missing fields"
+      })
+    }
 
-          <h4 style={{marginTop:"15px"}}>Items</h4>
+    const totalAmount = body.items.reduce(
+      (sum,item)=>
+        sum + (Number(item.price) * Number(item.quantity)),
+      0
+    )
 
-          {order.items.map((item,i)=>(
-            <p key={i}>
-              {item.name} — {item.quantity} × ₹{item.price}
-            </p>
-          ))}
+    let orderId = generateOrderId()
 
-        </div>
+    const exists = await Order.findOne({ orderId })
+    if(exists){
+      orderId = generateOrderId()
+    }
 
-      )}
+    const order = await Order.create({
 
-    </div>
+      orderId,
 
-  )
+      customerName: body.customerName,
+      phone: body.phone,
+      email: body.email || "",
+
+      address: body.address,
+      pincode: body.pincode,
+
+      items: body.items,
+      totalAmount,
+
+      status:"Order Placed"
+
+    })
+
+
+    /* ⭐⭐ TELEGRAM TRIGGER ADDED */
+    await sendTelegramMessage(
+`🛒 NEW ORDER RECEIVED
+
+Order ID: ${order.orderId}
+Customer: ${order.customerName}
+Phone: ${order.phone}
+Amount: ₹${order.totalAmount}
+Status: ${order.status}`
+    )
+
+
+    return NextResponse.json({
+      success:true,
+      orderId: order.orderId
+    })
+
+  }
+  catch(e){
+
+    console.log("CREATE ORDER ERROR:",e)
+
+    return NextResponse.json({
+      success:false,
+      msg:"Server error"
+    })
+
+  }
+
+}
+
+
+
+/* ⭐ ADMIN FETCH ORDERS */
+export async function GET(){
+
+  try{
+
+    await connectDB()
+
+    const orders = await Order
+      .find()
+      .sort({ createdAt:-1 })
+
+    return NextResponse.json({
+      success:true,
+      orders
+    })
+
+  }
+  catch(e){
+
+    return NextResponse.json({
+      success:false
+    })
+
+  }
+
+}
+
+
+
+/* ⭐ ADMIN UPDATE STATUS */
+export async function PUT(req){
+
+  try{
+
+    await connectDB()
+
+    const body = await req.json()
+
+    if(!body.id || !body.status){
+      return NextResponse.json({ success:false })
+    }
+
+    await Order.findByIdAndUpdate(
+      body.id,
+      { status: body.status },
+      { new:true }
+    )
+
+    return NextResponse.json({ success:true })
+
+  }
+  catch(e){
+
+    return NextResponse.json({ success:false })
+
+  }
 
 }
