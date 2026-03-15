@@ -1,26 +1,24 @@
-import { NextResponse } from "next/server"
-import connectDB from "@/lib/db"
+import { connectDB } from "@/lib/db"
 import Order from "@/models/Order"
+import { NextResponse } from "next/server"
 
-export async function POST(req){
+export async function GET(req){
 
   try{
 
     await connectDB()
 
-    const body = await req.json()
+    const { searchParams } = new URL(req.url)
 
-    const cleanPhone = body.phone.replace(/\D/g,"")   // remove +91 spaces
+    const id = searchParams.get("id")
 
     const order = await Order.findOne({
-      orderId: body.orderId.trim(),
-      phone: { $regex: cleanPhone }   // flexible match
+      orderId: id
     })
 
     if(!order){
       return NextResponse.json({
-        success:false,
-        message:"Order not found"
+        success:false
       })
     }
 
@@ -29,11 +27,10 @@ export async function POST(req){
       order
     })
 
-  }catch(err){
+  }catch(e){
 
     return NextResponse.json({
-      success:false,
-      message:"Tracking failed"
+      success:false
     })
 
   }
