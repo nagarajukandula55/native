@@ -7,21 +7,35 @@ export default function TrackOrder(){
   const [orderId,setOrderId] = useState("")
   const [order,setOrder] = useState(null)
   const [loading,setLoading] = useState(false)
+  const [error,setError] = useState("")
 
   async function track(){
 
-    if(!orderId) return alert("Enter Order ID")
+    if(!orderId){
+      alert("Enter Order ID")
+      return
+    }
 
     setLoading(true)
+    setError("")
+    setOrder(null)
 
-    const res = await fetch("/api/track?id="+orderId)
-    const data = await res.json()
+    try{
 
-    if(data.success){
-      setOrder(data.order)
-    }else{
-      alert("Order not found")
-      setOrder(null)
+      const res = await fetch("/api/track?id="+orderId)
+
+      const data = await res.json()
+
+      console.log("TRACK RESPONSE:",data)
+
+      if(data && (data.success || data.order)){
+        setOrder(data.order || data)
+      }else{
+        setError("Order not found")
+      }
+
+    }catch(e){
+      setError("Server error")
     }
 
     setLoading(false)
@@ -44,14 +58,10 @@ export default function TrackOrder(){
 
   return(
 
-    <div style={{
-      maxWidth:800,
-      margin:"auto",
-      padding:30
-    }}>
+    <div style={{maxWidth:800,margin:"auto",padding:30}}>
 
       <h1 style={{fontSize:28,fontWeight:"bold"}}>
-        📦 Track Your Order
+        📦 Track Order
       </h1>
 
       <div style={{marginTop:20,display:"flex",gap:10}}>
@@ -76,6 +86,7 @@ export default function TrackOrder(){
       </div>
 
       {loading && <p style={{marginTop:20}}>Checking...</p>}
+      {error && <p style={{marginTop:20,color:"red"}}>{error}</p>}
 
       {order && (
 
@@ -88,8 +99,6 @@ export default function TrackOrder(){
 
           <h3>Order ID: {order.orderId}</h3>
           <p>Total: ₹{order.totalAmount}</p>
-
-          {/* ⭐ TIMELINE */}
 
           <div style={{marginTop:30}}>
 
