@@ -10,11 +10,6 @@ export default function Home() {
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)
 
-  // Scrolling text - can later be fetched via admin API
-  const [scrollText, setScrollText] = useState(
-    "We are going to get new products to our Catalogue"
-  )
-
   useEffect(() => {
     const fetchProducts = async () => {
       try {
@@ -30,17 +25,8 @@ export default function Home() {
     fetchProducts()
   }, [])
 
-  // Categories - can be updated or added in admin later
-  const categories = [
-    "Batter Mix",
-    "Cold Pressed Oils",
-    "Traditional Foods",
-    "Natural Products"
-  ]
-
   return (
     <div>
-
       {/* HERO SECTION */}
       <section
         style={{
@@ -67,28 +53,6 @@ export default function Home() {
           >
             Welcome to Native
           </h1>
-
-          {/* SCROLLING MARQUEE */}
-          <div style={{
-            overflow: "hidden",
-            whiteSpace: "nowrap",
-            border: "1px solid rgba(255,255,255,0.3)",
-            borderRadius: "8px",
-            padding: "10px 0",
-            margin: "20px 0",
-            background: "rgba(0,0,0,0.3)"
-          }}>
-            <div
-              style={{
-                display: "inline-block",
-                paddingLeft: "100%",
-                animation: "scroll-left 15s linear infinite"
-              }}
-            >
-              {scrollText}
-            </div>
-          </div>
-
           <p style={{ fontSize: "22px", marginBottom: "20px", textShadow: "1px 1px 6px rgba(0,0,0,0.3)" }}>
             Eat Healthy, Stay Healthy
           </p>
@@ -117,10 +81,8 @@ export default function Home() {
       <section style={{ padding: "70px 20px", maxWidth: "1200px", margin: "auto", textAlign: "center" }}>
         <h2 style={{ fontSize: "36px", marginBottom: "40px" }}>Our Categories</h2>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: "25px" }}>
-          {categories.map((cat, i) => (
-            <Link key={i} href={`/products?category=${encodeURIComponent(cat)}`}>
-              <div style={categoryCard}>{cat}</div>
-            </Link>
+          {["Batter Mix", "Cold Pressed Oils", "Traditional Foods", "Natural Products"].map((cat, i) => (
+            <div key={i} style={categoryCard}>{cat}</div>
           ))}
         </div>
       </section>
@@ -186,11 +148,12 @@ export default function Home() {
         </div>
       </section>
 
-      {/* BLOG / ARTICLES PLACEHOLDER */}
+      {/* BLOG / ARTICLES SUGGESTIONS */}
       <section style={{ padding: "70px 20px", maxWidth: "1200px", margin: "auto" }}>
         <h2 style={{ fontSize: "36px", marginBottom: "40px", textAlign: "center" }}>Latest Articles</h2>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(250px,1fr))", gap: "25px" }}>
-          {[1,2,3].map((b) => (
+          {/* Placeholder blog cards */}
+          {[1, 2, 3].map((b) => (
             <div key={b} style={{ background: "#fff", padding: "20px", borderRadius: "12px", boxShadow: "0 5px 15px rgba(0,0,0,0.05)" }}>
               <h3>Blog Title {b}</h3>
               <p>Short description of the article related to health or products.</p>
@@ -206,7 +169,7 @@ export default function Home() {
           <div>
             <h4>Native Foods</h4>
             <p>Authentic natural products</p>
-            <p>FSSAI License: 20126021000129</p>
+            <p>FSSAI License: 12345678901234</p>
           </div>
           <div>
             <h4>Quick Links</h4>
@@ -218,27 +181,15 @@ export default function Home() {
             </ul>
           </div>
           <div>
-            <h4>Follow Us</h4>
-            <ul style={{ listStyle: "none", padding: 0 }}>
-              <li><a href="#" target="_blank">Facebook</a></li>
-              <li><a href="#" target="_blank">Instagram</a></li>
-              <li><a href="#" target="_blank">LinkedIn</a></li>
-              <li><a href="#" target="_blank">YouTube</a></li>
-            </ul>
+            <h4>Contact</h4>
+            <p>Email: support@native.com</p>
+            <p>Phone: +91-1234567890</p>
           </div>
         </div>
         <p style={{ textAlign: "center", marginTop: "20px", fontSize: "14px", color: "#ccc" }}>
           © {new Date().getFullYear()} Native Foods. All Rights Reserved.
         </p>
       </footer>
-
-      {/* SCROLL LEFT ANIMATION */}
-      <style jsx>{`
-        @keyframes scroll-left {
-          0% { transform: translateX(100%); }
-          100% { transform: translateX(-100%); }
-        }
-      `}</style>
     </div>
   )
 }
@@ -253,13 +204,11 @@ const categoryCard = {
   boxShadow: "0 5px 15px rgba(0,0,0,0.05)",
   cursor: "pointer",
   transition: "all 0.3s ease",
-  textAlign: "center"
 }
 const featureCard = {
   background: "#fff",
   padding: "30px",
   borderRadius: "10px",
   fontSize: "18px",
-  boxShadow: "0 5px 15px rgba(0,0,0,0.05)",
-  textAlign: "center"
+  boxShadow: "0 5px 15px rgba(0,0,0,0.05)"
 }
