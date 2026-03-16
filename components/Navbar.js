@@ -4,7 +4,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { useCart } from "@/context/CartContext"
-import CartDrawer from "../CartDrawer"
+import CartDrawer from "../CartDrawer/CartDrawer"
 
 export default function Navbar() {
   const { cart, drawerOpen, openCart, closeCart } = useCart()
