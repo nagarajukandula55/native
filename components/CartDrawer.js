@@ -4,13 +4,7 @@ import { useCart } from "@/context/CartContext";
 import Link from "next/link";
 
 export default function CartDrawer({ open, setOpen }) {
-  const {
-    cart,
-    increaseQuantity,
-    decreaseQuantity,
-    removeFromCart,
-    cartTotal
-  } = useCart();
+  const { cart, increaseQuantity, decreaseQuantity, removeFromCart, cartTotal } = useCart();
 
   if (!open) return null;
 
@@ -55,7 +49,7 @@ export default function CartDrawer({ open, setOpen }) {
       <div style={{ flex: 1 }}>
         {cart.map((item) => (
           <div
-            key={item.id} // use id from CartContext
+            key={item.id} // must match context
             style={{
               borderBottom: "1px solid #eee",
               padding: "10px 0",
