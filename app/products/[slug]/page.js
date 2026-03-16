@@ -6,7 +6,7 @@ import { useCart } from "@/context/CartContext";
 import Link from "next/link";
 
 export default function ProductViewPage() {
-  const { slug } = useParams();
+  const { slug } = useParams(); // Get the product slug from URL
   const { addToCart } = useCart();
 
   const [product, setProduct] = useState(null);
@@ -16,37 +16,35 @@ export default function ProductViewPage() {
   useEffect(() => {
     const fetchProduct = async () => {
       try {
-        const res = await fetch(`/api/products/${slug}`);
-        if (!res.ok) throw new Error("Product not found");
+        // Fetch all products
+        const res = await fetch("/api/products");
+        if (!res.ok) throw new Error("Failed to fetch products");
         const data = await res.json();
-        setProduct(data);
+
+        // Find the product by slug
+        const foundProduct = data.find((p) => p.slug === slug);
+        if (!foundProduct) throw new Error("Product not found");
+
+        setProduct(foundProduct);
       } catch (err) {
         setError(err.message);
       } finally {
         setLoading(false);
       }
     };
+
     fetchProduct();
   }, [slug]);
 
   if (loading)
     return <p style={{ textAlign: "center", marginTop: "40px" }}>Loading product...</p>;
   if (error)
-    return (
-      <p style={{ textAlign: "center", marginTop: "40px", color: "red" }}>{error}</p>
-    );
+    return <p style={{ textAlign: "center", marginTop: "40px", color: "red" }}>{error}</p>;
 
   return (
     <div style={{ maxWidth: "1000px", margin: "auto", padding: "20px" }}>
       {/* Product Info */}
-      <div
-        style={{
-          display: "flex",
-          flexWrap: "wrap",
-          gap: "30px",
-          marginBottom: "50px",
-        }}
-      >
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "30px", marginBottom: "50px" }}>
         {/* Image */}
         <div style={{ flex: "1 1 350px" }}>
           <img
@@ -59,9 +57,7 @@ export default function ProductViewPage() {
         {/* Details */}
         <div style={{ flex: "1 1 300px" }}>
           <h1 style={{ fontSize: "32px", marginBottom: "10px" }}>{product.name}</h1>
-          <p style={{ fontSize: "20px", color: "#c28b45", marginBottom: "15px" }}>
-            ₹{product.price}
-          </p>
+          <p style={{ fontSize: "20px", color: "#c28b45", marginBottom: "15px" }}>₹{product.price}</p>
           <p style={{ marginBottom: "20px", lineHeight: "1.6" }}>
             {product.description || "No description available."}
           </p>
@@ -83,7 +79,7 @@ export default function ProductViewPage() {
         </div>
       </div>
 
-      {/* Related Blog Posts */}
+      {/* Related Blog Posts Placeholder */}
       <div style={{ marginTop: "50px" }}>
         <h2 style={{ fontSize: "28px", marginBottom: "20px" }}>Related Articles</h2>
         <div
@@ -106,10 +102,7 @@ export default function ProductViewPage() {
             >
               <h3>Blog Post {i}</h3>
               <p>Summary about this product...</p>
-              <Link
-                href={`/blog/${i}`}
-                style={{ color: "#c28b45", fontWeight: "500" }}
-              >
+              <Link href={`/blog/${i}`} style={{ color: "#c28b45", fontWeight: "500" }}>
                 Read More
               </Link>
             </div>
