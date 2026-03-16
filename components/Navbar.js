@@ -4,7 +4,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { useCart } from "@/context/CartContext"
-import CartDrawer from "./CartDrawer"
+import CartDrawer from './CartDrawer';
 
 export default function Navbar() {
   const { cart, drawerOpen, openCart, closeCart } = useCart()
@@ -57,7 +57,7 @@ export default function Navbar() {
         {/* SEARCH BAR */}
         <form
           onSubmit={handleSearch}
-          style={{ display: "flex", gap: "10px", flexGrow: 1, justifyContent: "center" }}
+          style={{ display: "flex", gap: "10px" }}
         >
           <input
             type="text"
@@ -68,44 +68,23 @@ export default function Navbar() {
               padding: "8px 15px",
               borderRadius: "20px",
               border: "1px solid #ccc",
-              width: "200px",
-              maxWidth: "100%"
+              width: "200px"
             }}
           />
         </form>
 
-        {/* HAMBURGER ICON */}
+        {/* MOBILE HAMBURGER */}
         <button
           onClick={() => setMenuOpen(!menuOpen)}
-          style={{
-            display: "none",
-            flexDirection: "column",
-            justifyContent: "space-between",
-            width: "25px",
-            height: "20px",
-            border: "none",
-            background: "none",
-            cursor: "pointer",
-            zIndex: 1100
-          }}
           className="hamburger-btn"
         >
-          <span style={{ display: "block", height: "3px", background: "#3a2a1c", borderRadius: "2px" }} />
-          <span style={{ display: "block", height: "3px", background: "#3a2a1c", borderRadius: "2px" }} />
-          <span style={{ display: "block", height: "3px", background: "#3a2a1c", borderRadius: "2px" }} />
+          <span />
+          <span />
+          <span />
         </button>
 
-        {/* NAV LINKS */}
-        <nav
-          style={{
-            display: "flex",
-            gap: "25px",
-            alignItems: "center",
-            flexWrap: "wrap",
-            position: "relative"
-          }}
-          className={menuOpen ? "mobile-menu-open" : ""}
-        >
+        {/* MENU LINKS */}
+        <nav className={`menu-links ${menuOpen ? "open" : ""}`}>
           {links.map((link, i) => (
             <Link
               key={i}
@@ -125,7 +104,6 @@ export default function Navbar() {
                 padding: "5px 0",
                 transition: "all 0.2s ease-in-out"
               }}
-              onClick={() => setMenuOpen(false)}
             >
               {link}
               <span style={{ display: "block", height: "2px", background: "#c28b45", width: "0%", transition: "0.3s" }} />
@@ -157,24 +135,50 @@ export default function Navbar() {
               fontWeight: "500",
               fontSize: "16px"
             }}
-            onClick={() => setMenuOpen(false)}
           >
             Login
           </Link>
         </nav>
       </header>
 
-      {/* CART DRAWER */}
+      {/* ⭐ GLOBAL CART DRAWER */}
       <CartDrawer open={drawerOpen} setOpen={closeCart} />
 
-      {/* RESPONSIVE STYLES */}
+      {/* STYLES */}
       <style jsx>{`
         nav a:hover { color: #c28b45; }
         nav a:hover span { width: 100% !important; }
 
+        .hamburger-btn {
+          display: none;
+          flex-direction: column;
+          justify-content: space-between;
+          width: 25px;
+          height: 20px;
+          border: none;
+          background: none;
+          cursor: pointer;
+          z-index: 1100;
+        }
+        .hamburger-btn span {
+          display: block;
+          height: 3px;
+          background: #3a2a1c;
+          border-radius: 2px;
+        }
+
+        nav.menu-links {
+          display: flex;
+          gap: 25px;
+          align-items: center;
+          flex-wrap: wrap;
+        }
+
+        /* MOBILE RESPONSIVE */
         @media (max-width: 900px) {
           .hamburger-btn { display: flex; }
-          nav {
+
+          nav.menu-links {
             flex-direction: column;
             position: absolute;
             top: 100%;
@@ -182,10 +186,12 @@ export default function Navbar() {
             width: 100%;
             background: #fff;
             padding: 20px 0;
-            display: ${menuOpen ? "flex" : "none"};
+            display: none; /* hidden by default */
             gap: 15px;
             box-shadow: 0 5px 15px rgba(0,0,0,0.1);
           }
+
+          nav.menu-links.open { display: flex; } /* shown when menuOpen=true */
         }
       `}</style>
     </>
