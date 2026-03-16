@@ -2,22 +2,31 @@
 
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useCart } from "@/context/CartContext"
-import CartDrawer from './CartDrawer';
+import CartDrawer from "./CartDrawer"
 
 export default function Navbar() {
   const { cart, drawerOpen, openCart, closeCart } = useCart()
   const router = useRouter()
   const [search, setSearch] = useState("")
   const [menuOpen, setMenuOpen] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
+
+  // Detect mobile viewport
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 900)
+    handleResize()
+    window.addEventListener("resize", handleResize)
+    return () => window.removeEventListener("resize", handleResize)
+  }, [])
 
   function handleSearch(e) {
     e.preventDefault()
     if (!search.trim()) return
     router.push(`/products?search=${search}`)
     setSearch("")
-    setMenuOpen(false) // auto-hide mobile menu on search
+    if (isMobile) setMenuOpen(false)
   }
 
   const links = ["Home", "Products", "Track Order", "Blog"]
@@ -40,7 +49,7 @@ export default function Navbar() {
         }}
       >
         {/* LOGO */}
-        <Link href="/" onClick={() => setMenuOpen(false)}>
+        <Link href="/">
           <img
             src="/logo.png"
             alt="Native"
@@ -55,10 +64,7 @@ export default function Navbar() {
         </Link>
 
         {/* SEARCH BAR */}
-        <form
-          onSubmit={handleSearch}
-          style={{ display: "flex", gap: "10px" }}
-        >
+        <form onSubmit={handleSearch} style={{ display: "flex", gap: "10px" }}>
           <input
             type="text"
             placeholder="Search products..."
@@ -77,7 +83,6 @@ export default function Navbar() {
         <button
           onClick={() => setMenuOpen(!menuOpen)}
           style={{
-            display: "none",
             flexDirection: "column",
             justifyContent: "space-between",
             width: "25px",
@@ -85,7 +90,8 @@ export default function Navbar() {
             border: "none",
             background: "none",
             cursor: "pointer",
-            zIndex: 1100
+            zIndex: 1100,
+            display: isMobile ? "flex" : "none"
           }}
           className="hamburger-btn"
         >
@@ -97,13 +103,20 @@ export default function Navbar() {
         {/* MENU LINKS */}
         <nav
           style={{
-            display: "flex",
-            gap: "25px",
+            display: isMobile ? (menuOpen ? "flex" : "none") : "flex",
+            flexDirection: isMobile ? "column" : "row",
+            gap: isMobile ? "15px" : "25px",
             alignItems: "center",
-            flexWrap: "wrap",
-            position: "relative"
+            position: isMobile ? "absolute" : "relative",
+            top: isMobile ? "100%" : "auto",
+            left: 0,
+            width: isMobile ? "100%" : "auto",
+            background: isMobile ? "#fff" : "transparent",
+            padding: isMobile ? "20px 0" : 0,
+            boxShadow: isMobile ? "0 5px 15px rgba(0,0,0,0.1)" : "none",
+            zIndex: 1050,
+            flexWrap: "wrap"
           }}
-          className={menuOpen ? "mobile-menu-open" : ""}
         >
           {links.map((link, i) => (
             <Link
@@ -124,7 +137,6 @@ export default function Navbar() {
                 padding: "5px 0",
                 transition: "all 0.2s ease-in-out"
               }}
-              onClick={() => setMenuOpen(false)} // auto-hide on link click
             >
               {link}
               <span style={{ display: "block", height: "2px", background: "#c28b45", width: "0%", transition: "0.3s" }} />
@@ -133,7 +145,7 @@ export default function Navbar() {
 
           {/* CART BUTTON */}
           <button
-            onClick={() => { openCart(); setMenuOpen(false) }}
+            onClick={openCart}
             style={{
               border: "none",
               background: "none",
@@ -150,7 +162,6 @@ export default function Navbar() {
           {/* LOGIN */}
           <Link
             href="/login"
-            onClick={() => setMenuOpen(false)}
             style={{
               textDecoration: "none",
               color: "#3a2a1c",
@@ -166,29 +177,11 @@ export default function Navbar() {
       {/* ⭐ GLOBAL CART DRAWER */}
       <CartDrawer open={drawerOpen} setOpen={closeCart} />
 
-      {/* STYLES */}
+      {/* HOVER STYLES */}
       <style>
         {`
           nav a:hover { color: #c28b45; }
           nav a:hover span { width: 100% !important; }
-
-          /* MOBILE RESPONSIVE */
-          @media (max-width: 900px) {
-            .hamburger-btn { display: flex; }
-            nav {
-              flex-direction: column;
-              position: absolute;
-              top: 100%;
-              left: 0;
-              width: 100%;
-              background: #fff;
-              padding: 20px 0;
-              display: ${menuOpen ? "flex" : "none"};
-              gap: 15px;
-              box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-              z-index: 1050;
-            }
-          }
         `}
       </style>
     </>
