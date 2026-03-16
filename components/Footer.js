@@ -13,7 +13,7 @@ export default function Footer() {
         flexWrap: "wrap",
         justifyContent: "space-between",
         alignItems: "flex-start",
-        gap: "30px",
+        gap: "20px", // reduced from 30px
         position: "relative",
         zIndex: 1
       }}
@@ -21,11 +21,11 @@ export default function Footer() {
       {/* LEFT SECTION: FSSAI + Socials */}
       <div
         style={{
-          flex: "1 1 200px",
+          flex: "1 1 180px",
           display: "flex",
           flexDirection: "column",
-          gap: "15px",
-          minWidth: "180px"
+          gap: "10px",
+          minWidth: "160px"
         }}
       >
         <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
@@ -46,43 +46,19 @@ export default function Footer() {
         <div
           style={{
             display: "flex",
-            gap: "15px",
+            gap: "12px", // reduced gap between icons
             alignItems: "center",
-            marginTop: "10px"
+            marginTop: "8px"
           }}
         >
           <a href="https://facebook.com" target="_blank" rel="noopener noreferrer">
-            <img
-              src="/icons/facebook.svg"
-              alt="Facebook"
-              width={24}
-              height={24}
-              style={{ transition: "0.3s" }}
-              onMouseOver={(e) => (e.currentTarget.style.filter = "brightness(1.5)")}
-              onMouseOut={(e) => (e.currentTarget.style.filter = "brightness(1)")}
-            />
+            <img src="/icons/facebook.svg" alt="Facebook" width={24} height={24} />
           </a>
           <a href="https://instagram.com" target="_blank" rel="noopener noreferrer">
-            <img
-              src="/icons/instagram.svg"
-              alt="Instagram"
-              width={24}
-              height={24}
-              style={{ transition: "0.3s" }}
-              onMouseOver={(e) => (e.currentTarget.style.filter = "brightness(1.5)")}
-              onMouseOut={(e) => (e.currentTarget.style.filter = "brightness(1)")}
-            />
+            <img src="/icons/instagram.svg" alt="Instagram" width={24} height={24} />
           </a>
           <a href="https://twitter.com" target="_blank" rel="noopener noreferrer">
-            <img
-              src="/icons/twitter.svg"
-              alt="Twitter"
-              width={24}
-              height={24}
-              style={{ transition: "0.3s" }}
-              onMouseOver={(e) => (e.currentTarget.style.filter = "brightness(1.5)")}
-              onMouseOut={(e) => (e.currentTarget.style.filter = "brightness(1)")}
-            />
+            <img src="/icons/twitter.svg" alt="Twitter" width={24} height={24} />
           </a>
         </div>
       </div>
@@ -93,8 +69,8 @@ export default function Footer() {
           flex: "1 1 250px",
           textAlign: "center",
           minWidth: "200px",
-          marginTop: "20px",
-          marginBottom: "20px"
+          marginTop: "10px",
+          marginBottom: "10px"
         }}
       >
         <h2 style={{ margin: 0, fontSize: "20px", fontWeight: "600" }}>Native</h2>
@@ -109,11 +85,11 @@ export default function Footer() {
       {/* RIGHT SECTION 1: Sitemap */}
       <div
         style={{
-          flex: "1 1 200px",
+          flex: "1 1 140px", // reduced width
           display: "flex",
           flexDirection: "column",
-          gap: "20px",
-          minWidth: "180px"
+          gap: "15px",
+          minWidth: "140px"
         }}
       >
         <h3
@@ -126,15 +102,7 @@ export default function Footer() {
         >
           Sitemap
         </h3>
-        <ul
-          style={{
-            listStyle: "none",
-            padding: 0,
-            margin: 0,
-            fontSize: "14px",
-            lineHeight: "1.8"
-          }}
-        >
+        <ul style={{ listStyle: "none", padding: 0, margin: 0, fontSize: "14px", lineHeight: "1.6" }}>
           <li>
             <Link href="/" className="footer-link">Home</Link>
           </li>
@@ -153,11 +121,11 @@ export default function Footer() {
       {/* RIGHT SECTION 2: Contact */}
       <div
         style={{
-          flex: "1 1 200px",
+          flex: "1 1 140px", // reduced width
           display: "flex",
           flexDirection: "column",
-          gap: "15px",
-          minWidth: "180px"
+          gap: "10px",
+          minWidth: "140px"
         }}
       >
         <h3
@@ -188,12 +156,12 @@ export default function Footer() {
           color: #c28b45;
         }
 
-        /* Responsive adjustments */
         @media (max-width: 1024px) {
           footer {
             justify-content: center;
           }
         }
+
         @media (max-width: 768px) {
           footer {
             flex-direction: column;
