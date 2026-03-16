@@ -1,111 +1,108 @@
 "use client";
 
-import { useCart } from "@/context/CartContext";
-import Link from "next/link";
+import { createContext, useContext, useState, useEffect, useMemo } from "react";
 
-export default function CartDrawer({ open, setOpen }) {
-  const { cart, increaseQuantity, decreaseQuantity, removeFromCart, cartTotal } = useCart();
+const CartContext = createContext();
 
-  if (!open) return null;
+export function CartProvider({ children }) {
+  const [cart, setCart] = useState([]);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // Load cart from localStorage on first render
+  useEffect(() => {
+    const storedCart = localStorage.getItem("native_cart");
+    if (storedCart) {
+      try {
+        setCart(JSON.parse(storedCart));
+      } catch {
+        setCart([]);
+      }
+    }
+  }, []);
+
+  // Save cart to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem("native_cart", JSON.stringify(cart));
+  }, [cart]);
+
+  // Open/close drawer
+  const openCart = () => setDrawerOpen(true);
+  const closeCart = () => setDrawerOpen(false);
+
+  // Add item to cart
+  const addToCart = (product) => {
+    setCart((prev) => {
+      const exists = prev.find((item) => item._id === product._id);
+      if (exists) {
+        return prev.map((item) =>
+          item._id === product._id ? { ...item, quantity: item.quantity + 1 } : item
+        );
+      }
+      return [...prev, { ...product, quantity: 1 }];
+    });
+    setDrawerOpen(true); // auto open drawer
+  };
+
+  // Increase quantity
+  const increaseQty = (id) => {
+    setCart((prev) =>
+      prev.map((item) =>
+        item._id === id ? { ...item, quantity: item.quantity + 1 } : item
+      )
+    );
+  };
+
+  // Decrease quantity
+  const decreaseQty = (id) => {
+    setCart((prev) =>
+      prev
+        .map((item) =>
+          item._id === id ? { ...item, quantity: item.quantity - 1 } : item
+        )
+        .filter((item) => item.quantity > 0)
+    );
+  };
+
+  // Remove item completely
+  const removeFromCart = (id) => {
+    setCart((prev) => prev.filter((item) => item._id !== id));
+  };
+
+  // Clear cart
+  const clearCart = () => {
+    setCart([]);
+    setDrawerOpen(false);
+  };
+
+  // Total items
+  const cartCount = useMemo(() => {
+    return cart.reduce((sum, item) => sum + item.quantity, 0);
+  }, [cart]);
+
+  // Total price
+  const cartTotal = useMemo(() => {
+    return cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  }, [cart]);
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        top: 0,
-        right: 0,
-        width: "100%",
-        maxWidth: "400px",
-        height: "100vh",
-        background: "#fff",
-        boxShadow: "-4px 0 20px rgba(0,0,0,0.1)",
-        padding: "20px",
-        zIndex: 2000,
-        overflowY: "auto",
-        display: "flex",
-        flexDirection: "column",
+    <CartContext.Provider
+      value={{
+        cart,
+        drawerOpen,
+        openCart,
+        closeCart,
+        addToCart,
+        increaseQty,
+        decreaseQty,
+        removeFromCart,
+        clearCart,
+        cartCount,
+        cartTotal,
       }}
     >
-      <button
-        onClick={() => setOpen(false)}
-        style={{
-          position: "absolute",
-          right: "15px",
-          top: "10px",
-          border: "none",
-          background: "none",
-          fontSize: "20px",
-          cursor: "pointer",
-        }}
-      >
-        ✕
-      </button>
-
-      <h2 style={{ marginBottom: "20px" }}>Your Cart</h2>
-
-      {cart.length === 0 && <p>Your cart is empty</p>}
-
-      <div style={{ flex: 1 }}>
-        {cart.map((item) => (
-          <div
-            key={item._id}
-            style={{ borderBottom: "1px solid #eee", padding: "10px 0" }}
-          >
-            <h4>{item.name}</h4>
-            <p>₹{item.price}</p>
-
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "10px",
-                marginTop: "5px",
-              }}
-            >
-              <button onClick={() => decreaseQuantity(item._id)}>-</button>
-              <span>{item.quantity}</span>
-              <button onClick={() => increaseQuantity(item._id)}>+</button>
-            </div>
-
-            <button
-              onClick={() => removeFromCart(item._id)}
-              style={{
-                marginTop: "5px",
-                background: "none",
-                border: "none",
-                color: "red",
-                cursor: "pointer",
-              }}
-            >
-              Remove
-            </button>
-          </div>
-        ))}
-      </div>
-
-      {cart.length > 0 && (
-        <div style={{ marginTop: "20px" }}>
-          <h3>Total: ₹{cartTotal}</h3>
-          <Link href="/checkout">
-            <button
-              onClick={() => setOpen(false)}
-              style={{
-                width: "100%",
-                marginTop: "10px",
-                padding: "12px",
-                border: "none",
-                background: "#c28b45",
-                color: "#fff",
-                borderRadius: "6px",
-                fontSize: "16px",
-                cursor: "pointer",
-              }}
-            >
-              Checkout
-            </button>
-          </Link>
-        </div>
-      )}
-    </div>
+      {children}
+    </CartContext.Provider>
   );
 }
+
+export const useCart = () => useContext(CartContext);
