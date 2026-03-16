@@ -1,22 +1,18 @@
-"use client"
+"use client";
 
-import { useCart } from "@/context/CartContext"
-import Link from "next/link"
+import { useCart } from "@/context/CartContext";
+import Link from "next/link";
 
 export default function CartDrawer({ open, setOpen }) {
   const {
     cart,
     increaseQty,
     decreaseQty,
-    removeFromCart
-  } = useCart()
+    removeFromCart,
+    cartTotal,
+  } = useCart();
 
-  const total = cart.reduce(
-    (sum, item) => sum + item.price * item.quantity,
-    0
-  )
-
-  if (!open) return null
+  if (!open) return null;
 
   return (
     <div
@@ -28,98 +24,113 @@ export default function CartDrawer({ open, setOpen }) {
         maxWidth: "400px",
         height: "100vh",
         background: "#fff",
-        boxShadow: "-4px 0 20px rgba(0,0,0,0.1)",
         zIndex: 2000,
-        overflowY: "auto",
+        boxShadow: "-4px 0 20px rgba(0,0,0,0.2)",
         padding: "20px",
+        overflowY: "auto",
         display: "flex",
-        flexDirection: "column"
+        flexDirection: "column",
       }}
     >
-      {/* CLOSE */}
+      {/* Close Button */}
       <button
         onClick={() => setOpen()}
         style={{
           position: "absolute",
           right: "15px",
-          top: "10px",
+          top: "15px",
           border: "none",
           background: "none",
-          fontSize: "20px",
-          cursor: "pointer"
+          fontSize: "24px",
+          cursor: "pointer",
         }}
       >
         ✕
       </button>
 
-      <h2 style={{ marginBottom: "20px" }}>Your Cart</h2>
+      <h2 className="text-2xl font-bold mb-4">Your Cart</h2>
 
-      {cart.length === 0 && <p>Your cart is empty.</p>}
+      {cart.length === 0 ? (
+        <p>Your cart is empty</p>
+      ) : (
+        <>
+          <div style={{ flex: 1 }}>
+            {cart.map((item) => (
+              <div
+                key={item._id}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginBottom: "15px",
+                  borderBottom: "1px solid #eee",
+                  paddingBottom: "10px",
+                }}
+              >
+                <div>
+                  <h4 className="font-semibold">{item.name}</h4>
+                  <p>₹{item.price}</p>
+                </div>
 
-      <div style={{ flex: 1 }}>
-        {cart.map(item => (
-          <div
-            key={item._id}
-            style={{
-              borderBottom: "1px solid #eee",
-              padding: "10px 0"
-            }}
-          >
-            <h4>{item.name}</h4>
-            <p>₹{item.price}</p>
+                <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+                  <button
+                    onClick={() => decreaseQty(item._id)}
+                    style={{
+                      padding: "4px 8px",
+                      border: "1px solid #ccc",
+                      borderRadius: "4px",
+                      cursor: "pointer",
+                    }}
+                  >
+                    -
+                  </button>
+                  <span>{item.quantity}</span>
+                  <button
+                    onClick={() => increaseQty(item._id)}
+                    style={{
+                      padding: "4px 8px",
+                      border: "1px solid #ccc",
+                      borderRadius: "4px",
+                      cursor: "pointer",
+                    }}
+                  >
+                    +
+                  </button>
+                </div>
 
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "10px",
-                marginTop: "5px"
-              }}
-            >
-              <button onClick={() => decreaseQty(item._id)}>-</button>
-              <span>{item.quantity}</span>
-              <button onClick={() => increaseQty(item._id)}>+</button>
-            </div>
-
-            <button
-              onClick={() => removeFromCart(item._id)}
-              style={{
-                marginTop: "5px",
-                background: "none",
-                border: "none",
-                color: "red",
-                cursor: "pointer"
-              }}
-            >
-              Remove
-            </button>
+                <button
+                  onClick={() => removeFromCart(item._id)}
+                  style={{ background: "none", border: "none", color: "red", cursor: "pointer" }}
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
 
-      {cart.length > 0 && (
-        <div style={{ marginTop: "20px" }}>
-          <h3>Total: ₹{total}</h3>
-          <Link href="/checkout">
-            <button
-              onClick={() => setOpen()}
-              style={{
-                width: "100%",
-                marginTop: "10px",
-                padding: "12px",
-                border: "none",
-                background: "#c28b45",
-                color: "#fff",
-                borderRadius: "6px",
-                fontSize: "16px",
-                cursor: "pointer"
-              }}
-            >
-              Checkout
-            </button>
-          </Link>
-        </div>
+          <div>
+            <h3 className="font-bold text-lg">Total: ₹{cartTotal}</h3>
+            <Link href="/checkout">
+              <button
+                onClick={() => setOpen()}
+                style={{
+                  width: "100%",
+                  marginTop: "10px",
+                  padding: "12px",
+                  border: "none",
+                  borderRadius: "6px",
+                  background: "#c28b45",
+                  color: "#fff",
+                  fontWeight: "600",
+                  cursor: "pointer",
+                }}
+              >
+                Checkout
+              </button>
+            </Link>
+          </div>
+        </>
       )}
     </div>
-  )
+  );
 }
