@@ -55,7 +55,7 @@ export default function CartDrawer({ open, setOpen }) {
       <div style={{ flex: 1 }}>
         {cart.map((item) => (
           <div
-            key={item.id}
+            key={item.id} // use id from CartContext
             style={{
               borderBottom: "1px solid #eee",
               padding: "10px 0",
@@ -72,9 +72,21 @@ export default function CartDrawer({ open, setOpen }) {
                 marginTop: "5px",
               }}
             >
-              <button onClick={() => decreaseQuantity(item.id)}>-</button>
+              <button
+                onClick={() => decreaseQuantity(item.id)}
+                style={{ padding: "2px 6px", cursor: "pointer" }}
+              >
+                -
+              </button>
+
               <span>{item.quantity}</span>
-              <button onClick={() => increaseQuantity(item.id)}>+</button>
+
+              <button
+                onClick={() => increaseQuantity(item.id)}
+                style={{ padding: "2px 6px", cursor: "pointer" }}
+              >
+                +
+              </button>
             </div>
 
             <button
