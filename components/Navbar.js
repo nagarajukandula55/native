@@ -4,7 +4,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { useCart } from "@/context/CartContext"
-import CartDrawer from './CartDrawer';
+import CartDrawer from "./CartDrawer"
 
 export default function Navbar() {
   const { cart, drawerOpen, openCart, closeCart } = useCart()
@@ -57,7 +57,7 @@ export default function Navbar() {
         {/* SEARCH BAR */}
         <form
           onSubmit={handleSearch}
-          style={{ display: "flex", gap: "10px" }}
+          style={{ display: "flex", gap: "10px", flexGrow: 1, justifyContent: "center" }}
         >
           <input
             type="text"
@@ -68,12 +68,13 @@ export default function Navbar() {
               padding: "8px 15px",
               borderRadius: "20px",
               border: "1px solid #ccc",
-              width: "200px"
+              width: "200px",
+              maxWidth: "100%"
             }}
           />
         </form>
 
-        {/* MOBILE HAMBURGER */}
+        {/* HAMBURGER ICON */}
         <button
           onClick={() => setMenuOpen(!menuOpen)}
           style={{
@@ -94,7 +95,7 @@ export default function Navbar() {
           <span style={{ display: "block", height: "3px", background: "#3a2a1c", borderRadius: "2px" }} />
         </button>
 
-        {/* MENU LINKS */}
+        {/* NAV LINKS */}
         <nav
           style={{
             display: "flex",
@@ -124,6 +125,7 @@ export default function Navbar() {
                 padding: "5px 0",
                 transition: "all 0.2s ease-in-out"
               }}
+              onClick={() => setMenuOpen(false)}
             >
               {link}
               <span style={{ display: "block", height: "2px", background: "#c28b45", width: "0%", transition: "0.3s" }} />
@@ -155,39 +157,37 @@ export default function Navbar() {
               fontWeight: "500",
               fontSize: "16px"
             }}
+            onClick={() => setMenuOpen(false)}
           >
             Login
           </Link>
         </nav>
       </header>
 
-      {/* ⭐ GLOBAL CART DRAWER */}
+      {/* CART DRAWER */}
       <CartDrawer open={drawerOpen} setOpen={closeCart} />
 
-      {/* STYLES */}
-      <style>
-        {`
-          nav a:hover { color: #c28b45; }
-          nav a:hover span { width: 100% !important; }
+      {/* RESPONSIVE STYLES */}
+      <style jsx>{`
+        nav a:hover { color: #c28b45; }
+        nav a:hover span { width: 100% !important; }
 
-          /* MOBILE RESPONSIVE */
-          @media (max-width: 900px) {
-            .hamburger-btn { display: flex; }
-            nav {
-              flex-direction: column;
-              position: absolute;
-              top: 100%;
-              left: 0;
-              width: 100%;
-              background: #fff;
-              padding: 20px 0;
-              display: ${menuOpen ? "flex" : "none"};
-              gap: 15px;
-              box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-            }
+        @media (max-width: 900px) {
+          .hamburger-btn { display: flex; }
+          nav {
+            flex-direction: column;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            width: 100%;
+            background: #fff;
+            padding: 20px 0;
+            display: ${menuOpen ? "flex" : "none"};
+            gap: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
           }
-        `}
-      </style>
+        }
+      `}</style>
     </>
   )
 }
