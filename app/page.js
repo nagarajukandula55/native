@@ -1,9 +1,9 @@
 "use client"
+
 export const dynamic = "force-dynamic"
 
 import { useEffect, useState } from "react"
 import { useCart } from "@/context/CartContext"
-import Link from "next/link"
 
 export default function Home() {
   const { addToCart } = useCart()
@@ -27,7 +27,8 @@ export default function Home() {
 
   return (
     <div>
-      {/* HERO SECTION */}
+
+      {/* HERO SECTION WITH IMAGE */}
       <section
         style={{
           minHeight: "85vh",
@@ -36,31 +37,50 @@ export default function Home() {
           justifyContent: "center",
           textAlign: "center",
           padding: "40px 20px",
-          background: "url('/hero.jpg') center/cover no-repeat",
-          position: "relative",
-          color: "#fff"
+          background: "url('/hero.png') center/cover no-repeat", // <-- HERO IMAGE HERE
         }}
       >
-        <div style={{ maxWidth: "800px", zIndex: 1 }}>
+        <div style={{ maxWidth: "800px" }}>
           <h1
             style={{
               fontSize: "clamp(48px,7vw,80px)",
-              fontFamily: "Cinzel, serif",
-              fontWeight: 600,
+              color: "#3a2a1c",
               marginBottom: "10px",
-              textShadow: "2px 2px 10px rgba(0,0,0,0.4)"
+              fontFamily: "Cinzel, serif",
+              fontWeight: "600"
             }}
           >
             Welcome to Native
           </h1>
-          <p style={{ fontSize: "22px", marginBottom: "20px", textShadow: "1px 1px 6px rgba(0,0,0,0.3)" }}>
+
+          <p
+            style={{
+              fontSize: "22px",
+              marginBottom: "20px",
+              color: "#5c4634"
+            }}
+          >
             Eat Healthy, Stay Healthy
           </p>
-          <p style={{ fontSize: "18px", lineHeight: 1.8, marginBottom: "30px", textShadow: "1px 1px 5px rgba(0,0,0,0.3)" }}>
-            Authentic natural food products refined directly from the source. Pure, traditional and healthy for everyday life.
+
+          <p
+            style={{
+              fontSize: "18px",
+              lineHeight: "1.8",
+              marginBottom: "30px",
+              color: "#5c4634"
+            }}
+          >
+            Authentic natural food products refined directly from the source.
+            Pure, traditional and healthy for everyday life.
           </p>
+
           <button
-            onClick={() => document.getElementById("products").scrollIntoView({ behavior: "smooth" })}
+            onClick={() =>
+              document
+                .getElementById("products")
+                .scrollIntoView({ behavior: "smooth" })
+            }
             style={{
               padding: "14px 40px",
               borderRadius: "40px",
@@ -68,8 +88,7 @@ export default function Home() {
               background: "#c28b45",
               color: "#fff",
               fontSize: "16px",
-              cursor: "pointer",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.3)"
+              cursor: "pointer"
             }}
           >
             Explore Products
@@ -78,22 +97,58 @@ export default function Home() {
       </section>
 
       {/* CATEGORY SECTION */}
-      <section style={{ padding: "70px 20px", maxWidth: "1200px", margin: "auto", textAlign: "center" }}>
+      <section
+        style={{
+          padding: "70px 20px",
+          maxWidth: "1200px",
+          margin: "auto",
+          textAlign: "center"
+        }}
+      >
         <h2 style={{ fontSize: "36px", marginBottom: "40px" }}>Our Categories</h2>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: "25px" }}>
-          {["Batter Mix", "Cold Pressed Oils", "Traditional Foods", "Natural Products"].map((cat, i) => (
-            <div key={i} style={categoryCard}>{cat}</div>
-          ))}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))",
+            gap: "25px"
+          }}
+        >
+          <div style={categoryCard}>Batter Mix</div>
+          <div style={categoryCard}>Cold Pressed Oils</div>
+          <div style={categoryCard}>Traditional Foods</div>
+          <div style={categoryCard}>Natural Products</div>
         </div>
       </section>
 
       {/* FEATURED PRODUCTS */}
-      <section id="products" style={{ padding: "70px 20px", maxWidth: "1200px", margin: "auto" }}>
-        <h2 style={{ textAlign: "center", fontSize: "36px", marginBottom: "50px" }}>Featured Products</h2>
+      <section
+        id="products"
+        style={{
+          padding: "70px 20px",
+          maxWidth: "1200px",
+          margin: "auto"
+        }}
+      >
+        <h2
+          style={{
+            textAlign: "center",
+            fontSize: "36px",
+            marginBottom: "50px"
+          }}
+        >
+          Featured Products
+        </h2>
+
         {loading ? (
           <p style={{ textAlign: "center" }}>Loading products...</p>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(250px,1fr))", gap: "30px" }}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit,minmax(250px,1fr))",
+              gap: "30px"
+            }}
+          >
             {products.map((product) => (
               <div
                 key={product._id}
@@ -106,15 +161,26 @@ export default function Home() {
                   boxShadow: "0 5px 15px rgba(0,0,0,0.05)"
                 }}
               >
-                <Link href={`/products/${product._id}`}>
-                  <img
-                    src={product.image}
-                    alt={product.name}
-                    style={{ width: "100%", height: "220px", objectFit: "cover", borderRadius: "8px", cursor: "pointer" }}
-                  />
-                </Link>
+                <img
+                  src={product.image}
+                  alt={product.name}
+                  style={{
+                    width: "100%",
+                    height: "220px",
+                    objectFit: "cover",
+                    borderRadius: "8px"
+                  }}
+                />
                 <h3 style={{ marginTop: "15px" }}>{product.name}</h3>
-                <p style={{ color: "#c28b45", fontSize: "18px", margin: "10px 0" }}>₹{product.price}</p>
+                <p
+                  style={{
+                    color: "#c28b45",
+                    fontSize: "18px",
+                    margin: "10px 0"
+                  }}
+                >
+                  ₹{product.price}
+                </p>
                 <button
                   onClick={() => {
                     addToCart(product)
@@ -138,58 +204,29 @@ export default function Home() {
       </section>
 
       {/* WHY NATIVE */}
-      <section style={{ background: "#f4efe6", padding: "70px 20px", textAlign: "center" }}>
+      <section
+        style={{
+          background: "#f4efe6",
+          padding: "70px 20px",
+          textAlign: "center"
+        }}
+      >
         <h2 style={{ fontSize: "36px", marginBottom: "40px" }}>Why Choose Native</h2>
-        <div style={{ maxWidth: "1000px", margin: "auto", display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: "30px" }}>
+        <div
+          style={{
+            maxWidth: "1000px",
+            margin: "auto",
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))",
+            gap: "30px"
+          }}
+        >
           <div style={featureCard}>🌿 <br /> 100% Natural</div>
           <div style={featureCard}>🚜 <br /> Direct From Farmers</div>
           <div style={featureCard}>🧂 <br /> Traditional Methods</div>
           <div style={featureCard}>❤️ <br /> Healthy Lifestyle</div>
         </div>
       </section>
-
-      {/* BLOG / ARTICLES SUGGESTIONS */}
-      <section style={{ padding: "70px 20px", maxWidth: "1200px", margin: "auto" }}>
-        <h2 style={{ fontSize: "36px", marginBottom: "40px", textAlign: "center" }}>Latest Articles</h2>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(250px,1fr))", gap: "25px" }}>
-          {/* Placeholder blog cards */}
-          {[1, 2, 3].map((b) => (
-            <div key={b} style={{ background: "#fff", padding: "20px", borderRadius: "12px", boxShadow: "0 5px 15px rgba(0,0,0,0.05)" }}>
-              <h3>Blog Title {b}</h3>
-              <p>Short description of the article related to health or products.</p>
-              <Link href="/blog" style={{ color: "#c28b45", fontWeight: "bold" }}>Read More</Link>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* FOOTER */}
-      <footer style={{ background: "#3a2a1c", color: "#fff", padding: "40px 20px", marginTop: "50px" }}>
-        <div style={{ maxWidth: "1200px", margin: "auto", display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: "20px" }}>
-          <div>
-            <h4>Native Foods</h4>
-            <p>Authentic natural products</p>
-            <p>FSSAI License: 12345678901234</p>
-          </div>
-          <div>
-            <h4>Quick Links</h4>
-            <ul style={{ listStyle: "none", padding: 0 }}>
-              <li><Link href="/">Home</Link></li>
-              <li><Link href="/products">Products</Link></li>
-              <li><Link href="/blog">Blog</Link></li>
-              <li><Link href="/track">Track Order</Link></li>
-            </ul>
-          </div>
-          <div>
-            <h4>Contact</h4>
-            <p>Email: support@native.com</p>
-            <p>Phone: +91-1234567890</p>
-          </div>
-        </div>
-        <p style={{ textAlign: "center", marginTop: "20px", fontSize: "14px", color: "#ccc" }}>
-          © {new Date().getFullYear()} Native Foods. All Rights Reserved.
-        </p>
-      </footer>
     </div>
   )
 }
@@ -200,11 +237,10 @@ const categoryCard = {
   padding: "40px 20px",
   borderRadius: "10px",
   fontSize: "18px",
-  fontWeight: 500,
-  boxShadow: "0 5px 15px rgba(0,0,0,0.05)",
-  cursor: "pointer",
-  transition: "all 0.3s ease",
+  fontWeight: "500",
+  boxShadow: "0 5px 15px rgba(0,0,0,0.05)"
 }
+
 const featureCard = {
   background: "#fff",
   padding: "30px",
