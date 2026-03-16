@@ -6,9 +6,7 @@ import { useCart } from "@/context/CartContext"
 import { useSearchParams } from "next/navigation"
 
 function ProductsContent() {
-
   const { addToCart } = useCart()
-
   const searchParams = useSearchParams()
   const search = searchParams.get("search")
 
@@ -16,54 +14,38 @@ function ProductsContent() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-
     const fetchProducts = async () => {
-
       try {
-
         const res = await fetch("/api/admin/products")
         const data = await res.json()
-
         setProducts(data)
-
       } catch (err) {
-
         console.log("Product fetch error:", err)
-
       } finally {
-
         setLoading(false)
-
       }
-
     }
 
     fetchProducts()
-
   }, [])
 
-
   const filteredProducts = products.filter((product) =>
-    !search ||
-    product.name.toLowerCase().includes(search.toLowerCase())
+    !search || product.name.toLowerCase().includes(search.toLowerCase())
   )
 
-
   return (
-
     <div
       style={{
         maxWidth: "1300px",
         margin: "auto",
-        padding: "60px 20px"
+        padding: "60px 20px",
       }}
     >
-
       <h1
         style={{
           fontSize: "42px",
           marginBottom: "10px",
-          textAlign: "center"
+          textAlign: "center",
         }}
       >
         Our Products
@@ -74,7 +56,7 @@ function ProductsContent() {
           style={{
             textAlign: "center",
             marginBottom: "30px",
-            color: "#777"
+            color: "#777",
           }}
         >
           Showing results for "<b>{search}</b>"
@@ -82,25 +64,18 @@ function ProductsContent() {
       )}
 
       {loading ? (
-
         <p style={{ textAlign: "center" }}>Loading products...</p>
-
       ) : filteredProducts.length === 0 ? (
-
         <p style={{ textAlign: "center" }}>No products found</p>
-
       ) : (
-
         <div
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))",
-            gap: "30px"
+            gap: "30px",
           }}
         >
-
           {filteredProducts.map((product) => (
-
             <div
               key={product._id}
               style={{
@@ -108,62 +83,60 @@ function ProductsContent() {
                 borderRadius: "12px",
                 overflow: "hidden",
                 background: "#fff",
-                boxShadow: "0 5px 20px rgba(0,0,0,0.05)"
+                boxShadow: "0 5px 20px rgba(0,0,0,0.05)",
               }}
             >
-
-              <Link href={`/product/${product.slug}`}>
+              {/* IMAGE LINK */}
+              <Link href={`/products/${product.slug}`}>
                 <img
                   src={product.image}
                   alt={product.name}
                   style={{
                     width: "100%",
                     height: "220px",
-                    objectFit: "cover"
+                    objectFit: "cover",
                   }}
                 />
               </Link>
 
               <div style={{ padding: "18px" }}>
-
-                <Link
-                  href={`/products/${products.slug}`}
-                  style={{ textDecoration: "none" }}
-                >
+                {/* TITLE LINK */}
+                <Link href={`/products/${product.slug}`} style={{ textDecoration: "none" }}>
                   <h3
                     style={{
                       fontSize: "18px",
                       marginBottom: "10px",
-                      color: "#333"
+                      color: "#333",
                     }}
                   >
                     {product.name}
                   </h3>
                 </Link>
 
+                {/* DESCRIPTION */}
                 <p
                   style={{
                     color: "#777",
                     fontSize: "14px",
-                    marginBottom: "12px"
+                    marginBottom: "12px",
                   }}
                 >
                   {product.description?.slice(0, 60) || "Natural healthy product"}
                 </p>
 
+                {/* PRICE + ADD BUTTON */}
                 <div
                   style={{
                     display: "flex",
                     justifyContent: "space-between",
-                    alignItems: "center"
+                    alignItems: "center",
                   }}
                 >
-
                   <span
                     style={{
                       fontSize: "18px",
                       fontWeight: "600",
-                      color: "#c28b45"
+                      color: "#c28b45",
                     }}
                   >
                     ₹{product.price}
@@ -177,36 +150,25 @@ function ProductsContent() {
                       borderRadius: "20px",
                       background: "#c28b45",
                       color: "#fff",
-                      cursor: "pointer"
+                      cursor: "pointer",
                     }}
                   >
                     Add
                   </button>
-
                 </div>
-
               </div>
-
             </div>
-
           ))}
-
         </div>
-
       )}
-
     </div>
-
   )
-
 }
 
 export default function ProductsPage() {
-
   return (
     <Suspense fallback={<p style={{ textAlign: "center" }}>Loading...</p>}>
       <ProductsContent />
     </Suspense>
   )
-
 }
