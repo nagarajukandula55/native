@@ -1,3 +1,5 @@
+"use client"; // ← important for styled-jsx to work
+
 export default function Footer() {
   return (
     <footer
