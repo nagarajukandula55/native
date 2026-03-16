@@ -1,5 +1,3 @@
-"use client" // Ensure client context is available for cart
-
 import "./globals.css"
 import Navbar from "@/components/Navbar"
 import Footer from "@/components/Footer"
@@ -36,7 +34,7 @@ export default function RootLayout({ children }) {
           fontFamily: "var(--font-body)"
         }}
       >
-        {/* ✅ Wrap entire app with CartProvider so context is available */}
+        {/* ✅ CartProvider works inside server layout */}
         <CartProvider>
           {/* Navbar must be client component using useCart */}
           <Navbar />
