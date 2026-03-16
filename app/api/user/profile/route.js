@@ -6,6 +6,7 @@ export async function GET(req) {
   try {
     await connectDB()
 
+    // Get token from headers
     const authHeader = req.headers.get("authorization")
     if (!authHeader) {
       return new Response(JSON.stringify({ success: false, msg: "Unauthorized" }), { status: 401 })
@@ -16,6 +17,7 @@ export async function GET(req) {
       return new Response(JSON.stringify({ success: false, msg: "Token missing" }), { status: 401 })
     }
 
+    // Verify JWT
     let decoded
     try {
       decoded = jwt.verify(token, process.env.JWT_SECRET)
@@ -23,45 +25,35 @@ export async function GET(req) {
       return new Response(JSON.stringify({ success: false, msg: "Invalid token" }), { status: 401 })
     }
 
-    const user = await User.findById(decoded.id)
-      .populate({
-        path: "favourites",
-        select: "name price image" // only necessary fields
-      })
-      .populate({
-        path: "orders",
-        select: "orderId totalAmount status createdAt",
-        options: { sort: { createdAt: -1 } }
-      })
-
+    // Fetch user safely
+    const user = await User.findById(decoded.id).lean() // lean() gives plain JS object
     if (!user) {
       return new Response(JSON.stringify({ success: false, msg: "User not found" }), { status: 404 })
     }
 
-    // Convert mongoose document to plain object to avoid serialization errors
+    // Prepare safe object (no sensitive info)
     const safeUser = {
       _id: user._id.toString(),
       name: user.name,
       email: user.email,
-      favourites: user.favourites.map(f => ({
+      favourites: user.favourites?.map(f => ({
         _id: f._id.toString(),
         name: f.name,
         price: f.price,
         image: f.image
-      })),
-      orders: user.orders.map(o => ({
+      })) || [],
+      orders: user.orders?.map(o => ({
         _id: o._id.toString(),
         orderId: o.orderId,
         totalAmount: o.totalAmount,
         status: o.status,
         createdAt: o.createdAt
-      }))
+      })) || []
     }
 
     return new Response(JSON.stringify({ success: true, user: safeUser }), { status: 200 })
-
   } catch (err) {
-    console.log("PROFILE API ERROR:", err)
+    console.error("PROFILE API ERROR:", err)
     return new Response(JSON.stringify({ success: false, msg: "Server error" }), { status: 500 })
   }
 }
