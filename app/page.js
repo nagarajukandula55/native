@@ -28,23 +28,64 @@ export default function Home() {
   return (
     <div>
 
-      {/* HERO SECTION WITH IMAGE */}
+      {/* HERO SECTION WITH IMAGE, OVERLAY AND SCROLLING TEXT */}
       <section
         style={{
+          position: "relative",
           minHeight: "85vh",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           textAlign: "center",
           padding: "40px 20px",
-          background: "url('/hero.png') center/cover no-repeat", // <-- HERO IMAGE HERE
+          background: "url('/hero.png') center/cover no-repeat",
+          overflow: "hidden"
         }}
       >
-        <div style={{ maxWidth: "800px" }}>
+        {/* DARK OVERLAY FOR READABILITY */}
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            width: "100%",
+            height: "100%",
+            backgroundColor: "rgba(0,0,0,0.35)",
+            zIndex: 1
+          }}
+        />
+
+        {/* SCROLLING TEXT */}
+        <div
+          style={{
+            position: "absolute",
+            top: 20,
+            width: "100%",
+            zIndex: 2,
+            overflow: "hidden",
+            whiteSpace: "nowrap"
+          }}
+        >
+          <div
+            style={{
+              display: "inline-block",
+              paddingLeft: "100%",
+              animation: "scroll-left 15s linear infinite",
+              color: "#fff",
+              fontWeight: "500",
+              fontSize: "18px"
+            }}
+          >
+            We are going to get new products to our Catalogue
+          </div>
+        </div>
+
+        {/* HERO CONTENT */}
+        <div style={{ maxWidth: "800px", position: "relative", zIndex: 2, color: "#fff" }}>
           <h1
             style={{
               fontSize: "clamp(48px,7vw,80px)",
-              color: "#3a2a1c",
+              color: "#fff",
               marginBottom: "10px",
               fontFamily: "Cinzel, serif",
               fontWeight: "600"
@@ -57,7 +98,7 @@ export default function Home() {
             style={{
               fontSize: "22px",
               marginBottom: "20px",
-              color: "#5c4634"
+              color: "#fff"
             }}
           >
             Eat Healthy, Stay Healthy
@@ -68,7 +109,7 @@ export default function Home() {
               fontSize: "18px",
               lineHeight: "1.8",
               marginBottom: "30px",
-              color: "#5c4634"
+              color: "#fff"
             }}
           >
             Authentic natural food products refined directly from the source.
@@ -94,6 +135,16 @@ export default function Home() {
             Explore Products
           </button>
         </div>
+
+        {/* SCROLLING TEXT ANIMATION */}
+        <style>
+          {`
+            @keyframes scroll-left {
+              0% { transform: translateX(0%); }
+              100% { transform: translateX(-100%); }
+            }
+          `}
+        </style>
       </section>
 
       {/* CATEGORY SECTION */}
@@ -227,6 +278,7 @@ export default function Home() {
           <div style={featureCard}>❤️ <br /> Healthy Lifestyle</div>
         </div>
       </section>
+
     </div>
   )
 }
@@ -238,7 +290,8 @@ const categoryCard = {
   borderRadius: "10px",
   fontSize: "18px",
   fontWeight: "500",
-  boxShadow: "0 5px 15px rgba(0,0,0,0.05)"
+  boxShadow: "0 5px 15px rgba(0,0,0,0.05)",
+  cursor: "pointer"
 }
 
 const featureCard = {
