@@ -1,12 +1,22 @@
-"use client";
+"use client"
 
-import { useCart } from "@/context/CartContext";
-import Link from "next/link";
+import { useCart } from "@/context/CartContext"
+import Link from "next/link"
 
 export default function CartDrawer({ open, setOpen }) {
-  const { cart, increaseQuantity, decreaseQuantity, removeFromCart, cartTotal } = useCart();
+  const {
+    cart,
+    increaseQty,
+    decreaseQty,
+    removeFromCart
+  } = useCart()
 
-  if (!open) return null;
+  const total = cart.reduce(
+    (sum, item) => sum + item.price * item.quantity,
+    0
+  )
+
+  if (!open) return null
 
   return (
     <div
@@ -19,15 +29,16 @@ export default function CartDrawer({ open, setOpen }) {
         height: "100vh",
         background: "#fff",
         boxShadow: "-4px 0 20px rgba(0,0,0,0.1)",
-        padding: "20px",
         zIndex: 2000,
         overflowY: "auto",
+        padding: "20px",
         display: "flex",
-        flexDirection: "column",
+        flexDirection: "column"
       }}
     >
+      {/* CLOSE */}
       <button
-        onClick={() => setOpen(false)}
+        onClick={() => setOpen()}
         style={{
           position: "absolute",
           right: "15px",
@@ -35,7 +46,7 @@ export default function CartDrawer({ open, setOpen }) {
           border: "none",
           background: "none",
           fontSize: "20px",
-          cursor: "pointer",
+          cursor: "pointer"
         }}
       >
         ✕
@@ -43,13 +54,16 @@ export default function CartDrawer({ open, setOpen }) {
 
       <h2 style={{ marginBottom: "20px" }}>Your Cart</h2>
 
-      {cart.length === 0 && <p>Your cart is empty</p>}
+      {cart.length === 0 && <p>Your cart is empty.</p>}
 
       <div style={{ flex: 1 }}>
-        {cart.map((item) => (
+        {cart.map(item => (
           <div
             key={item._id}
-            style={{ borderBottom: "1px solid #eee", padding: "10px 0" }}
+            style={{
+              borderBottom: "1px solid #eee",
+              padding: "10px 0"
+            }}
           >
             <h4>{item.name}</h4>
             <p>₹{item.price}</p>
@@ -59,12 +73,12 @@ export default function CartDrawer({ open, setOpen }) {
                 display: "flex",
                 alignItems: "center",
                 gap: "10px",
-                marginTop: "5px",
+                marginTop: "5px"
               }}
             >
-              <button onClick={() => decreaseQuantity(item._id)}>-</button>
+              <button onClick={() => decreaseQty(item._id)}>-</button>
               <span>{item.quantity}</span>
-              <button onClick={() => increaseQuantity(item._id)}>+</button>
+              <button onClick={() => increaseQty(item._id)}>+</button>
             </div>
 
             <button
@@ -74,7 +88,7 @@ export default function CartDrawer({ open, setOpen }) {
                 background: "none",
                 border: "none",
                 color: "red",
-                cursor: "pointer",
+                cursor: "pointer"
               }}
             >
               Remove
@@ -85,10 +99,10 @@ export default function CartDrawer({ open, setOpen }) {
 
       {cart.length > 0 && (
         <div style={{ marginTop: "20px" }}>
-          <h3>Total: ₹{cartTotal}</h3>
+          <h3>Total: ₹{total}</h3>
           <Link href="/checkout">
             <button
-              onClick={() => setOpen(false)}
+              onClick={() => setOpen()}
               style={{
                 width: "100%",
                 marginTop: "10px",
@@ -98,7 +112,7 @@ export default function CartDrawer({ open, setOpen }) {
                 color: "#fff",
                 borderRadius: "6px",
                 fontSize: "16px",
-                cursor: "pointer",
+                cursor: "pointer"
               }}
             >
               Checkout
@@ -107,5 +121,5 @@ export default function CartDrawer({ open, setOpen }) {
         </div>
       )}
     </div>
-  );
+  )
 }
