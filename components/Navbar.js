@@ -45,8 +45,8 @@ export default function Navbar() {
             src="/logo.png"
             alt="Native"
             style={{
-              height: "auto",        // natural height
-              maxHeight: "70px",     // max size for desktop
+              height: "auto",
+              maxHeight: "70px",
               width: "auto",
               cursor: "pointer",
               display: "block"
@@ -108,7 +108,13 @@ export default function Navbar() {
           {links.map((link, i) => (
             <Link
               key={i}
-              href={link === "Home" ? "/" : `/${link.toLowerCase().replace(" ", "-")}`}
+              href={
+                link === "Home"
+                  ? "/"
+                  : link === "Track Order"
+                  ? "/track"
+                  : `/${link.toLowerCase().replace(" ", "-")}`
+              }
               style={{
                 textDecoration: "none",
                 color: "#3a2a1c",
