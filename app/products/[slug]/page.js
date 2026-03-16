@@ -6,7 +6,7 @@ import { useCart } from "@/context/CartContext";
 import Link from "next/link";
 
 export default function ProductViewPage() {
-  const { slug } = useParams(); // get slug from URL
+  const { slug } = useParams();
   const { addToCart } = useCart();
 
   const [product, setProduct] = useState(null);
@@ -16,7 +16,7 @@ export default function ProductViewPage() {
   useEffect(() => {
     const fetchProduct = async () => {
       try {
-        const res = await fetch(`/api/products/${slug}`); // fetch by slug
+        const res = await fetch(`/api/products/${slug}`);
         if (!res.ok) throw new Error("Product not found");
         const data = await res.json();
         setProduct(data);
@@ -26,19 +26,27 @@ export default function ProductViewPage() {
         setLoading(false);
       }
     };
-
     fetchProduct();
   }, [slug]);
 
   if (loading)
     return <p style={{ textAlign: "center", marginTop: "40px" }}>Loading product...</p>;
   if (error)
-    return <p style={{ textAlign: "center", marginTop: "40px", color: "red" }}>{error}</p>;
+    return (
+      <p style={{ textAlign: "center", marginTop: "40px", color: "red" }}>{error}</p>
+    );
 
   return (
     <div style={{ maxWidth: "1000px", margin: "auto", padding: "20px" }}>
       {/* Product Info */}
-      <div style={{ display: "flex", flexWrap: "wrap", gap: "30px", marginBottom: "50px" }}>
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: "30px",
+          marginBottom: "50px",
+        }}
+      >
         {/* Image */}
         <div style={{ flex: "1 1 350px" }}>
           <img
@@ -75,7 +83,7 @@ export default function ProductViewPage() {
         </div>
       </div>
 
-      {/* Related Blog Posts Placeholder */}
+      {/* Related Blog Posts */}
       <div style={{ marginTop: "50px" }}>
         <h2 style={{ fontSize: "28px", marginBottom: "20px" }}>Related Articles</h2>
         <div
@@ -98,7 +106,10 @@ export default function ProductViewPage() {
             >
               <h3>Blog Post {i}</h3>
               <p>Summary about this product...</p>
-              <Link href={`/blog/${i}`} style={{ color: "#c28b45", fontWeight: "500" }}>
+              <Link
+                href={`/blog/${i}`}
+                style={{ color: "#c28b45", fontWeight: "500" }}
+              >
                 Read More
               </Link>
             </div>
