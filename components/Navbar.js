@@ -41,7 +41,17 @@ export default function Navbar() {
       >
         {/* LOGO */}
         <Link href="/">
-          <img src="/logo.png" alt="Native" style={{ height: "70px", cursor: "pointer" }} />
+          <img
+            src="/logo.png"
+            alt="Native"
+            style={{
+              height: "auto",        // natural height
+              maxHeight: "70px",     // max size for desktop
+              width: "auto",
+              cursor: "pointer",
+              display: "block"
+            }}
+          />
         </Link>
 
         {/* SEARCH BAR */}
