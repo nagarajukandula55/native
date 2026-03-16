@@ -27,7 +27,6 @@ export default function CartDrawer({ open, setOpen }) {
         zIndex: 2000,
         boxShadow: "-4px 0 20px rgba(0,0,0,0.2)",
         padding: "20px",
-        overflowY: "auto",
         display: "flex",
         flexDirection: "column",
       }}
@@ -48,88 +47,106 @@ export default function CartDrawer({ open, setOpen }) {
         ✕
       </button>
 
-      <h2 className="text-2xl font-bold mb-4">Your Cart</h2>
+      <h2 style={{ marginBottom: "20px", fontSize: "20px", fontWeight: "600" }}>
+        Your Cart
+      </h2>
 
-      {cart.length === 0 ? (
-        <p>Your cart is empty</p>
-      ) : (
-        <>
-          <div style={{ flex: 1 }}>
-            {cart.map((item) => (
-              <div
-                key={item._id}
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  marginBottom: "15px",
-                  borderBottom: "1px solid #eee",
-                  paddingBottom: "10px",
-                }}
-              >
-                <div>
-                  <h4 className="font-semibold">{item.name}</h4>
-                  <p>₹{item.price}</p>
-                </div>
+      {/* Scrollable Items */}
+      <div
+        style={{
+          flex: 1,
+          overflowY: "auto",
+          paddingRight: "5px",
+        }}
+      >
+        {cart.length === 0 ? (
+          <p>Your cart is empty</p>
+        ) : (
+          cart.map((item) => (
+            <div
+              key={item._id}
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: "15px",
+                borderBottom: "1px solid #eee",
+                paddingBottom: "10px",
+              }}
+            >
+              <div>
+                <h4 style={{ fontWeight: "500" }}>{item.name}</h4>
+                <p>₹{item.price}</p>
+              </div>
 
-                <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
-                  <button
-                    onClick={() => decreaseQty(item._id)}
-                    style={{
-                      padding: "4px 8px",
-                      border: "1px solid #ccc",
-                      borderRadius: "4px",
-                      cursor: "pointer",
-                    }}
-                  >
-                    -
-                  </button>
-                  <span>{item.quantity}</span>
-                  <button
-                    onClick={() => increaseQty(item._id)}
-                    style={{
-                      padding: "4px 8px",
-                      border: "1px solid #ccc",
-                      borderRadius: "4px",
-                      cursor: "pointer",
-                    }}
-                  >
-                    +
-                  </button>
-                </div>
-
+              <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
                 <button
-                  onClick={() => removeFromCart(item._id)}
-                  style={{ background: "none", border: "none", color: "red", cursor: "pointer" }}
+                  onClick={() => decreaseQty(item._id)}
+                  style={{
+                    padding: "4px 8px",
+                    border: "1px solid #ccc",
+                    borderRadius: "4px",
+                    cursor: "pointer",
+                  }}
                 >
-                  Remove
+                  -
+                </button>
+                <span>{item.quantity}</span>
+                <button
+                  onClick={() => increaseQty(item._id)}
+                  style={{
+                    padding: "4px 8px",
+                    border: "1px solid #ccc",
+                    borderRadius: "4px",
+                    cursor: "pointer",
+                  }}
+                >
+                  +
                 </button>
               </div>
-            ))}
-          </div>
 
-          <div>
-            <h3 className="font-bold text-lg">Total: ₹{cartTotal}</h3>
-            <Link href="/checkout">
               <button
-                onClick={() => setOpen()}
-                style={{
-                  width: "100%",
-                  marginTop: "10px",
-                  padding: "12px",
-                  border: "none",
-                  borderRadius: "6px",
-                  background: "#c28b45",
-                  color: "#fff",
-                  fontWeight: "600",
-                  cursor: "pointer",
-                }}
+                onClick={() => removeFromCart(item._id)}
+                style={{ background: "none", border: "none", color: "red", cursor: "pointer" }}
               >
-                Checkout
+                Remove
               </button>
-            </Link>
-          </div>
-        </>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Total & Checkout Button at bottom */}
+      {cart.length > 0 && (
+        <div
+          style={{
+            marginTop: "auto",
+            borderTop: "1px solid #eee",
+            paddingTop: "15px",
+          }}
+        >
+          <h3 style={{ fontWeight: "600", fontSize: "18px" }}>
+            Total: ₹{cartTotal}
+          </h3>
+          <Link href="/checkout">
+            <button
+              onClick={() => setOpen()}
+              style={{
+                width: "100%",
+                marginTop: "10px",
+                padding: "12px",
+                border: "none",
+                borderRadius: "6px",
+                background: "#c28b45",
+                color: "#fff",
+                fontWeight: "600",
+                cursor: "pointer",
+              }}
+            >
+              Checkout
+            </button>
+          </Link>
+        </div>
       )}
     </div>
   );
