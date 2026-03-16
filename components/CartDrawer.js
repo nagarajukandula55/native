@@ -1,7 +1,7 @@
-"use client"
+"use client";
 
-import { useCart } from "@/context/CartContext"
-import Link from "next/link"
+import { useCart } from "@/context/CartContext";
+import Link from "next/link";
 
 export default function CartDrawer({ open, setOpen }) {
   const {
@@ -10,9 +10,9 @@ export default function CartDrawer({ open, setOpen }) {
     decreaseQuantity,
     removeFromCart,
     cartTotal
-  } = useCart()
+  } = useCart();
 
-  if (!open) return null
+  if (!open) return null;
 
   return (
     <div
@@ -21,7 +21,7 @@ export default function CartDrawer({ open, setOpen }) {
         top: 0,
         right: 0,
         width: "100%",
-        maxWidth: "400px", // responsive width
+        maxWidth: "400px",
         height: "100vh",
         background: "#fff",
         boxShadow: "-4px 0 20px rgba(0,0,0,0.1)",
@@ -58,7 +58,7 @@ export default function CartDrawer({ open, setOpen }) {
           <div style={{ flex: 1 }}>
             {cart.map((item) => (
               <div
-                key={item.id}
+                key={item.id} // must use item.id from CartContext
                 style={{
                   borderBottom: "1px solid #eee",
                   padding: "10px 0",
@@ -147,5 +147,5 @@ export default function CartDrawer({ open, setOpen }) {
         </>
       )}
     </div>
-  )
+  );
 }
