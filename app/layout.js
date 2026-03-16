@@ -1,3 +1,5 @@
+"use client" // Ensure client context is available for cart
+
 import "./globals.css"
 import Navbar from "@/components/Navbar"
 import Footer from "@/components/Footer"
@@ -14,13 +16,14 @@ const cinzel = Cinzel({
 
 const poppins = Poppins({
   subsets: ["latin"],
-  weight: ["300","400","500"],
+  weight: ["300", "400", "500"],
   variable: "--font-body"
 })
 
 export const metadata = {
   title: "Native | Eat Healthy Stay Healthy",
-  description: "Authentic natural food products refined directly from the source"
+  description:
+    "Authentic natural food products refined directly from the source"
 }
 
 export default function RootLayout({ children }) {
@@ -33,11 +36,16 @@ export default function RootLayout({ children }) {
           fontFamily: "var(--font-body)"
         }}
       >
+        {/* ✅ Wrap entire app with CartProvider so context is available */}
         <CartProvider>
+          {/* Navbar must be client component using useCart */}
           <Navbar />
+
           <main style={{ minHeight: "80vh" }}>
             {children}
           </main>
+
+          {/* Footer must be client component */}
           <Footer />
         </CartProvider>
       </body>
