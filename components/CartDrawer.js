@@ -4,13 +4,7 @@ import { useCart } from "@/context/CartContext";
 import Link from "next/link";
 
 export default function CartDrawer({ open, setOpen }) {
-  const {
-    cart,
-    increaseQty,
-    decreaseQty,
-    removeFromCart,
-    cartTotal,
-  } = useCart();
+  const { cart, increaseQty, decreaseQty, removeFromCart, cartTotal } = useCart();
 
   if (!open) return null;
 
@@ -26,7 +20,6 @@ export default function CartDrawer({ open, setOpen }) {
         background: "#fff",
         zIndex: 2000,
         boxShadow: "-4px 0 20px rgba(0,0,0,0.2)",
-        padding: "20px",
         display: "flex",
         flexDirection: "column",
       }}
@@ -42,21 +35,21 @@ export default function CartDrawer({ open, setOpen }) {
           background: "none",
           fontSize: "24px",
           cursor: "pointer",
+          zIndex: 2100,
         }}
       >
         ✕
       </button>
 
-      <h2 style={{ marginBottom: "20px", fontSize: "20px", fontWeight: "600" }}>
-        Your Cart
-      </h2>
+      <h2 style={{ margin: "15px 20px", fontWeight: "600" }}>Your Cart</h2>
 
       {/* Scrollable Items */}
       <div
         style={{
           flex: 1,
           overflowY: "auto",
-          paddingRight: "5px",
+          padding: "0 20px",
+          marginBottom: "80px", // leave space for fixed checkout section
         }}
       >
         {cart.length === 0 ? (
@@ -116,16 +109,20 @@ export default function CartDrawer({ open, setOpen }) {
         )}
       </div>
 
-      {/* Total & Checkout Button at bottom */}
+      {/* Fixed Bottom Section */}
       {cart.length > 0 && (
         <div
           style={{
-            marginTop: "auto",
+            position: "absolute",
+            bottom: 0,
+            left: 0,
+            width: "100%",
+            padding: "15px 20px",
             borderTop: "1px solid #eee",
-            paddingTop: "15px",
+            background: "#fff",
           }}
         >
-          <h3 style={{ fontWeight: "600", fontSize: "18px" }}>
+          <h3 style={{ fontWeight: "600", fontSize: "18px", marginBottom: "10px" }}>
             Total: ₹{cartTotal}
           </h3>
           <Link href="/checkout">
@@ -133,7 +130,6 @@ export default function CartDrawer({ open, setOpen }) {
               onClick={() => setOpen()}
               style={{
                 width: "100%",
-                marginTop: "10px",
                 padding: "12px",
                 border: "none",
                 borderRadius: "6px",
