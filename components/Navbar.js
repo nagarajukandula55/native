@@ -7,105 +7,171 @@ import { useCart } from "@/context/CartContext"
 import CartDrawer from "./CartDrawer"
 
 export default function Navbar() {
-
-  const {
-    cart,
-    drawerOpen,
-    openCart,
-    closeCart
-  } = useCart()
-
+  const { cart, drawerOpen, openCart, closeCart } = useCart()
   const router = useRouter()
-  const [search,setSearch] = useState("")
+  const [search, setSearch] = useState("")
+  const [menuOpen, setMenuOpen] = useState(false)
 
-  function handleSearch(e){
+  function handleSearch(e) {
     e.preventDefault()
-
-    if(!search.trim()) return
-
+    if (!search.trim()) return
     router.push(`/products?search=${search}`)
     setSearch("")
+    setMenuOpen(false) // close mobile menu on search
   }
+
+  const links = ["Home", "Products", "Track Order", "Blog"]
 
   return (
     <>
       <header
         style={{
-          display:"flex",
-          justifyContent:"space-between",
-          alignItems:"center",
-          padding:"15px 30px",
-          borderBottom:"1px solid #eee",
-          background:"#fff",
-          position:"sticky",
-          top:0,
-          zIndex:1000,
-          flexWrap:"wrap",
-          gap:"15px"
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          padding: "15px 30px",
+          borderBottom: "1px solid #eee",
+          background: "#fff",
+          position: "sticky",
+          top: 0,
+          zIndex: 1000,
+          flexWrap: "wrap",
+          gap: "15px"
         }}
       >
-
         {/* LOGO */}
         <Link href="/">
-          <img
-            src="/logo.png"
-            alt="Native"
-            style={{height:"60px",cursor:"pointer"}}
-          />
+          <img src="/logo.png" alt="Native" style={{ height: "70px", cursor: "pointer" }} />
         </Link>
 
-        {/* SEARCH */}
+        {/* SEARCH BAR */}
         <form
           onSubmit={handleSearch}
-          style={{display:"flex",gap:"10px"}}
+          style={{ display: "flex", gap: "10px" }}
         >
           <input
             type="text"
             placeholder="Search products..."
             value={search}
-            onChange={(e)=>setSearch(e.target.value)}
+            onChange={(e) => setSearch(e.target.value)}
             style={{
-              padding:"8px 15px",
-              borderRadius:"20px",
-              border:"1px solid #ccc",
-              width:"200px"
+              padding: "8px 15px",
+              borderRadius: "20px",
+              border: "1px solid #ccc",
+              width: "200px"
             }}
           />
         </form>
 
-        {/* MENU */}
+        {/* MOBILE HAMBURGER */}
+        <button
+          onClick={() => setMenuOpen(!menuOpen)}
+          style={{
+            display: "none",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            width: "25px",
+            height: "20px",
+            border: "none",
+            background: "none",
+            cursor: "pointer",
+            zIndex: 1100
+          }}
+          className="hamburger-btn"
+        >
+          <span style={{ display: "block", height: "3px", background: "#3a2a1c", borderRadius: "2px" }} />
+          <span style={{ display: "block", height: "3px", background: "#3a2a1c", borderRadius: "2px" }} />
+          <span style={{ display: "block", height: "3px", background: "#3a2a1c", borderRadius: "2px" }} />
+        </button>
+
+        {/* MENU LINKS */}
         <nav
           style={{
-            display:"flex",
-            gap:"20px",
-            alignItems:"center"
+            display: "flex",
+            gap: "25px",
+            alignItems: "center",
+            flexWrap: "wrap",
+            position: "relative"
           }}
+          className={menuOpen ? "mobile-menu-open" : ""}
         >
+          {links.map((link, i) => (
+            <Link
+              key={i}
+              href={link === "Home" ? "/" : `/${link.toLowerCase().replace(" ", "-")}`}
+              style={{
+                textDecoration: "none",
+                color: "#3a2a1c",
+                fontWeight: "500",
+                fontSize: "16px",
+                position: "relative",
+                padding: "5px 0",
+                transition: "all 0.2s ease-in-out"
+              }}
+            >
+              {link}
+              <span style={{ display: "block", height: "2px", background: "#c28b45", width: "0%", transition: "0.3s" }} />
+            </Link>
+          ))}
 
-          <Link href="/">Home</Link>
-          <Link href="/products">Products</Link>
-
+          {/* CART BUTTON */}
           <button
             onClick={openCart}
             style={{
-              border:"none",
-              background:"none",
-              cursor:"pointer",
-              fontWeight:"500"
+              border: "none",
+              background: "none",
+              cursor: "pointer",
+              fontWeight: "500",
+              fontSize: "16px",
+              color: "#3a2a1c",
+              position: "relative"
             }}
           >
             Cart ({cart.length})
           </button>
 
-          <Link href="/login">Login</Link>
-
+          {/* LOGIN */}
+          <Link
+            href="/login"
+            style={{
+              textDecoration: "none",
+              color: "#3a2a1c",
+              fontWeight: "500",
+              fontSize: "16px"
+            }}
+          >
+            Login
+          </Link>
         </nav>
-
       </header>
 
       {/* ⭐ GLOBAL CART DRAWER */}
       <CartDrawer open={drawerOpen} setOpen={closeCart} />
 
+      {/* STYLES */}
+      <style>
+        {`
+          nav a:hover { color: #c28b45; }
+          nav a:hover span { width: 100% !important; }
+
+          /* MOBILE RESPONSIVE */
+          @media (max-width: 900px) {
+            .hamburger-btn { display: flex; }
+            nav {
+              flex-direction: column;
+              position: absolute;
+              top: 100%;
+              left: 0;
+              width: 100%;
+              background: #fff;
+              padding: 20px 0;
+              display: ${menuOpen ? "flex" : "none"};
+              gap: 15px;
+              box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            }
+          }
+        `}
+      </style>
     </>
   )
 }
