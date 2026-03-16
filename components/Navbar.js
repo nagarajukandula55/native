@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useCart } from "@/context/CartContext"
 import CartDrawer from './CartDrawer';
 
@@ -21,17 +21,6 @@ export default function Navbar() {
   }
 
   const links = ["Home", "Products", "Track Order", "Blog"]
-
-  // ✅ Auto-hide menu when resizing to desktop
-  useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth > 900 && menuOpen) {
-        setMenuOpen(false)
-      }
-    }
-    window.addEventListener("resize", handleResize)
-    return () => window.removeEventListener("resize", handleResize)
-  }, [menuOpen])
 
   return (
     <>
