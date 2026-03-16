@@ -26,7 +26,6 @@ export default function CartDrawer({ open, setOpen }) {
         flexDirection: "column",
       }}
     >
-      {/* CLOSE BUTTON */}
       <button
         onClick={() => setOpen(false)}
         style={{
@@ -49,11 +48,8 @@ export default function CartDrawer({ open, setOpen }) {
       <div style={{ flex: 1 }}>
         {cart.map((item) => (
           <div
-            key={item.id} // must match context
-            style={{
-              borderBottom: "1px solid #eee",
-              padding: "10px 0",
-            }}
+            key={item._id}
+            style={{ borderBottom: "1px solid #eee", padding: "10px 0" }}
           >
             <h4>{item.name}</h4>
             <p>₹{item.price}</p>
@@ -66,25 +62,13 @@ export default function CartDrawer({ open, setOpen }) {
                 marginTop: "5px",
               }}
             >
-              <button
-                onClick={() => decreaseQuantity(item.id)}
-                style={{ padding: "2px 6px", cursor: "pointer" }}
-              >
-                -
-              </button>
-
+              <button onClick={() => decreaseQuantity(item._id)}>-</button>
               <span>{item.quantity}</span>
-
-              <button
-                onClick={() => increaseQuantity(item.id)}
-                style={{ padding: "2px 6px", cursor: "pointer" }}
-              >
-                +
-              </button>
+              <button onClick={() => increaseQuantity(item._id)}>+</button>
             </div>
 
             <button
-              onClick={() => removeFromCart(item.id)}
+              onClick={() => removeFromCart(item._id)}
               style={{
                 marginTop: "5px",
                 background: "none",
