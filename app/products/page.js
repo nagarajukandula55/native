@@ -127,7 +127,7 @@ function ProductsContent() {
               <div style={{ padding: "18px" }}>
 
                 <Link
-                  href={`/product/${product.slug}`}
+                  href={`/products/${products.slug}`}
                   style={{ textDecoration: "none" }}
                 >
                   <h3
