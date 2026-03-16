@@ -39,7 +39,7 @@ export default function Footer() {
             }}
           />
           <span style={{ fontSize: "14px", color: "#ccc" }}>
-            FSSAI License No: 20126021000129
+            License No: 20126021000129
           </span>
         </div>
 
