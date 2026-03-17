@@ -4,12 +4,24 @@ const SKUSchema = new mongoose.Schema({
 
   productId:{
     type: mongoose.Schema.Types.ObjectId,
-    ref:"Product"
+    ref:"Product",
+    required:true
   },
 
-  skuCode:String,
-  partCode:String,
-  price:Number
+  skuCode:{
+    type:String,
+    required:true
+  },
+
+  partCode:{
+    type:String,
+    required:true
+  },
+
+  price:{
+    type:Number,
+    default:0
+  }
 
 },{timestamps:true})
 
