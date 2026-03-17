@@ -4,23 +4,24 @@ const ProductSchema = new mongoose.Schema({
   name: { type: String, required: true },
   slug: { type: String, required: true, unique: true },
   sku: { type: String, required: true, unique: true },
-  description: { type: String, default: "" },
+  description: { type: String },
   price: { type: Number, required: true },
-  mrp: { type: Number, default: 0 },
-  costPrice: { type: Number, default: 0 },
-  brand: { type: String, default: "" },
+  mrp: { type: Number },
+  costPrice: { type: Number },
+  category: { type: String },
+  brand: { type: String },
   stock: { type: Number, default: 0 },
   reorderLevel: { type: Number, default: 0 },
-  hsn: { type: String, default: "" },
-  gst: { type: Number, default: 0 },
-  weight: { type: Number, default: 0 },
-  length: { type: Number, default: 0 },
-  breadth: { type: Number, default: 0 },
-  height: { type: Number, default: 0 },
+  hsn: { type: String },
+  gst: { type: Number },
+  weight: { type: Number },
+  length: { type: Number },
+  breadth: { type: Number },
+  height: { type: Number },
   featured: { type: Boolean, default: false },
-  status: { type: String, enum: ["ACTIVE", "INACTIVE"], default: "ACTIVE" },
-  createdAt: { type: Date, default: Date.now }
-})
+  status: { type: String, default: "ACTIVE" },
+  image: { type: String },
+  alt: { type: String },
+}, { timestamps: true })
 
-const Product = mongoose.models.Product || mongoose.model("Product", ProductSchema)
-export default Product
+export default mongoose.models.Product || mongoose.model("Product", ProductSchema)
