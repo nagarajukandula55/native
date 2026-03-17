@@ -1,15 +1,12 @@
 import mongoose from "mongoose"
 
-const WarehouseSchema = new mongoose.Schema({
-  name:{
-    type:String,
-    required:true
-  },
-  location:{
-    type:String,
-    default:""
-  }
+const schema = new mongoose.Schema({
+  name: String,
+  location: String
 },{timestamps:true})
 
-export default mongoose.models.Warehouse ||
-mongoose.model("Warehouse",WarehouseSchema)
+const Warehouse =
+  mongoose.models.Warehouse ||
+  mongoose.model("Warehouse", schema)
+
+export default Warehouse
