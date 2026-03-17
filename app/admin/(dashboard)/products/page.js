@@ -42,9 +42,8 @@ export default function AdminProducts() {
     const { name, value, type, checked } = e.target
     let updated = { ...form, [name]: type === "checkbox" ? checked : value }
 
-    if (name === "hsn") {
-      updated.gst = HSN_GST_MAP[value] || 0
-    }
+    // HSN selection auto-fills GST
+    if (name === "hsn") updated.gst = HSN_GST_MAP[value] || 0
 
     setForm(updated)
   }
@@ -55,8 +54,7 @@ export default function AdminProducts() {
       const res = await fetch("/api/admin/products")
       const data = await res.json()
       setProducts(Array.isArray(data.products) ? data.products : [])
-    } catch (err) {
-      console.error("Failed to load products:", err)
+    } catch {
       setProducts([])
     }
     setLoading(false)
@@ -68,8 +66,10 @@ export default function AdminProducts() {
     setUploading(true)
     const fd = new FormData()
     fd.append("file", file)
+
     const res = await fetch("/api/upload", { method: "POST", body: fd })
     const data = await res.json()
+
     setForm((prev) => ({ ...prev, image: data.url || "" }))
     setUploading(false)
   }
@@ -101,8 +101,7 @@ export default function AdminProducts() {
     try {
       await fetch(`/api/admin/products?slug=${slug}`, { method: "DELETE" })
       await loadProducts()
-    } catch (err) {
-      console.error(err)
+    } catch {
       alert("Failed to delete product")
     }
   }
@@ -140,7 +139,8 @@ export default function AdminProducts() {
           ))}
         </select>
 
-        <input name="gst" type="number" placeholder="GST %" value={form.gst} onChange={handleChange} readOnly />
+        <input name="gst" type="number" placeholder="GST %" value={form.gst} readOnly />
+
         <input name="weight" type="number" placeholder="Weight (kg)" value={form.weight} onChange={handleChange} />
         <input name="length" type="number" placeholder="Length (cm)" value={form.length} onChange={handleChange} />
         <input name="breadth" type="number" placeholder="Breadth (cm)" value={form.breadth} onChange={handleChange} />
@@ -153,6 +153,7 @@ export default function AdminProducts() {
 
         <textarea name="description" placeholder="Description" value={form.description} onChange={handleChange} style={{ gridColumn: "span 2" }} />
 
+        {/* IMAGE UPLOAD */}
         <input type="file" onChange={handleImageUpload} style={{ gridColumn: "span 2" }} />
         {uploading && <p>Uploading image...</p>}
         {form.image && <img src={form.image} style={{ width: 90, height: 90, objectFit: "cover", borderRadius: 6 }} />}
