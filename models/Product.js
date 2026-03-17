@@ -1,61 +1,61 @@
+import { NextResponse } from "next/server"
 import mongoose from "mongoose"
+import Product from "@/models/Product"
 
-const ProductSchema = new mongoose.Schema({
+const MONGODB_URI = process.env.MONGODB_URI
 
-  name: { type: String, required: true },
-  description: String,
-  category: String,
-  brand: String,
-  slug: String,
-  image: String,
-  alt: String,
+async function connectDB() {
+  if (mongoose.connection.readyState === 1) return
+  await mongoose.connect(MONGODB_URI)
+}
 
-  mrp: Number,
-  price: Number,
-  costPrice: Number,
+function generateSlug(name) {
+  return name.toLowerCase().trim().replace(/ /g, "-").replace(/[^\w-]+/g, "")
+}
 
-  stock: { type: Number, default: 0 },
-  reorderLevel: { type: Number, default: 5 },
+async function generateSKU(name) {
+  const firstWord = name.replace(/^Native\s+/i, "").split(" ")[0].toUpperCase()
+  const count = await Product.countDocuments({ name: new RegExp(`^Native ${firstWord}`, "i") }) + 1
+  const serial = String(count).padStart(3, "0")
+  return `NA${firstWord}${serial}`
+}
 
-  hsn: String,
-  gst: Number,
-
-  weight: Number,
-  length: Number,
-  breadth: Number,
-  height: Number,
-
-  featured: { type: Boolean, default: false },
-
-  status: { type: String, default: "ACTIVE" },
-
-  sku: { type: String, unique: true }  // NEW FIELD
-
-}, { timestamps: true })
-
-/* ---------------- AUTO SKU GENERATION ---------------- */
-
-ProductSchema.pre("save", async function(next) {
-  if (!this.isNew || this.sku) return next() // Only generate for new products without SKU
-
-  const Product = mongoose.models.Product || this.constructor
-
-  // Extract first word after "Native"
-  const nameParts = this.name.trim().split(" ")
-  let keyWord = ""
-  if (nameParts[0].toLowerCase() === "native" && nameParts.length > 1) {
-    keyWord = nameParts[1].toUpperCase().replace(/[^A-Z0-9]/g, "") // Remove special chars
-  } else {
-    keyWord = nameParts[0].toUpperCase().replace(/[^A-Z0-9]/g, "")
+export async function GET() {
+  try {
+    await connectDB()
+    const products = await Product.find().sort({ createdAt: -1 })
+    return NextResponse.json({ success: true, products })
+  } catch (err) {
+    console.error(err)
+    return NextResponse.json({ success: true, products: [] })
   }
+}
 
-  // Count existing products with same keyword
-  const count = await Product.countDocuments({ name: new RegExp(keyWord, "i") })
-  const serial = String(count + 1).padStart(3, "0")
+export async function POST(req) {
+  try {
+    await connectDB()
+    const body = await req.json()
+    const slug = generateSlug(body.name)
+    const existing = await Product.findOne({ slug })
+    if (existing) return NextResponse.json({ error: "Product already exists" }, { status: 400 })
+    const sku = await generateSKU(body.name)
+    const product = await Product.create({ ...body, slug, sku })
+    return NextResponse.json({ success: true, product })
+  } catch (err) {
+    console.error(err)
+    return NextResponse.json({ error: "Failed to create product" }, { status: 500 })
+  }
+}
 
-  this.sku = `NA${keyWord}${serial}`
-
-  next()
-})
-
-export default mongoose.models.Product || mongoose.model("Product", ProductSchema)
+export async function DELETE(req) {
+  try {
+    await connectDB()
+    const { searchParams } = new URL(req.url)
+    const slug = searchParams.get("slug")
+    await Product.deleteOne({ slug })
+    return NextResponse.json({ success: true })
+  } catch (err) {
+    console.error(err)
+    return NextResponse.json({ error: "Failed to delete product" }, { status: 500 })
+  }
+}
