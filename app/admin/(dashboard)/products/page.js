@@ -4,6 +4,14 @@ import { useState, useEffect } from "react"
 
 export default function AdminProducts(){
 
+  // HSN -> GST mapping
+  const hsnGSTMap = {
+    "1905": 5,
+    "2103": 12,
+    "2106": 18
+    // Add more HSN codes here if needed
+  }
+
   const emptyForm = {
     name:"",
     description:"",
@@ -38,10 +46,18 @@ export default function AdminProducts(){
 
   function handleChange(e){
     const {name,value,type,checked} = e.target
-    setForm(prev => ({
-      ...prev,
+
+    let updatedForm = {
+      ...form,
       [name]: type==="checkbox" ? checked : value
-    }))
+    }
+
+    // Auto-fill GST if HSN changes
+    if(name==="hsn" && hsnGSTMap[value] !== undefined){
+      updatedForm.gst = hsnGSTMap[value]
+    }
+
+    setForm(updatedForm)
   }
 
   async function loadProducts(){
@@ -49,14 +65,15 @@ export default function AdminProducts(){
     try{
       const res = await fetch("/api/admin/products")
       const data = await res.json()
+
       if(data.success && Array.isArray(data.products)){
         setProducts(data.products)
-      } else {
+      }else{
         setProducts([])
       }
+
     }catch{
       alert("Failed to load products")
-      setProducts([])
     }
     setLoading(false)
   }
@@ -69,19 +86,17 @@ export default function AdminProducts(){
     const fd = new FormData()
     fd.append("file",file)
 
-    try{
-      const res = await fetch("/api/upload",{
-        method:"POST",
-        body:fd
-      })
-      const data = await res.json()
-      setForm(prev=>({
-        ...prev,
-        image:data.url || ""
-      }))
-    }catch{
-      alert("Image upload failed")
-    }
+    const res = await fetch("/api/upload",{
+      method:"POST",
+      body:fd
+    })
+
+    const data = await res.json()
+
+    setForm(prev=>({
+      ...prev,
+      image:data.url
+    }))
 
     setUploading(false)
   }
@@ -95,37 +110,33 @@ export default function AdminProducts(){
 
     setSaving(true)
 
-    try{
-      await fetch("/api/admin/products",{
-        method:"POST",
-        headers:{
-          "Content-Type":"application/json"
-        },
-        body: JSON.stringify({...form, alt: form.name})
+    await fetch("/api/admin/products",{
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json"
+      },
+      body: JSON.stringify({
+        ...form,
+        alt: form.name
       })
-      setMessage("✅ Product Added Successfully")
-      setForm(emptyForm)
-      await loadProducts()
-      setTimeout(()=>setMessage(""),2000)
-    }catch{
-      alert("Failed to save product")
-    }
+    })
 
+    setMessage("✅ Product Added Successfully")
+    setForm(emptyForm)
+    await loadProducts()
     setSaving(false)
+    setTimeout(()=>setMessage(""),2000)
   }
 
   async function deleteProduct(slug){
     const ok = confirm("Delete this product?")
     if(!ok) return
 
-    try{
-      await fetch("/api/admin/products/"+slug,{
-        method:"DELETE"
-      })
-      await loadProducts()
-    }catch{
-      alert("Failed to delete product")
-    }
+    await fetch("/api/admin/products/"+slug,{
+      method:"DELETE"
+    })
+
+    loadProducts()
   }
 
   return(
@@ -146,15 +157,24 @@ export default function AdminProducts(){
         }}
       >
         <input name="name" placeholder="Product Name" value={form.name} onChange={handleChange} required />
-        <input name="category" placeholder="Category" value={form.category} onChange={handleChange} />
         <input name="brand" placeholder="Brand" value={form.brand} onChange={handleChange} />
         <input name="price" type="number" placeholder="Selling Price" value={form.price} onChange={handleChange} required />
         <input name="mrp" type="number" placeholder="MRP" value={form.mrp} onChange={handleChange} />
         <input name="costPrice" type="number" placeholder="Cost Price" value={form.costPrice} onChange={handleChange} />
         <input name="stock" type="number" placeholder="Opening Stock" value={form.stock} onChange={handleChange} />
         <input name="reorderLevel" type="number" placeholder="Reorder Level" value={form.reorderLevel} onChange={handleChange} />
-        <input name="hsn" placeholder="HSN Code" value={form.hsn} onChange={handleChange} />
-        <input name="gst" type="number" placeholder="GST %" value={form.gst} onChange={handleChange} />
+
+        {/* HSN Dropdown */}
+        <select name="hsn" value={form.hsn} onChange={handleChange} required>
+          <option value="">Select HSN</option>
+          {Object.keys(hsnGSTMap).map(hsn => (
+            <option key={hsn} value={hsn}>{hsn}</option>
+          ))}
+        </select>
+
+        {/* GST auto-filled */}
+        <input name="gst" type="number" placeholder="GST %" value={form.gst} readOnly />
+
         <input name="weight" type="number" placeholder="Weight (kg)" value={form.weight} onChange={handleChange} />
         <input name="length" type="number" placeholder="Length (cm)" value={form.length} onChange={handleChange} />
         <input name="breadth" type="number" placeholder="Breadth (cm)" value={form.breadth} onChange={handleChange} />
@@ -186,6 +206,7 @@ export default function AdminProducts(){
       ):(
         <div style={{marginTop:40}}>
           <h2>All Products ({products.length})</h2>
+
           <table style={{width:"100%",marginTop:15,borderCollapse:"collapse"}}>
             <thead>
               <tr style={{background:"#f5f5f5"}}>
@@ -202,31 +223,27 @@ export default function AdminProducts(){
             </thead>
 
             <tbody>
-              {Array.isArray(products) && products.length > 0 ? (
-                products.map(p=>(
-                  <tr key={p._id} style={{borderBottom:"1px solid #eee"}}>
-                    <td>{p.sku}</td>
-                    <td>{p.image && <img src={p.image} style={{width:60,height:60,objectFit:"cover"}} />}</td>
-                    <td>{p.name}</td>
-                    <td>{p.brand}</td>
-                    <td>₹{p.price}</td>
-                    <td>₹{p.mrp}</td>
-                    <td>{p.stock}</td>
-                    <td>{p.status}</td>
-                    <td style={{display:"flex",gap:"10px"}}>
-                      <button onClick={()=>deleteProduct(p.slug)} style={{background:"red",color:"#fff",padding:"6px 12px",borderRadius:"4px"}}>Delete</button>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={9} style={{textAlign:"center"}}>No products found</td>
+              {Array.isArray(products) && products.map(p=>(
+                <tr key={p._id} style={{borderBottom:"1px solid #eee"}}>
+                  <td>{p.sku}</td>
+                  <td><img src={p.image} style={{width:60,height:60,objectFit:"cover"}} /></td>
+                  <td>{p.name}</td>
+                  <td>{p.brand}</td>
+                  <td>₹{p.price}</td>
+                  <td>₹{p.mrp}</td>
+                  <td>{p.stock}</td>
+                  <td>{p.status}</td>
+                  <td style={{display:"flex",gap:"10px"}}>
+                    <button onClick={()=>deleteProduct(p.slug)} style={{background:"red",color:"#fff",padding:"6px 12px",borderRadius:"4px"}}>Delete</button>
+                  </td>
                 </tr>
-              )}
+              ))}
             </tbody>
+
           </table>
         </div>
       )}
+
     </div>
   )
 }
