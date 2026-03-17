@@ -11,49 +11,104 @@ export default function AdminLayout({ children }) {
   }
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh" }}>
+    <div style={wrapper}>
 
       {/* SIDEBAR */}
-      <div style={{
-        width: "240px",
-        background: "#111",
-        color: "#fff",
-        padding: "25px"
-      }}>
+      <aside style={sidebar}>
 
-        <h2>Admin</h2>
+        <h2 style={{ marginBottom: 30 }}>ADMIN PANEL</h2>
 
-        <nav style={{
-          marginTop: "30px",
-          display: "flex",
-          flexDirection: "column",
-          gap: "15px"
-        }}>
+        {/* COMMERCE */}
+        <Section title="Commerce">
+          <NavLink href="/admin/orders">Orders</NavLink>
+          <NavLink href="/admin/products">Products</NavLink>
+          <NavLink href="/admin/customers">Customers</NavLink>
+        </Section>
 
-          <Link href="/admin/orders" style={link}>Orders</Link>
-          <Link href="/admin/products" style={link}>Products</Link>
-          <Link href="/admin/customers" style={link}>Customers</Link>
-          <Link href="/admin/analytics" style={link}>Analytics</Link>
-          <Link href="/admin/logout" style={link}>Logout</Link>
+        {/* OPERATIONS ERP */}
+        <Section title="Operations">
+          <NavLink href="/admin/warehouses">Warehouses</NavLink>
+          <NavLink href="/admin/skus">SKUs</NavLink>
+          <NavLink href="/admin/inventory">Inventory</NavLink>
+        </Section>
 
-        </nav>
+        {/* REPORTING */}
+        <Section title="Reports">
+          <NavLink href="/admin/analytics">Analytics</NavLink>
+        </Section>
 
-      </div>
+        <div style={{ marginTop: "auto" }}>
+          <NavLink href="/admin/logout">Logout</NavLink>
+        </div>
 
-      {/* CONTENT */}
-      <div style={{
-        flex: 1,
-        background: "#f5f5f5",
-        padding: "30px"
-      }}>
+      </aside>
+
+      {/* MAIN CONTENT */}
+      <main style={content}>
         {children}
-      </div>
+      </main>
 
     </div>
   )
 }
 
+
+/* ---------------- COMPONENTS ---------------- */
+
+function Section({ title, children }) {
+  return (
+    <div style={{ marginBottom: 25 }}>
+      <div style={sectionTitle}>{title}</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {children}
+      </div>
+    </div>
+  )
+}
+
+function NavLink({ href, children }) {
+  return (
+    <Link href={href} style={link}>
+      {children}
+    </Link>
+  )
+}
+
+
+/* ---------------- STYLES ---------------- */
+
+const wrapper = {
+  display: "flex",
+  minHeight: "100vh",
+  fontFamily: "Arial"
+}
+
+const sidebar = {
+  width: 260,
+  background: "#111",
+  color: "#fff",
+  padding: 25,
+  display: "flex",
+  flexDirection: "column"
+}
+
+const sectionTitle = {
+  fontSize: 12,
+  opacity: 0.6,
+  marginBottom: 10,
+  textTransform: "uppercase",
+  letterSpacing: 1
+}
+
 const link = {
   color: "#fff",
-  textDecoration: "none"
+  textDecoration: "none",
+  padding: "8px 10px",
+  borderRadius: 6
+}
+
+const content = {
+  flex: 1,
+  background: "#f4f6f8",
+  padding: 30
 }
