@@ -4,23 +4,6 @@ import { useState, useEffect } from "react"
 
 export default function AdminProducts(){
 
-  const categories = [
-    "Idly Mix",
-    "Dosa Mix",
-    "Spice Mix",
-    "Instant Mix",
-    "Snacks",
-    // add more categories here
-  ]
-
-  const categoryHSNGST = {
-    "Idly Mix": { hsn: "1905", gst: 5 },
-    "Dosa Mix": { hsn: "1905", gst: 5 },
-    "Spice Mix": { hsn: "2103", gst: 12 },
-    "Instant Mix": { hsn: "1905", gst: 5 },
-    "Snacks": { hsn: "2106", gst: 18 },
-  }
-
   const emptyForm = {
     name:"",
     description:"",
@@ -55,19 +38,10 @@ export default function AdminProducts(){
 
   function handleChange(e){
     const {name,value,type,checked} = e.target
-
-    let updatedForm = {
-      ...form,
+    setForm(prev => ({
+      ...prev,
       [name]: type==="checkbox" ? checked : value
-    }
-
-    // Auto-fill HSN & GST if category changes
-    if(name==="category" && categoryHSNGST[value]){
-      updatedForm.hsn = categoryHSNGST[value].hsn
-      updatedForm.gst = categoryHSNGST[value].gst
-    }
-
-    setForm(updatedForm)
+    }))
   }
 
   async function loadProducts(){
@@ -75,14 +49,11 @@ export default function AdminProducts(){
     try{
       const res = await fetch("/api/admin/products")
       const data = await res.json()
-
-      // FIX: Ensure products is always an array
       if(data.success && Array.isArray(data.products)){
         setProducts(data.products)
       } else {
         setProducts([])
       }
-
     }catch{
       alert("Failed to load products")
       setProducts([])
@@ -98,17 +69,19 @@ export default function AdminProducts(){
     const fd = new FormData()
     fd.append("file",file)
 
-    const res = await fetch("/api/upload",{
-      method:"POST",
-      body:fd
-    })
-
-    const data = await res.json()
-
-    setForm(prev=>({
-      ...prev,
-      image:data.url
-    }))
+    try{
+      const res = await fetch("/api/upload",{
+        method:"POST",
+        body:fd
+      })
+      const data = await res.json()
+      setForm(prev=>({
+        ...prev,
+        image:data.url || ""
+      }))
+    }catch{
+      alert("Image upload failed")
+    }
 
     setUploading(false)
   }
@@ -122,33 +95,37 @@ export default function AdminProducts(){
 
     setSaving(true)
 
-    await fetch("/api/admin/products",{
-      method:"POST",
-      headers:{
-        "Content-Type":"application/json"
-      },
-      body: JSON.stringify({
-        ...form,
-        alt: form.name
+    try{
+      await fetch("/api/admin/products",{
+        method:"POST",
+        headers:{
+          "Content-Type":"application/json"
+        },
+        body: JSON.stringify({...form, alt: form.name})
       })
-    })
+      setMessage("✅ Product Added Successfully")
+      setForm(emptyForm)
+      await loadProducts()
+      setTimeout(()=>setMessage(""),2000)
+    }catch{
+      alert("Failed to save product")
+    }
 
-    setMessage("✅ Product Added Successfully")
-    setForm(emptyForm)
-    await loadProducts()
     setSaving(false)
-    setTimeout(()=>setMessage(""),2000)
   }
 
   async function deleteProduct(slug){
     const ok = confirm("Delete this product?")
     if(!ok) return
 
-    await fetch("/api/admin/products/"+slug,{
-      method:"DELETE"
-    })
-
-    loadProducts()
+    try{
+      await fetch("/api/admin/products/"+slug,{
+        method:"DELETE"
+      })
+      await loadProducts()
+    }catch{
+      alert("Failed to delete product")
+    }
   }
 
   return(
@@ -169,26 +146,15 @@ export default function AdminProducts(){
         }}
       >
         <input name="name" placeholder="Product Name" value={form.name} onChange={handleChange} required />
-
-        {/* CATEGORY DROPDOWN */}
-        <select name="category" value={form.category} onChange={handleChange} required>
-          <option value="">Select Category</option>
-          {categories.map(cat => (
-            <option key={cat} value={cat}>{cat}</option>
-          ))}
-        </select>
-
+        <input name="category" placeholder="Category" value={form.category} onChange={handleChange} />
         <input name="brand" placeholder="Brand" value={form.brand} onChange={handleChange} />
         <input name="price" type="number" placeholder="Selling Price" value={form.price} onChange={handleChange} required />
         <input name="mrp" type="number" placeholder="MRP" value={form.mrp} onChange={handleChange} />
         <input name="costPrice" type="number" placeholder="Cost Price" value={form.costPrice} onChange={handleChange} />
         <input name="stock" type="number" placeholder="Opening Stock" value={form.stock} onChange={handleChange} />
         <input name="reorderLevel" type="number" placeholder="Reorder Level" value={form.reorderLevel} onChange={handleChange} />
-
-        {/* HSN & GST auto-filled */}
         <input name="hsn" placeholder="HSN Code" value={form.hsn} onChange={handleChange} />
         <input name="gst" type="number" placeholder="GST %" value={form.gst} onChange={handleChange} />
-
         <input name="weight" type="number" placeholder="Weight (kg)" value={form.weight} onChange={handleChange} />
         <input name="length" type="number" placeholder="Length (cm)" value={form.length} onChange={handleChange} />
         <input name="breadth" type="number" placeholder="Breadth (cm)" value={form.breadth} onChange={handleChange} />
@@ -220,7 +186,6 @@ export default function AdminProducts(){
       ):(
         <div style={{marginTop:40}}>
           <h2>All Products ({products.length})</h2>
-
           <table style={{width:"100%",marginTop:15,borderCollapse:"collapse"}}>
             <thead>
               <tr style={{background:"#f5f5f5"}}>
@@ -241,7 +206,7 @@ export default function AdminProducts(){
                 products.map(p=>(
                   <tr key={p._id} style={{borderBottom:"1px solid #eee"}}>
                     <td>{p.sku}</td>
-                    <td><img src={p.image} style={{width:60,height:60,objectFit:"cover"}} /></td>
+                    <td>{p.image && <img src={p.image} style={{width:60,height:60,objectFit:"cover"}} />}</td>
                     <td>{p.name}</td>
                     <td>{p.brand}</td>
                     <td>₹{p.price}</td>
@@ -259,11 +224,9 @@ export default function AdminProducts(){
                 </tr>
               )}
             </tbody>
-
           </table>
         </div>
       )}
-
     </div>
   )
 }
