@@ -1,68 +1,32 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import Link from "next/link"
 
-export default function SKUsPage() {
+export default function SKUList() {
 
-  const [data, setData] = useState([])
+  const [skus, setSkus] = useState([])
 
   useEffect(() => {
     fetch("/api/admin/sku/list")
       .then(res => res.json())
-      .then(res => setData(res.data))
+      .then(setSkus)
   }, [])
 
   return (
     <div>
 
-      <div style={{
-        display: "flex",
-        justifyContent: "space-between",
-        marginBottom: 20
-      }}>
-        <h1>SKUs</h1>
+      <h1>SKU List</h1>
 
-        <Link href="/admin/skus/create">
-          <button style={btn}>+ Create SKU</button>
-        </Link>
-      </div>
-
-      <table style={table}>
-        <thead>
-          <tr>
-            <th>SKU Code</th>
-            <th>Product</th>
-            <th>Selling Price</th>
-            <th>Cost</th>
-          </tr>
-        </thead>
-
-        <tbody>
-          {data.map(s => (
-            <tr key={s._id}>
-              <td>{s.skuCode}</td>
-              <td>{s.productId?.productName}</td>
-              <td>{s.sellingPrice}</td>
-              <td>{s.costPrice}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      {skus.map(s => (
+        <div key={s._id} style={{
+          padding: 10,
+          marginBottom: 10,
+          background: "#fff"
+        }}>
+          {s.skuCode} — {s.productId?.name}
+        </div>
+      ))}
 
     </div>
   )
-}
-
-const btn = {
-  padding: "8px 15px",
-  background: "#111",
-  color: "#fff",
-  border: "none"
-}
-
-const table = {
-  width: "100%",
-  background: "#fff",
-  borderCollapse: "collapse"
 }
