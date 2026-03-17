@@ -57,12 +57,13 @@ export default function Warehouses(){
         style={{
           width:"100%",
           marginTop:20,
-          borderCollapse:"collapse"
+          borderCollapse:"collapse",
+          background:"#fff"
         }}
       >
 
         <thead>
-          <tr style={{background:"#f5f5f5"}}>
+          <tr style={{background:"#f1f5f9"}}>
             <th>Code</th>
             <th>Name</th>
             <th>Type</th>
@@ -71,6 +72,7 @@ export default function Warehouses(){
             <th>Dispatch</th>
             <th>Purchase</th>
             <th>Status</th>
+            <th>Edit</th>
           </tr>
         </thead>
 
@@ -92,14 +94,33 @@ export default function Warehouses(){
                 <button
                   onClick={()=>toggleStatus(w._id,w.isActive)}
                   style={{
-                    background:w.isActive ? "green":"red",
+                    background:w.isActive ? "#16a34a":"#dc2626",
                     color:"#fff",
-                    padding:"5px 12px",
-                    borderRadius:5
+                    padding:"6px 12px",
+                    borderRadius:6,
+                    cursor:"pointer",
+                    border:"none"
                   }}
                 >
                   {w.isActive ? "Active" : "Disabled"}
                 </button>
+              </td>
+
+              <td>
+                <a href={"/admin/warehouses/edit/"+w._id}>
+                  <button
+                    style={{
+                      background:"#0a7cff",
+                      color:"#fff",
+                      padding:"6px 12px",
+                      borderRadius:6,
+                      cursor:"pointer",
+                      border:"none"
+                    }}
+                  >
+                    Edit
+                  </button>
+                </a>
               </td>
 
             </tr>
