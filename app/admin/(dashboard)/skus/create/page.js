@@ -53,7 +53,7 @@ export default function CreateSKU() {
         <option>Select Product</option>
         {products.map(p => (
           <option key={p._id} value={p._id}>
-            {p.productName}
+            {p.name}
           </option>
         ))}
       </select>
