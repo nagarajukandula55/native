@@ -27,7 +27,8 @@ export default function AdminLayout({ children }) {
 
         {/* OPERATIONS ERP */}
         <Section title="Operations">
-          <NavLink href="/admin/warehouses">Warehouses</NavLink>
+          <Link href="/admin/warehouse/create">Create Warehouse</Link>
+          <Link href="/admin/warehouses">Manage Warehouses</Link>
           <NavLink href="/admin/skus">SKUs</NavLink>
           <NavLink href="/admin/inventory">Inventory</NavLink>
         </Section>
