@@ -27,7 +27,7 @@ export async function POST(req) {
       warehouse,
       price,
       stock: stock || 0,
-      isActive: isActive ?? true
+      isActive: typeof isActive !== "undefined" ? isActive : true
     })
 
     await sku.save()
