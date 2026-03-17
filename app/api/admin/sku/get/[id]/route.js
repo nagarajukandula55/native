@@ -1,23 +1,19 @@
 export const dynamic = "force-dynamic"
 
+import { NextResponse } from "next/server"
 import connectDB from "@/lib/db"
 import Sku from "@/models/Sku"
-import { NextResponse } from "next/server"
 
 export async function GET(req, { params }) {
   try {
+    const { id } = params
     await connectDB()
-    const sku = await Sku.findById(params.id)
-      .populate("product", "name")
-      .populate("warehouse", "name code city")
-
-    if (!sku) {
-      return NextResponse.json({ success: false, error: "SKU not found" }, { status: 404 })
-    }
-
+    const sku = await Sku.findById(id)
+      .populate("product")
+      .populate("warehouse")
+    if (!sku) return NextResponse.json({ success: false, error: "SKU not found" })
     return NextResponse.json({ success: true, sku })
   } catch (err) {
-    console.error("SKU GET ERROR:", err)
-    return NextResponse.json({ success: false, error: err.message }, { status: 500 })
+    return NextResponse.json({ success: false, error: err.message })
   }
 }
