@@ -20,6 +20,14 @@ export async function POST(req) {
       address: body.address
     })
 
+    await fetch("/api/admin/warehouse/create", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(form)
+    })
+
     return NextResponse.json({
       success: true,
       data: warehouse
