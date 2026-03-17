@@ -10,5 +10,4 @@ const SkuSchema = new mongoose.Schema({
   isActive: { type: Boolean, default: true },
 }, { timestamps: true })
 
-// export existing model or create new
 export default mongoose.models.Sku || mongoose.model("Sku", SkuSchema)
