@@ -1,29 +1,20 @@
 import mongoose from "mongoose"
 
-const SKUSchema = new mongoose.Schema({
+const schema = new mongoose.Schema({
 
   productId:{
     type: mongoose.Schema.Types.ObjectId,
-    ref:"Product",
-    required:true
+    ref:"Product"
   },
 
-  skuCode:{
-    type:String,
-    required:true
-  },
-
-  partCode:{
-    type:String,
-    required:true
-  },
-
-  price:{
-    type:Number,
-    default:0
-  }
+  skuCode:String,
+  partCode:String,
+  price:Number
 
 },{timestamps:true})
 
-export default mongoose.models.SKU ||
-mongoose.model("SKU",SKUSchema)
+const SKU =
+  mongoose.models.SKU ||
+  mongoose.model("SKU", schema)
+
+export default SKU
