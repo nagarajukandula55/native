@@ -33,7 +33,7 @@ export default function WarehousePage(){
 
   async function loadWarehouses(){
 
-    const res = await fetch("/api/admin/warehouse/list")
+    const res = await fetch("/api/admin/warehouses/list")
     const data = await res.json()
 
     if(data.success)
@@ -61,7 +61,7 @@ export default function WarehousePage(){
 
     setSaving(true)
 
-    const res = await fetch("/api/admin/warehouse/create",{
+    const res = await fetch("/api/admin/warehouses/create",{
       method:"POST",
       headers:{ "Content-Type":"application/json" },
       body: JSON.stringify(form)
@@ -89,7 +89,7 @@ export default function WarehousePage(){
     <div style={{maxWidth:1200,margin:"auto"}}>
 
       <h1 style={{fontSize:28,fontWeight:"bold"}}>
-        🏭 Warehouse Master
+        🏭 Warehouses Master
       </h1>
 
       <form
