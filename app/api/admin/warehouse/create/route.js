@@ -12,14 +12,7 @@ export async function POST(req){
 
     const body = await req.json()
 
-    console.log("BODY RECEIVED → ", body)
-
-    const wh = await Warehouse.create({
-      name: body.name,
-      location: body.location
-    })
-
-    console.log("WAREHOUSE SAVED → ", wh)
+    const wh = await Warehouse.create(body)
 
     return NextResponse.json({
       success:true,
@@ -27,8 +20,6 @@ export async function POST(req){
     })
 
   }catch(err){
-
-    console.log("❌ WAREHOUSE CREATE ERROR FULL → ", err)
 
     return NextResponse.json({
       success:false,
