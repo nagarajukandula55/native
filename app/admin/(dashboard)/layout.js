@@ -6,9 +6,7 @@ export default function AdminLayout({ children }) {
 
   const token = cookies().get("adminToken")
 
-  if (!token) {
-    redirect("/admin/login")
-  }
+  if (!token) redirect("/admin/login")
 
   return (
     <div style={wrapper}>
@@ -16,7 +14,7 @@ export default function AdminLayout({ children }) {
       {/* SIDEBAR */}
       <aside style={sidebar}>
 
-        <h2 style={{ marginBottom: 30 }}>ADMIN PANEL</h2>
+        <h2 style={{ marginBottom: 30 }}>🚀 ADMIN ERP</h2>
 
         {/* COMMERCE */}
         <Section title="Commerce">
@@ -25,15 +23,19 @@ export default function AdminLayout({ children }) {
           <NavLink href="/admin/customers">Customers</NavLink>
         </Section>
 
-        {/* OPERATIONS ERP */}
-        <Section title="Operations">
-          <Link href="/admin/warehouse/create">Create Warehouse</Link>
-          <Link href="/admin/warehouses">Manage Warehouses</Link>
-          <NavLink href="/admin/skus">SKUs</NavLink>
-          <NavLink href="/admin/inventory">Inventory</NavLink>
+        {/* WAREHOUSE */}
+        <Section title="Warehouse">
+          <NavLink href="/admin/warehouses">Manage Warehouses</NavLink>
+          <NavLink href="/admin/warehouses/create">Create Warehouse</NavLink>
         </Section>
 
-        {/* REPORTING */}
+        {/* INVENTORY */}
+        <Section title="Inventory">
+          <NavLink href="/admin/skus">SKU Master</NavLink>
+          <NavLink href="/admin/inventory">Stock</NavLink>
+        </Section>
+
+        {/* REPORTS */}
         <Section title="Reports">
           <NavLink href="/admin/analytics">Analytics</NavLink>
         </Section>
@@ -44,7 +46,7 @@ export default function AdminLayout({ children }) {
 
       </aside>
 
-      {/* MAIN CONTENT */}
+      {/* MAIN */}
       <main style={content}>
         {children}
       </main>
@@ -54,13 +56,13 @@ export default function AdminLayout({ children }) {
 }
 
 
-/* ---------------- COMPONENTS ---------------- */
+/* COMPONENTS */
 
 function Section({ title, children }) {
   return (
     <div style={{ marginBottom: 25 }}>
       <div style={sectionTitle}>{title}</div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
         {children}
       </div>
     </div>
@@ -76,17 +78,17 @@ function NavLink({ href, children }) {
 }
 
 
-/* ---------------- STYLES ---------------- */
+/* STYLES */
 
 const wrapper = {
   display: "flex",
   minHeight: "100vh",
-  fontFamily: "Arial"
+  fontFamily: "Inter, Arial"
 }
 
 const sidebar = {
   width: 260,
-  background: "#111",
+  background: "#0f172a",
   color: "#fff",
   padding: 25,
   display: "flex",
@@ -94,22 +96,23 @@ const sidebar = {
 }
 
 const sectionTitle = {
-  fontSize: 12,
-  opacity: 0.6,
-  marginBottom: 10,
+  fontSize: 11,
+  opacity: 0.5,
+  marginBottom: 8,
   textTransform: "uppercase",
-  letterSpacing: 1
+  letterSpacing: 1.5
 }
 
 const link = {
-  color: "#fff",
+  color: "#e5e7eb",
   textDecoration: "none",
-  padding: "8px 10px",
-  borderRadius: 6
+  padding: "9px 12px",
+  borderRadius: 8,
+  background: "transparent"
 }
 
 const content = {
   flex: 1,
-  background: "#f4f6f8",
+  background: "#f1f5f9",
   padding: 30
 }
