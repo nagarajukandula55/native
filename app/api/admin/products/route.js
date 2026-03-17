@@ -9,12 +9,12 @@ async function connectDB() {
   await mongoose.connect(MONGODB_URI)
 }
 
-// SLUG GENERATOR
+/* SLUG GENERATOR */
 function generateSlug(name) {
   return name.toLowerCase().trim().replace(/ /g, "-").replace(/[^\w-]+/g, "")
 }
 
-// SKU GENERATOR
+/* SKU GENERATOR */
 async function generateSKU(name) {
   const firstWord = name.replace(/^Native\s+/i, "").split(" ")[0].toUpperCase()
   const count = await Product.countDocuments({ name: new RegExp(`^Native ${firstWord}`, "i") }) + 1
@@ -22,22 +22,23 @@ async function generateSKU(name) {
   return `NA${firstWord}${serial}`
 }
 
-// HSN -> GST mapping
-export const HSN_GST_MAP = {
-  "1905": 5,
-  "2103": 12,
-  "2106": 18
-}
+/* HSN & GST mapping */
+const hsnGSTList = [
+  { hsn: "1905", gst: 5 },
+  { hsn: "2103", gst: 12 },
+  { hsn: "2106", gst: 18 },
+  // Add more HSN codes here if needed
+]
 
-/* GET ALL PRODUCTS */
+/* GET PRODUCTS */
 export async function GET() {
   try {
     await connectDB()
     const products = await Product.find().sort({ createdAt: -1 })
-    return NextResponse.json({ success: true, products: Array.isArray(products) ? products : [] })
+    return NextResponse.json({ success: true, products })
   } catch (error) {
     console.error("GET PRODUCTS ERROR:", error)
-    return NextResponse.json({ success: false, products: [] }, { status: 500 })
+    return NextResponse.json({ success: false, error: "Failed to fetch products" }, { status: 500 })
   }
 }
 
@@ -48,16 +49,27 @@ export async function POST(req) {
     const body = await req.json()
     const slug = generateSlug(body.name)
 
+    // Duplicate check
     const existing = await Product.findOne({ slug })
-    if (existing) return NextResponse.json({ success: false, error: "Product exists" }, { status: 400 })
+    if (existing) {
+      return NextResponse.json({ success: false, error: "Product with this name already exists" }, { status: 400 })
+    }
 
     const sku = await generateSKU(body.name)
-    const gst = HSN_GST_MAP[body.hsn] || body.gst || 0
+
+    // Auto-set HSN & GST if HSN is chosen
+    let hsn = body.hsn || ""
+    let gst = body.gst || 0
+    if (body.hsn) {
+      const match = hsnGSTList.find(item => item.hsn === body.hsn)
+      if (match) gst = match.gst
+    }
 
     const product = await Product.create({
       ...body,
       slug,
       sku,
+      hsn,
       gst,
       alt: body.name
     })
@@ -73,11 +85,11 @@ export async function POST(req) {
 export async function DELETE(req) {
   try {
     await connectDB()
-    const { searchParams } = new URL(req.url)
-    const slug = searchParams.get("slug")
-    if (!slug) return NextResponse.json({ success: false, error: "Slug missing" }, { status: 400 })
-
-    await Product.deleteOne({ slug })
+    const url = new URL(req.url)
+    const slug = url.searchParams.get("slug")
+    if (!slug) return NextResponse.json({ success: false, error: "Slug required" }, { status: 400 })
+    
+    await Product.findOneAndDelete({ slug })
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error("DELETE PRODUCT ERROR:", error)
