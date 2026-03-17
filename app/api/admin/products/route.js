@@ -9,7 +9,7 @@ async function connectDB() {
   await mongoose.connect(MONGODB_URI)
 }
 
-/* ---------------- SLUG GENERATOR ---------------- */
+/* SLUG GENERATOR */
 function generateSlug(name) {
   return name
     .toLowerCase()
@@ -18,16 +18,16 @@ function generateSlug(name) {
     .replace(/[^\w-]+/g, "")
 }
 
-/* ---------------- SKU GENERATOR ---------------- */
+/* SKU GENERATOR */
 // Example: "Native Idly Mix" => "NAIDLY001"
 async function generateSKU(name) {
-  const firstWord = name.replace(/^Native\s+/i,'').split(' ')[0].toUpperCase()
-  const count = await Product.countDocuments({ name: new RegExp(firstWord, "i") }) + 1
-  const serial = String(count).padStart(3,'0')
+  const firstWord = name.replace(/^Native\s+/i, '').split(' ')[0].toUpperCase()
+  const count = await Product.countDocuments({ name: new RegExp(`^Native ${firstWord}`, "i") }) + 1
+  const serial = String(count).padStart(3, '0')
   return `NA${firstWord}${serial}`
 }
 
-/* ---------------- GET ALL PRODUCTS ---------------- */
+/* GET ALL PRODUCTS */
 export async function GET() {
   try {
     await connectDB()
@@ -39,14 +39,14 @@ export async function GET() {
   }
 }
 
-/* ---------------- CREATE PRODUCT ---------------- */
+/* CREATE PRODUCT */
 export async function POST(req) {
   try {
     await connectDB()
     const body = await req.json()
     const slug = generateSlug(body.name)
 
-    /* CHECK DUPLICATE SLUG */
+    // Check duplicate slug
     const existing = await Product.findOne({ slug })
     if (existing) {
       return NextResponse.json(
@@ -55,32 +55,31 @@ export async function POST(req) {
       )
     }
 
-    /* GENERATE SKU */
+    // Generate SKU automatically
     const sku = await generateSKU(body.name)
 
-    /* CREATE PRODUCT */
     const product = await Product.create({
       name: body.name,
-      description: body.description || "",
-      price: body.price || 0,
-      mrp: body.mrp || 0,
-      costPrice: body.costPrice || 0,
-      category: body.category || "",
-      brand: body.brand || "",
-      stock: body.stock || 0,
-      reorderLevel: body.reorderLevel || 5,
-      hsn: body.hsn || "",
-      gst: body.gst || 0,
-      weight: body.weight || 0,
-      length: body.length || 0,
-      breadth: body.breadth || 0,
-      height: body.height || 0,
+      description: body.description,
+      price: body.price,
+      mrp: body.mrp,
+      costPrice: body.costPrice,
+      category: body.category,
+      brand: body.brand,
+      stock: body.stock,
+      reorderLevel: body.reorderLevel,
+      hsn: body.hsn,
+      gst: body.gst,
+      weight: body.weight,
+      length: body.length,
+      breadth: body.breadth,
+      height: body.height,
       featured: body.featured || false,
       status: body.status || "ACTIVE",
-      image: body.image || "",
+      image: body.image,
       alt: body.name,
       slug,
-      sku
+      sku // ✅ SKU field
     })
 
     return NextResponse.json({ success: true, product })
