@@ -16,8 +16,7 @@ function generateSlug(name) {
 async function generateSKU(name) {
   const firstWord = name.replace(/^Native\s+/i, "").split(" ")[0].toUpperCase()
   const count = await Product.countDocuments({ name: new RegExp(`^Native ${firstWord}`, "i") }) + 1
-  const serial = String(count).padStart(3, "0")
-  return `NA${firstWord}${serial}`
+  return `NA${firstWord}${String(count).padStart(3, "0")}`
 }
 
 export async function GET() {
