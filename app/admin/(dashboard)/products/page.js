@@ -30,7 +30,6 @@ export default function AdminProducts() {
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [uploading, setUploading] = useState(false)
   const [message, setMessage] = useState("")
 
   useEffect(() => {
@@ -41,7 +40,6 @@ export default function AdminProducts() {
     const { name, value, type, checked } = e.target
     let updatedForm = { ...form, [name]: type === "checkbox" ? checked : value }
 
-    // Auto-fetch GST
     if (name === "hsn" && hsnOptions[value]) {
       updatedForm.gst = hsnOptions[value]
     }
@@ -54,8 +52,9 @@ export default function AdminProducts() {
     try {
       const res = await fetch("/api/admin/products")
       const data = await res.json()
+      // <-- Defensive check: ensure products is an array
       if (data.success && Array.isArray(data.products)) setProducts(data.products)
-      else setProducts([])
+      else setProducts([]) // fallback to empty array
     } catch (err) {
       console.error(err)
       setProducts([])
@@ -174,7 +173,7 @@ export default function AdminProducts() {
             </tr>
           </thead>
           <tbody>
-            {products.map(p => (
+            {(Array.isArray(products) ? products : []).map(p => (
               <tr key={p._id} style={{ borderBottom: "1px solid #eee" }}>
                 <td>{p.sku}</td>
                 <td>{p.name}</td>
