@@ -1,36 +1,20 @@
 export const dynamic = "force-dynamic"
+
+import connectDB from "../../../../../lib/db"
+import Sku from "../../../../../models/Sku"
 import { NextResponse } from "next/server"
-import connectDB from "@/lib/db"
-import SKU from "@/models/SKU"
 
-export async function POST(req){
-
-  try{
-
+export async function POST(req) {
+  try {
     await connectDB()
-
     const body = await req.json()
 
-    const sku = await SKU.create({
-      productId: body.productId,
-      skuCode: body.skuCode,
-      partCode: body.partCode,
-      price: body.price
-    })
+    const sku = new Sku(body)
+    await sku.save()
 
-    return NextResponse.json({
-      success:true,
-      sku
-    })
-
-  }catch(err){
-
-    console.log(err)
-
-    return NextResponse.json({
-      success:false,
-      message:"SKU create error"
-    })
+    return NextResponse.json({ success: true, sku })
+  } catch (err) {
+    console.error("SKU CREATE ERROR:", err)
+    return NextResponse.json({ success: false, error: err.message }, { status: 500 })
   }
-
 }
