@@ -192,7 +192,7 @@ export default function AdminProducts(){
           <table style={{width:"100%",marginTop:15,borderCollapse:"collapse"}}>
             <thead>
               <tr style={{background:"#f5f5f5"}}>
-                <th>SKU</th> {/* NEW */}
+                <th>SKU</th> {/* DISPLAY SKU */}
                 <th>Image</th>
                 <th>Name</th>
                 <th>Brand</th>
