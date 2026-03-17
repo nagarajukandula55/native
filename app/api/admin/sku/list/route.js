@@ -8,9 +8,8 @@ export async function GET() {
 
   await connectDB()
 
-  const data = await SKU.find()
-    .populate("productId")
-    .sort({ createdAt: -1 })
+  const skus = await SKU.find()
+    .populate("productId", "name")
 
-  return NextResponse.json({ data })
+  return NextResponse.json(skus)
 }
