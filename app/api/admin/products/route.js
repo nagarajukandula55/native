@@ -9,7 +9,7 @@ async function connectDB() {
   await mongoose.connect(MONGODB_URI)
 }
 
-/* SLUG GENERATOR */
+/* ---------------- SLUG GENERATOR ---------------- */
 function generateSlug(name) {
   return name
     .toLowerCase()
@@ -18,7 +18,7 @@ function generateSlug(name) {
     .replace(/[^\w-]+/g, "")
 }
 
-/* SKU GENERATOR */
+/* ---------------- SKU GENERATOR ---------------- */
 // Example: "Native Idly Mix" => "NAIDLY001"
 async function generateSKU(name) {
   const firstWord = name.replace(/^Native\s+/i,'').split(' ')[0].toUpperCase()
@@ -27,7 +27,7 @@ async function generateSKU(name) {
   return `NA${firstWord}${serial}`
 }
 
-/* GET ALL PRODUCTS */
+/* ---------------- GET ALL PRODUCTS ---------------- */
 export async function GET() {
   try {
     await connectDB()
@@ -39,7 +39,7 @@ export async function GET() {
   }
 }
 
-/* CREATE PRODUCT */
+/* ---------------- CREATE PRODUCT ---------------- */
 export async function POST(req) {
   try {
     await connectDB()
@@ -58,17 +58,29 @@ export async function POST(req) {
     /* GENERATE SKU */
     const sku = await generateSKU(body.name)
 
+    /* CREATE PRODUCT */
     const product = await Product.create({
       name: body.name,
-      description: body.description,
-      price: body.price,
-      category: body.category,
-      stock: body.stock,
+      description: body.description || "",
+      price: body.price || 0,
+      mrp: body.mrp || 0,
+      costPrice: body.costPrice || 0,
+      category: body.category || "",
+      brand: body.brand || "",
+      stock: body.stock || 0,
+      reorderLevel: body.reorderLevel || 5,
+      hsn: body.hsn || "",
+      gst: body.gst || 0,
+      weight: body.weight || 0,
+      length: body.length || 0,
+      breadth: body.breadth || 0,
+      height: body.height || 0,
       featured: body.featured || false,
-      image: body.image,
+      status: body.status || "ACTIVE",
+      image: body.image || "",
       alt: body.name,
-      slug: slug,
-      sku // <--- added SKU
+      slug,
+      sku
     })
 
     return NextResponse.json({ success: true, product })
