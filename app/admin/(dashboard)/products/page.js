@@ -8,9 +8,20 @@ export default function AdminProducts(){
     name:"",
     description:"",
     price:"",
+    mrp:"",
+    costPrice:"",
     category:"",
+    brand:"",
     stock:"",
+    reorderLevel:"",
+    hsn:"",
+    gst:"",
+    weight:"",
+    length:"",
+    breadth:"",
+    height:"",
     featured:false,
+    status:"ACTIVE",
     image:""
   }
 
@@ -33,7 +44,6 @@ export default function AdminProducts(){
       const res = await fetch("/api/admin/products")
       const data = await res.json()
 
-      // ⭐ SAFE handling (API may return {success,products})
       if(data.success){
         setProducts(data.products)
       }else{
@@ -141,8 +151,6 @@ export default function AdminProducts(){
         </p>
       )}
 
-      {/* ADD PRODUCT FORM */}
-
       <form
         onSubmit={handleSubmit}
         style={{
@@ -151,6 +159,7 @@ export default function AdminProducts(){
           border:"1px solid #eee",
           borderRadius:10,
           display:"grid",
+          gridTemplateColumns:"1fr 1fr",
           gap:10
         }}
       >
@@ -158,28 +167,90 @@ export default function AdminProducts(){
         <input name="name" placeholder="Product Name"
           value={form.name} onChange={handleChange} required />
 
-        <input name="price" type="number"
-          placeholder="Price"
-          value={form.price}
-          onChange={handleChange}
-          required />
-
         <input name="category"
           placeholder="Category"
           value={form.category}
           onChange={handleChange} />
 
+        <input name="brand"
+          placeholder="Brand"
+          value={form.brand}
+          onChange={handleChange} />
+
+        <input name="price" type="number"
+          placeholder="Selling Price"
+          value={form.price}
+          onChange={handleChange}
+          required />
+
+        <input name="mrp" type="number"
+          placeholder="MRP"
+          value={form.mrp}
+          onChange={handleChange} />
+
+        <input name="costPrice" type="number"
+          placeholder="Cost Price"
+          value={form.costPrice}
+          onChange={handleChange} />
+
         <input name="stock" type="number"
-          placeholder="Stock"
+          placeholder="Opening Stock"
           value={form.stock}
           onChange={handleChange} />
+
+        <input name="reorderLevel" type="number"
+          placeholder="Reorder Level"
+          value={form.reorderLevel}
+          onChange={handleChange} />
+
+        <input name="hsn"
+          placeholder="HSN Code"
+          value={form.hsn}
+          onChange={handleChange} />
+
+        <input name="gst" type="number"
+          placeholder="GST %"
+          value={form.gst}
+          onChange={handleChange} />
+
+        <input name="weight" type="number"
+          placeholder="Weight (kg)"
+          value={form.weight}
+          onChange={handleChange} />
+
+        <input name="length" type="number"
+          placeholder="Length (cm)"
+          value={form.length}
+          onChange={handleChange} />
+
+        <input name="breadth" type="number"
+          placeholder="Breadth (cm)"
+          value={form.breadth}
+          onChange={handleChange} />
+
+        <input name="height" type="number"
+          placeholder="Height (cm)"
+          value={form.height}
+          onChange={handleChange} />
+
+        <select name="status"
+          value={form.status}
+          onChange={handleChange}
+        >
+          <option value="ACTIVE">Active</option>
+          <option value="INACTIVE">Inactive</option>
+        </select>
 
         <textarea name="description"
           placeholder="Description"
           value={form.description}
-          onChange={handleChange} />
+          onChange={handleChange}
+          style={{gridColumn:"span 2"}}
+        />
 
-        <input type="file" onChange={handleImageUpload} />
+        <input type="file"
+          onChange={handleImageUpload}
+          style={{gridColumn:"span 2"}} />
 
         {uploading && <p>Uploading image...</p>}
 
@@ -195,7 +266,7 @@ export default function AdminProducts(){
           />
         )}
 
-        <label>
+        <label style={{gridColumn:"span 2"}}>
           <input type="checkbox"
             name="featured"
             checked={form.featured}
@@ -210,15 +281,14 @@ export default function AdminProducts(){
             background:"black",
             color:"#fff",
             borderRadius:6,
-            cursor:"pointer"
+            cursor:"pointer",
+            gridColumn:"span 2"
           }}
         >
           {saving ? "Saving..." : "Add Product"}
         </button>
 
       </form>
-
-      {/* PRODUCT LIST */}
 
       {loading ? (
         <h3 style={{marginTop:40}}>Loading products...</h3>
@@ -238,10 +308,11 @@ export default function AdminProducts(){
               <tr style={{background:"#f5f5f5"}}>
                 <th>Image</th>
                 <th>Name</th>
+                <th>Brand</th>
                 <th>Price</th>
+                <th>MRP</th>
                 <th>Stock</th>
-                <th>Category</th>
-                <th>Featured</th>
+                <th>Status</th>
                 <th>Action</th>
               </tr>
             </thead>
@@ -252,21 +323,16 @@ export default function AdminProducts(){
                 <tr key={p._id} style={{borderBottom:"1px solid #eee"}}>
 
                   <td>
-                    <img
-                      src={p.image}
-                      style={{
-                        width:60,
-                        height:60,
-                        objectFit:"cover"
-                      }}
-                    />
+                    <img src={p.image}
+                      style={{width:60,height:60,objectFit:"cover"}} />
                   </td>
 
                   <td>{p.name}</td>
+                  <td>{p.brand}</td>
                   <td>₹{p.price}</td>
+                  <td>₹{p.mrp}</td>
                   <td>{p.stock}</td>
-                  <td>{p.category}</td>
-                  <td>{p.featured ? "⭐ Yes" : "No"}</td>
+                  <td>{p.status}</td>
 
                   <td style={{display:"flex",gap:"10px"}}>
 
@@ -275,11 +341,8 @@ export default function AdminProducts(){
                         background:"#0a7cff",
                         color:"#fff",
                         padding:"6px 12px",
-                        borderRadius:"4px",
-                        cursor:"pointer"
-                      }}>
-                        Edit
-                      </button>
+                        borderRadius:"4px"
+                      }}>Edit</button>
                     </a>
 
                     <button
@@ -288,12 +351,9 @@ export default function AdminProducts(){
                         background:"red",
                         color:"#fff",
                         padding:"6px 12px",
-                        borderRadius:"4px",
-                        cursor:"pointer"
+                        borderRadius:"4px"
                       }}
-                    >
-                      Delete
-                    </button>
+                    >Delete</button>
 
                   </td>
 
@@ -309,7 +369,5 @@ export default function AdminProducts(){
       )}
 
     </div>
-
   )
-
 }
