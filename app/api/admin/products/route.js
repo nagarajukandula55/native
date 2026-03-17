@@ -11,19 +11,15 @@ async function connectDB() {
 
 /* SLUG GENERATOR */
 function generateSlug(name) {
-  return name
-    .toLowerCase()
-    .trim()
-    .replace(/ /g, "-")
-    .replace(/[^\w-]+/g, "")
+  return name.toLowerCase().trim().replace(/ /g, "-").replace(/[^\w-]+/g, "")
 }
 
 /* SKU GENERATOR */
 // Example: "Native Idly Mix" => "NAIDLY001"
 async function generateSKU(name) {
-  const firstWord = name.replace(/^Native\s+/i, '').split(' ')[0].toUpperCase()
+  const firstWord = name.replace(/^Native\s+/i, "").split(" ")[0].toUpperCase()
   const count = await Product.countDocuments({ name: new RegExp(`^Native ${firstWord}`, "i") }) + 1
-  const serial = String(count).padStart(3, '0')
+  const serial = String(count).padStart(3, "0")
   return `NA${firstWord}${serial}`
 }
 
@@ -49,41 +45,20 @@ export async function POST(req) {
     // Check duplicate slug
     const existing = await Product.findOne({ slug })
     if (existing) {
-      return NextResponse.json(
-        { error: "Product with this name already exists" },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: "Product with this name already exists" }, { status: 400 })
     }
 
-    // Generate SKU automatically
+    // Generate SKU
     const sku = await generateSKU(body.name)
 
     const product = await Product.create({
-      name: body.name,
-      description: body.description,
-      price: body.price,
-      mrp: body.mrp,
-      costPrice: body.costPrice,
-      category: body.category,
-      brand: body.brand,
-      stock: body.stock,
-      reorderLevel: body.reorderLevel,
-      hsn: body.hsn,
-      gst: body.gst,
-      weight: body.weight,
-      length: body.length,
-      breadth: body.breadth,
-      height: body.height,
-      featured: body.featured || false,
-      status: body.status || "ACTIVE",
-      image: body.image,
-      alt: body.name,
+      ...body,
       slug,
-      sku // ✅ SKU field
+      sku,
+      alt: body.name
     })
 
     return NextResponse.json({ success: true, product })
-
   } catch (error) {
     console.error("CREATE PRODUCT ERROR:", error)
     return NextResponse.json({ error: "Failed to create product" }, { status: 500 })
