@@ -1,27 +1,9 @@
-import mongoose from "mongoose";
+import mongoose from "mongoose"
 
-const warehouseSchema = new mongoose.Schema(
-  {
-    warehouseCode: {
-      type: String,
-      required: true,
-      unique: true,
-    },
-
-    warehouseName: String,
-
-    address: String,
-    city: String,
-    state: String,
-    pincode: String,
-
-    isActive: {
-      type: Boolean,
-      default: true,
-    },
-  },
-  { timestamps: true }
-);
+const WarehouseSchema = new mongoose.Schema({
+  name:String,
+  location:String
+},{timestamps:true})
 
 export default mongoose.models.Warehouse ||
-  mongoose.model("Warehouse", warehouseSchema);
+mongoose.model("Warehouse",WarehouseSchema)
