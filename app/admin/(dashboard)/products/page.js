@@ -37,9 +37,7 @@ export default function AdminProducts(){
   },[])
 
   async function loadProducts(){
-
     setLoading(true)
-
     try{
       const res = await fetch("/api/admin/products")
       const data = await res.json()
@@ -53,14 +51,11 @@ export default function AdminProducts(){
     }catch{
       alert("Failed to load products")
     }
-
     setLoading(false)
   }
 
   function handleChange(e){
-
     const {name,value,type,checked} = e.target
-
     setForm(prev=>({
       ...prev,
       [name]: type==="checkbox" ? checked : value
@@ -68,10 +63,8 @@ export default function AdminProducts(){
   }
 
   async function handleImageUpload(e){
-
     const file = e.target.files[0]
     if(!file) return
-
     setUploading(true)
 
     const fd = new FormData()
@@ -93,9 +86,7 @@ export default function AdminProducts(){
   }
 
   async function handleSubmit(e){
-
     e.preventDefault()
-
     if(!form.name || !form.price){
       alert("Name & Price required")
       return
@@ -115,18 +106,13 @@ export default function AdminProducts(){
     })
 
     setMessage("✅ Product Added Successfully")
-
     setForm(emptyForm)
-
     await loadProducts()
-
     setSaving(false)
-
     setTimeout(()=>setMessage(""),2000)
   }
 
   async function deleteProduct(slug){
-
     const ok = confirm("Delete this product?")
     if(!ok) return
 
@@ -138,7 +124,6 @@ export default function AdminProducts(){
   }
 
   return(
-
     <div style={{maxWidth:1200,margin:"auto",padding:30}}>
 
       <h1 style={{fontSize:30,fontWeight:"bold"}}>
@@ -146,9 +131,7 @@ export default function AdminProducts(){
       </h1>
 
       {message && (
-        <p style={{color:"green",marginTop:10}}>
-          {message}
-        </p>
+        <p style={{color:"green",marginTop:10}}>{message}</p>
       )}
 
       <form
@@ -163,149 +146,53 @@ export default function AdminProducts(){
           gap:10
         }}
       >
+        {/* FORM FIELDS */}
+        <input name="name" placeholder="Product Name" value={form.name} onChange={handleChange} required />
+        <input name="category" placeholder="Category" value={form.category} onChange={handleChange} />
+        <input name="brand" placeholder="Brand" value={form.brand} onChange={handleChange} />
+        <input name="price" type="number" placeholder="Selling Price" value={form.price} onChange={handleChange} required />
+        <input name="mrp" type="number" placeholder="MRP" value={form.mrp} onChange={handleChange} />
+        <input name="costPrice" type="number" placeholder="Cost Price" value={form.costPrice} onChange={handleChange} />
+        <input name="stock" type="number" placeholder="Opening Stock" value={form.stock} onChange={handleChange} />
+        <input name="reorderLevel" type="number" placeholder="Reorder Level" value={form.reorderLevel} onChange={handleChange} />
+        <input name="hsn" placeholder="HSN Code" value={form.hsn} onChange={handleChange} />
+        <input name="gst" type="number" placeholder="GST %" value={form.gst} onChange={handleChange} />
+        <input name="weight" type="number" placeholder="Weight (kg)" value={form.weight} onChange={handleChange} />
+        <input name="length" type="number" placeholder="Length (cm)" value={form.length} onChange={handleChange} />
+        <input name="breadth" type="number" placeholder="Breadth (cm)" value={form.breadth} onChange={handleChange} />
+        <input name="height" type="number" placeholder="Height (cm)" value={form.height} onChange={handleChange} />
 
-        <input name="name" placeholder="Product Name"
-          value={form.name} onChange={handleChange} required />
-
-        <input name="category"
-          placeholder="Category"
-          value={form.category}
-          onChange={handleChange} />
-
-        <input name="brand"
-          placeholder="Brand"
-          value={form.brand}
-          onChange={handleChange} />
-
-        <input name="price" type="number"
-          placeholder="Selling Price"
-          value={form.price}
-          onChange={handleChange}
-          required />
-
-        <input name="mrp" type="number"
-          placeholder="MRP"
-          value={form.mrp}
-          onChange={handleChange} />
-
-        <input name="costPrice" type="number"
-          placeholder="Cost Price"
-          value={form.costPrice}
-          onChange={handleChange} />
-
-        <input name="stock" type="number"
-          placeholder="Opening Stock"
-          value={form.stock}
-          onChange={handleChange} />
-
-        <input name="reorderLevel" type="number"
-          placeholder="Reorder Level"
-          value={form.reorderLevel}
-          onChange={handleChange} />
-
-        <input name="hsn"
-          placeholder="HSN Code"
-          value={form.hsn}
-          onChange={handleChange} />
-
-        <input name="gst" type="number"
-          placeholder="GST %"
-          value={form.gst}
-          onChange={handleChange} />
-
-        <input name="weight" type="number"
-          placeholder="Weight (kg)"
-          value={form.weight}
-          onChange={handleChange} />
-
-        <input name="length" type="number"
-          placeholder="Length (cm)"
-          value={form.length}
-          onChange={handleChange} />
-
-        <input name="breadth" type="number"
-          placeholder="Breadth (cm)"
-          value={form.breadth}
-          onChange={handleChange} />
-
-        <input name="height" type="number"
-          placeholder="Height (cm)"
-          value={form.height}
-          onChange={handleChange} />
-
-        <select name="status"
-          value={form.status}
-          onChange={handleChange}
-        >
+        <select name="status" value={form.status} onChange={handleChange}>
           <option value="ACTIVE">Active</option>
           <option value="INACTIVE">Inactive</option>
         </select>
 
-        <textarea name="description"
-          placeholder="Description"
-          value={form.description}
-          onChange={handleChange}
-          style={{gridColumn:"span 2"}}
-        />
+        <textarea name="description" placeholder="Description" value={form.description} onChange={handleChange} style={{gridColumn:"span 2"}} />
 
-        <input type="file"
-          onChange={handleImageUpload}
-          style={{gridColumn:"span 2"}} />
-
+        <input type="file" onChange={handleImageUpload} style={{gridColumn:"span 2"}} />
         {uploading && <p>Uploading image...</p>}
-
-        {form.image && (
-          <img
-            src={form.image}
-            style={{
-              width:90,
-              height:90,
-              objectFit:"cover",
-              borderRadius:6
-            }}
-          />
-        )}
+        {form.image && <img src={form.image} style={{width:90,height:90,objectFit:"cover",borderRadius:6}} />}
 
         <label style={{gridColumn:"span 2"}}>
-          <input type="checkbox"
-            name="featured"
-            checked={form.featured}
-            onChange={handleChange} />
+          <input type="checkbox" name="featured" checked={form.featured} onChange={handleChange} />
           Featured Product
         </label>
 
-        <button
-          disabled={saving}
-          style={{
-            padding:12,
-            background:"black",
-            color:"#fff",
-            borderRadius:6,
-            cursor:"pointer",
-            gridColumn:"span 2"
-          }}
-        >
+        <button disabled={saving} style={{padding:12,background:"black",color:"#fff",borderRadius:6,cursor:"pointer",gridColumn:"span 2"}}>
           {saving ? "Saving..." : "Add Product"}
         </button>
-
       </form>
 
       {loading ? (
         <h3 style={{marginTop:40}}>Loading products...</h3>
       ):(
-
         <div style={{marginTop:40}}>
-
           <h2>All Products ({products.length})</h2>
 
-          <table style={{
-            width:"100%",
-            marginTop:15,
-            borderCollapse:"collapse"
-          }}>
-
+          <table style={{width:"100%",marginTop:15,borderCollapse:"collapse"}}>
             <thead>
               <tr style={{background:"#f5f5f5"}}>
+                <th>SKU</th> {/* NEW */}
                 <th>Image</th>
                 <th>Name</th>
                 <th>Brand</th>
@@ -318,54 +205,28 @@ export default function AdminProducts(){
             </thead>
 
             <tbody>
-
               {products.map(p=>(
                 <tr key={p._id} style={{borderBottom:"1px solid #eee"}}>
-
-                  <td>
-                    <img src={p.image}
-                      style={{width:60,height:60,objectFit:"cover"}} />
-                  </td>
-
+                  <td>{p.sku}</td> {/* NEW */}
+                  <td><img src={p.image} style={{width:60,height:60,objectFit:"cover"}} /></td>
                   <td>{p.name}</td>
                   <td>{p.brand}</td>
                   <td>₹{p.price}</td>
                   <td>₹{p.mrp}</td>
                   <td>{p.stock}</td>
                   <td>{p.status}</td>
-
                   <td style={{display:"flex",gap:"10px"}}>
-
                     <a href={"/admin/products/edit/"+p.slug}>
-                      <button style={{
-                        background:"#0a7cff",
-                        color:"#fff",
-                        padding:"6px 12px",
-                        borderRadius:"4px"
-                      }}>Edit</button>
+                      <button style={{background:"#0a7cff",color:"#fff",padding:"6px 12px",borderRadius:"4px"}}>Edit</button>
                     </a>
-
-                    <button
-                      onClick={()=>deleteProduct(p.slug)}
-                      style={{
-                        background:"red",
-                        color:"#fff",
-                        padding:"6px 12px",
-                        borderRadius:"4px"
-                      }}
-                    >Delete</button>
-
+                    <button onClick={()=>deleteProduct(p.slug)} style={{background:"red",color:"#fff",padding:"6px 12px",borderRadius:"4px"}}>Delete</button>
                   </td>
-
                 </tr>
               ))}
-
             </tbody>
 
           </table>
-
         </div>
-
       )}
 
     </div>
