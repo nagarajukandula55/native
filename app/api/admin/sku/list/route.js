@@ -1,15 +1,16 @@
 export const dynamic = "force-dynamic"
-import { NextResponse } from "next/server"
+
 import connectDB from "@/lib/db"
-import SKU from "@/models/SKU"
+import Sku from "@/models/Sku"
+import { NextResponse } from "next/server"
 
 export async function GET(){
-
   await connectDB()
 
-  const data = await SKU.find()
-    .populate("productId","name")
-    .sort({createdAt:-1})
+  const skus = await Sku.find()
+    .populate("product", "name")
+    .populate("warehouse", "name city code")
+    .sort({ createdAt: -1 })
 
-  return NextResponse.json(data)
+  return NextResponse.json({ success: true, skus })
 }
