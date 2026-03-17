@@ -21,7 +21,7 @@ export default function CreateSKU() {
   })
 
   useEffect(() => {
-    fetch("/api/admin/product/list")
+    fetch("/api/admin/products/list")
       .then(res => res.json())
       .then(res => setProducts(res.data))
   }, [])
