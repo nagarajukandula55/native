@@ -1,51 +1,17 @@
-import mongoose from "mongoose";
+import mongoose from "mongoose"
 
-const skuSchema = new mongoose.Schema(
-  {
-    productId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Product",
-      required: true,
-      index: true,
-    },
+const SKUSchema = new mongoose.Schema({
 
-    skuCode: {
-      type: String,
-      required: true,
-      unique: true,
-    },
-
-    partCode: {
-      type: String,
-      required: true,
-      unique: true,
-    },
-
-    attributes: {
-      color: String,
-      size: String,
-      variant: String,
-    },
-
-    mrp: Number,
-    sellingPrice: Number,
-    costPrice: Number,
-
-    weight: Number,
-
-    dimensions: {
-      length: Number,
-      breadth: Number,
-      height: Number,
-    },
-
-    isActive: {
-      type: Boolean,
-      default: true,
-    },
+  productId:{
+    type: mongoose.Schema.Types.ObjectId,
+    ref:"Product"
   },
-  { timestamps: true }
-);
+
+  skuCode:String,
+  partCode:String,
+  price:Number
+
+},{timestamps:true})
 
 export default mongoose.models.SKU ||
-  mongoose.model("SKU", skuSchema);
+mongoose.model("SKU",SKUSchema)
