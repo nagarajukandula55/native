@@ -1,18 +1,16 @@
 export const dynamic = "force-dynamic"
 
+import { NextResponse } from "next/server"
 import connectDB from "@/lib/db"
 import Sku from "@/models/Sku"
-import { NextResponse } from "next/server"
 
 export async function POST(req) {
   try {
-    await connectDB()
     const { id, value } = await req.json()
-    if (!id) throw new Error("SKU ID required")
-    await Sku.findByIdAndUpdate(id, { isActive: value })
-    return NextResponse.json({ success: true })
+    await connectDB()
+    const sku = await Sku.findByIdAndUpdate(id, { isActive: value }, { new: true })
+    return NextResponse.json({ success: true, sku })
   } catch (err) {
-    console.error("SKU TOGGLE ERROR:", err)
-    return NextResponse.json({ success: false, error: err.message }, { status: 500 })
+    return NextResponse.json({ success: false, error: err.message })
   }
 }
