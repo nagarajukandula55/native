@@ -1,59 +1,60 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
 
 export default function CreateSKU() {
 
-  const router = useRouter()
-
   const [products, setProducts] = useState([])
-
-  const [form, setForm] = useState({
-    productId: "",
-    skuCode: "",
-    partCode: "",
-    sellingPrice: "",
-    costPrice: "",
-    mrp: "",
-    color: "",
-    size: ""
-  })
+  const [form, setForm] = useState({})
 
   useEffect(() => {
-    fetch("/api/admin/products/list")
+    fetch("/api/admin/products")
       .then(res => res.json())
-      .then(res => setProducts(res.data))
+      .then(res => {
+        if (Array.isArray(res)) setProducts(res)
+        else setProducts([])
+      })
   }, [])
 
   const save = async () => {
 
-    await fetch("/api/admin/sku/create", {
+    if (!form.productId)
+      return alert("Select Product")
+
+    if (!form.skuCode)
+      return alert("Enter SKU Code")
+
+    if (!form.partCode)
+      return alert("Enter Part Code")
+
+    const res = await fetch("/api/admin/sku/create", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({
-        ...form,
-        attributes: {
-          color: form.color,
-          size: form.size
-        }
-      })
+      body: JSON.stringify(form)
     })
 
-    router.push("/admin/skus")
+    const data = await res.json()
+
+    if (data.success)
+      alert("SKU Created")
+    else
+      alert(data.message)
   }
 
   return (
-    <div style={{ maxWidth: 500 }}>
+    <div>
 
       <h1>Create SKU</h1>
 
-      <select style={input}
-        onChange={e => setForm({ ...form, productId: e.target.value })}
+      <select
+        onChange={e =>
+          setForm({ ...form, productId: e.target.value })
+        }
       >
-        <option>Select Product</option>
+        <option value="">Select Product</option>
+
         {products.map(p => (
           <option key={p._id} value={p._id}>
             {p.name}
@@ -61,51 +62,38 @@ export default function CreateSKU() {
         ))}
       </select>
 
-      <input style={input} placeholder="SKU Code"
-        onChange={e => setForm({ ...form, skuCode: e.target.value })}
+      <br /><br />
+
+      <input
+        placeholder="SKU Code"
+        onChange={e =>
+          setForm({ ...form, skuCode: e.target.value })
+        }
       />
 
-      <input style={input} placeholder="Part Code"
-        onChange={e => setForm({ ...form, partCode: e.target.value })}
+      <br /><br />
+
+      <input
+        placeholder="Part Code"
+        onChange={e =>
+          setForm({ ...form, partCode: e.target.value })
+        }
       />
 
-      <input style={input} placeholder="MRP"
-        onChange={e => setForm({ ...form, mrp: e.target.value })}
+      <br /><br />
+
+      <input
+        placeholder="Price"
+        type="number"
+        onChange={e =>
+          setForm({ ...form, price: e.target.value })
+        }
       />
 
-      <input style={input} placeholder="Selling Price"
-        onChange={e => setForm({ ...form, sellingPrice: e.target.value })}
-      />
+      <br /><br />
 
-      <input style={input} placeholder="Cost Price"
-        onChange={e => setForm({ ...form, costPrice: e.target.value })}
-      />
-
-      <input style={input} placeholder="Color"
-        onChange={e => setForm({ ...form, color: e.target.value })}
-      />
-
-      <input style={input} placeholder="Size"
-        onChange={e => setForm({ ...form, size: e.target.value })}
-      />
-
-      <button style={btn} onClick={save}>
-        Save SKU
-      </button>
+      <button onClick={save}>Save SKU</button>
 
     </div>
   )
-}
-
-const input = {
-  width: "100%",
-  padding: 10,
-  marginBottom: 10
-}
-
-const btn = {
-  padding: "10px 20px",
-  background: "#111",
-  color: "#fff",
-  border: "none"
 }
