@@ -4,6 +4,23 @@ import { useState, useEffect } from "react"
 
 export default function AdminProducts(){
 
+  const categories = [
+    "Idly Mix",
+    "Dosa Mix",
+    "Spice Mix",
+    "Instant Mix",
+    "Snacks",
+    // add more categories here
+  ]
+
+  const categoryHSNGST = {
+    "Idly Mix": { hsn: "1905", gst: 5 },
+    "Dosa Mix": { hsn: "1905", gst: 5 },
+    "Spice Mix": { hsn: "2103", gst: 12 },
+    "Instant Mix": { hsn: "1905", gst: 5 },
+    "Snacks": { hsn: "2106", gst: 18 },
+  }
+
   const emptyForm = {
     name:"",
     description:"",
@@ -36,6 +53,23 @@ export default function AdminProducts(){
     loadProducts()
   },[])
 
+  function handleChange(e){
+    const {name,value,type,checked} = e.target
+
+    let updatedForm = {
+      ...form,
+      [name]: type==="checkbox" ? checked : value
+    }
+
+    // Auto-fill HSN & GST if category changes
+    if(name==="category" && categoryHSNGST[value]){
+      updatedForm.hsn = categoryHSNGST[value].hsn
+      updatedForm.gst = categoryHSNGST[value].gst
+    }
+
+    setForm(updatedForm)
+  }
+
   async function loadProducts(){
     setLoading(true)
     try{
@@ -52,14 +86,6 @@ export default function AdminProducts(){
       alert("Failed to load products")
     }
     setLoading(false)
-  }
-
-  function handleChange(e){
-    const {name,value,type,checked} = e.target
-    setForm(prev=>({
-      ...prev,
-      [name]: type==="checkbox" ? checked : value
-    }))
   }
 
   async function handleImageUpload(e){
@@ -125,14 +151,8 @@ export default function AdminProducts(){
 
   return(
     <div style={{maxWidth:1200,margin:"auto",padding:30}}>
-
-      <h1 style={{fontSize:30,fontWeight:"bold"}}>
-        🛍 Admin Product Manager
-      </h1>
-
-      {message && (
-        <p style={{color:"green",marginTop:10}}>{message}</p>
-      )}
+      <h1 style={{fontSize:30,fontWeight:"bold"}}>🛍 Admin Product Manager</h1>
+      {message && <p style={{color:"green",marginTop:10}}>{message}</p>}
 
       <form
         onSubmit={handleSubmit}
@@ -146,17 +166,27 @@ export default function AdminProducts(){
           gap:10
         }}
       >
-        {/* FORM FIELDS */}
         <input name="name" placeholder="Product Name" value={form.name} onChange={handleChange} required />
-        <input name="category" placeholder="Category" value={form.category} onChange={handleChange} />
+
+        {/* CATEGORY DROPDOWN */}
+        <select name="category" value={form.category} onChange={handleChange} required>
+          <option value="">Select Category</option>
+          {categories.map(cat => (
+            <option key={cat} value={cat}>{cat}</option>
+          ))}
+        </select>
+
         <input name="brand" placeholder="Brand" value={form.brand} onChange={handleChange} />
         <input name="price" type="number" placeholder="Selling Price" value={form.price} onChange={handleChange} required />
         <input name="mrp" type="number" placeholder="MRP" value={form.mrp} onChange={handleChange} />
         <input name="costPrice" type="number" placeholder="Cost Price" value={form.costPrice} onChange={handleChange} />
         <input name="stock" type="number" placeholder="Opening Stock" value={form.stock} onChange={handleChange} />
         <input name="reorderLevel" type="number" placeholder="Reorder Level" value={form.reorderLevel} onChange={handleChange} />
+
+        {/* HSN & GST auto-filled */}
         <input name="hsn" placeholder="HSN Code" value={form.hsn} onChange={handleChange} />
         <input name="gst" type="number" placeholder="GST %" value={form.gst} onChange={handleChange} />
+
         <input name="weight" type="number" placeholder="Weight (kg)" value={form.weight} onChange={handleChange} />
         <input name="length" type="number" placeholder="Length (cm)" value={form.length} onChange={handleChange} />
         <input name="breadth" type="number" placeholder="Breadth (cm)" value={form.breadth} onChange={handleChange} />
@@ -192,7 +222,7 @@ export default function AdminProducts(){
           <table style={{width:"100%",marginTop:15,borderCollapse:"collapse"}}>
             <thead>
               <tr style={{background:"#f5f5f5"}}>
-                <th>SKU</th> {/* DISPLAY SKU */}
+                <th>SKU</th>
                 <th>Image</th>
                 <th>Name</th>
                 <th>Brand</th>
@@ -207,7 +237,7 @@ export default function AdminProducts(){
             <tbody>
               {products.map(p=>(
                 <tr key={p._id} style={{borderBottom:"1px solid #eee"}}>
-                  <td>{p.sku}</td> {/* NEW */}
+                  <td>{p.sku}</td>
                   <td><img src={p.image} style={{width:60,height:60,objectFit:"cover"}} /></td>
                   <td>{p.name}</td>
                   <td>{p.brand}</td>
@@ -216,9 +246,6 @@ export default function AdminProducts(){
                   <td>{p.stock}</td>
                   <td>{p.status}</td>
                   <td style={{display:"flex",gap:"10px"}}>
-                    <a href={"/admin/products/edit/"+p.slug}>
-                      <button style={{background:"#0a7cff",color:"#fff",padding:"6px 12px",borderRadius:"4px"}}>Edit</button>
-                    </a>
                     <button onClick={()=>deleteProduct(p.slug)} style={{background:"red",color:"#fff",padding:"6px 12px",borderRadius:"4px"}}>Delete</button>
                   </td>
                 </tr>
