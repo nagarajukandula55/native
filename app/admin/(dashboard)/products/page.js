@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 
 export default function AdminProducts() {
 
+  // Categories and auto HSN/GST
   const categories = [
     "Idly Mix",
     "Dosa Mix",
@@ -21,6 +22,7 @@ export default function AdminProducts() {
     "Snacks": { hsn: "2106", gst: 18 },
   }
 
+  // Empty form template
   const emptyForm = {
     name: "",
     description: "",
@@ -49,11 +51,12 @@ export default function AdminProducts() {
   const [uploading, setUploading] = useState(false)
   const [message, setMessage] = useState("")
 
+  // Load products on mount
   useEffect(() => {
     loadProducts()
   }, [])
 
-  // Handle form field changes and auto-fill HSN/GST
+  // Handle input changes
   function handleChange(e) {
     const { name, value, type, checked } = e.target
 
@@ -62,6 +65,7 @@ export default function AdminProducts() {
       [name]: type === "checkbox" ? checked : value
     }
 
+    // Auto-fill HSN & GST if category changes
     if (name === "category" && categoryHSNGST[value]) {
       updatedForm.hsn = categoryHSNGST[value].hsn
       updatedForm.gst = categoryHSNGST[value].gst
@@ -70,20 +74,22 @@ export default function AdminProducts() {
     setForm(updatedForm)
   }
 
-  // Fetch products with crash-proof array check
+  // Fetch products safely
   async function loadProducts() {
     setLoading(true)
     try {
       const res = await fetch("/api/admin/products")
       const data = await res.json()
 
+      // Defensive handling
       if (data.success && Array.isArray(data.products)) {
         setProducts(data.products)
+      } else if (Array.isArray(data)) {
+        setProducts(data)
       } else {
-        setProducts([]) // fallback
-        console.error("Failed to load products:", data)
+        setProducts([])
+        console.error("Products response is not an array:", data)
       }
-
     } catch (err) {
       alert("Failed to load products")
       console.error(err)
@@ -92,7 +98,7 @@ export default function AdminProducts() {
     setLoading(false)
   }
 
-  // Image upload
+  // Image upload handler
   async function handleImageUpload(e) {
     const file = e.target.files[0]
     if (!file) return
@@ -101,15 +107,17 @@ export default function AdminProducts() {
     const fd = new FormData()
     fd.append("file", file)
 
-    try {
-      const res = await fetch("/api/upload", { method: "POST", body: fd })
-      const data = await res.json()
-      if (data.url) {
-        setForm(prev => ({ ...prev, image: data.url }))
-      }
-    } catch (err) {
-      console.error("Image upload failed:", err)
-    }
+    const res = await fetch("/api/upload", {
+      method: "POST",
+      body: fd
+    })
+
+    const data = await res.json()
+
+    setForm(prev => ({
+      ...prev,
+      image: data.url
+    }))
 
     setUploading(false)
   }
@@ -124,25 +132,20 @@ export default function AdminProducts() {
 
     setSaving(true)
 
-    try {
-      const res = await fetch("/api/admin/products", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, alt: form.name })
+    await fetch("/api/admin/products", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        ...form,
+        alt: form.name
       })
-      const data = await res.json()
-      if (data.success) {
-        setMessage("✅ Product Added Successfully")
-        setForm(emptyForm)
-        await loadProducts()
-      } else {
-        alert(data.error || "Failed to add product")
-      }
-    } catch (err) {
-      console.error(err)
-      alert("Failed to add product")
-    }
+    })
 
+    setMessage("✅ Product Added Successfully")
+    setForm(emptyForm)
+    await loadProducts()
     setSaving(false)
     setTimeout(() => setMessage(""), 2000)
   }
@@ -152,13 +155,11 @@ export default function AdminProducts() {
     const ok = confirm("Delete this product?")
     if (!ok) return
 
-    try {
-      await fetch("/api/admin/products/" + slug, { method: "DELETE" })
-      await loadProducts()
-    } catch (err) {
-      console.error(err)
-      alert("Failed to delete product")
-    }
+    await fetch("/api/admin/products/" + slug, {
+      method: "DELETE"
+    })
+
+    loadProducts()
   }
 
   return (
@@ -166,6 +167,7 @@ export default function AdminProducts() {
       <h1 style={{ fontSize: 30, fontWeight: "bold" }}>🛍 Admin Product Manager</h1>
       {message && <p style={{ color: "green", marginTop: 10 }}>{message}</p>}
 
+      {/* PRODUCT FORM */}
       <form
         onSubmit={handleSubmit}
         style={{
@@ -225,11 +227,12 @@ export default function AdminProducts() {
         </button>
       </form>
 
+      {/* PRODUCTS TABLE */}
       {loading ? (
         <h3 style={{ marginTop: 40 }}>Loading products...</h3>
       ) : (
         <div style={{ marginTop: 40 }}>
-          <h2>All Products ({products.length})</h2>
+          <h2>All Products ({Array.isArray(products) ? products.length : 0})</h2>
 
           <table style={{ width: "100%", marginTop: 15, borderCollapse: "collapse" }}>
             <thead>
@@ -247,26 +250,31 @@ export default function AdminProducts() {
             </thead>
 
             <tbody>
-              {Array.isArray(products) && products.map(p => (
-                <tr key={p._id} style={{ borderBottom: "1px solid #eee" }}>
-                  <td>{p.sku}</td>
-                  <td><img src={p.image} style={{ width: 60, height: 60, objectFit: "cover" }} /></td>
-                  <td>{p.name}</td>
-                  <td>{p.brand}</td>
-                  <td>₹{p.price}</td>
-                  <td>₹{p.mrp}</td>
-                  <td>{p.stock}</td>
-                  <td>{p.status}</td>
-                  <td style={{ display: "flex", gap: "10px" }}>
-                    <button onClick={() => deleteProduct(p.slug)} style={{ background: "red", color: "#fff", padding: "6px 12px", borderRadius: "4px" }}>Delete</button>
-                  </td>
-                </tr>
-              ))}
+              {Array.isArray(products) && products.length > 0 ? (
+                products.map(p => (
+                  <tr key={p._id} style={{ borderBottom: "1px solid #eee" }}>
+                    <td>{p.sku}</td>
+                    <td><img src={p.image} style={{ width: 60, height: 60, objectFit: "cover" }} /></td>
+                    <td>{p.name}</td>
+                    <td>{p.brand}</td>
+                    <td>₹{p.price}</td>
+                    <td>₹{p.mrp}</td>
+                    <td>{p.stock}</td>
+                    <td>{p.status}</td>
+                    <td style={{ display: "flex", gap: "10px" }}>
+                      <button onClick={() => deleteProduct(p.slug)} style={{ background: "red", color: "#fff", padding: "6px 12px", borderRadius: "4px" }}>Delete</button>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr><td colSpan={9} style={{ textAlign: "center" }}>No products found</td></tr>
+              )}
             </tbody>
 
           </table>
         </div>
       )}
+
     </div>
   )
 }
