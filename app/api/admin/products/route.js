@@ -34,7 +34,7 @@ export async function GET() {
   try {
     await connectDB()
     const products = await Product.find().sort({ createdAt: -1 })
-    return NextResponse.json({ success: true, products: products || [] })
+    return NextResponse.json({ success: true, products: Array.isArray(products) ? products : [] })
   } catch (error) {
     console.error("GET PRODUCTS ERROR:", error)
     return NextResponse.json({ success: false, products: [] }, { status: 500 })
@@ -49,14 +49,10 @@ export async function POST(req) {
     const slug = generateSlug(body.name)
 
     const existing = await Product.findOne({ slug })
-    if (existing) {
-      return NextResponse.json({ success: false, error: "Product already exists" }, { status: 400 })
-    }
+    if (existing) return NextResponse.json({ success: false, error: "Product exists" }, { status: 400 })
 
     const sku = await generateSKU(body.name)
-
-    // Auto-fill GST if HSN is selected
-    let gst = HSN_GST_MAP[body.hsn] || body.gst || 0
+    const gst = HSN_GST_MAP[body.hsn] || body.gst || 0
 
     const product = await Product.create({
       ...body,
