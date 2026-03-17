@@ -10,20 +10,9 @@ export async function POST(req) {
     await connectDB()
 
     const existing = await Sku.findOne({ code: body.code })
-    if (existing) {
-      return NextResponse.json({ success: false, error: "SKU code already exists" })
-    }
+    if (existing) return NextResponse.json({ success: false, error: "SKU code exists" })
 
-    const sku = new Sku({
-      code: body.code,
-      partCode: body.partCode,
-      product: body.product,
-      warehouse: body.warehouse,
-      price: body.price,
-      stock: body.stock,
-      isActive: body.isActive ?? true,
-    })
-
+    const sku = new Sku(body)
     await sku.save()
 
     return NextResponse.json({ success: true, sku })
