@@ -23,6 +23,16 @@ async function generateSKU(name) {
   return `NA${firstWord}${serial}`
 }
 
+/* HSN & GST MAP based on category */
+const categoryHSNGST = {
+  "Idly Mix": { hsn: "1905", gst: 5 },
+  "Dosa Mix": { hsn: "1905", gst: 5 },
+  "Spice Mix": { hsn: "2103", gst: 12 },
+  "Instant Mix": { hsn: "1905", gst: 5 },
+  "Snacks": { hsn: "2106", gst: 18 },
+  // add more categories here
+}
+
 /* GET ALL PRODUCTS */
 export async function GET() {
   try {
@@ -51,10 +61,20 @@ export async function POST(req) {
     // Generate SKU
     const sku = await generateSKU(body.name)
 
+    // Auto-set HSN and GST based on category if not provided
+    let hsn = body.hsn || ""
+    let gst = body.gst || 0
+    if (body.category && categoryHSNGST[body.category]) {
+      hsn = categoryHSNGST[body.category].hsn
+      gst = categoryHSNGST[body.category].gst
+    }
+
     const product = await Product.create({
       ...body,
       slug,
       sku,
+      hsn,
+      gst,
       alt: body.name
     })
 
