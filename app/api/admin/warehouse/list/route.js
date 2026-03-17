@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic"
+
 import connectDB from "@/lib/db"
 import Warehouse from "@/models/Warehouse"
 import { NextResponse } from "next/server"
