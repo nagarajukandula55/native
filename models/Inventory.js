@@ -1,48 +1,31 @@
-import mongoose from "mongoose";
+import mongoose from "mongoose"
 
-const inventorySchema = new mongoose.Schema(
-  {
-    skuId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "SKU",
-      index: true,
-    },
+const InventorySchema = new mongoose.Schema({
 
-    warehouseId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Warehouse",
-      index: true,
-    },
-
-    availableQty: {
-      type: Number,
-      default: 0,
-    },
-
-    reservedQty: {
-      type: Number,
-      default: 0,
-    },
-
-    damagedQty: {
-      type: Number,
-      default: 0,
-    },
-
-    returnedQty: {
-      type: Number,
-      default: 0,
-    },
-
-    reorderLevel: {
-      type: Number,
-      default: 5,
-    },
+  skuId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "SKU",
+    required: true
   },
-  { timestamps: true }
-);
 
-inventorySchema.index({ skuId: 1, warehouseId: 1 }, { unique: true });
+  warehouseId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Warehouse",
+    required: true
+  },
+
+  qty: {
+    type: Number,
+    default: 0
+  }
+
+}, { timestamps: true })
+
+// ⭐ Important → one SKU per warehouse
+InventorySchema.index(
+  { skuId: 1, warehouseId: 1 },
+  { unique: true }
+)
 
 export default mongoose.models.Inventory ||
-  mongoose.model("Inventory", inventorySchema);
+mongoose.model("Inventory", InventorySchema)
