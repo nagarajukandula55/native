@@ -2,97 +2,123 @@
 
 import { useEffect, useState } from "react"
 
-export default function CreateSKU() {
+export default function CreateSKU(){
 
-  const [products, setProducts] = useState([])
-  const [form, setForm] = useState({})
+  const [products,setProducts] = useState([])
+  const [form,setForm] = useState({
+    productId:"",
+    skuCode:"",
+    partCode:"",
+    price:""
+  })
 
-  useEffect(() => {
-    fetch("/api/admin/products")
-      .then(res => res.json())
-      .then(res => {
-        if (Array.isArray(res)) setProducts(res)
-        else setProducts([])
-      })
-  }, [])
+  useEffect(()=>{
+    loadProducts()
+  },[])
 
-  const save = async () => {
+  async function loadProducts(){
 
-    if (!form.productId)
+    try{
+      const res = await fetch("/api/admin/products")
+      const data = await res.json()
+
+      if(Array.isArray(data))
+        setProducts(data)
+      else if(data.success)
+        setProducts(data.products)
+      else
+        setProducts([])
+
+    }catch{
+      alert("Product load failed")
+    }
+  }
+
+  async function save(){
+
+    if(!form.productId)
       return alert("Select Product")
 
-    if (!form.skuCode)
+    if(!form.skuCode)
       return alert("Enter SKU Code")
 
-    if (!form.partCode)
+    if(!form.partCode)
       return alert("Enter Part Code")
 
-    const res = await fetch("/api/admin/sku/create", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
+    const res = await fetch("/api/admin/sku/create",{
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json"
       },
       body: JSON.stringify(form)
     })
 
     const data = await res.json()
 
-    if (data.success)
+    if(data.success)
       alert("SKU Created")
     else
       alert(data.message)
   }
 
-  return (
-    <div>
+  return(
+
+    <div style={{maxWidth:600}}>
 
       <h1>Create SKU</h1>
 
       <select
+        value={form.productId}
         onChange={e =>
-          setForm({ ...form, productId: e.target.value })
+          setForm({...form,productId:e.target.value})
         }
       >
         <option value="">Select Product</option>
 
-        {products.map(p => (
+        {products.map(p=>(
           <option key={p._id} value={p._id}>
             {p.name}
           </option>
         ))}
+
       </select>
 
-      <br /><br />
+      <br/><br/>
 
       <input
         placeholder="SKU Code"
+        value={form.skuCode}
         onChange={e =>
-          setForm({ ...form, skuCode: e.target.value })
+          setForm({...form,skuCode:e.target.value})
         }
       />
 
-      <br /><br />
+      <br/><br/>
 
       <input
         placeholder="Part Code"
+        value={form.partCode}
         onChange={e =>
-          setForm({ ...form, partCode: e.target.value })
+          setForm({...form,partCode:e.target.value})
         }
       />
 
-      <br /><br />
+      <br/><br/>
 
       <input
-        placeholder="Price"
         type="number"
+        placeholder="Price"
+        value={form.price}
         onChange={e =>
-          setForm({ ...form, price: e.target.value })
+          setForm({...form,price:e.target.value})
         }
       />
 
-      <br /><br />
+      <br/><br/>
 
-      <button onClick={save}>Save SKU</button>
+      <button onClick={save}>
+        Save SKU
+      </button>
 
     </div>
   )
