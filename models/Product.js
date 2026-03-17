@@ -1,61 +1,26 @@
-import { NextResponse } from "next/server"
 import mongoose from "mongoose"
-import Product from "@/models/Product"
 
-const MONGODB_URI = process.env.MONGODB_URI
+const ProductSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  slug: { type: String, required: true, unique: true },
+  sku: { type: String, required: true, unique: true },
+  description: { type: String, default: "" },
+  price: { type: Number, required: true },
+  mrp: { type: Number, default: 0 },
+  costPrice: { type: Number, default: 0 },
+  brand: { type: String, default: "" },
+  stock: { type: Number, default: 0 },
+  reorderLevel: { type: Number, default: 0 },
+  hsn: { type: String, default: "" },
+  gst: { type: Number, default: 0 },
+  weight: { type: Number, default: 0 },
+  length: { type: Number, default: 0 },
+  breadth: { type: Number, default: 0 },
+  height: { type: Number, default: 0 },
+  featured: { type: Boolean, default: false },
+  status: { type: String, enum: ["ACTIVE", "INACTIVE"], default: "ACTIVE" },
+  createdAt: { type: Date, default: Date.now }
+})
 
-async function connectDB() {
-  if (mongoose.connection.readyState === 1) return
-  await mongoose.connect(MONGODB_URI)
-}
-
-function generateSlug(name) {
-  return name.toLowerCase().trim().replace(/ /g, "-").replace(/[^\w-]+/g, "")
-}
-
-async function generateSKU(name) {
-  const firstWord = name.replace(/^Native\s+/i, "").split(" ")[0].toUpperCase()
-  const count = await Product.countDocuments({ name: new RegExp(`^Native ${firstWord}`, "i") }) + 1
-  const serial = String(count).padStart(3, "0")
-  return `NA${firstWord}${serial}`
-}
-
-export async function GET() {
-  try {
-    await connectDB()
-    const products = await Product.find().sort({ createdAt: -1 })
-    return NextResponse.json({ success: true, products })
-  } catch (err) {
-    console.error(err)
-    return NextResponse.json({ success: true, products: [] })
-  }
-}
-
-export async function POST(req) {
-  try {
-    await connectDB()
-    const body = await req.json()
-    const slug = generateSlug(body.name)
-    const existing = await Product.findOne({ slug })
-    if (existing) return NextResponse.json({ error: "Product already exists" }, { status: 400 })
-    const sku = await generateSKU(body.name)
-    const product = await Product.create({ ...body, slug, sku })
-    return NextResponse.json({ success: true, product })
-  } catch (err) {
-    console.error(err)
-    return NextResponse.json({ error: "Failed to create product" }, { status: 500 })
-  }
-}
-
-export async function DELETE(req) {
-  try {
-    await connectDB()
-    const { searchParams } = new URL(req.url)
-    const slug = searchParams.get("slug")
-    await Product.deleteOne({ slug })
-    return NextResponse.json({ success: true })
-  } catch (err) {
-    console.error(err)
-    return NextResponse.json({ error: "Failed to delete product" }, { status: 500 })
-  }
-}
+const Product = mongoose.models.Product || mongoose.model("Product", ProductSchema)
+export default Product
