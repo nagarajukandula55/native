@@ -15,7 +15,7 @@ export default function Warehouses(){
 
     try{
 
-      const res = await fetch("/api/admin/warehouse/list")
+      const res = await fetch("/api/admin/warehouses/list")
       const json = await res.json()
 
       if(json.success)
@@ -30,7 +30,7 @@ export default function Warehouses(){
 
   async function toggleStatus(id,current){
 
-    await fetch("/api/admin/warehouse/toggle",{
+    await fetch("/api/admin/warehouses/toggle",{
       method:"POST",
       headers:{ "Content-Type":"application/json" },
       body: JSON.stringify({
@@ -50,7 +50,7 @@ export default function Warehouses(){
     <div style={{maxWidth:1300,margin:"auto"}}>
 
       <h1 style={{fontSize:28,fontWeight:"bold"}}>
-        🏭 Warehouse Management
+        🏭 Warehouses Management
       </h1>
 
       <table
