@@ -1,8 +1,8 @@
-export const dynamic = "force-dynamic"
-
 import { NextResponse } from "next/server"
 import connectDB from "../../../../lib/db"
 import Sku from "../../../../models/Sku"
+
+export const dynamic = "force-dynamic"
 
 export async function POST(req) {
   try {
@@ -27,7 +27,7 @@ export async function POST(req) {
       warehouse,
       price,
       stock: stock || 0,
-      isActive: isActive ?? true,
+      isActive: isActive ?? true
     })
 
     await sku.save()
