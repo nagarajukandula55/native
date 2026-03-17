@@ -3,13 +3,7 @@
 import { useState, useEffect } from "react"
 
 export default function AdminProducts() {
-
-  // HSN dropdown with GST
-  const hsnOptions = {
-    "1905": 5,
-    "2103": 12,
-    "2106": 18,
-  }
+  const hsnOptions = { "1905": 5, "2103": 12, "2106": 18 }
 
   const emptyForm = {
     name: "",
@@ -43,15 +37,11 @@ export default function AdminProducts() {
     loadProducts()
   }, [])
 
-  // Handle form input changes
   function handleChange(e) {
     const { name, value, type, checked } = e.target
-    let updatedForm = {
-      ...form,
-      [name]: type === "checkbox" ? checked : value,
-    }
+    let updatedForm = { ...form, [name]: type === "checkbox" ? checked : value }
 
-    // Auto-fetch GST if HSN selected
+    // Auto-fetch GST
     if (name === "hsn" && hsnOptions[value]) {
       updatedForm.gst = hsnOptions[value]
     }
@@ -59,55 +49,23 @@ export default function AdminProducts() {
     setForm(updatedForm)
   }
 
-  // Load products from API
   async function loadProducts() {
     setLoading(true)
     try {
       const res = await fetch("/api/admin/products")
       const data = await res.json()
-
-      // Ensure products is always an array
-      if (data.success && Array.isArray(data.products)) {
-        setProducts(data.products)
-      } else {
-        setProducts([])
-      }
+      if (data.success && Array.isArray(data.products)) setProducts(data.products)
+      else setProducts([])
     } catch (err) {
-      console.error("Failed to load products:", err)
+      console.error(err)
       setProducts([])
     }
     setLoading(false)
   }
 
-  // Upload product image
-  async function handleImageUpload(e) {
-    const file = e.target.files[0]
-    if (!file) return
-    setUploading(true)
-
-    const fd = new FormData()
-    fd.append("file", file)
-
-    try {
-      const res = await fetch("/api/upload", { method: "POST", body: fd })
-      const data = await res.json()
-      if (data.url) {
-        setForm(prev => ({ ...prev, image: data.url }))
-      }
-    } catch (err) {
-      console.error("Image upload failed:", err)
-    }
-
-    setUploading(false)
-  }
-
-  // Submit new product
   async function handleSubmit(e) {
     e.preventDefault()
-    if (!form.name || !form.price) {
-      alert("Name & Price required")
-      return
-    }
+    if (!form.name || !form.price) return alert("Name & Price required")
 
     setSaving(true)
     try {
@@ -132,13 +90,12 @@ export default function AdminProducts() {
     setTimeout(() => setMessage(""), 2000)
   }
 
-  // Delete product
   async function deleteProduct(slug) {
     const ok = confirm("Delete this product?")
     if (!ok) return
 
     try {
-      await fetch(`/api/admin/products/${slug}`, { method: "DELETE" })
+      await fetch(`/api/admin/products?slug=${slug}`, { method: "DELETE" })
       await loadProducts()
     } catch (err) {
       console.error(err)
@@ -149,7 +106,6 @@ export default function AdminProducts() {
   return (
     <div style={{ maxWidth: 1200, margin: "auto", padding: 30 }}>
       <h1 style={{ fontSize: 30, fontWeight: "bold" }}>🛍 Admin Product Manager</h1>
-
       {message && <p style={{ color: "green", marginTop: 10 }}>{message}</p>}
 
       <form
@@ -173,7 +129,6 @@ export default function AdminProducts() {
         <input name="stock" type="number" placeholder="Opening Stock" value={form.stock} onChange={handleChange} />
         <input name="reorderLevel" type="number" placeholder="Reorder Level" value={form.reorderLevel} onChange={handleChange} />
 
-        {/* HSN Dropdown */}
         <select name="hsn" value={form.hsn} onChange={handleChange} required>
           <option value="">Select HSN</option>
           {Object.keys(hsnOptions).map(hsn => (
@@ -183,7 +138,7 @@ export default function AdminProducts() {
           ))}
         </select>
 
-        <input name="gst" type="number" placeholder="GST %" value={form.gst} readOnly />
+        <input name="gst" type="number" value={form.gst} readOnly />
 
         <input name="weight" type="number" placeholder="Weight (kg)" value={form.weight} onChange={handleChange} />
         <input name="length" type="number" placeholder="Length (cm)" value={form.length} onChange={handleChange} />
@@ -197,14 +152,6 @@ export default function AdminProducts() {
 
         <textarea name="description" placeholder="Description" value={form.description} onChange={handleChange} style={{ gridColumn: "span 2" }} />
 
-        <input type="file" onChange={handleImageUpload} style={{ gridColumn: "span 2" }} />
-        {uploading && <p>Uploading image...</p>}
-        {form.image && <img src={form.image} style={{ width: 90, height: 90, objectFit: "cover", borderRadius: 6 }} />}
-
-        <label style={{ gridColumn: "span 2" }}>
-          <input type="checkbox" name="featured" checked={form.featured} onChange={handleChange} /> Featured Product
-        </label>
-
         <button disabled={saving} style={{ padding: 12, background: "black", color: "#fff", borderRadius: 6, cursor: "pointer", gridColumn: "span 2" }}>
           {saving ? "Saving..." : "Add Product"}
         </button>
@@ -213,42 +160,38 @@ export default function AdminProducts() {
       {loading ? (
         <h3 style={{ marginTop: 40 }}>Loading products...</h3>
       ) : (
-        <div style={{ marginTop: 40 }}>
-          <h2>All Products ({products.length})</h2>
-
-          <table style={{ width: "100%", marginTop: 15, borderCollapse: "collapse" }}>
-            <thead>
-              <tr style={{ background: "#f5f5f5" }}>
-                <th>SKU</th>
-                <th>Image</th>
-                <th>Name</th>
-                <th>Brand</th>
-                <th>Price</th>
-                <th>MRP</th>
-                <th>Stock</th>
-                <th>Status</th>
-                <th>Action</th>
+        <table style={{ width: "100%", marginTop: 15, borderCollapse: "collapse" }}>
+          <thead>
+            <tr style={{ background: "#f5f5f5" }}>
+              <th>SKU</th>
+              <th>Name</th>
+              <th>Brand</th>
+              <th>Price</th>
+              <th>MRP</th>
+              <th>Stock</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {products.map(p => (
+              <tr key={p._id} style={{ borderBottom: "1px solid #eee" }}>
+                <td>{p.sku}</td>
+                <td>{p.name}</td>
+                <td>{p.brand}</td>
+                <td>₹{p.price}</td>
+                <td>₹{p.mrp}</td>
+                <td>{p.stock}</td>
+                <td>{p.status}</td>
+                <td>
+                  <button onClick={() => deleteProduct(p.slug)} style={{ background: "red", color: "#fff", padding: "6px 12px", borderRadius: "4px" }}>
+                    Delete
+                  </button>
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {products.map(p => (
-                <tr key={p._id} style={{ borderBottom: "1px solid #eee" }}>
-                  <td>{p.sku}</td>
-                  <td><img src={p.image} style={{ width: 60, height: 60, objectFit: "cover" }} /></td>
-                  <td>{p.name}</td>
-                  <td>{p.brand}</td>
-                  <td>₹{p.price}</td>
-                  <td>₹{p.mrp}</td>
-                  <td>{p.stock}</td>
-                  <td>{p.status}</td>
-                  <td style={{ display: "flex", gap: "10px" }}>
-                    <button onClick={() => deleteProduct(p.slug)} style={{ background: "red", color: "#fff", padding: "6px 12px", borderRadius: "4px" }}>Delete</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+            ))}
+          </tbody>
+        </table>
       )}
     </div>
   )
