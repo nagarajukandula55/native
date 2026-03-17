@@ -11,7 +11,6 @@ export default function AdminProducts() {
     price: "",
     mrp: "",
     costPrice: "",
-    category: "",
     brand: "",
     stock: "",
     reorderLevel: "",
@@ -23,7 +22,6 @@ export default function AdminProducts() {
     height: "",
     featured: false,
     status: "ACTIVE",
-    image: "",
   }
 
   const [form, setForm] = useState(emptyForm)
@@ -52,9 +50,7 @@ export default function AdminProducts() {
     try {
       const res = await fetch("/api/admin/products")
       const data = await res.json()
-      // <-- Defensive check: ensure products is an array
-      if (data.success && Array.isArray(data.products)) setProducts(data.products)
-      else setProducts([]) // fallback to empty array
+      setProducts(Array.isArray(data.products) ? data.products : [])
     } catch (err) {
       console.error(err)
       setProducts([])
@@ -78,9 +74,7 @@ export default function AdminProducts() {
         setMessage("✅ Product Added Successfully")
         setForm(emptyForm)
         await loadProducts()
-      } else {
-        alert(data.error || "Failed to add product")
-      }
+      } else alert(data.error || "Failed to add product")
     } catch (err) {
       console.error(err)
       alert("Failed to add product")
@@ -92,7 +86,6 @@ export default function AdminProducts() {
   async function deleteProduct(slug) {
     const ok = confirm("Delete this product?")
     if (!ok) return
-
     try {
       await fetch(`/api/admin/products?slug=${slug}`, { method: "DELETE" })
       await loadProducts()
@@ -120,7 +113,6 @@ export default function AdminProducts() {
         }}
       >
         <input name="name" placeholder="Product Name" value={form.name} onChange={handleChange} required />
-        <input name="category" placeholder="Category" value={form.category} onChange={handleChange} />
         <input name="brand" placeholder="Brand" value={form.brand} onChange={handleChange} />
         <input name="price" type="number" placeholder="Selling Price" value={form.price} onChange={handleChange} required />
         <input name="mrp" type="number" placeholder="MRP" value={form.mrp} onChange={handleChange} />
