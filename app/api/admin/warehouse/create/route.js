@@ -1,4 +1,5 @@
 export const dynamic = "force-dynamic"
+
 import { NextResponse } from "next/server"
 import connectDB from "@/lib/db"
 import Warehouse from "@/models/Warehouse"
@@ -23,11 +24,11 @@ export async function POST(req){
 
   }catch(err){
 
-    console.log(err)
+    console.log("WAREHOUSE ERROR",err)
 
     return NextResponse.json({
       success:false,
-      message:"Warehouse create error"
+      message:"Warehouse create failed"
     })
   }
 
