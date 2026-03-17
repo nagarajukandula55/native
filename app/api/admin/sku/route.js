@@ -1,40 +1,23 @@
-import { NextResponse } from "next/server"
-import connectDB from "../../../../lib/db"
-import Sku from "../../../../models/Sku"
-
-export const dynamic = "force-dynamic"
+import { NextResponse } from "next/server";
+import connectDB from "@/lib/db";
+import Sku from "@/models/Sku";
 
 export async function POST(req) {
   try {
-    const body = await req.json()
-    await connectDB()
+    await connectDB();
+    const body = await req.json();
 
-    const { code, partCode, product, warehouse, price, stock, isActive } = body
+    if (!body.code || !body.product || !body.warehouse || !body.price)
+      return NextResponse.json({ success: false, error: "Missing required fields" });
 
-    if (!code || !product || !warehouse || !price) {
-      return NextResponse.json({ success: false, error: "Missing required SKU fields" })
-    }
+    const existing = await Sku.findOne({ code: body.code });
+    if (existing) return NextResponse.json({ success: false, error: "SKU code already exists" });
 
-    const existing = await Sku.findOne({ code })
-    if (existing) {
-      return NextResponse.json({ success: false, error: "SKU code already exists" })
-    }
+    const sku = new Sku(body);
+    await sku.save();
 
-    const sku = new Sku({
-      code,
-      partCode,
-      product,
-      warehouse,
-      price,
-      stock: stock || 0,
-      isActive: typeof isActive !== "undefined" ? isActive : true
-    })
-
-    await sku.save()
-
-    return NextResponse.json({ success: true, sku })
-
-  } catch (err) {
-    return NextResponse.json({ success: false, error: err.message })
+    return NextResponse.json({ success: true, sku });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message });
   }
 }
