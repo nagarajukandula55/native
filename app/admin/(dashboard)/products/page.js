@@ -24,7 +24,7 @@ export default function AdminProducts() {
     featured: false,
     status: "ACTIVE",
     image: "",
-    warehouse: "", // added warehouse field
+    warehouse: "", // warehouse field
   }
 
   const [form, setForm] = useState(emptyForm)
@@ -33,7 +33,7 @@ export default function AdminProducts() {
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [message, setMessage] = useState("")
-  const [warehouses, setWarehouses] = useState([]) // store warehouses dynamically
+  const [warehouses, setWarehouses] = useState([])
 
   useEffect(() => {
     loadProducts()
@@ -42,7 +42,7 @@ export default function AdminProducts() {
 
   function handleChange(e) {
     const { name, value, type, checked } = e.target
-    let updatedForm = { ...form, [name]: type === "checkbox" ? checked : value }
+    const updatedForm = { ...form, [name]: type === "checkbox" ? checked : value }
 
     if (name === "hsn") {
       const selected = HSN_LIST.find(h => h.hsn === value)
@@ -56,7 +56,7 @@ export default function AdminProducts() {
     setLoading(true)
     try {
       const res = await fetch("/api/admin/products")
-      const data = await res.json()
+      let data = await res.json()
       if (Array.isArray(data)) setProducts(data)
       else setProducts([])
     } catch {
@@ -71,8 +71,8 @@ export default function AdminProducts() {
       const data = await res.json()
       if (Array.isArray(data)) setWarehouses(data)
       else setWarehouses([])
-    } catch {
-      console.error("Failed to load warehouses")
+    } catch (err) {
+      console.error("Failed to load warehouses", err)
     }
   }
 
@@ -96,14 +96,19 @@ export default function AdminProducts() {
     if (!form.name || !form.price) return alert("Name & Price required")
 
     setSaving(true)
-    await fetch("/api/admin/products", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, alt: form.name }),
-    })
-    setMessage("✅ Product Added Successfully")
-    setForm(emptyForm)
-    await loadProducts()
+    try {
+      await fetch("/api/admin/products", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...form, alt: form.name }),
+      })
+      setMessage("✅ Product Added Successfully")
+      setForm(emptyForm)
+      await loadProducts()
+    } catch (err) {
+      console.error(err)
+      alert("Failed to add product")
+    }
     setSaving(false)
     setTimeout(() => setMessage(""), 2000)
   }
@@ -132,7 +137,7 @@ export default function AdminProducts() {
         }}
       >
         <input name="name" placeholder="Product Name" value={form.name} onChange={handleChange} required />
-        
+
         <select name="category" value={form.category} onChange={handleChange} required>
           <option value="">Select Category</option>
           {CATEGORIES.map(cat => (
@@ -149,7 +154,6 @@ export default function AdminProducts() {
         <input name="stock" type="number" placeholder="Opening Stock" value={form.stock} onChange={handleChange} />
         <input name="reorderLevel" type="number" placeholder="Reorder Level" value={form.reorderLevel} onChange={handleChange} />
 
-        {/* HSN Dropdown */}
         <select name="hsn" value={form.hsn} onChange={handleChange} required>
           <option value="">Select HSN</option>
           {HSN_LIST.map(h => (
@@ -165,6 +169,7 @@ export default function AdminProducts() {
         <input name="breadth" type="number" placeholder="Breadth (cm)" value={form.breadth} onChange={handleChange} />
         <input name="height" type="number" placeholder="Height (cm)" value={form.height} onChange={handleChange} />
 
+        {/* Warehouse Dropdown */}
         <select name="warehouse" value={form.warehouse} onChange={handleChange}>
           <option value="">Select Warehouse</option>
           {warehouses.map(w => (
