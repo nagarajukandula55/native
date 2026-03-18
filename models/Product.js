@@ -23,6 +23,7 @@ const ProductSchema = new mongoose.Schema(
     status: { type: String, default: "ACTIVE" },
     image: String,
     alt: String,
+    warehouse: { type: String, default: "" }, // <-- added field
   },
   { timestamps: true }
 )
