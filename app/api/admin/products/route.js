@@ -9,14 +9,27 @@ async function connectDB() {
   await mongoose.connect(MONGODB_URI)
 }
 
+/* SLUG GENERATOR */
 function generateSlug(name) {
   return name.toLowerCase().trim().replace(/ /g, "-").replace(/[^\w-]+/g, "")
 }
 
+/* SKU GENERATOR */
+// Example: "Native Dosa Mix" => NADOSA001
 async function generateSKU(name) {
-  const firstWord = name.split(" ")[0].toUpperCase()
+  // Check if name starts with "Native " and remove it
+  const cleanedName = name.replace(/^Native\s+/i, "")
+  
+  // Take first two letters of the cleaned name for prefix
+  const firstWord = cleanedName.split(" ")[0].toUpperCase() // e.g., "Dosa" => "DOSA"
+  
+  // Count how many products already start with this firstWord
   const count = await Product.countDocuments({ name: new RegExp(`^${firstWord}`, "i") }) + 1
+
+  // Pad serial to 3 digits
   const serial = String(count).padStart(3, "0")
+
+  // Add "NA" prefix for all SKUs
   return `NA${firstWord}${serial}`
 }
 
@@ -25,7 +38,7 @@ export async function GET() {
   try {
     await connectDB()
     const products = await Product.find().sort({ createdAt: -1 })
-    return NextResponse.json(products) // directly send array
+    return NextResponse.json(products)
   } catch (error) {
     console.error("GET PRODUCTS ERROR:", error)
     return NextResponse.json({ error: "Failed to fetch products" }, { status: 500 })
