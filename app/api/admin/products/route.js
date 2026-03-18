@@ -17,17 +17,10 @@ function generateSlug(name) {
 /* SKU GENERATOR */
 // Example: "Native Dosa Mix" => NADOSA001
 async function generateSKU(name) {
-  // Remove "Native " prefix if present
   const cleanedName = name.replace(/^Native\s+/i, "")
-  
-  // Take first word of cleaned name
   const firstWord = cleanedName.split(" ")[0].toUpperCase()
-  
-  // Count products starting with this word to serialize
   const count = await Product.countDocuments({ name: new RegExp(`^${firstWord}`, "i") }) + 1
-  
   const serial = String(count).padStart(3, "0")
-  
   return `NA${firstWord}${serial}`
 }
 
@@ -62,6 +55,7 @@ export async function POST(req) {
       slug,
       sku,
       alt: body.name,
+      warehouse: body.warehouse || "", // <-- SAVE selected warehouse
     })
 
     return NextResponse.json({ success: true, product })
