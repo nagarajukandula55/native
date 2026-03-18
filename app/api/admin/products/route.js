@@ -17,19 +17,17 @@ function generateSlug(name) {
 /* SKU GENERATOR */
 // Example: "Native Dosa Mix" => NADOSA001
 async function generateSKU(name) {
-  // Check if name starts with "Native " and remove it
+  // Remove "Native " prefix if present
   const cleanedName = name.replace(/^Native\s+/i, "")
   
-  // Take first two letters of the cleaned name for prefix
-  const firstWord = cleanedName.split(" ")[0].toUpperCase() // e.g., "Dosa" => "DOSA"
+  // Take first word of cleaned name
+  const firstWord = cleanedName.split(" ")[0].toUpperCase()
   
-  // Count how many products already start with this firstWord
+  // Count products starting with this word to serialize
   const count = await Product.countDocuments({ name: new RegExp(`^${firstWord}`, "i") }) + 1
-
-  // Pad serial to 3 digits
+  
   const serial = String(count).padStart(3, "0")
-
-  // Add "NA" prefix for all SKUs
+  
   return `NA${firstWord}${serial}`
 }
 
