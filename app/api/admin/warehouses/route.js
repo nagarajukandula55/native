@@ -9,7 +9,6 @@ async function connectDB() {
   if (mongoose.connection.readyState === 1) return
   await mongoose.connect(MONGODB_URI)
 }
-
 export async function GET() {
   try {
     await connectDB()
@@ -20,7 +19,6 @@ export async function GET() {
     return NextResponse.json({ error: "Failed to fetch warehouses" }, { status: 500 })
   }
 }
-
 export async function POST(req) {
   try {
     await connectDB()
@@ -36,7 +34,6 @@ export async function POST(req) {
     return NextResponse.json({ error: "Failed to create warehouse" }, { status: 500 })
   }
 }
-
 // GET all warehouses
 export async function GET() {
   try {
