@@ -24,6 +24,7 @@ export default function AdminProducts() {
     featured: false,
     status: "ACTIVE",
     image: "",
+    warehouse: "", // added warehouse field
   }
 
   const [form, setForm] = useState(emptyForm)
@@ -32,9 +33,11 @@ export default function AdminProducts() {
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [message, setMessage] = useState("")
+  const [warehouses, setWarehouses] = useState([]) // store warehouses dynamically
 
   useEffect(() => {
     loadProducts()
+    loadWarehouses()
   }, [])
 
   function handleChange(e) {
@@ -60,6 +63,17 @@ export default function AdminProducts() {
       alert("Failed to load products")
     }
     setLoading(false)
+  }
+
+  async function loadWarehouses() {
+    try {
+      const res = await fetch("/api/admin/warehouses")
+      const data = await res.json()
+      if (Array.isArray(data)) setWarehouses(data)
+      else setWarehouses([])
+    } catch {
+      console.error("Failed to load warehouses")
+    }
   }
 
   async function handleImageUpload(e) {
@@ -118,6 +132,7 @@ export default function AdminProducts() {
         }}
       >
         <input name="name" placeholder="Product Name" value={form.name} onChange={handleChange} required />
+        
         <select name="category" value={form.category} onChange={handleChange} required>
           <option value="">Select Category</option>
           {CATEGORIES.map(cat => (
@@ -126,6 +141,7 @@ export default function AdminProducts() {
             </option>
           ))}
         </select>
+
         <input name="brand" placeholder="Brand" value={form.brand} onChange={handleChange} />
         <input name="price" type="number" placeholder="Selling Price" value={form.price} onChange={handleChange} required />
         <input name="mrp" type="number" placeholder="MRP" value={form.mrp} onChange={handleChange} />
@@ -133,6 +149,7 @@ export default function AdminProducts() {
         <input name="stock" type="number" placeholder="Opening Stock" value={form.stock} onChange={handleChange} />
         <input name="reorderLevel" type="number" placeholder="Reorder Level" value={form.reorderLevel} onChange={handleChange} />
 
+        {/* HSN Dropdown */}
         <select name="hsn" value={form.hsn} onChange={handleChange} required>
           <option value="">Select HSN</option>
           {HSN_LIST.map(h => (
@@ -147,6 +164,15 @@ export default function AdminProducts() {
         <input name="length" type="number" placeholder="Length (cm)" value={form.length} onChange={handleChange} />
         <input name="breadth" type="number" placeholder="Breadth (cm)" value={form.breadth} onChange={handleChange} />
         <input name="height" type="number" placeholder="Height (cm)" value={form.height} onChange={handleChange} />
+
+        <select name="warehouse" value={form.warehouse} onChange={handleChange}>
+          <option value="">Select Warehouse</option>
+          {warehouses.map(w => (
+            <option key={w._id} value={w._id}>
+              {w.name} ({w.location})
+            </option>
+          ))}
+        </select>
 
         <select name="status" value={form.status} onChange={handleChange}>
           <option value="ACTIVE">Active</option>
@@ -185,6 +211,7 @@ export default function AdminProducts() {
                 <th>MRP</th>
                 <th>Stock</th>
                 <th>Status</th>
+                <th>Warehouse</th>
                 <th>Action</th>
               </tr>
             </thead>
@@ -199,6 +226,7 @@ export default function AdminProducts() {
                   <td>₹{p.mrp}</td>
                   <td>{p.stock}</td>
                   <td>{p.status}</td>
+                  <td>{p.warehouse?.name || "-"}</td>
                   <td>
                     <button onClick={() => deleteProduct(p.slug)} style={{ background: "red", color: "#fff", padding: "6px 12px", borderRadius: 4 }}>
                       Delete
