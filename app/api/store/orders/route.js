@@ -1,4 +1,6 @@
 // app/api/store/orders/route.js
+export const dynamic = "force-dynamic";
+
 import { NextResponse } from "next/server";
 import db from "@/lib/db";
 import Order from "@/models/Order";
