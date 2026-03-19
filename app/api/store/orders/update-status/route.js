@@ -1,7 +1,7 @@
 // app/api/store/orders/update-status/route.js
 import { NextResponse } from "next/server";
 import db from "@/lib/db";
-import Order from "@/models/order";
+import Order from "@/models/Order";
 import Store from "@/models/store";
 import jwt from "jsonwebtoken";
 
