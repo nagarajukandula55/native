@@ -16,6 +16,7 @@
     "cloudinary": "^1.41.0",
     "slugify": "^1.6.6",
     "bcryptjs": "^2.4.3",
-    "axios": "^1.6.0"
+    "axios": "^1.6.0",
+    "react-barcode": "^1.4.1"
   }
 }
