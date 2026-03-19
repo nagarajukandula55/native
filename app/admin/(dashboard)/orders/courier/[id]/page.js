@@ -5,46 +5,61 @@ import { useParams } from "next/navigation";
 import Barcode from "react-barcode";
 
 export default function CourierLabel() {
-  const { id } = useParams();
+  const params = useParams();
+  const id = params?.id;
 
   const [order, setOrder] = useState(null);
   const [awb, setAwb] = useState("");
   const [courierName, setCourierName] = useState("");
+  const [loading, setLoading] = useState(true);
 
-  /* ================= FETCH ORDER ================= */
+  /* ================= LOAD ORDER + AWB ================= */
   useEffect(() => {
     if (!id) return;
 
-    fetch(`/api/admin/order/${id}`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success) {
-          setOrder(data.order);
+    const loadData = async () => {
+      try {
+        setLoading(true);
+
+        // 1️⃣ Fetch Order
+        const orderRes = await fetch(`/api/admin/order/${id}`);
+        const orderData = await orderRes.json();
+
+        if (!orderData.success) {
+          console.error("Order fetch failed");
+          return;
         }
-      });
+
+        setOrder(orderData.order);
+
+        // 2️⃣ Generate / Fetch AWB
+        const awbRes = await fetch("/api/admin/order/generate-awb", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ orderId: id }),
+        });
+
+        const awbData = await awbRes.json();
+
+        if (awbData.success) {
+          setAwb(awbData.awb);
+          setCourierName(awbData.courier);
+        }
+
+      } catch (err) {
+        console.error("Courier Load Error:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
   }, [id]);
 
-  /* ================= GENERATE / GET AWB ================= */
-  useEffect(() => {
-    if (!id) return;
-
-    fetch("/api/admin/order/generate-awb", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ orderId: id }),
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success) {
-          setAwb(data.awb);
-          setCourierName(data.courier);
-        }
-      });
-  }, [id]);
-
-  if (!order) return <p className="p-4">Loading...</p>;
+  if (loading) return <p className="p-4">Loading...</p>;
+  if (!order) return <p className="p-4">Order not found</p>;
 
   return (
     <div className="p-6 bg-white text-black">
@@ -69,7 +84,7 @@ export default function CourierLabel() {
 
         <hr className="my-3" />
 
-        {/* FROM (Warehouse) */}
+        {/* FROM */}
         <div className="mb-3 text-sm">
           <h3 className="font-semibold">From:</h3>
           <p>Your Warehouse Name</p>
@@ -79,7 +94,7 @@ export default function CourierLabel() {
 
         <hr className="my-3" />
 
-        {/* TO (Customer) */}
+        {/* TO */}
         <div className="mb-3 text-sm">
           <h3 className="font-semibold">To:</h3>
           <p>{order.customerName}</p>
@@ -102,7 +117,7 @@ export default function CourierLabel() {
           </thead>
 
           <tbody>
-            {order.items.map((item, i) => (
+            {(order.items || []).map((item, i) => (
               <tr key={i}>
                 <td className="border p-2">
                   {item.name || "Product"}
