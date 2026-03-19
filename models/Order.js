@@ -1,5 +1,7 @@
 import mongoose from "mongoose"
 
+/* ================= STATUS HISTORY ================= */
+
 const StatusHistorySchema = new mongoose.Schema(
   {
     status: {
@@ -21,98 +23,137 @@ const StatusHistorySchema = new mongoose.Schema(
   { _id: false }
 )
 
-const OrderSchema = new mongoose.Schema({
+/* ================= ITEMS ================= */
 
-  orderId:{
-    type:String,
-    required:true,
-    unique:true,
-    index:true
-  },
+const OrderItemSchema = new mongoose.Schema(
+  {
+    productId: String,
 
-  customerName:{
-    type:String,
-    required:true,
-    trim:true
-  },
+    name: {
+      type: String,
+      required: true
+    },
 
-  phone:{
-    type:String,
-    required:true
-  },
+    price: {
+      type: Number,
+      required: true
+    },
 
-  email:{
-    type:String,
-    default:""
-  },
-
-  address:{
-    type:String,
-    required:true
-  },
-
-  pincode:{
-    type:String,
-    required:true
-  },
-
-  items:[
-    {
-      productId:String,
-
-      name:{
-        type:String,
-        required:true
-      },
-
-      price:{
-        type:Number,
-        required:true
-      },
-
-      quantity:{
-        type:Number,
-        required:true
-      }
+    quantity: {
+      type: Number,
+      required: true
     }
-  ],
-
-  totalAmount:{
-    type:Number,
-    required:true
   },
+  { _id: false }
+)
 
-  status:{
-    type:String,
-    enum:[
-      "Order Placed",
-      "Packed",
-      "Shipped",
-      "Out For Delivery",
-      "Delivered",
-      "Cancelled"
-    ],
-    default:"Order Placed"
+/* ================= MAIN ORDER ================= */
+
+const OrderSchema = new mongoose.Schema(
+  {
+    orderId: {
+      type: String,
+      required: true,
+      unique: true,
+      index: true
+    },
+
+    customerName: {
+      type: String,
+      required: true,
+      trim: true
+    },
+
+    phone: {
+      type: String,
+      required: true
+    },
+
+    email: {
+      type: String,
+      default: ""
+    },
+
+    address: {
+      type: String,
+      required: true
+    },
+
+    pincode: {
+      type: String,
+      required: true
+    },
+
+    items: [OrderItemSchema],
+
+    totalAmount: {
+      type: Number,
+      required: true
+    },
+
+    status: {
+      type: String,
+      enum: [
+        "Order Placed",
+        "Packed",
+        "Shipped",
+        "Out For Delivery",
+        "Delivered",
+        "Cancelled"
+      ],
+      default: "Order Placed"
+    },
+
+    /* ⭐ TIMELINE TRACKING */
+    statusHistory: {
+      type: [StatusHistorySchema],
+      default: [
+        {
+          status: "Order Placed",
+          time: new Date()
+        }
+      ]
+    },
+
+    /* 🔥 NEW: COURIER SYSTEM */
+    awbNumber: {
+      type: String,
+      default: ""
+    },
+
+    courierName: {
+      type: String,
+      default: ""
+    },
+
+    trackingUrl: {
+      type: String,
+      default: ""
+    },
+
+    /* 💰 PAYMENT */
+    paymentStatus: {
+      type: String,
+      enum: ["Pending", "Paid", "Failed"],
+      default: "Pending"
+    },
+
+    paymentId: {
+      type: String,
+      default: ""
+    }
+
   },
-
-  // ⭐⭐⭐ NEW FIELD — Timeline tracking
-  statusHistory:{
-    type:[StatusHistorySchema],
-    default:[
-      {
-        status:"Order Placed",
-        time:new Date()
-      }
-    ]
+  {
+    timestamps: true,
+    collection: "orders"
   }
+)
 
-},{
-  timestamps:true,
-  collection:"orders"
-})
+/* ================= EXPORT ================= */
 
 const Order =
   mongoose.models.Order ||
-  mongoose.model("Order",OrderSchema)
+  mongoose.model("Order", OrderSchema)
 
 export default Order
