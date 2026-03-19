@@ -90,6 +90,7 @@ export default function StoreOrdersPage() {
               <th className="p-2 border">Status</th>
               <th className="p-2 border">Update</th>
               <th className="p-2 border">Print</th>
+              <th className="p-2 border">Courier</th>
             </tr>
           </thead>
 
@@ -146,6 +147,15 @@ export default function StoreOrdersPage() {
                     className="text-blue-600 underline"
                   >
                     Print
+                  </a>
+                </td>
+                <td className="p-2 border">
+                  <a
+                    href={`/admin/(dashboard)/orders/courier/${order._id}`}
+                    target="_blank"
+                    className="text-green-600 underline"
+                  >
+                    Courier
                   </a>
                 </td>
               </tr>
