@@ -6,13 +6,14 @@ export default function StoreOrdersPage() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  const getToken = () =>
+    typeof window !== "undefined" ? localStorage.getItem("token") : null;
 
   const fetchOrders = async () => {
     try {
       const res = await fetch("/api/store/orders", {
         headers: {
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${getToken()}`,
         },
       });
 
@@ -22,7 +23,7 @@ export default function StoreOrdersPage() {
         setOrders(data.orders);
       }
     } catch (err) {
-      console.error(err);
+      console.error("FETCH ERROR:", err);
     } finally {
       setLoading(false);
     }
@@ -38,7 +39,7 @@ export default function StoreOrdersPage() {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${getToken()}`,
         },
         body: JSON.stringify({ orderId: id, status }),
       });
@@ -46,6 +47,7 @@ export default function StoreOrdersPage() {
       const data = await res.json();
 
       if (data.success) {
+        // update UI instantly
         setOrders((prev) =>
           prev.map((o) =>
             o._id === id ? { ...o, currentStatus: status } : o
@@ -53,7 +55,22 @@ export default function StoreOrdersPage() {
         );
       }
     } catch (err) {
-      console.error(err);
+      console.error("UPDATE ERROR:", err);
+    }
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case "Packed":
+        return "bg-yellow-200 text-yellow-800";
+      case "Shipped":
+        return "bg-blue-200 text-blue-800";
+      case "Out For Delivery":
+        return "bg-purple-200 text-purple-800";
+      case "Delivered":
+        return "bg-green-200 text-green-800";
+      default:
+        return "bg-gray-200";
     }
   };
 
@@ -63,43 +80,79 @@ export default function StoreOrdersPage() {
     <div className="p-4">
       <h1 className="text-2xl font-bold mb-4">Store Orders</h1>
 
-      <table className="w-full border">
-        <thead>
-          <tr className="bg-gray-100">
-            <th className="p-2">Order ID</th>
-            <th className="p-2">Customer</th>
-            <th className="p-2">Amount</th>
-            <th className="p-2">Status</th>
-            <th className="p-2">Update</th>
-          </tr>
-        </thead>
-
-        <tbody>
-          {orders.map((order) => (
-            <tr key={order._id} className="border-t text-center">
-              <td className="p-2">{order.orderId}</td>
-              <td className="p-2">{order.customerName}</td>
-              <td className="p-2">₹{order.totalAmount}</td>
-              <td className="p-2">{order.currentStatus}</td>
-
-              <td className="p-2">
-                <select
-                  value={order.currentStatus}
-                  onChange={(e) =>
-                    updateStatus(order._id, e.target.value)
-                  }
-                  className="border px-2 py-1"
-                >
-                  <option>Packed</option>
-                  <option>Shipped</option>
-                  <option>Out For Delivery</option>
-                  <option>Delivered</option>
-                </select>
-              </td>
+      <div className="overflow-x-auto">
+        <table className="w-full border text-sm">
+          <thead>
+            <tr className="bg-gray-100">
+              <th className="p-2 border">Order ID</th>
+              <th className="p-2 border">Customer</th>
+              <th className="p-2 border">Amount</th>
+              <th className="p-2 border">Status</th>
+              <th className="p-2 border">Update</th>
+              <th className="p-2 border">Print</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+
+          <tbody>
+            {orders.length === 0 && (
+              <tr>
+                <td colSpan="6" className="p-4 text-center">
+                  No Orders Found
+                </td>
+              </tr>
+            )}
+
+            {orders.map((order) => (
+              <tr key={order._id} className="text-center border-t">
+                <td className="p-2 border">{order.orderId}</td>
+
+                <td className="p-2 border">
+                  {order.customerName}
+                </td>
+
+                <td className="p-2 border">
+                  ₹{order.totalAmount}
+                </td>
+
+                <td className="p-2 border">
+                  <span
+                    className={`px-2 py-1 rounded text-xs font-semibold ${getStatusColor(
+                      order.currentStatus
+                    )}`}
+                  >
+                    {order.currentStatus}
+                  </span>
+                </td>
+
+                <td className="p-2 border">
+                  <select
+                    value={order.currentStatus}
+                    onChange={(e) =>
+                      updateStatus(order._id, e.target.value)
+                    }
+                    className="border px-2 py-1 rounded"
+                  >
+                    <option>Packed</option>
+                    <option>Shipped</option>
+                    <option>Out For Delivery</option>
+                    <option>Delivered</option>
+                  </select>
+                </td>
+
+                <td className="p-2 border">
+                  <a
+                    href={`/admin/(dashboard)/orders/print/${order._id}`}
+                    target="_blank"
+                    className="text-blue-600 underline"
+                  >
+                    Print
+                  </a>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
