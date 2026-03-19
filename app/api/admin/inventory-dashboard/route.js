@@ -7,34 +7,32 @@ import mongoose from "mongoose";
 import Product from "@/models/Product";
 import Warehouse from "@/models/Warehouse";
 import Inventory from "@/models/Inventory";
-import InventoryMovement from "@/models/InventoryMovement"; // Corrected
+import InventoryMovement from "@/models/InventoryMovement"; // ✅ Correct import
 
-import db from "@/lib/db";
+const MONGODB_URI = process.env.MONGODB_URI;
 
 async function connectDB() {
-  await db(); // Use centralized DB connection
+  if (mongoose.connection.readyState >= 1) return;
+  await mongoose.connect(MONGODB_URI);
 }
 
 export async function GET() {
   try {
     await connectDB();
 
-    // Total counts
     const totalProducts = await Product.countDocuments();
     const totalWarehouses = await Warehouse.countDocuments();
 
-    // Total stock
     const stockAgg = await Inventory.aggregate([
       { $group: { _id: null, total: { $sum: "$qty" } } },
     ]);
+
     const totalStock = stockAgg[0]?.total || 0;
 
-    // Low stock entries
     const lowStock = await Inventory.countDocuments({
       $expr: { $lte: ["$qty", "$reorderLevel"] },
     });
 
-    // Recent stock movements
     const recentMoves = await InventoryMovement.find()
       .populate("product")
       .populate("warehouse")
@@ -52,9 +50,12 @@ export async function GET() {
       },
     });
   } catch (error) {
-    console.error("DASHBOARD ERROR:", error);
+    console.log("DASHBOARD ERROR:", error);
     return NextResponse.json(
-      { success: false, message: error.message },
+      {
+        success: false,
+        message: error.message,
+      },
       { status: 500 }
     );
   }
