@@ -1,7 +1,7 @@
 // models/InventoryMovement.js
 import mongoose from "mongoose";
 
-const InventoryMovementSchema = new mongoose.Schema(
+const inventoryMovementSchema = new mongoose.Schema(
   {
     product: { type: mongoose.Schema.Types.ObjectId, ref: "Product", required: true },
     warehouse: { type: mongoose.Schema.Types.ObjectId, ref: "Warehouse", required: true },
@@ -14,6 +14,6 @@ const InventoryMovementSchema = new mongoose.Schema(
 
 const InventoryMovement =
   mongoose.models.InventoryMovement ||
-  mongoose.model("InventoryMovement", InventoryMovementSchema);
+  mongoose.model("InventoryMovement", inventoryMovementSchema);
 
 export default InventoryMovement;
