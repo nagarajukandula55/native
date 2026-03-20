@@ -14,7 +14,7 @@ export default function DashboardPage() {
   });
 
   useEffect(() => {
-    // 🔹 Fetch initial dashboard stats
+    // 🔹 Fetch dashboard stats from API
     fetch("/api/admin/stats")
       .then((res) => res.json())
       .then((data) => {
@@ -23,22 +23,26 @@ export default function DashboardPage() {
   }, []);
 
   return (
-    <div>
-      <h1 style={{ fontSize: 28, marginBottom: 20 }}>Dashboard</h1>
+    <div style={{ padding: 20 }}>
+      <h1 style={{ fontSize: 28, marginBottom: 25, fontWeight: 600 }}>Dashboard</h1>
 
       {/* QUICK STATS */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 20 }}>
-        <StatCard title="Total Orders" value={stats.totalOrders} />
-        <StatCard title="Pending Orders" value={stats.pendingOrders} />
-        <StatCard title="Delivered Orders" value={stats.deliveredOrders} />
-        <StatCard title="Total Revenue" value={`₹${stats.totalRevenue}`} />
-        <StatCard title="Total Products" value={stats.totalProducts} />
-        <StatCard title="Total Warehouses" value={stats.totalWarehouses} />
-        <StatCard title="Total Stock" value={stats.totalStock} />
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+        gap: 20,
+      }}>
+        <StatCard title="Total Orders" value={stats.totalOrders} color="#1e40af" />
+        <StatCard title="Pending Orders" value={stats.pendingOrders} color="#facc15" />
+        <StatCard title="Delivered Orders" value={stats.deliveredOrders} color="#16a34a" />
+        <StatCard title="Total Revenue" value={`₹${stats.totalRevenue}`} color="#0ea5e9" />
+        <StatCard title="Total Products" value={stats.totalProducts} color="#7c3aed" />
+        <StatCard title="Total Warehouses" value={stats.totalWarehouses} color="#f97316" />
+        <StatCard title="Total Stock" value={stats.totalStock} color="#f43f5e" />
       </div>
 
       {/* QUICK ACTIONS */}
-      <h2 style={{ marginTop: 40, marginBottom: 10 }}>Quick Actions</h2>
+      <h2 style={{ marginTop: 40, marginBottom: 15, fontSize: 18, fontWeight: 600 }}>Quick Actions</h2>
       <div style={{ display: "flex", gap: 15, flexWrap: "wrap" }}>
         <ActionButton title="Create Order" href="/admin/orders/create" />
         <ActionButton title="Add Product" href="/admin/products/create" />
@@ -50,26 +54,45 @@ export default function DashboardPage() {
   );
 }
 
-function StatCard({ title, value }) {
+/* ==================== STAT CARD ==================== */
+function StatCard({ title, value, color }) {
   return (
-    <div style={{ background: "#fff", padding: 20, borderRadius: 12, boxShadow: "0 4px 8px rgba(0,0,0,0.05)" }}>
-      <div style={{ fontSize: 12, color: "#888", marginBottom: 5 }}>{title}</div>
-      <div style={{ fontSize: 22, fontWeight: 600 }}>{value}</div>
+    <div style={{
+      background: "#fff",
+      padding: 20,
+      borderRadius: 12,
+      boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+      display: "flex",
+      flexDirection: "column",
+      justifyContent: "space-between",
+      minHeight: 100,
+      borderLeft: `5px solid ${color || "#1e40af"}`
+    }}>
+      <div style={{ fontSize: 12, color: "#888", marginBottom: 5, textTransform: "uppercase", letterSpacing: 0.5 }}>
+        {title}
+      </div>
+      <div style={{ fontSize: 24, fontWeight: 600, color: "#111" }}>{value}</div>
     </div>
   );
 }
 
+/* ==================== ACTION BUTTON ==================== */
 function ActionButton({ title, href }) {
   return (
     <a href={href} style={{
       background: "#1e40af",
       color: "#fff",
-      padding: "12px 20px",
+      padding: "12px 22px",
       borderRadius: 10,
       textDecoration: "none",
       fontWeight: 500,
-      transition: "all 0.2s"
-    }}>
+      fontSize: 14,
+      transition: "all 0.2s",
+      display: "inline-block",
+    }}
+      onMouseEnter={(e) => e.currentTarget.style.background = "#1d4ed8"}
+      onMouseLeave={(e) => e.currentTarget.style.background = "#1e40af"}
+    >
       {title}
     </a>
   );
