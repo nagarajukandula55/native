@@ -1,4 +1,3 @@
-// app/api/store/orders/route.js
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
@@ -8,24 +7,67 @@ import Store from "@/models/store";
 import jwt from "jsonwebtoken";
 
 export async function GET(req) {
-  await db();
-
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) return NextResponse.json({ success: false, msg: "Unauthorized" }, { status: 401 });
+    await db();
+
+    /* ================= AUTH ================= */
+    const authHeader = req.headers.get("authorization");
+
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return NextResponse.json(
+        { success: false, message: "Unauthorized" },
+        { status: 401 }
+      );
+    }
 
     const token = authHeader.split(" ")[1];
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (err) {
+      return NextResponse.json(
+        { success: false, message: "Invalid Token" },
+        { status: 401 }
+      );
+    }
+
+    /* ================= STORE ================= */
     const store = await Store.findById(decoded.id);
 
-    if (!store) return NextResponse.json({ success: false, msg: "Store not found" }, { status: 404 });
+    if (!store) {
+      return NextResponse.json(
+        { success: false, message: "Store not found" },
+        { status: 404 }
+      );
+    }
 
-    // Fetch orders that match store's assigned warehouses
-    const orders = await Order.find({ "warehouseAssignments.warehouseId": { $in: store.assignedWarehouses } }).sort({ createdAt: -1 });
+    /* ================= ORDERS ================= */
+    const orders = await Order.find({
+      "warehouseAssignments.warehouseId": {
+        $in: store.assignedWarehouses || [],
+      },
+    })
+      .sort({ createdAt: -1 })
+      .select(
+        "_id orderId customerName phone totalAmount status paymentStatus paymentMethod awbNumber courierName createdAt"
+      );
 
-    return NextResponse.json({ success: true, orders });
+    /* ================= RESPONSE ================= */
+    return NextResponse.json({
+      success: true,
+      count: orders.length,
+      orders,
+    });
   } catch (err) {
-    console.error(err);
-    return NextResponse.json({ success: false, msg: "Server error" }, { status: 500 });
+    console.error("STORE ORDERS ERROR:", err);
+
+    return NextResponse.json(
+      {
+        success: false,
+        message: "Server Error",
+      },
+      { status: 500 }
+    );
   }
 }
