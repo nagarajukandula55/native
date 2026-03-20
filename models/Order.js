@@ -1,7 +1,6 @@
-import mongoose from "mongoose"
+import mongoose from "mongoose";
 
 /* ================= STATUS HISTORY ================= */
-
 const StatusHistorySchema = new mongoose.Schema(
   {
     status: {
@@ -12,85 +11,82 @@ const StatusHistorySchema = new mongoose.Schema(
         "Shipped",
         "Out For Delivery",
         "Delivered",
-        "Cancelled"
-      ]
+        "Cancelled",
+      ],
     },
     time: {
       type: Date,
-      default: Date.now
-    }
+      default: Date.now,
+    },
   },
   { _id: false }
-)
+);
 
-/* ================= ITEMS ================= */
-
-const OrderItemSchema = new mongoose.Schema(
-  {
-    productId: String,
-
-    name: {
-      type: String,
-      required: true
-    },
-
-    price: {
-      type: Number,
-      required: true
-    },
-
-    quantity: {
-      type: Number,
-      required: true
-    }
-  },
-  { _id: false }
-)
-
-/* ================= MAIN ORDER ================= */
-
+/* ================= ORDER ================= */
 const OrderSchema = new mongoose.Schema(
   {
+    /* BASIC INFO */
     orderId: {
       type: String,
       required: true,
       unique: true,
-      index: true
+      index: true,
     },
 
     customerName: {
       type: String,
       required: true,
-      trim: true
+      trim: true,
     },
 
     phone: {
       type: String,
-      required: true
+      required: true,
     },
 
     email: {
       type: String,
-      default: ""
+      default: "",
     },
 
     address: {
       type: String,
-      required: true
+      required: true,
     },
 
     pincode: {
       type: String,
-      required: true
+      required: true,
     },
 
-    items: [OrderItemSchema],
+    /* ITEMS */
+    items: [
+      {
+        productId: String,
+
+        name: {
+          type: String,
+          required: true,
+        },
+
+        price: {
+          type: Number,
+          required: true,
+        },
+
+        quantity: {
+          type: Number,
+          required: true,
+        },
+      },
+    ],
 
     totalAmount: {
       type: Number,
-      required: true
+      required: true,
     },
 
+    /* ORDER STATUS */
     status: {
       type: String,
       enum: [
@@ -99,61 +95,62 @@ const OrderSchema = new mongoose.Schema(
         "Shipped",
         "Out For Delivery",
         "Delivered",
-        "Cancelled"
+        "Cancelled",
       ],
-      default: "Order Placed"
+      default: "Order Placed",
     },
 
-    /* ⭐ TIMELINE TRACKING */
     statusHistory: {
       type: [StatusHistorySchema],
       default: [
         {
           status: "Order Placed",
-          time: new Date()
-        }
-      ]
+          time: new Date(),
+        },
+      ],
     },
 
-    /* 🔥 NEW: COURIER SYSTEM */
-    awbNumber: {
-      type: String,
-      default: ""
-    },
-
-    courierName: {
-      type: String,
-      default: ""
-    },
-
-    trackingUrl: {
-      type: String,
-      default: ""
-    },
-
-    /* 💰 PAYMENT */
+    /* ================= PAYMENT ================= */
     paymentStatus: {
       type: String,
       enum: ["Pending", "Paid", "Failed"],
-      default: "Pending"
+      default: "Pending",
     },
 
     paymentId: {
       type: String,
-      default: ""
-    }
+      default: "",
+    },
 
+    razorpayOrderId: {
+      type: String,
+      default: "",
+    },
+
+    /* ================= COURIER ================= */
+    awbNumber: {
+      type: String,
+      default: "",
+    },
+
+    courierName: {
+      type: String,
+      default: "",
+    },
+
+    trackingUrl: {
+      type: String,
+      default: "",
+    },
   },
   {
     timestamps: true,
-    collection: "orders"
+    collection: "orders",
   }
-)
+);
 
 /* ================= EXPORT ================= */
-
 const Order =
-  mongoose.models.Order ||
-  mongoose.model("Order", OrderSchema)
+  mongoose.models.Order || mongoose.model("Order", OrderSchema);
 
-export default Order
+export default Order;
