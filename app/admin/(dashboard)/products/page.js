@@ -24,7 +24,7 @@ export default function AdminProducts() {
     featured: false,
     status: "ACTIVE",
     image: "",
-    warehouse: "", // warehouse field
+    warehouse: "",
   }
 
   const [form, setForm] = useState(emptyForm)
@@ -56,7 +56,7 @@ export default function AdminProducts() {
     setLoading(true)
     try {
       const res = await fetch("/api/admin/products")
-      let data = await res.json()
+      const data = await res.json()
       if (Array.isArray(data)) setProducts(data)
       else setProducts([])
     } catch {
@@ -84,10 +84,14 @@ export default function AdminProducts() {
     const fd = new FormData()
     fd.append("file", file)
 
-    const res = await fetch("/api/upload", { method: "POST", body: fd })
-    const data = await res.json()
+    try {
+      const res = await fetch("/api/upload", { method: "POST", body: fd })
+      const data = await res.json()
+      if (data.url) setForm(prev => ({ ...prev, image: data.url }))
+    } catch (err) {
+      console.error("Upload failed", err)
+    }
 
-    if (data.url) setForm(prev => ({ ...prev, image: data.url }))
     setUploading(false)
   }
 
@@ -119,11 +123,19 @@ export default function AdminProducts() {
     loadProducts()
   }
 
+  function getStatusBadge(status) {
+    return {
+      ACTIVE: { bg: "#0f9d58", color: "#fff" },
+      INACTIVE: { bg: "#777", color: "#fff" },
+    }[status] || { bg: "#ccc", color: "#000" }
+  }
+
   return (
     <div style={{ maxWidth: 1200, margin: "auto", padding: 30 }}>
       <h1 style={{ fontSize: 30, fontWeight: "bold" }}>🛍 Admin Product Manager</h1>
       {message && <p style={{ color: "green", marginTop: 10 }}>{message}</p>}
 
+      {/* FORM */}
       <form
         onSubmit={handleSubmit}
         style={{
@@ -137,13 +149,10 @@ export default function AdminProducts() {
         }}
       >
         <input name="name" placeholder="Product Name" value={form.name} onChange={handleChange} required />
-
         <select name="category" value={form.category} onChange={handleChange} required>
           <option value="">Select Category</option>
           {CATEGORIES.map(cat => (
-            <option key={cat.name} value={cat.name}>
-              {cat.name} - {cat.description}
-            </option>
+            <option key={cat.name} value={cat.name}>{cat.name}</option>
           ))}
         </select>
 
@@ -157,25 +166,20 @@ export default function AdminProducts() {
         <select name="hsn" value={form.hsn} onChange={handleChange} required>
           <option value="">Select HSN</option>
           {HSN_LIST.map(h => (
-            <option key={h.hsn} value={h.hsn}>
-              {h.hsn} - {h.description} (GST {h.gst}%)
-            </option>
+            <option key={h.hsn} value={h.hsn}>{h.hsn} - GST {h.gst}%</option>
           ))}
         </select>
-
         <input name="gst" type="number" placeholder="GST %" value={form.gst} onChange={handleChange} />
+
         <input name="weight" type="number" placeholder="Weight (kg)" value={form.weight} onChange={handleChange} />
         <input name="length" type="number" placeholder="Length (cm)" value={form.length} onChange={handleChange} />
         <input name="breadth" type="number" placeholder="Breadth (cm)" value={form.breadth} onChange={handleChange} />
         <input name="height" type="number" placeholder="Height (cm)" value={form.height} onChange={handleChange} />
 
-        {/* Warehouse Dropdown */}
         <select name="warehouse" value={form.warehouse} onChange={handleChange}>
           <option value="">Select Warehouse</option>
           {warehouses.map(w => (
-            <option key={w._id} value={w._id}>
-              {w.name} ({w.location})
-            </option>
+            <option key={w._id} value={w._id}>{w.name}</option>
           ))}
         </select>
 
@@ -191,15 +195,15 @@ export default function AdminProducts() {
         {form.image && <img src={form.image} style={{ width: 90, height: 90, objectFit: "cover", borderRadius: 6 }} />}
 
         <label style={{ gridColumn: "span 2" }}>
-          <input type="checkbox" name="featured" checked={form.featured} onChange={handleChange} />
-          Featured Product
+          <input type="checkbox" name="featured" checked={form.featured} onChange={handleChange} /> Featured Product
         </label>
 
-        <button disabled={saving} style={{ padding: 12, background: "black", color: "#fff", borderRadius: 6, cursor: "pointer", gridColumn: "span 2" }}>
+        <button disabled={saving} style={{ padding: 12, background: "#1e40af", color: "#fff", borderRadius: 6, cursor: "pointer", gridColumn: "span 2" }}>
           {saving ? "Saving..." : "Add Product"}
         </button>
       </form>
 
+      {/* PRODUCT TABLE */}
       {loading ? (
         <h3 style={{ marginTop: 40 }}>Loading products...</h3>
       ) : (
@@ -217,12 +221,13 @@ export default function AdminProducts() {
                 <th>Stock</th>
                 <th>Status</th>
                 <th>Warehouse</th>
+                <th>Featured</th>
                 <th>Action</th>
               </tr>
             </thead>
             <tbody>
               {products.map(p => (
-                <tr key={p._id} style={{ borderBottom: "1px solid #eee" }}>
+                <tr key={p._id} style={{ borderBottom: "1px solid #eee", textAlign: "center" }}>
                   <td>{p.sku}</td>
                   <td>{p.image && <img src={p.image} style={{ width: 60, height: 60, objectFit: "cover" }} />}</td>
                   <td>{p.name}</td>
@@ -230,10 +235,20 @@ export default function AdminProducts() {
                   <td>₹{p.price}</td>
                   <td>₹{p.mrp}</td>
                   <td>{p.stock}</td>
-                  <td>{p.status}</td>
-                  <td>{p.warehouse?.name || "-"}</td>
                   <td>
-                    <button onClick={() => deleteProduct(p.slug)} style={{ background: "red", color: "#fff", padding: "6px 12px", borderRadius: 4 }}>
+                    <span style={{
+                      padding: "4px 10px",
+                      borderRadius: 6,
+                      color: getStatusBadge(p.status).color,
+                      background: getStatusBadge(p.status).bg,
+                    }}>
+                      {p.status}
+                    </span>
+                  </td>
+                  <td>{p.warehouse?.name || "-"}</td>
+                  <td>{p.featured ? "⭐" : "-"}</td>
+                  <td>
+                    <button onClick={() => deleteProduct(p.slug)} style={{ background: "red", color: "#fff", padding: "6px 12px", borderRadius: 4, cursor: "pointer" }}>
                       Delete
                     </button>
                   </td>
