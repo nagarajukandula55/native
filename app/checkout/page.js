@@ -149,28 +149,28 @@ export default function CheckoutPage() {
         order_id: paymentData.order.id,
 
         handler: async function (response) {
-          const verifyRes = await fetch("/api/payment/verify", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              ...response,
-              orderId: dbOrderId,
-            }),
-          });
 
-          const verifyData = await verifyRes.json();
-
-          if (verifyData.success) {
-            cart.forEach((item) => removeFromCart(item._id));
-            closeCart();
-
-            router.push(`/order-success?orderId=${orderId}`);
-          } else {
-            alert("Payment verification failed");
-          }
+      const verifyRes = await fetch("/api/payment/verify", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
+        body: JSON.stringify({
+          razorpay_order_id: response.razorpay_order_id,
+          razorpay_payment_id: response.razorpay_payment_id,
+          razorpay_signature: response.razorpay_signature,
+          orderId: dbOrderId, // MUST BE DB ID
+        }),
+      });
+    
+      const verifyData = await verifyRes.json();
+    
+      if (verifyData.success) {
+        alert("✅ Payment Success");
+      } else {
+        alert("Payment verification failed");
+      }
+    },
 
         prefill: { name, contact: phone, email },
       };
