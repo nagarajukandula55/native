@@ -9,6 +9,7 @@ export default function StoreOrdersPage() {
   const getToken = () =>
     typeof window !== "undefined" ? localStorage.getItem("token") : null;
 
+  /* ================= FETCH ================= */
   const fetchOrders = async () => {
     try {
       const res = await fetch("/api/store/orders", {
@@ -50,7 +51,7 @@ export default function StoreOrdersPage() {
       if (data.success) {
         setOrders((prev) =>
           prev.map((o) =>
-            o._id === id ? { ...o, currentStatus: status } : o
+            o._id === id ? { ...o, status } : o
           )
         );
       }
@@ -81,24 +82,24 @@ export default function StoreOrdersPage() {
         key: process.env.NEXT_PUBLIC_RAZORPAY_KEY,
         amount: data.order.amount,
         currency: "INR",
-        name: "Your Store",
+        name: "Native Store",
         description: `Order ${order.orderId}`,
         order_id: data.order.id,
 
-        handler: function (response) {
+        handler: function () {
           alert("✅ Payment Successful");
+          fetchOrders(); // refresh
         },
       };
 
       const rzp = new window.Razorpay(options);
       rzp.open();
-
     } catch (err) {
       console.error("PAYMENT ERROR:", err);
     }
   };
 
-  /* ================= STATUS COLOR ================= */
+  /* ================= COLORS ================= */
   const getStatusColor = (status) => {
     switch (status) {
       case "Packed":
@@ -111,6 +112,17 @@ export default function StoreOrdersPage() {
         return "bg-green-200 text-green-800";
       default:
         return "bg-gray-200";
+    }
+  };
+
+  const getPaymentColor = (status) => {
+    switch (status) {
+      case "Paid":
+        return "bg-green-200 text-green-800";
+      case "Failed":
+        return "bg-red-200 text-red-800";
+      default:
+        return "bg-yellow-200 text-yellow-800";
     }
   };
 
@@ -129,17 +141,19 @@ export default function StoreOrdersPage() {
               <th className="p-2 border">Amount</th>
               <th className="p-2 border">Status</th>
               <th className="p-2 border">Update</th>
+              <th className="p-2 border">Payment</th>
+              <th className="p-2 border">Method</th>
               <th className="p-2 border">Print</th>
               <th className="p-2 border">Courier</th>
               <th className="p-2 border">Invoice</th>
-              <th className="p-2 border">Payment</th>
+              <th className="p-2 border">Action</th>
             </tr>
           </thead>
 
           <tbody>
             {orders.length === 0 && (
               <tr>
-                <td colSpan="9" className="p-4 text-center">
+                <td colSpan="11" className="p-4 text-center">
                   No Orders Found
                 </td>
               </tr>
@@ -147,29 +161,24 @@ export default function StoreOrdersPage() {
 
             {orders.map((order) => (
               <tr key={order._id} className="text-center border-t">
+
                 <td className="p-2 border">{order.orderId}</td>
 
-                <td className="p-2 border">
-                  {order.customerName}
-                </td>
+                <td className="p-2 border">{order.customerName}</td>
 
-                <td className="p-2 border">
-                  ₹{order.totalAmount}
-                </td>
+                <td className="p-2 border">₹{order.totalAmount}</td>
 
+                {/* ORDER STATUS */}
                 <td className="p-2 border">
-                  <span
-                    className={`px-2 py-1 rounded text-xs font-semibold ${getStatusColor(
-                      order.currentStatus
-                    )}`}
-                  >
-                    {order.currentStatus}
+                  <span className={`px-2 py-1 rounded text-xs font-semibold ${getStatusColor(order.status)}`}>
+                    {order.status}
                   </span>
                 </td>
 
+                {/* UPDATE */}
                 <td className="p-2 border">
                   <select
-                    value={order.currentStatus}
+                    value={order.status}
                     onChange={(e) =>
                       updateStatus(order._id, e.target.value)
                     }
@@ -180,6 +189,18 @@ export default function StoreOrdersPage() {
                     <option>Out For Delivery</option>
                     <option>Delivered</option>
                   </select>
+                </td>
+
+                {/* PAYMENT STATUS */}
+                <td className="p-2 border">
+                  <span className={`px-2 py-1 rounded text-xs font-semibold ${getPaymentColor(order.paymentStatus)}`}>
+                    {order.paymentStatus}
+                  </span>
+                </td>
+
+                {/* PAYMENT METHOD */}
+                <td className="p-2 border">
+                  {order.paymentMethod || "-"}
                 </td>
 
                 {/* PRINT */}
@@ -215,14 +236,20 @@ export default function StoreOrdersPage() {
                   </a>
                 </td>
 
-                {/* PAYMENT */}
+                {/* PAYMENT BUTTON */}
                 <td className="p-2 border">
-                  <button
-                    onClick={() => handlePayment(order)}
-                    className="bg-black text-white px-2 py-1 rounded text-xs"
-                  >
-                    Pay
-                  </button>
+                  {order.paymentStatus !== "Paid" ? (
+                    <button
+                      onClick={() => handlePayment(order)}
+                      className="bg-black text-white px-2 py-1 rounded text-xs"
+                    >
+                      Pay
+                    </button>
+                  ) : (
+                    <span className="text-green-600 font-semibold text-xs">
+                      Paid
+                    </span>
+                  )}
                 </td>
 
               </tr>
