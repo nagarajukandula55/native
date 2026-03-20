@@ -5,7 +5,7 @@ import mongoose from "mongoose";
 
 import Product from "@/models/Product";
 import Warehouse from "@/models/Warehouse";
-import Inventory from "@/models/inventory";
+import Inventory from "@/models/Inventory";
 
 /* ✅ SAFE MODEL LOAD (NO BUILD ERROR) */
 let InventoryMovement;
