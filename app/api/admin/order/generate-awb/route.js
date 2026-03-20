@@ -1,26 +1,59 @@
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
+import mongoose from "mongoose";
 import db from "@/lib/db";
 import Order from "@/models/Order";
 
+/* ================= SAFE AWB GENERATOR ================= */
 function generateAWB() {
-  return "AWB" + Math.random().toString(36).substring(2, 10).toUpperCase();
+  const timestamp = Date.now().toString().slice(-6);
+  const random = Math.random().toString(36).substring(2, 6).toUpperCase();
+  return `AWB${timestamp}${random}`;
 }
 
 export async function POST(req) {
   try {
     await db();
 
-    const { orderId } = await req.json();
+    /* ✅ SAFE BODY PARSE */
+    let body;
+    try {
+      body = await req.json();
+    } catch {
+      return NextResponse.json({
+        success: false,
+        message: "Invalid JSON body"
+      }, { status: 400 });
+    }
+
+    const { orderId } = body;
+
+    /* ✅ VALIDATION */
+    if (!orderId) {
+      return NextResponse.json({
+        success: false,
+        message: "orderId is required"
+      }, { status: 400 });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(orderId)) {
+      return NextResponse.json({
+        success: false,
+        message: "Invalid orderId"
+      }, { status: 400 });
+    }
 
     const order = await Order.findById(orderId);
 
     if (!order) {
-      return NextResponse.json({ success: false, message: "Order not found" });
+      return NextResponse.json({
+        success: false,
+        message: "Order not found"
+      }, { status: 404 });
     }
 
-    // ✅ If already exists → return same
+    /* ✅ REUSE EXISTING AWB */
     if (order.awbNumber) {
       return NextResponse.json({
         success: true,
@@ -29,7 +62,7 @@ export async function POST(req) {
       });
     }
 
-    // ✅ Generate new
+    /* ✅ GENERATE NEW AWB */
     const awb = generateAWB();
 
     order.awbNumber = awb;
@@ -45,9 +78,11 @@ export async function POST(req) {
     });
 
   } catch (err) {
+    console.error("AWB ERROR:", err);
+
     return NextResponse.json({
       success: false,
-      message: err.message,
-    });
+      message: "Server error"
+    }, { status: 500 });
   }
 }
