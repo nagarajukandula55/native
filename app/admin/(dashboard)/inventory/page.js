@@ -1,106 +1,88 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
+import { useEffect, useState } from "react";
 
-export default function InventoryPanel(){
+export default function InventoryDashboard() {
+  const [data, setData] = useState(null);
 
-  const [skus,setSkus] = useState([])
-  const [warehouses,setWarehouses] = useState([])
-  const [form,setForm] = useState({
-    skuId:"",
-    warehouseId:"",
-    qty:""
-  })
+  useEffect(() => {
+    fetch("/api/admin/inventory-dashboard")
+      .then(res => res.json())
+      .then(res => {
+        if (res.success) setData(res.data);
+      });
+  }, []);
 
-  useEffect(()=>{
-    loadData()
-  },[])
+  if (!data) return <p className="p-4">Loading Dashboard...</p>;
 
-  async function loadData(){
+  return (
+    <div className="p-4 space-y-6">
 
-    const s = await fetch("/api/admin/sku/list")
-    const skuData = await s.json()
+      <h1 className="text-2xl font-bold">Inventory Dashboard</h1>
 
-    const w = await fetch("/api/admin/warehouse/list")
-    const whData = await w.json()
+      {/* STATS */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
 
-    setSkus(skuData)
-    setWarehouses(whData)
-  }
+        <div className="p-4 bg-white shadow rounded">
+          <p>Total Products</p>
+          <h2 className="text-xl font-bold">{data.totalProducts}</h2>
+        </div>
 
-  async function addStock(){
+        <div className="p-4 bg-white shadow rounded">
+          <p>Total Warehouses</p>
+          <h2 className="text-xl font-bold">{data.totalWarehouses}</h2>
+        </div>
 
-    if(!form.skuId || !form.warehouseId || !form.qty){
-      alert("Fill all fields")
-      return
-    }
+        <div className="p-4 bg-white shadow rounded">
+          <p>Total Stock</p>
+          <h2 className="text-xl font-bold">{data.totalStock}</h2>
+        </div>
 
-    const res = await fetch("/api/admin/inventory/add",{
-      method:"POST",
-      headers:{
-        "Content-Type":"application/json"
-      },
-      body: JSON.stringify(form)
-    })
+        <div className="p-4 bg-white shadow rounded bg-red-100">
+          <p>Low Stock</p>
+          <h2 className="text-xl font-bold">{data.lowStock}</h2>
+        </div>
 
-    const data = await res.json()
+      </div>
 
-    if(data.success)
-      alert("Stock Added")
-    else
-      alert(data.message)
-  }
+      {/* RECENT MOVEMENTS */}
+      <div className="bg-white p-4 shadow rounded">
+        <h2 className="font-bold mb-3">Recent Stock Movement</h2>
 
-  return(
+        <table className="w-full text-sm border">
+          <thead>
+            <tr className="bg-gray-100">
+              <th className="p-2 border">Product</th>
+              <th className="p-2 border">Type</th>
+              <th className="p-2 border">Qty</th>
+              <th className="p-2 border">Date</th>
+            </tr>
+          </thead>
 
-    <div style={{maxWidth:600}}>
+          <tbody>
+            {data.recentMoves.length === 0 && (
+              <tr>
+                <td colSpan="4" className="text-center p-3">
+                  No Movement Found
+                </td>
+              </tr>
+            )}
 
-      <h1>Inventory Stock Panel</h1>
+            {data.recentMoves.map((m, i) => (
+              <tr key={i}>
+                <td className="border p-2">{m.productId}</td>
+                <td className="border p-2">{m.type}</td>
+                <td className="border p-2">{m.quantity}</td>
+                <td className="border p-2">
+                  {new Date(m.createdAt).toLocaleString()}
+                </td>
+              </tr>
+            ))}
+          </tbody>
 
-      <select
-        onChange={e =>
-          setForm({...form,skuId:e.target.value})
-        }
-      >
-        <option value="">Select SKU</option>
-        {skus.map(s=>(
-          <option key={s._id} value={s._id}>
-            {s.skuCode}
-          </option>
-        ))}
-      </select>
-
-      <br/><br/>
-
-      <select
-        onChange={e =>
-          setForm({...form,warehouseId:e.target.value})
-        }
-      >
-        <option value="">Select Warehouse</option>
-        {warehouses.map(w=>(
-          <option key={w._id} value={w._id}>
-            {w.name}
-          </option>
-        ))}
-      </select>
-
-      <br/><br/>
-
-      <input
-        type="number"
-        placeholder="Quantity"
-        onChange={e =>
-          setForm({...form,qty:e.target.value})
-        }
-      />
-
-      <br/><br/>
-
-      <button onClick={addStock}>
-        Add Stock
-      </button>
+        </table>
+      </div>
 
     </div>
-  )
+  );
 }
