@@ -67,6 +67,21 @@ export async function POST(req) {
       orderId = generateOrderId()
     }
 
+    // ⭐ AUTO ASSIGN WAREHOUSE (basic logic)
+    import Warehouse from "@/models/Warehouse";
+    
+    const warehouse = await Warehouse.findOne(); // later optimize
+    
+    if (warehouse) {
+      order.warehouseAssignments = [
+        {
+          warehouseId: warehouse._id,
+        },
+      ];
+    
+      await order.save();
+    }
+
     // ✅ Create order with first timeline entry
     const order = await Order.create({
       orderId,
