@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 export default function InvoicePage() {
   const { id } = useParams();
   const [order, setOrder] = useState(null);
+  const [settings, setSettings] = useState(null);
 
   useEffect(() => {
     fetch(`/api/admin/order/${id}`)
