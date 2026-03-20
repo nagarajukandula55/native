@@ -91,6 +91,22 @@ export default function InvoicePage() {
           <h2 className="text-lg font-bold">Total: ₹{total.toFixed(2)}</h2>
         </div>
 
+        {settings?.upiId && (
+          <div className="text-center mt-6">
+            <h3 className="font-semibold">Scan & Pay via UPI</h3>
+        
+            <img
+              src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=upi://pay?pa=${settings.upiId}&pn=NativeStore&am=${total}&cu=INR`}
+              alt="UPI QR"
+              className="mx-auto"
+            />
+        
+            <p className="text-sm mt-2">
+              UPI ID: {settings.upiId}
+            </p>
+          </div>
+        )}
+
         <hr className="my-4" />
 
         {/* FOOTER */}
