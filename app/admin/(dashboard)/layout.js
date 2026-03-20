@@ -1,5 +1,3 @@
-"use client";
-
 import { cookies } from "next/headers";
 import { redirect, usePathname } from "next/navigation";
 import Link from "next/link";
