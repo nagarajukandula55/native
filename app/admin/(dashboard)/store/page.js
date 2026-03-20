@@ -33,6 +33,7 @@ export default function StoreOrdersPage() {
     fetchOrders();
   }, []);
 
+  /* ================= UPDATE STATUS ================= */
   const updateStatus = async (id, status) => {
     try {
       const res = await fetch("/api/store/orders/update-status", {
@@ -47,7 +48,6 @@ export default function StoreOrdersPage() {
       const data = await res.json();
 
       if (data.success) {
-        // update UI instantly
         setOrders((prev) =>
           prev.map((o) =>
             o._id === id ? { ...o, currentStatus: status } : o
@@ -59,6 +59,46 @@ export default function StoreOrdersPage() {
     }
   };
 
+  /* ================= PAYMENT ================= */
+  const handlePayment = async (order) => {
+    try {
+      const res = await fetch("/api/payment/create-order", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ amount: order.totalAmount }),
+      });
+
+      const data = await res.json();
+
+      if (!data.success) {
+        alert("Payment init failed");
+        return;
+      }
+
+      const options = {
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY,
+        amount: data.order.amount,
+        currency: "INR",
+        name: "Your Store",
+        description: `Order ${order.orderId}`,
+        order_id: data.order.id,
+
+        handler: function (response) {
+          alert("✅ Payment Successful");
+        },
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.open();
+
+    } catch (err) {
+      console.error("PAYMENT ERROR:", err);
+    }
+  };
+
+  /* ================= STATUS COLOR ================= */
   const getStatusColor = (status) => {
     switch (status) {
       case "Packed":
@@ -91,13 +131,15 @@ export default function StoreOrdersPage() {
               <th className="p-2 border">Update</th>
               <th className="p-2 border">Print</th>
               <th className="p-2 border">Courier</th>
+              <th className="p-2 border">Invoice</th>
+              <th className="p-2 border">Payment</th>
             </tr>
           </thead>
 
           <tbody>
             {orders.length === 0 && (
               <tr>
-                <td colSpan="6" className="p-4 text-center">
+                <td colSpan="9" className="p-4 text-center">
                   No Orders Found
                 </td>
               </tr>
@@ -140,6 +182,7 @@ export default function StoreOrdersPage() {
                   </select>
                 </td>
 
+                {/* PRINT */}
                 <td className="p-2 border">
                   <a
                     href={`/admin/(dashboard)/orders/print/${order._id}`}
@@ -149,6 +192,8 @@ export default function StoreOrdersPage() {
                     Print
                   </a>
                 </td>
+
+                {/* COURIER */}
                 <td className="p-2 border">
                   <a
                     href={`/admin/(dashboard)/orders/courier/${order._id}`}
@@ -158,6 +203,28 @@ export default function StoreOrdersPage() {
                     Courier
                   </a>
                 </td>
+
+                {/* INVOICE */}
+                <td className="p-2 border">
+                  <a
+                    href={`/admin/(dashboard)/invoice/${order._id}`}
+                    target="_blank"
+                    className="text-purple-600 underline"
+                  >
+                    Invoice
+                  </a>
+                </td>
+
+                {/* PAYMENT */}
+                <td className="p-2 border">
+                  <button
+                    onClick={() => handlePayment(order)}
+                    className="bg-black text-white px-2 py-1 rounded text-xs"
+                  >
+                    Pay
+                  </button>
+                </td>
+
               </tr>
             ))}
           </tbody>
