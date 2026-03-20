@@ -25,30 +25,40 @@ export default function AdminProducts() {
     status: "ACTIVE",
     image: "",
     warehouse: "",
+    sku: "",
+    slug: "",
   }
 
   const [form, setForm] = useState(emptyForm)
   const [products, setProducts] = useState([])
+  const [filteredProducts, setFilteredProducts] = useState([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [message, setMessage] = useState("")
   const [warehouses, setWarehouses] = useState([])
+  const [editing, setEditing] = useState(false)
+  const [search, setSearch] = useState("")
+  const [warehouseFilter, setWarehouseFilter] = useState("")
+  const [sortField, setSortField] = useState("")
+  const [sortOrder, setSortOrder] = useState("asc") // asc / desc
 
   useEffect(() => {
     loadProducts()
     loadWarehouses()
   }, [])
 
+  useEffect(() => {
+    applyFilters()
+  }, [products, search, warehouseFilter, sortField, sortOrder])
+
   function handleChange(e) {
     const { name, value, type, checked } = e.target
     const updatedForm = { ...form, [name]: type === "checkbox" ? checked : value }
-
     if (name === "hsn") {
       const selected = HSN_LIST.find(h => h.hsn === value)
       if (selected) updatedForm.gst = selected.gst
     }
-
     setForm(updatedForm)
   }
 
@@ -101,20 +111,37 @@ export default function AdminProducts() {
 
     setSaving(true)
     try {
-      await fetch("/api/admin/products", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, alt: form.name }),
-      })
-      setMessage("✅ Product Added Successfully")
+      if (editing) {
+        await fetch(`/api/admin/products/${form.slug}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...form }),
+        })
+        setMessage("✅ Product Updated Successfully")
+      } else {
+        await fetch("/api/admin/products", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...form, alt: form.name }),
+        })
+        setMessage("✅ Product Added Successfully")
+      }
+
       setForm(emptyForm)
+      setEditing(false)
       await loadProducts()
     } catch (err) {
       console.error(err)
-      alert("Failed to add product")
+      alert("Failed to save product")
     }
     setSaving(false)
     setTimeout(() => setMessage(""), 2000)
+  }
+
+  function editProduct(p) {
+    setForm({ ...p })
+    setEditing(true)
+    window.scrollTo({ top: 0, behavior: "smooth" })
   }
 
   async function deleteProduct(slug) {
@@ -123,11 +150,59 @@ export default function AdminProducts() {
     loadProducts()
   }
 
+  async function toggleStatus(p) {
+    const newStatus = p.status === "ACTIVE" ? "INACTIVE" : "ACTIVE"
+    await fetch(`/api/admin/products/${p.slug}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...p, status: newStatus }),
+    })
+    loadProducts()
+  }
+
+  async function toggleFeatured(p) {
+    await fetch(`/api/admin/products/${p.slug}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...p, featured: !p.featured }),
+    })
+    loadProducts()
+  }
+
   function getStatusBadge(status) {
     return {
       ACTIVE: { bg: "#0f9d58", color: "#fff" },
       INACTIVE: { bg: "#777", color: "#fff" },
     }[status] || { bg: "#ccc", color: "#000" }
+  }
+
+  function applyFilters() {
+    let temp = [...products]
+    if (search) {
+      const s = search.toLowerCase()
+      temp = temp.filter(p =>
+        p.name.toLowerCase().includes(s) ||
+        p.brand?.toLowerCase().includes(s) ||
+        p.sku?.toLowerCase().includes(s)
+      )
+    }
+    if (warehouseFilter) {
+      temp = temp.filter(p => p.warehouse?._id === warehouseFilter)
+    }
+    if (sortField) {
+      temp.sort((a, b) => {
+        const aValue = a[sortField] ?? ""
+        const bValue = b[sortField] ?? ""
+        if (typeof aValue === "number" && typeof bValue === "number") {
+          return sortOrder === "asc" ? aValue - bValue : bValue - aValue
+        } else {
+          return sortOrder === "asc"
+            ? String(aValue).localeCompare(String(bValue))
+            : String(bValue).localeCompare(String(aValue))
+        }
+      })
+    }
+    setFilteredProducts(temp)
   }
 
   return (
@@ -151,9 +226,7 @@ export default function AdminProducts() {
         <input name="name" placeholder="Product Name" value={form.name} onChange={handleChange} required />
         <select name="category" value={form.category} onChange={handleChange} required>
           <option value="">Select Category</option>
-          {CATEGORIES.map(cat => (
-            <option key={cat.name} value={cat.name}>{cat.name}</option>
-          ))}
+          {CATEGORIES.map(cat => <option key={cat.name} value={cat.name}>{cat.name}</option>)}
         </select>
 
         <input name="brand" placeholder="Brand" value={form.brand} onChange={handleChange} />
@@ -165,9 +238,7 @@ export default function AdminProducts() {
 
         <select name="hsn" value={form.hsn} onChange={handleChange} required>
           <option value="">Select HSN</option>
-          {HSN_LIST.map(h => (
-            <option key={h.hsn} value={h.hsn}>{h.hsn} - GST {h.gst}%</option>
-          ))}
+          {HSN_LIST.map(h => <option key={h.hsn} value={h.hsn}>{h.hsn} - GST {h.gst}%</option>)}
         </select>
         <input name="gst" type="number" placeholder="GST %" value={form.gst} onChange={handleChange} />
 
@@ -178,9 +249,7 @@ export default function AdminProducts() {
 
         <select name="warehouse" value={form.warehouse} onChange={handleChange}>
           <option value="">Select Warehouse</option>
-          {warehouses.map(w => (
-            <option key={w._id} value={w._id}>{w.name}</option>
-          ))}
+          {warehouses.map(w => <option key={w._id} value={w._id}>{w.name}</option>)}
         </select>
 
         <select name="status" value={form.status} onChange={handleChange}>
@@ -199,19 +268,43 @@ export default function AdminProducts() {
         </label>
 
         <button disabled={saving} style={{ padding: 12, background: "#1e40af", color: "#fff", borderRadius: 6, cursor: "pointer", gridColumn: "span 2" }}>
-          {saving ? "Saving..." : "Add Product"}
+          {saving ? "Saving..." : editing ? "Update Product" : "Add Product"}
         </button>
       </form>
 
-      {/* PRODUCT TABLE */}
+      {/* SEARCH & FILTER */}
+      <div style={{ marginTop: 40, display: "flex", gap: 10, flexWrap: "wrap" }}>
+        <input
+          type="text"
+          placeholder="Search by Name / Brand / SKU"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          style={{ padding: 8, flex: 1 }}
+        />
+        <select value={warehouseFilter} onChange={e => setWarehouseFilter(e.target.value)} style={{ padding: 8 }}>
+          <option value="">All Warehouses</option>
+          {warehouses.map(w => <option key={w._id} value={w._id}>{w.name}</option>)}
+        </select>
+        <select value={sortField} onChange={e => setSortField(e.target.value)} style={{ padding: 8 }}>
+          <option value="">Sort By</option>
+          <option value="name">Name</option>
+          <option value="price">Price</option>
+          <option value="stock">Stock</option>
+        </select>
+        <select value={sortOrder} onChange={e => setSortOrder(e.target.value)} style={{ padding: 8 }}>
+          <option value="asc">Asc</option>
+          <option value="desc">Desc</option>
+        </select>
+      </div>
+
+      {/* PRODUCT TABLE - SCROLLABLE */}
       {loading ? (
         <h3 style={{ marginTop: 40 }}>Loading products...</h3>
       ) : (
-        <div style={{ marginTop: 40 }}>
-          <h2>All Products ({products.length})</h2>
-          <table style={{ width: "100%", marginTop: 15, borderCollapse: "collapse" }}>
-            <thead>
-              <tr style={{ background: "#f5f5f5" }}>
+        <div style={{ marginTop: 20, maxHeight: 500, overflowY: "auto", border: "1px solid #eee", borderRadius: 6 }}>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead style={{ position: "sticky", top: 0, background: "#f5f5f5", zIndex: 1 }}>
+              <tr>
                 <th>SKU</th>
                 <th>Image</th>
                 <th>Name</th>
@@ -222,11 +315,11 @@ export default function AdminProducts() {
                 <th>Status</th>
                 <th>Warehouse</th>
                 <th>Featured</th>
-                <th>Action</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {products.map(p => (
+              {filteredProducts.map(p => (
                 <tr key={p._id} style={{ borderBottom: "1px solid #eee", textAlign: "center" }}>
                   <td>{p.sku}</td>
                   <td>{p.image && <img src={p.image} style={{ width: 60, height: 60, objectFit: "cover" }} />}</td>
@@ -236,21 +329,29 @@ export default function AdminProducts() {
                   <td>₹{p.mrp}</td>
                   <td>{p.stock}</td>
                   <td>
-                    <span style={{
-                      padding: "4px 10px",
-                      borderRadius: 6,
-                      color: getStatusBadge(p.status).color,
-                      background: getStatusBadge(p.status).bg,
-                    }}>
+                    <span
+                      onClick={() => toggleStatus(p)}
+                      style={{
+                        padding: "4px 10px",
+                        borderRadius: 6,
+                        color: getStatusBadge(p.status).color,
+                        background: getStatusBadge(p.status).bg,
+                        cursor: "pointer",
+                      }}
+                      title="Click to toggle status"
+                    >
                       {p.status}
                     </span>
                   </td>
                   <td>{p.warehouse?.name || "-"}</td>
-                  <td>{p.featured ? "⭐" : "-"}</td>
                   <td>
-                    <button onClick={() => deleteProduct(p.slug)} style={{ background: "red", color: "#fff", padding: "6px 12px", borderRadius: 4, cursor: "pointer" }}>
-                      Delete
-                    </button>
+                    <span onClick={() => toggleFeatured(p)} style={{ cursor: "pointer" }} title="Click to toggle featured">
+                      {p.featured ? "⭐" : "-"}
+                    </span>
+                  </td>
+                  <td>
+                    <button onClick={() => editProduct(p)} style={{ background: "#1e40af", color: "#fff", padding: "6px 12px", borderRadius: 4, cursor: "pointer", marginRight: 5 }}>Edit</button>
+                    <button onClick={() => deleteProduct(p.slug)} style={{ background: "red", color: "#fff", padding: "6px 12px", borderRadius: 4, cursor: "pointer" }}>Delete</button>
                   </td>
                 </tr>
               ))}
