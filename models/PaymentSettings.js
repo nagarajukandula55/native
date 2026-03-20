@@ -5,6 +5,7 @@ const PaymentSettingsSchema = new mongoose.Schema({
   whatsapp: { type: Boolean, default: true },
   razorpay: { type: Boolean, default: false },
   whatsappNumber: { type: String, default: "" },
+  upiId: { type: String, default: "" },
 });
 
 export default mongoose.models.PaymentSettings ||
