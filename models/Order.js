@@ -25,7 +25,7 @@ const StatusHistorySchema = new mongoose.Schema(
 /* ================= ORDER ================= */
 const OrderSchema = new mongoose.Schema(
   {
-    /* BASIC INFO */
+    /* ================= BASIC INFO ================= */
     orderId: {
       type: String,
       required: true,
@@ -59,7 +59,7 @@ const OrderSchema = new mongoose.Schema(
       required: true,
     },
 
-    /* ITEMS */
+    /* ================= ITEMS ================= */
     items: [
       {
         productId: String,
@@ -86,7 +86,7 @@ const OrderSchema = new mongoose.Schema(
       required: true,
     },
 
-    /* ORDER STATUS */
+    /* ================= ORDER STATUS ================= */
     status: {
       type: String,
       enum: [
@@ -117,6 +117,12 @@ const OrderSchema = new mongoose.Schema(
       default: "Pending",
     },
 
+    paymentMethod: {
+      type: String,
+      enum: ["COD", "UPI", "RAZORPAY", "WHATSAPP"],
+      default: "COD",
+    },
+
     paymentId: {
       type: String,
       default: "",
@@ -142,6 +148,16 @@ const OrderSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+
+    /* ================= WAREHOUSE ================= */
+    warehouseAssignments: [
+      {
+        warehouseId: {
+          type: String,
+          required: true,
+        },
+      },
+    ],
   },
   {
     timestamps: true,
