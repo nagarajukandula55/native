@@ -6,7 +6,9 @@ import Barcode from "react-barcode";
 
 export default function CourierLabel() {
   const params = useParams();
-  const id = params?.id;
+
+  // ✅ FIX: Handle array / undefined id
+  const id = Array.isArray(params?.id) ? params.id[0] : params?.id;
 
   const [order, setOrder] = useState(null);
   const [awb, setAwb] = useState("");
@@ -21,18 +23,22 @@ export default function CourierLabel() {
       try {
         setLoading(true);
 
-        // 1️⃣ Fetch Order
+        /* 1️⃣ FETCH ORDER */
         const orderRes = await fetch(`/api/admin/order/${id}`);
+
+        if (!orderRes.ok) {
+          throw new Error("Order API failed");
+        }
+
         const orderData = await orderRes.json();
 
         if (!orderData.success) {
-          console.error("Order fetch failed");
-          return;
+          throw new Error("Order not found");
         }
 
         setOrder(orderData.order);
 
-        // 2️⃣ Generate / Fetch AWB
+        /* 2️⃣ FETCH AWB */
         const awbRes = await fetch("/api/admin/order/generate-awb", {
           method: "POST",
           headers: {
@@ -41,15 +47,21 @@ export default function CourierLabel() {
           body: JSON.stringify({ orderId: id }),
         });
 
+        if (!awbRes.ok) {
+          throw new Error("AWB API failed");
+        }
+
         const awbData = await awbRes.json();
 
         if (awbData.success) {
           setAwb(awbData.awb);
           setCourierName(awbData.courier);
+        } else {
+          console.error("AWB generation failed");
         }
 
       } catch (err) {
-        console.error("Courier Load Error:", err);
+        console.error("🚨 Courier Page Error:", err);
       } finally {
         setLoading(false);
       }
@@ -58,6 +70,9 @@ export default function CourierLabel() {
     loadData();
   }, [id]);
 
+  /* ================= UI STATES ================= */
+
+  if (!id) return <p className="p-4">Invalid Order</p>;
   if (loading) return <p className="p-4">Loading...</p>;
   if (!order) return <p className="p-4">Order not found</p>;
 
@@ -76,10 +91,14 @@ export default function CourierLabel() {
         </div>
 
         {/* BARCODE */}
-        {awb && (
+        {awb ? (
           <div className="flex justify-center mb-4">
             <Barcode value={awb} height={60} />
           </div>
+        ) : (
+          <p className="text-center text-sm text-gray-500">
+            Generating barcode...
+          </p>
         )}
 
         <hr className="my-3" />
