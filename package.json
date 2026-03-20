@@ -18,6 +18,7 @@
     "bcryptjs": "^2.4.3",
     "axios": "^1.6.0",
     "react-barcode": "^1.4.1",
-    "razorpay": "^2.9.4"
+    "razorpay": "^2.9.4",
+    "qrcode.react": "^3.1.0"
   }
 }
