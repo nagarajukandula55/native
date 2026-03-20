@@ -2,134 +2,260 @@
 
 import { useEffect, useState } from "react"
 
-export default function Warehouses(){
+export default function Warehouses() {
+  const emptyForm = {
+    code: "",
+    name: "",
+    type: "",
+    city: "",
+    managerName: "",
+    allowDispatch: false,
+    allowPurchase: false,
+    isActive: true,
+  }
 
-  const [data,setData] = useState([])
-  const [loading,setLoading] = useState(true)
+  const [data, setData] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [form, setForm] = useState(emptyForm)
+  const [saving, setSaving] = useState(false)
+  const [message, setMessage] = useState("")
 
-  useEffect(()=>{
+  useEffect(() => {
     load()
-  },[])
+  }, [])
 
-  async function load(){
-
-    try{
-
+  async function load() {
+    setLoading(true)
+    try {
       const res = await fetch("/api/admin/warehouse/list")
       const json = await res.json()
-
-      if(json.success)
-        setData(json.warehouses)
-
-    }catch{
+      if (json.success) setData(json.warehouses)
+    } catch {
       alert("Failed to load warehouses")
     }
-
     setLoading(false)
   }
 
-  async function toggleStatus(id,current){
-
-    await fetch("/api/admin/warehouse/toggle",{
-      method:"POST",
-      headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify({
-        id,
-        value: !current
-      })
+  async function toggleStatus(id, current) {
+    await fetch("/api/admin/warehouse/toggle", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, value: !current }),
     })
-
     load()
   }
 
-  if(loading)
-    return <h2>Loading Warehouses...</h2>
+  async function handleSubmit(e) {
+    e.preventDefault()
+    if (!form.code || !form.name) return alert("Code & Name required")
+    setSaving(true)
 
-  return(
+    try {
+      await fetch("/api/admin/warehouses", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      })
+      setMessage("✅ Warehouse Added Successfully")
+      setForm(emptyForm)
+      load()
+    } catch (err) {
+      console.error(err)
+      alert("Failed to add warehouse")
+    }
 
-    <div style={{maxWidth:1300,margin:"auto"}}>
+    setSaving(false)
+    setTimeout(() => setMessage(""), 2000)
+  }
 
-      <h1 style={{fontSize:28,fontWeight:"bold"}}>
-        🏭 Warehouses Management
-      </h1>
+  async function deleteWarehouse(id) {
+    if (!confirm("Delete this warehouse?")) return
+    try {
+      await fetch("/api/admin/warehouses/" + id, { method: "DELETE" })
+      load()
+    } catch (err) {
+      alert("Failed to delete warehouse")
+    }
+  }
 
-      <table
+  if (loading) return <h2 style={{ padding: 40 }}>Loading Warehouses...</h2>
+
+  return (
+    <div style={{ maxWidth: 1300, margin: "auto", padding: 30 }}>
+      <h1 style={{ fontSize: 28, fontWeight: "bold" }}>🏭 Warehouses Management</h1>
+
+      {message && <p style={{ color: "green", marginTop: 10 }}>{message}</p>}
+
+      {/* Add Warehouse Form */}
+      <form
+        onSubmit={handleSubmit}
         style={{
-          width:"100%",
-          marginTop:20,
-          borderCollapse:"collapse",
-          background:"#fff"
+          marginTop: 25,
+          marginBottom: 30,
+          padding: 20,
+          border: "1px solid #eee",
+          borderRadius: 10,
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+          gap: 10,
+          background: "#f9fafb",
         }}
       >
+        <input
+          name="code"
+          placeholder="Warehouse Code"
+          value={form.code}
+          onChange={(e) => setForm({ ...form, code: e.target.value })}
+          required
+        />
+        <input
+          name="name"
+          placeholder="Warehouse Name"
+          value={form.name}
+          onChange={(e) => setForm({ ...form, name: e.target.value })}
+          required
+        />
+        <input
+          name="type"
+          placeholder="Type"
+          value={form.type}
+          onChange={(e) => setForm({ ...form, type: e.target.value })}
+        />
+        <input
+          name="city"
+          placeholder="City"
+          value={form.city}
+          onChange={(e) => setForm({ ...form, city: e.target.value })}
+        />
+        <input
+          name="managerName"
+          placeholder="Manager Name"
+          value={form.managerName}
+          onChange={(e) => setForm({ ...form, managerName: e.target.value })}
+        />
+        <label>
+          <input
+            type="checkbox"
+            checked={form.allowDispatch}
+            onChange={(e) => setForm({ ...form, allowDispatch: e.target.checked })}
+          />{" "}
+          Allow Dispatch
+        </label>
+        <label>
+          <input
+            type="checkbox"
+            checked={form.allowPurchase}
+            onChange={(e) => setForm({ ...form, allowPurchase: e.target.checked })}
+          />{" "}
+          Allow Purchase
+        </label>
+        <label>
+          <input
+            type="checkbox"
+            checked={form.isActive}
+            onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
+          />{" "}
+          Active
+        </label>
+        <button
+          disabled={saving}
+          style={{
+            padding: 12,
+            background: "#1e40af",
+            color: "#fff",
+            borderRadius: 6,
+            cursor: "pointer",
+            gridColumn: "span 2",
+          }}
+        >
+          {saving ? "Saving..." : "Add Warehouse"}
+        </button>
+      </form>
 
-        <thead>
-          <tr style={{background:"#f1f5f9"}}>
-            <th>Code</th>
-            <th>Name</th>
-            <th>Type</th>
-            <th>City</th>
-            <th>Manager</th>
-            <th>Dispatch</th>
-            <th>Purchase</th>
-            <th>Status</th>
-            <th>Edit</th>
-          </tr>
-        </thead>
-
-        <tbody>
-
-          {data.map(w=>(
-            <tr key={w._id} style={{borderBottom:"1px solid #eee"}}>
-
-              <td>{w.code}</td>
-              <td>{w.name}</td>
-              <td>{w.type}</td>
-              <td>{w.city}</td>
-              <td>{w.managerName}</td>
-
-              <td>{w.allowDispatch ? "Yes" : "No"}</td>
-              <td>{w.allowPurchase ? "Yes" : "No"}</td>
-
-              <td>
-                <button
-                  onClick={()=>toggleStatus(w._id,w.isActive)}
-                  style={{
-                    background:w.isActive ? "#16a34a":"#dc2626",
-                    color:"#fff",
-                    padding:"6px 12px",
-                    borderRadius:6,
-                    cursor:"pointer",
-                    border:"none"
-                  }}
-                >
-                  {w.isActive ? "Active" : "Disabled"}
-                </button>
-              </td>
-
-              <td>
-                <a href={"/admin/warehouses/edit/"+w._id}>
+      {/* Warehouses Table */}
+      <div style={{ overflowX: "auto" }}>
+        <table
+          style={{
+            width: "100%",
+            borderCollapse: "collapse",
+            background: "#fff",
+          }}
+        >
+          <thead>
+            <tr style={{ background: "#f1f5f9" }}>
+              <th>Code</th>
+              <th>Name</th>
+              <th>Type</th>
+              <th>City</th>
+              <th>Manager</th>
+              <th>Dispatch</th>
+              <th>Purchase</th>
+              <th>Status</th>
+              <th>Edit</th>
+              <th>Delete</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.map((w) => (
+              <tr key={w._id} style={{ borderBottom: "1px solid #eee", textAlign: "center" }}>
+                <td>{w.code}</td>
+                <td>{w.name}</td>
+                <td>{w.type}</td>
+                <td>{w.city}</td>
+                <td>{w.managerName}</td>
+                <td>{w.allowDispatch ? "Yes" : "No"}</td>
+                <td>{w.allowPurchase ? "Yes" : "No"}</td>
+                <td>
                   <button
+                    onClick={() => toggleStatus(w._id, w.isActive)}
                     style={{
-                      background:"#0a7cff",
-                      color:"#fff",
-                      padding:"6px 12px",
-                      borderRadius:6,
-                      cursor:"pointer",
-                      border:"none"
+                      background: w.isActive ? "#16a34a" : "#dc2626",
+                      color: "#fff",
+                      padding: "6px 12px",
+                      borderRadius: 6,
+                      cursor: "pointer",
+                      border: "none",
                     }}
                   >
-                    Edit
+                    {w.isActive ? "Active" : "Disabled"}
                   </button>
-                </a>
-              </td>
-
-            </tr>
-          ))}
-
-        </tbody>
-
-      </table>
-
+                </td>
+                <td>
+                  <a href={"/admin/warehouses/edit/" + w._id}>
+                    <button
+                      style={{
+                        background: "#0a7cff",
+                        color: "#fff",
+                        padding: "6px 12px",
+                        borderRadius: 6,
+                        cursor: "pointer",
+                        border: "none",
+                      }}
+                    >
+                      Edit
+                    </button>
+                  </a>
+                </td>
+                <td>
+                  <button
+                    onClick={() => deleteWarehouse(w._id)}
+                    style={{
+                      background: "red",
+                      color: "#fff",
+                      padding: "6px 12px",
+                      borderRadius: 6,
+                      cursor: "pointer",
+                      border: "none",
+                    }}
+                  >
+                    Delete
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }
