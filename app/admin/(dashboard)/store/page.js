@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 export default function StoreOrdersPage() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [payingId, setPayingId] = useState(null);
 
   const getToken = () =>
     typeof window !== "undefined" ? localStorage.getItem("token") : null;
@@ -63,12 +64,22 @@ export default function StoreOrdersPage() {
   /* ================= PAYMENT ================= */
   const handlePayment = async (order) => {
     try {
+      setPayingId(order._id);
+
+      if (!window.Razorpay) {
+        alert("Razorpay SDK not loaded");
+        return;
+      }
+
+      /* 1️⃣ CREATE RAZORPAY ORDER */
       const res = await fetch("/api/payment/create-order", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ amount: order.totalAmount }),
+        body: JSON.stringify({
+          amount: order.totalAmount,
+        }),
       });
 
       const data = await res.json();
@@ -78,6 +89,7 @@ export default function StoreOrdersPage() {
         return;
       }
 
+      /* 2️⃣ OPEN RAZORPAY */
       const options = {
         key: process.env.NEXT_PUBLIC_RAZORPAY_KEY,
         amount: data.order.amount,
@@ -86,16 +98,51 @@ export default function StoreOrdersPage() {
         description: `Order ${order.orderId}`,
         order_id: data.order.id,
 
-        handler: function () {
-          alert("✅ Payment Successful");
-          fetchOrders(); // refresh
+        handler: async function (response) {
+          try {
+            /* 3️⃣ VERIFY PAYMENT */
+            const verifyRes = await fetch("/api/payment/verify", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+                orderId: order._id,
+              }),
+            });
+
+            const verifyData = await verifyRes.json();
+
+            if (verifyData.success) {
+              alert("✅ Payment Successful");
+              fetchOrders();
+            } else {
+              alert("Payment verification failed");
+            }
+          } catch (err) {
+            console.error("VERIFY ERROR:", err);
+          }
+        },
+
+        prefill: {
+          name: order.customerName,
+          contact: order.phone,
+        },
+
+        theme: {
+          color: "#16a34a",
         },
       };
 
       const rzp = new window.Razorpay(options);
       rzp.open();
+
     } catch (err) {
       console.error("PAYMENT ERROR:", err);
+      alert("Payment failed");
+    } finally {
+      setPayingId(null);
     }
   };
 
@@ -163,19 +210,15 @@ export default function StoreOrdersPage() {
               <tr key={order._id} className="text-center border-t">
 
                 <td className="p-2 border">{order.orderId}</td>
-
                 <td className="p-2 border">{order.customerName}</td>
-
                 <td className="p-2 border">₹{order.totalAmount}</td>
 
-                {/* ORDER STATUS */}
                 <td className="p-2 border">
                   <span className={`px-2 py-1 rounded text-xs font-semibold ${getStatusColor(order.status)}`}>
                     {order.status}
                   </span>
                 </td>
 
-                {/* UPDATE */}
                 <td className="p-2 border">
                   <select
                     value={order.status}
@@ -191,63 +234,46 @@ export default function StoreOrdersPage() {
                   </select>
                 </td>
 
-                {/* PAYMENT STATUS */}
                 <td className="p-2 border">
                   <span className={`px-2 py-1 rounded text-xs font-semibold ${getPaymentColor(order.paymentStatus)}`}>
                     {order.paymentStatus}
                   </span>
                 </td>
 
-                {/* PAYMENT METHOD */}
                 <td className="p-2 border">
                   {order.paymentMethod || "-"}
                 </td>
 
-                {/* PRINT */}
                 <td className="p-2 border">
-                  <a
-                    href={`/admin/(dashboard)/orders/print/${order._id}`}
-                    target="_blank"
-                    className="text-blue-600 underline"
-                  >
+                  <a href={`/admin/(dashboard)/orders/print/${order._id}`} target="_blank" className="text-blue-600 underline">
                     Print
                   </a>
                 </td>
 
-                {/* COURIER */}
                 <td className="p-2 border">
-                  <a
-                    href={`/admin/(dashboard)/orders/courier/${order._id}`}
-                    target="_blank"
-                    className="text-green-600 underline"
-                  >
+                  <a href={`/admin/(dashboard)/orders/courier/${order._id}`} target="_blank" className="text-green-600 underline">
                     Courier
                   </a>
                 </td>
 
-                {/* INVOICE */}
                 <td className="p-2 border">
-                  <a
-                    href={`/admin/(dashboard)/invoice/${order._id}`}
-                    target="_blank"
-                    className="text-purple-600 underline"
-                  >
+                  <a href={`/admin/(dashboard)/invoice/${order._id}`} target="_blank" className="text-purple-600 underline">
                     Invoice
                   </a>
                 </td>
 
-                {/* PAYMENT BUTTON */}
                 <td className="p-2 border">
                   {order.paymentStatus !== "Paid" ? (
                     <button
                       onClick={() => handlePayment(order)}
-                      className="bg-black text-white px-2 py-1 rounded text-xs"
+                      disabled={payingId === order._id}
+                      className="bg-black text-white px-2 py-1 rounded text-xs disabled:opacity-50"
                     >
-                      Pay
+                      {payingId === order._id ? "Processing..." : "Pay"}
                     </button>
                   ) : (
                     <span className="text-green-600 font-semibold text-xs">
-                      Paid
+                      Paid ✔
                     </span>
                   )}
                 </td>
