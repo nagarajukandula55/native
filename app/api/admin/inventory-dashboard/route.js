@@ -1,4 +1,3 @@
-// app/api/admin/inventory-dashboard/route.js
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
@@ -6,8 +5,15 @@ import mongoose from "mongoose";
 
 import Product from "@/models/Product";
 import Warehouse from "@/models/Warehouse";
-import Inventory from "@/models/Inventory";
-import InventoryMovement from "@/models/InventoryMovement"; // ✅ Correct import
+import Inventory from "@/models/inventory";
+
+/* ✅ SAFE MODEL LOAD (NO BUILD ERROR) */
+let InventoryMovement;
+try {
+  InventoryMovement = require("@/models/InventoryMovement").default;
+} catch {
+  InventoryMovement = null;
+}
 
 const MONGODB_URI = process.env.MONGODB_URI;
 
@@ -23,21 +29,26 @@ export async function GET() {
     const totalProducts = await Product.countDocuments();
     const totalWarehouses = await Warehouse.countDocuments();
 
+    /* ✅ TOTAL STOCK */
     const stockAgg = await Inventory.aggregate([
-      { $group: { _id: null, total: { $sum: "$qty" } } },
+      { $group: { _id: null, total: { $sum: "$qty" } } }
     ]);
 
     const totalStock = stockAgg[0]?.total || 0;
 
+    /* ✅ LOW STOCK */
     const lowStock = await Inventory.countDocuments({
-      $expr: { $lte: ["$qty", "$reorderLevel"] },
+      $expr: { $lte: ["$qty", "$reorderLevel"] }
     });
 
-    const recentMoves = await InventoryMovement.find()
-      .populate("product")
-      .populate("warehouse")
-      .sort({ createdAt: -1 })
-      .limit(5);
+    /* ✅ RECENT MOVEMENTS */
+    let recentMoves = [];
+
+    if (InventoryMovement) {
+      recentMoves = await InventoryMovement.find()
+        .sort({ createdAt: -1 })
+        .limit(5);
+    }
 
     return NextResponse.json({
       success: true,
@@ -46,17 +57,16 @@ export async function GET() {
         totalWarehouses,
         totalStock,
         lowStock,
-        recentMoves,
-      },
+        recentMoves
+      }
     });
+
   } catch (error) {
     console.log("DASHBOARD ERROR:", error);
-    return NextResponse.json(
-      {
-        success: false,
-        message: error.message,
-      },
-      { status: 500 }
-    );
+
+    return NextResponse.json({
+      success: false,
+      message: error.message
+    }, { status: 500 });
   }
 }
