@@ -153,8 +153,12 @@ const OrderSchema = new mongoose.Schema(
     warehouseAssignments: [
       {
         warehouseId: {
-          type: String,
-          required: true,
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Warehouse",
+        },
+        assignedAt: {
+          type: Date,
+          default: Date.now,
         },
       },
     ],
