@@ -1,58 +1,56 @@
-import { NextResponse } from "next/server"
-import connectDB from "@/lib/mongodb"
-import Order from "@/models/Order"
+export const dynamic = "force-dynamic";
+
+import { NextResponse } from "next/server";
+import connectDB from "@/lib/mongodb";
+
+import Order from "@/models/Order";
 import Inventory from "@/models/Inventory";
+import Warehouse from "@/models/Warehouse";
 
-for (const item of order.items) {
-  await Inventory.findOneAndUpdate(
-    { productId: item.productId },
-    { $inc: { quantity: -item.quantity } }
-  );
-}
-
-/* ⭐ TELEGRAM FUNCTION */
+/* ================= TELEGRAM ================= */
 async function sendTelegramMessage(text) {
   try {
-    const token = process.env.TELEGRAM_BOT_TOKEN
-    const chatId = process.env.TELEGRAM_CHAT_ID
+    const token = process.env.TELEGRAM_BOT_TOKEN;
+    const chatId = process.env.TELEGRAM_CHAT_ID;
 
     if (!token || !chatId) {
-      console.log("Telegram ENV missing")
-      return
+      console.log("Telegram ENV missing");
+      return;
     }
 
-    await fetch(
-      `https://api.telegram.org/bot${token}/sendMessage`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          chat_id: chatId,
-          text
-        })
-      }
-    )
+    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text,
+      }),
+    });
   } catch (e) {
-    console.log("Telegram Error:", e)
+    console.log("Telegram Error:", e);
   }
 }
 
-/* ⭐ ORDER ID GENERATOR */
+/* ================= ORDER ID ================= */
 function generateOrderId() {
-  const now = new Date()
-  const yy = now.getFullYear().toString().slice(-2)
-  const mm = String(now.getMonth() + 1).padStart(2, "0")
-  const dd = String(now.getDate()).padStart(2, "0")
-  const rand = Math.random().toString(36).substring(2, 6).toUpperCase()
-  return `NAT-${yy}${mm}${dd}-${rand}`
+  const now = new Date();
+  const yy = now.getFullYear().toString().slice(-2);
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  const dd = String(now.getDate()).padStart(2, "0");
+  const rand = Math.random().toString(36).substring(2, 6).toUpperCase();
+
+  return `NAT-${yy}${mm}${dd}-${rand}`;
 }
 
-/* ⭐ CREATE ORDER */
+/* ================= CREATE ORDER ================= */
 export async function POST(req) {
   try {
-    await connectDB()
-    const body = await req.json()
+    await connectDB();
+    const body = await req.json();
 
+    /* ===== VALIDATION ===== */
     if (
       !body.customerName ||
       !body.phone ||
@@ -61,37 +59,29 @@ export async function POST(req) {
       !body.items ||
       body.items.length === 0
     ) {
-      return NextResponse.json({ success: false, msg: "Missing fields" })
+      return NextResponse.json({
+        success: false,
+        msg: "Missing fields",
+      });
     }
 
+    /* ===== TOTAL ===== */
     const totalAmount = body.items.reduce(
-      (sum, item) => sum + Number(item.price) * Number(item.quantity),
+      (sum, item) =>
+        sum + Number(item.price) * Number(item.quantity),
       0
-    )
+    );
 
-    let orderId = generateOrderId()
-    const exists = await Order.findOne({ orderId })
+    /* ===== ORDER ID ===== */
+    let orderId = generateOrderId();
+
+    const exists = await Order.findOne({ orderId });
     if (exists) {
-      orderId = generateOrderId()
+      orderId = generateOrderId();
     }
 
-    // ⭐ AUTO ASSIGN WAREHOUSE (basic logic)
-    import Warehouse from "@/models/Warehouse";
-    
-    const warehouse = await Warehouse.findOne(); // later optimize
-    
-    if (warehouse) {
-      order.warehouseAssignments = [
-        {
-          warehouseId: warehouse._id,
-        },
-      ];
-    
-      await order.save();
-    }
-
-    // ✅ Create order with first timeline entry
-    const order = await Order.create({
+    /* ===== CREATE ORDER ===== */
+    let order = await Order.create({
       orderId,
       customerName: body.customerName,
       phone: body.phone,
@@ -100,15 +90,40 @@ export async function POST(req) {
       pincode: body.pincode,
       items: body.items,
       totalAmount,
+
       status: "Order Placed",
       paymentMethod: body.paymentMethod || "COD",
       paymentStatus: "Pending",
-      statusHistory: [
-        { status: "Order Placed", time: new Date() }
-      ]
-    })
 
-    /* ⭐ TELEGRAM TRIGGER */
+      statusHistory: [
+        {
+          status: "Order Placed",
+          time: new Date(),
+        },
+      ],
+    });
+
+    /* ===== AUTO ASSIGN WAREHOUSE ===== */
+    const warehouse = await Warehouse.findOne();
+
+    if (warehouse) {
+      order.warehouseAssignments = [
+        {
+          warehouseId: warehouse._id,
+        },
+      ];
+      await order.save();
+    }
+
+    /* ===== INVENTORY REDUCTION ===== */
+    for (const item of order.items) {
+      await Inventory.findOneAndUpdate(
+        { productId: item.productId },
+        { $inc: { quantity: -item.quantity } }
+      );
+    }
+
+    /* ===== TELEGRAM ===== */
     await sendTelegramMessage(
 `🛒 NEW ORDER RECEIVED
 
@@ -116,63 +131,97 @@ Order ID: ${order.orderId}
 Customer: ${order.customerName}
 Phone: ${order.phone}
 Amount: ₹${order.totalAmount}
+Payment: ${order.paymentMethod}
 Status: ${order.status}`
-    )
+    );
 
     return NextResponse.json({
-    success: true,
-    orderId: order.orderId,
-    _id: order._id   // 🔥 IMPORTANT
-  })
+      success: true,
+      orderId: order.orderId,
+      _id: order._id,
+    });
+
   } catch (e) {
-    console.log("CREATE ORDER ERROR:", e)
-    return NextResponse.json({ success: false, msg: "Server error" })
+    console.log("CREATE ORDER ERROR:", e);
+
+    return NextResponse.json({
+      success: false,
+      msg: "Server error",
+    });
   }
 }
 
-/* ⭐ ADMIN FETCH ORDERS */
+/* ================= FETCH ORDERS ================= */
 export async function GET() {
   try {
-    await connectDB()
-    const orders = await Order.find().sort({ createdAt: -1 })
-    return NextResponse.json({ success: true, orders })
+    await connectDB();
+
+    const orders = await Order.find().sort({ createdAt: -1 });
+
+    return NextResponse.json({
+      success: true,
+      orders,
+    });
+
   } catch (e) {
-    console.log("FETCH ORDERS ERROR:", e)
-    return NextResponse.json({ success: false })
+    console.log("FETCH ORDERS ERROR:", e);
+
+    return NextResponse.json({
+      success: false,
+    });
   }
 }
 
-/* ⭐ ADMIN UPDATE STATUS */
+/* ================= UPDATE STATUS ================= */
 export async function PUT(req) {
   try {
-    await connectDB()
-    const body = await req.json()
+    await connectDB();
+
+    const body = await req.json();
 
     if (!body.id || !body.status) {
-      return NextResponse.json({ success: false, msg: "Missing id or status" })
+      return NextResponse.json({
+        success: false,
+        msg: "Missing id or status",
+      });
     }
 
-    // ✅ Fetch order
-    const order = await Order.findById(body.id)
-    if (!order) return NextResponse.json({ success: false, msg: "Order not found" })
+    const order = await Order.findById(body.id);
 
-    // ✅ Update status and push to statusHistory
-    order.status = body.status
-    order.statusHistory.push({ status: body.status, time: new Date() })
-    await order.save()
+    if (!order) {
+      return NextResponse.json({
+        success: false,
+        msg: "Order not found",
+      });
+    }
 
-    // ✅ Optional Telegram notification for status update
+    order.status = body.status;
+
+    order.statusHistory.push({
+      status: body.status,
+      time: new Date(),
+    });
+
+    await order.save();
+
     await sendTelegramMessage(
-      `📦 ORDER STATUS UPDATED
+`📦 ORDER STATUS UPDATED
 
 Order ID: ${order.orderId}
 Customer: ${order.customerName}
 New Status: ${order.status}`
-    )
+    );
 
-    return NextResponse.json({ success: true, status: order.status })
+    return NextResponse.json({
+      success: true,
+      status: order.status,
+    });
+
   } catch (e) {
-    console.log("UPDATE STATUS ERROR:", e)
-    return NextResponse.json({ success: false })
+    console.log("UPDATE STATUS ERROR:", e);
+
+    return NextResponse.json({
+      success: false,
+    });
   }
 }
