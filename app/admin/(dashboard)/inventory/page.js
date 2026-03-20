@@ -4,16 +4,46 @@ import { useEffect, useState } from "react";
 
 export default function InventoryDashboard() {
   const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    fetch("/api/admin/inventory-dashboard")
-      .then(res => res.json())
-      .then(res => {
-        if (res.success) setData(res.data);
-      });
+    const loadDashboard = async () => {
+      try {
+        const res = await fetch("/api/admin/inventory-dashboard");
+
+        if (!res.ok) {
+          throw new Error("API failed");
+        }
+
+        const result = await res.json();
+
+        if (result.success) {
+          setData(result.data);
+        } else {
+          setError(result.message || "Failed to load data");
+        }
+
+      } catch (err) {
+        console.error("Dashboard Error:", err);
+        setError("Something went wrong");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadDashboard();
   }, []);
 
-  if (!data) return <p className="p-4">Loading Dashboard...</p>;
+  /* ================= STATES ================= */
+
+  if (loading) return <p className="p-4">Loading Dashboard...</p>;
+
+  if (error)
+    return <p className="p-4 text-red-600">{error}</p>;
+
+  if (!data)
+    return <p className="p-4">No Data Available</p>;
 
   return (
     <div className="p-4 space-y-6">
@@ -25,22 +55,22 @@ export default function InventoryDashboard() {
 
         <div className="p-4 bg-white shadow rounded">
           <p>Total Products</p>
-          <h2 className="text-xl font-bold">{data.totalProducts}</h2>
+          <h2 className="text-xl font-bold">{data.totalProducts || 0}</h2>
         </div>
 
         <div className="p-4 bg-white shadow rounded">
           <p>Total Warehouses</p>
-          <h2 className="text-xl font-bold">{data.totalWarehouses}</h2>
+          <h2 className="text-xl font-bold">{data.totalWarehouses || 0}</h2>
         </div>
 
         <div className="p-4 bg-white shadow rounded">
           <p>Total Stock</p>
-          <h2 className="text-xl font-bold">{data.totalStock}</h2>
+          <h2 className="text-xl font-bold">{data.totalStock || 0}</h2>
         </div>
 
-        <div className="p-4 bg-white shadow rounded bg-red-100">
+        <div className="p-4 bg-red-100 shadow rounded">
           <p>Low Stock</p>
-          <h2 className="text-xl font-bold">{data.lowStock}</h2>
+          <h2 className="text-xl font-bold">{data.lowStock || 0}</h2>
         </div>
 
       </div>
@@ -60,7 +90,7 @@ export default function InventoryDashboard() {
           </thead>
 
           <tbody>
-            {data.recentMoves.length === 0 && (
+            {(data.recentMoves || []).length === 0 && (
               <tr>
                 <td colSpan="4" className="text-center p-3">
                   No Movement Found
@@ -68,13 +98,20 @@ export default function InventoryDashboard() {
               </tr>
             )}
 
-            {data.recentMoves.map((m, i) => (
+            {(data.recentMoves || []).map((m, i) => (
               <tr key={i}>
-                <td className="border p-2">{m.productId}</td>
-                <td className="border p-2">{m.type}</td>
-                <td className="border p-2">{m.quantity}</td>
                 <td className="border p-2">
-                  {new Date(m.createdAt).toLocaleString()}
+                  {m.productName || m.productId || "-"}
+                </td>
+
+                <td className="border p-2">{m.type || "-"}</td>
+
+                <td className="border p-2">{m.quantity || 0}</td>
+
+                <td className="border p-2">
+                  {m.createdAt
+                    ? new Date(m.createdAt).toLocaleString()
+                    : "-"}
                 </td>
               </tr>
             ))}
