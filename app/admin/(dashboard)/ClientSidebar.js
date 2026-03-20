@@ -4,11 +4,13 @@ import { useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 
-export default function ClientSidebar({ children }) {
+export default function AdminLayout({ children }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState({});
 
-  const toggle = (section) => setCollapsed((prev) => ({ ...prev, [section]: !prev[section] }));
+  const toggle = (section) => {
+    setCollapsed((prev) => ({ ...prev, [section]: !prev[section] }));
+  };
 
   return (
     <div style={wrapper}>
@@ -16,29 +18,54 @@ export default function ClientSidebar({ children }) {
       <aside style={sidebar}>
         <h2 style={{ marginBottom: 30, fontSize: 20 }}>🚀 ADMIN ERP</h2>
 
-        <Section title="Commerce" collapsed={collapsed.commerce} toggle={() => toggle("commerce")}>
+        {/* COMMERCE */}
+        <Section
+          title="Commerce"
+          collapsed={collapsed.commerce}
+          toggle={() => toggle("commerce")}
+        >
           <NavLink href="/admin/orders" active={pathname.startsWith("/admin/orders")}>Orders</NavLink>
           <NavLink href="/admin/products" active={pathname.startsWith("/admin/products")}>Products</NavLink>
           <NavLink href="/admin/customers" active={pathname.startsWith("/admin/customers")}>Customers</NavLink>
         </Section>
 
-        <Section title="Warehouse" collapsed={collapsed.warehouse} toggle={() => toggle("warehouse")}>
+        {/* WAREHOUSE */}
+        <Section
+          title="Warehouse"
+          collapsed={collapsed.warehouse}
+          toggle={() => toggle("warehouse")}
+        >
           <NavLink href="/admin/warehouses" active={pathname.startsWith("/admin/warehouses")}>Manage Warehouses</NavLink>
           <NavLink href="/admin/warehouses/create" active={pathname.startsWith("/admin/warehouses/create")}>Create Warehouse</NavLink>
         </Section>
 
-        <Section title="Inventory" collapsed={collapsed.inventory} toggle={() => toggle("inventory")}>
+        {/* INVENTORY */}
+        <Section
+          title="Inventory"
+          collapsed={collapsed.inventory}
+          toggle={() => toggle("inventory")}
+        >
           <NavLink href="/admin/skus" active={pathname.startsWith("/admin/skus")}>SKU Master</NavLink>
           <NavLink href="/admin/inventory" active={pathname.startsWith("/admin/inventory")}>Stock</NavLink>
         </Section>
 
-        <Section title="Reports" collapsed={collapsed.reports} toggle={() => toggle("reports")}>
+        {/* REPORTS */}
+        <Section
+          title="Reports"
+          collapsed={collapsed.reports}
+          toggle={() => toggle("reports")}
+        >
           <NavLink href="/admin/analytics" active={pathname.startsWith("/admin/analytics")}>Analytics</NavLink>
           <NavLink href="/admin/reports/sales" active={pathname.startsWith("/admin/reports/sales")}>Sales Report</NavLink>
           <NavLink href="/admin/reports/inventory" active={pathname.startsWith("/admin/reports/inventory")}>Inventory Report</NavLink>
         </Section>
 
-        <Section title="Settings" collapsed={collapsed.settings} toggle={() => toggle("settings")}>
+        {/* SETTINGS */}
+        <Section
+          title="Settings"
+          collapsed={collapsed.settings}
+          toggle={() => toggle("settings")}
+        >
           <NavLink href="/admin/settings/general" active={pathname.startsWith("/admin/settings/general")}>General</NavLink>
           <NavLink href="/admin/settings/payments" active={pathname.startsWith("/admin/settings/payments")}>Payments</NavLink>
           <NavLink href="/admin/settings/notifications" active={pathname.startsWith("/admin/settings/notifications")}>Notifications</NavLink>
@@ -55,7 +82,7 @@ export default function ClientSidebar({ children }) {
   );
 }
 
-/* Components */
+/* COMPONENTS */
 function Section({ title, children, collapsed, toggle }) {
   return (
     <div style={{ marginBottom: 25 }}>
@@ -71,7 +98,11 @@ function Section({ title, children, collapsed, toggle }) {
       >
         {title} <span>{collapsed ? "▶" : "▼"}</span>
       </div>
-      {!collapsed && <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>{children}</div>}
+      {!collapsed && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {children}
+        </div>
+      )}
     </div>
   );
 }
@@ -91,11 +122,12 @@ function NavLink({ href, children, active }) {
   );
 }
 
-/* Styles */
+/* STYLES */
 const wrapper = {
   display: "flex",
   minHeight: "100vh",
   fontFamily: "Inter, Arial",
+  overflow: "hidden",
 };
 
 const sidebar = {
@@ -105,6 +137,18 @@ const sidebar = {
   padding: 25,
   display: "flex",
   flexDirection: "column",
+  position: "sticky",
+  top: 0,
+  height: "100vh",
+  overflowY: "auto",
+};
+
+const content = {
+  flex: 1,
+  background: "#f1f5f9",
+  padding: 30,
+  overflowY: "auto",
+  height: "100vh",
 };
 
 const sectionTitle = {
@@ -121,11 +165,4 @@ const link = {
   padding: "8px 12px",
   borderRadius: 6,
   transition: "all 0.2s",
-};
-
-const content = {
-  flex: 1,
-  background: "#f1f5f9",
-  padding: 30,
-  overflowX: "auto",
 };
