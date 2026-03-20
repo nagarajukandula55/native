@@ -5,10 +5,14 @@ import { useParams } from "next/navigation";
 
 export default function InvoicePage() {
   const { id } = useParams();
+
   const [order, setOrder] = useState(null);
   const [settings, setSettings] = useState(null);
 
+  /* ================= FETCH ORDER ================= */
   useEffect(() => {
+    if (!id) return;
+
     fetch(`/api/admin/order/${id}`)
       .then((res) => res.json())
       .then((data) => {
@@ -16,15 +20,21 @@ export default function InvoicePage() {
       });
   }, [id]);
 
+  /* ================= FETCH PAYMENT SETTINGS ================= */
+  useEffect(() => {
+    fetch("/api/payment/settings")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success) setSettings(data.settings);
+      });
+  }, []);
+
   if (!order) return <p className="p-4">Loading Invoice...</p>;
 
-  const subtotal = order.items.reduce(
-    (sum, item) => sum + item.price * item.quantity,
-    0
-  );
-
-  const gst = subtotal * 0.05; // 5% example
-  const total = subtotal + gst;
+  /* ================= CORRECT TOTAL LOGIC ================= */
+  const total = order.totalAmount;
+  const gst = total * 0.05 / 1.05;
+  const subtotal = total - gst;
 
   return (
     <div className="p-6 bg-white text-black">
@@ -70,7 +80,7 @@ export default function InvoicePage() {
           </thead>
 
           <tbody>
-            {order.items.map((item, i) => (
+            {(order.items || []).map((item, i) => (
               <tr key={i}>
                 <td className="border p-2">{item.name}</td>
                 <td className="border p-2">₹{item.price}</td>
@@ -89,19 +99,22 @@ export default function InvoicePage() {
         <div className="text-right space-y-1">
           <p>Subtotal: ₹{subtotal.toFixed(2)}</p>
           <p>GST (5%): ₹{gst.toFixed(2)}</p>
-          <h2 className="text-lg font-bold">Total: ₹{total.toFixed(2)}</h2>
+          <h2 className="text-lg font-bold">
+            Total: ₹{total.toFixed(2)}
+          </h2>
         </div>
 
+        {/* 🔥 UPI QR (DYNAMIC) */}
         {settings?.upiId && (
           <div className="text-center mt-6">
             <h3 className="font-semibold">Scan & Pay via UPI</h3>
-        
+
             <img
               src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=upi://pay?pa=${settings.upiId}&pn=NativeStore&am=${total}&cu=INR`}
               alt="UPI QR"
               className="mx-auto"
             />
-        
+
             <p className="text-sm mt-2">
               UPI ID: {settings.upiId}
             </p>
@@ -115,7 +128,7 @@ export default function InvoicePage() {
           <p>Thank you for shopping with us ❤️</p>
         </div>
 
-        {/* PRINT */}
+        {/* PRINT BUTTON */}
         <div className="text-center mt-4">
           <button
             onClick={() => window.print()}
