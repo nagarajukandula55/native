@@ -78,6 +78,8 @@ export async function POST(req) {
       items: body.items,
       totalAmount,
       status: "Order Placed",
+      paymentMethod: body.paymentMethod || "COD",
+      paymentStatus: "Pending",
       statusHistory: [
         { status: "Order Placed", time: new Date() }
       ]
@@ -95,9 +97,10 @@ Status: ${order.status}`
     )
 
     return NextResponse.json({
-      success: true,
-      orderId: order.orderId
-    })
+    success: true,
+    orderId: order.orderId,
+    _id: order._id   // 🔥 IMPORTANT
+  })
   } catch (e) {
     console.log("CREATE ORDER ERROR:", e)
     return NextResponse.json({ success: false, msg: "Server error" })
