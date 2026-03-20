@@ -1,6 +1,14 @@
 import { NextResponse } from "next/server"
 import connectDB from "@/lib/mongodb"
 import Order from "@/models/Order"
+import Inventory from "@/models/Inventory";
+
+for (const item of order.items) {
+  await Inventory.findOneAndUpdate(
+    { productId: item.productId },
+    { $inc: { quantity: -item.quantity } }
+  );
+}
 
 /* ⭐ TELEGRAM FUNCTION */
 async function sendTelegramMessage(text) {
