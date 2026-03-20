@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/context/CartContext";
+import QRCode from "qrcode.react";
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -26,14 +27,14 @@ export default function CheckoutPage() {
 
   /* ================= LOAD PAYMENT SETTINGS ================= */
   useEffect(() => {
-    fetch("/api/payment/settings")
+    fetch("/api/admin/payment-settings") // ✅ FIXED
       .then((res) => res.json())
       .then((data) => {
         if (data.success) setPaymentSettings(data.settings);
       });
   }, []);
 
-  /* ================= COMMON VALIDATION ================= */
+  /* ================= VALIDATION ================= */
   const validate = () => {
     if (cart.length === 0) {
       alert("Cart is empty");
@@ -48,7 +49,13 @@ export default function CheckoutPage() {
     return true;
   };
 
-  /* ================= PLACE ORDER (COD) ================= */
+  /* ================= CLEAR CART ================= */
+  const clearCart = () => {
+    cart.forEach((item) => removeFromCart(item._id));
+    closeCart();
+  };
+
+  /* ================= COD ================= */
   async function placeOrder() {
     if (!validate()) return;
 
@@ -72,9 +79,7 @@ export default function CheckoutPage() {
       const data = await res.json();
 
       if (data.success) {
-        cart.forEach((item) => removeFromCart(item._id));
-        closeCart();
-
+        clearCart();
         router.push(`/order-success?orderId=${data.orderId}`);
       } else {
         alert("Order failed");
@@ -93,7 +98,7 @@ export default function CheckoutPage() {
     setLoading(true);
 
     try {
-      // 1️⃣ Create Order
+      /* 1️⃣ CREATE ORDER */
       const orderRes = await fetch("/api/orders", {
         method: "POST",
         headers: {
@@ -119,9 +124,9 @@ export default function CheckoutPage() {
       }
 
       const orderId = orderData.orderId;
-      const dbOrderId = orderData._id;
+      const dbOrderId = orderData.dbId; // ✅ FIX REQUIRED (update API)
 
-      // 2️⃣ Razorpay Order
+      /* 2️⃣ CREATE RAZORPAY ORDER */
       const paymentRes = await fetch("/api/payment/create-order", {
         method: "POST",
         headers: {
@@ -140,7 +145,7 @@ export default function CheckoutPage() {
         return;
       }
 
-      // 3️⃣ Open Razorpay
+      /* 3️⃣ OPEN RAZORPAY */
       const options = {
         key: process.env.NEXT_PUBLIC_RAZORPAY_KEY,
         amount: paymentData.order.amount,
@@ -149,42 +154,45 @@ export default function CheckoutPage() {
         order_id: paymentData.order.id,
 
         handler: async function (response) {
+          const verifyRes = await fetch("/api/payment/verify", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              orderId: dbOrderId,
+            }),
+          });
 
-      const verifyRes = await fetch("/api/payment/verify", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+          const verifyData = await verifyRes.json();
+
+          if (verifyData.success) {
+            clearCart();
+            router.push(`/order-success?orderId=${orderId}`);
+          } else {
+            alert("Payment verification failed");
+          }
         },
-        body: JSON.stringify({
-          razorpay_order_id: response.razorpay_order_id,
-          razorpay_payment_id: response.razorpay_payment_id,
-          razorpay_signature: response.razorpay_signature,
-          orderId: dbOrderId, // MUST BE DB ID
-        }),
-      });
-    
-      const verifyData = await verifyRes.json();
-    
-      if (verifyData.success) {
-        alert("✅ Payment Success");
-      } else {
-        alert("Payment verification failed");
-      }
-    },
 
         prefill: { name, contact: phone, email },
+        theme: { color: "#16a34a" },
       };
 
       const rzp = new window.Razorpay(options);
       rzp.open();
+
     } catch (err) {
+      console.error(err);
       alert("Payment error");
     }
 
     setLoading(false);
   }
 
-  /* ================= MAIN HANDLER ================= */
+  /* ================= MAIN ================= */
   async function handleCheckout() {
     if (!paymentSettings) return;
 
@@ -201,9 +209,7 @@ Total: ₹${total}
       `;
 
       window.open(
-        `https://wa.me/${paymentSettings.whatsappNumber}?text=${encodeURIComponent(
-          msg
-        )}`,
+        `https://wa.me/${paymentSettings.whatsappNumber}?text=${encodeURIComponent(msg)}`,
         "_blank"
       );
       return;
@@ -249,6 +255,23 @@ Total: ₹${total}
               Pay Online
             </label>
           )}
+
+          {paymentSettings.upi && (
+            <label>
+              <input type="radio" checked={method === "UPI"} onChange={() => setMethod("UPI")} />
+              UPI QR
+            </label>
+          )}
+        </div>
+      )}
+
+      {/* UPI QR */}
+      {method === "UPI" && paymentSettings?.upiId && (
+        <div style={{ textAlign: "center", margin: "20px 0" }}>
+          <QRCode
+            value={`upi://pay?pa=${paymentSettings.upiId}&pn=Store&am=${total}&cu=INR`}
+          />
+          <p>Scan & Pay</p>
         </div>
       )}
 
