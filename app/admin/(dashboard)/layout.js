@@ -3,10 +3,18 @@ import { redirect } from "next/navigation";
 import ClientSidebar from "./ClientSidebar";
 
 export default function AdminLayout({ children }) {
-  const token = cookies().get("adminToken")?.value;
+  const cookieStore = cookies();
 
-  /* If not logged in, go to main login page */
+  const token = cookieStore.get("token")?.value;
+  const role = cookieStore.get("role")?.value;
+
+  /* ================= AUTH CHECK ================= */
   if (!token) {
+    redirect("/login");
+  }
+
+  /* ================= ROLE CHECK ================= */
+  if (role !== "admin") {
     redirect("/login");
   }
 
