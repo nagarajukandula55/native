@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import Store from "@/models/Store";
-import bcrypt from "bcryptjs";
+import Warehouse from "@/models/Warehouse";
 
 export const dynamic = "force-dynamic";
 
@@ -9,30 +9,51 @@ export async function POST(req) {
   try {
     await connectDB();
     const body = await req.json();
-    const { name, code, contact, email, password } = body;
 
-    if (!name || !code || !contact || !email || !password) {
-      return NextResponse.json({ success: false, message: "All fields are required" });
+    const { name, email, password } = body;
+
+    if (!name || !email || !password) {
+      return NextResponse.json({
+        success: false,
+        message: "Name, email & password required",
+      });
     }
 
-    const existing = await Store.findOne({ code });
+    // Get any warehouse (default assignment)
+    const warehouse = await Warehouse.findOne();
+
+    if (!warehouse) {
+      return NextResponse.json({
+        success: false,
+        message: "No warehouse found. Create warehouse first.",
+      });
+    }
+
+    const existing = await Store.findOne({ email });
     if (existing) {
-      return NextResponse.json({ success: false, message: "Store code already exists" });
+      return NextResponse.json({
+        success: false,
+        message: "Store already exists",
+      });
     }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
 
     const store = await Store.create({
       name,
-      code,
-      contact,
       email,
-      password: hashedPassword,
+      password, // will auto hash from model
+      warehouseId: warehouse._id, // ✅ IMPORTANT
     });
 
-    return NextResponse.json({ success: true, storeId: store._id });
+    return NextResponse.json({
+      success: true,
+      message: "Store created",
+      storeId: store._id,
+    });
   } catch (err) {
     console.error("CREATE STORE ERROR:", err);
-    return NextResponse.json({ success: false, message: "Server error" });
+    return NextResponse.json({
+      success: false,
+      message: "Server error",
+    });
   }
 }
