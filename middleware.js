@@ -4,15 +4,14 @@ import jwt from "jsonwebtoken";
 export function middleware(req) {
   const token = req.cookies.get("token")?.value;
   const role = req.cookies.get("role")?.value;
-
-  const { pathname } = req.nextUrl;
+  const url = req.nextUrl.pathname;
 
   /* ================= PUBLIC ROUTES ================= */
   if (
-    pathname === "/login" ||
-    pathname === "/signup" ||
-    pathname === "/forgot-password" ||
-    pathname === "/reset-password"
+    url.startsWith("/login") ||
+    url.startsWith("/signup") ||
+    url.startsWith("/forgot-password") ||
+    url.startsWith("/reset-password")
   ) {
     return NextResponse.next();
   }
@@ -29,24 +28,26 @@ export function middleware(req) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
-  /* ================= ROLE FIX (IMPORTANT) ================= */
+  /* ================= ROLE BASED ACCESS ================= */
 
-  // ADMIN
-  if (pathname.startsWith("/admin")) {
-    if (role !== "admin") {
-      return NextResponse.redirect(new URL("/login", req.url));
-    }
-  }
-
-  // STORE
-  if (pathname.startsWith("/admin/store")) {
+  // ✅ STORE FIRST (IMPORTANT)
+  if (url.startsWith("/admin/store")) {
     if (role !== "store") {
       return NextResponse.redirect(new URL("/login", req.url));
     }
+    return NextResponse.next();
   }
 
-  // USER
-  if (pathname.startsWith("/account")) {
+  // ✅ ADMIN
+  if (url.startsWith("/admin")) {
+    if (role !== "admin") {
+      return NextResponse.redirect(new URL("/login", req.url));
+    }
+    return NextResponse.next();
+  }
+
+  // ✅ USER
+  if (url.startsWith("/account")) {
     if (role !== "user") {
       return NextResponse.redirect(new URL("/login", req.url));
     }
@@ -55,7 +56,7 @@ export function middleware(req) {
   return NextResponse.next();
 }
 
-/* ================= MATCHER ================= */
+/* ================= ROUTES ================= */
 export const config = {
   matcher: ["/admin/:path*", "/account/:path*"],
 };
