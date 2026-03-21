@@ -2,29 +2,32 @@
 
 import { useState } from "react";
 
-export default function ForgotPassword() {
+export default function ForgotPage() {
   const [email, setEmail] = useState("");
-  const [token, setToken] = useState("");
+  const [msg, setMsg] = useState("");
 
   async function handleSubmit() {
     const res = await fetch("/api/auth/forgot-password", {
       method: "POST",
+      headers: {"Content-Type": "application/json"},
       body: JSON.stringify({ email }),
     });
 
     const data = await res.json();
-    alert(data.msg);
-
-    if (data.token) setToken(data.token);
+    if (data.success) {
+      setMsg("Reset link generated (check console)");
+      console.log(data.resetLink);
+    } else {
+      setMsg(data.msg);
+    }
   }
 
   return (
-    <div style={{ padding: 20 }}>
+    <div style={{ maxWidth: 400, margin: "100px auto" }}>
       <h2>Forgot Password</h2>
       <input placeholder="Email" onChange={e => setEmail(e.target.value)} />
-      <button onClick={handleSubmit}>Get Token</button>
-
-      {token && <p>Reset Token: {token}</p>}
+      <button onClick={handleSubmit}>Send Reset Link</button>
+      <p>{msg}</p>
     </div>
   );
 }
