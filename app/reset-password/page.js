@@ -1,11 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 
 export default function ResetPasswordPage() {
   const router = useRouter();
-  const params = useSearchParams();
 
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -13,14 +12,19 @@ export default function ResetPasswordPage() {
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState("");
 
+  /* ✅ SAFE TOKEN FETCH */
   useEffect(() => {
-    const t = params.get("token");
-    if (!t) {
-      setMsg("Invalid reset link");
-    } else {
-      setToken(t);
+    if (typeof window !== "undefined") {
+      const query = new URLSearchParams(window.location.search);
+      const t = query.get("token");
+
+      if (!t) {
+        setMsg("Invalid or missing reset link");
+      } else {
+        setToken(t);
+      }
     }
-  }, [params]);
+  }, []);
 
   async function handleReset() {
     setMsg("");
@@ -40,19 +44,24 @@ export default function ResetPasswordPage() {
       return;
     }
 
+    if (!token) {
+      setMsg("Invalid reset token");
+      return;
+    }
+
     setLoading(true);
 
     try {
       const res = await fetch("/api/auth/reset-password", {
         method: "POST",
-        headers: {"Content-Type": "application/json"},
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token, password }),
       });
 
       const data = await res.json();
 
       if (!data.success) {
-        setMsg(data.msg);
+        setMsg(data.msg || "Failed to reset password");
         setLoading(false);
         return;
       }
