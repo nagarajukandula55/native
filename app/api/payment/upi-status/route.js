@@ -26,11 +26,13 @@ export async function POST(req) {
       );
     }
 
-    // Return payment status (Pending / Paid / Failed)
+    // Return actual payment status
+    // If order.paymentStatus === "Paid", Checkout page will stop polling
     return NextResponse.json({
       success: true,
       paymentStatus: order.paymentStatus || "Pending",
     });
+
   } catch (err) {
     console.error("UPI STATUS ERROR:", err);
     return NextResponse.json(
