@@ -8,12 +8,23 @@ export function middleware(req) {
   const url = req.nextUrl.pathname;
 
   /* ================= PUBLIC ROUTES ================= */
-  if (
-    url.startsWith("/login") ||
-    url.startsWith("/signup") ||
-    url.startsWith("/forgot-password") ||
-    url.startsWith("/reset-password")
-  ) {
+  const publicRoutes = ["/login", "/signup", "/forgot-password", "/reset-password"];
+
+  if (publicRoutes.some(route => url.startsWith(route))) {
+    
+    // 🔥 If already logged in → redirect away from login pages
+    if (token && role) {
+      if (role === "admin") {
+        return NextResponse.redirect(new URL("/admin", req.url));
+      } 
+      else if (role === "store") {
+        return NextResponse.redirect(new URL("/admin/store/dashboard", req.url));
+      } 
+      else {
+        return NextResponse.redirect(new URL("/account", req.url));
+      }
+    }
+
     return NextResponse.next();
   }
 
@@ -31,22 +42,22 @@ export function middleware(req) {
 
   /* ================= ROLE BASED ACCESS ================= */
 
-  // Admin routes
-  if (url.startsWith("/admin")) {
-    if (role !== "admin") {
-      return NextResponse.redirect(new URL("/login", req.url));
-    }
-  }
-
-  // Store routes
+  // 🔥 STORE (check FIRST)
   if (url.startsWith("/admin/store")) {
     if (role !== "store") {
       return NextResponse.redirect(new URL("/login", req.url));
     }
   }
 
-  // User routes
-  if (url.startsWith("/account")) {
+  // 🔥 ADMIN
+  else if (url.startsWith("/admin")) {
+    if (role !== "admin") {
+      return NextResponse.redirect(new URL("/login", req.url));
+    }
+  }
+
+  // 🔥 USER
+  else if (url.startsWith("/account")) {
     if (role !== "user") {
       return NextResponse.redirect(new URL("/login", req.url));
     }
@@ -60,5 +71,9 @@ export const config = {
   matcher: [
     "/admin/:path*",
     "/account/:path*",
+    "/login",
+    "/signup",
+    "/forgot-password",
+    "/reset-password",
   ],
 };
