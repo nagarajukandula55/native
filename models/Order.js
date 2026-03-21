@@ -22,7 +22,6 @@ const StatusHistorySchema = new mongoose.Schema(
 /* ================= ORDER ================= */
 const OrderSchema = new mongoose.Schema(
   {
-    /* ================= BASIC INFO ================= */
     orderId: { type: String, required: true, unique: true, index: true },
     customerName: { type: String, required: true, trim: true },
     phone: { type: String, required: true },
@@ -30,7 +29,6 @@ const OrderSchema = new mongoose.Schema(
     address: { type: String, required: true },
     pincode: { type: String, required: true },
 
-    /* ================= ITEMS ================= */
     items: [
       {
         productId: String,
@@ -42,17 +40,9 @@ const OrderSchema = new mongoose.Schema(
 
     totalAmount: { type: Number, required: true },
 
-    /* ================= ORDER STATUS ================= */
     status: {
       type: String,
-      enum: [
-        "Order Placed",
-        "Packed",
-        "Shipped",
-        "Out For Delivery",
-        "Delivered",
-        "Cancelled",
-      ],
+      enum: ["Order Placed", "Packed", "Shipped", "Out For Delivery", "Delivered", "Cancelled"],
       default: "Order Placed",
     },
     statusHistory: {
@@ -60,18 +50,15 @@ const OrderSchema = new mongoose.Schema(
       default: [{ status: "Order Placed", time: new Date() }],
     },
 
-    /* ================= PAYMENT ================= */
     paymentStatus: { type: String, enum: ["Pending", "Paid", "Failed"], default: "Pending" },
     paymentMethod: { type: String, enum: ["COD", "UPI", "RAZORPAY", "WHATSAPP"], default: "COD" },
-    paymentId: { type: String, default: "" },           // For Razorpay / transaction IDs
-    razorpayOrderId: { type: String, default: "" },     // For Razorpay verification
+    paymentId: { type: String, default: "" },
+    razorpayOrderId: { type: String, default: "" },
 
-    /* ================= COURIER ================= */
     awb: { type: String, default: "" },
     courierName: { type: String, default: "" },
     trackingUrl: { type: String, default: "" },
 
-    /* ================= WAREHOUSE ================= */
     warehouseAssignments: [
       {
         warehouseId: { type: mongoose.Schema.Types.ObjectId, ref: "Warehouse" },
@@ -82,6 +69,5 @@ const OrderSchema = new mongoose.Schema(
   { timestamps: true, collection: "orders" }
 );
 
-/* ================= EXPORT ================= */
 const Order = mongoose.models.Order || mongoose.model("Order", OrderSchema);
 export default Order;
