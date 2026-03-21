@@ -50,7 +50,7 @@ export default function CheckoutPage() {
     closeCart();
   };
 
-  /* ================= PLACE COD / UPI ORDER ================= */
+  /* ================= PLACE ORDER ================= */
   async function placeOrder(paymentMethod) {
     if (!validate()) return;
 
@@ -68,7 +68,7 @@ export default function CheckoutPage() {
           pincode,
           items: cart,
           paymentMethod,
-          paymentStatus: paymentMethod === "UPI" ? "Pending" : "Pending", // pending for UPI
+          paymentStatus: paymentMethod === "UPI" ? "Pending" : "Pending", // UPI manual confirmation
         }),
       });
 
@@ -90,7 +90,7 @@ export default function CheckoutPage() {
 
   /* ================= RAZORPAY ================= */
   async function handleRazorpay() {
-    // existing Razorpay logic unchanged
+    // Existing Razorpay logic unchanged
   }
 
   /* ================= MAIN CHECKOUT ================= */
@@ -117,10 +117,7 @@ Total: ₹${total}
 
     if (method === "RAZORPAY") return handleRazorpay();
 
-    if (method === "UPI") {
-      // just create order with Pending status
-      return placeOrder("UPI");
-    }
+    if (method === "UPI") return placeOrder("UPI");
   }
 
   return (
