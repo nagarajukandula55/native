@@ -47,11 +47,33 @@ export default function AdminOrders() {
     setUpdatingId(null);
   }
 
+  async function markUpiPaid(orderId) {
+    if (!confirm("Mark this UPI payment as Paid?")) return;
+    try {
+      setUpdatingId(orderId);
+      const res = await fetch("/api/orders", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: orderId, status: "Paid", paymentStatus: "Paid" }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        await loadOrders();
+      } else {
+        alert("❌ Failed to mark payment");
+      }
+    } catch (e) {
+      alert("Server error");
+    }
+    setUpdatingId(null);
+  }
+
   const getStatusStyle = (status) => {
     if (status === "Packed") return badgeYellow;
     if (status === "Shipped") return badgeBlue;
     if (status === "Out For Delivery") return badgePurple;
     if (status === "Delivered") return badgeGreen;
+    if (status === "Paid") return badgeGreen;
     return badgeGray;
   };
 
@@ -78,6 +100,7 @@ export default function AdminOrders() {
               <b>Status:</b>
               <span style={{ ...getStatusStyle(status), marginLeft: 8 }}>{status}</span>
             </p>
+            <p><b>Payment:</b> {order.paymentMethod} — {order.paymentStatus || "Pending"}</p>
             <p><b>Date:</b> {new Date(order.createdAt).toLocaleString()}</p>
 
             <h4 style={{ marginTop: 15 }}>Items:</h4>
@@ -88,6 +111,7 @@ export default function AdminOrders() {
             </div>
 
             <div style={btnWrap}>
+              {/* Status Buttons */}
               <ActionButton
                 disabled={updatingId === order._id}
                 color="#f4b400"
@@ -112,6 +136,16 @@ export default function AdminOrders() {
                 text="✅ Delivered"
                 onClick={() => updateStatus(order._id, "Delivered")}
               />
+
+              {/* UPI Payment Confirmation */}
+              {order.paymentMethod === "UPI" && order.paymentStatus === "Pending" && (
+                <ActionButton
+                  disabled={updatingId === order._id}
+                  color="#16a34a"
+                  text="💰 Mark Paid"
+                  onClick={() => markUpiPaid(order._id)}
+                />
+              )}
             </div>
           </div>
         );
@@ -121,39 +155,11 @@ export default function AdminOrders() {
 }
 
 /* ================= STYLES ================= */
-const container = {
-  maxWidth: 1100,
-  margin: "auto",
-  padding: 30,
-};
-
-const title = {
-  fontSize: 28,
-  marginBottom: 25,
-  fontWeight: 600,
-};
-
-const card = {
-  background: "#fff",
-  padding: 25,
-  marginBottom: 20,
-  borderRadius: 12,
-  boxShadow: "0 4px 14px rgba(0,0,0,0.08)",
-};
-
-const itemsContainer = {
-  maxHeight: 120,
-  overflowY: "auto",
-  paddingLeft: 10,
-};
-
-const btnWrap = {
-  marginTop: 15,
-  display: "flex",
-  gap: 10,
-  flexWrap: "wrap",
-};
-
+const container = { maxWidth: 1100, margin: "auto", padding: 30 };
+const title = { fontSize: 28, marginBottom: 25, fontWeight: 600 };
+const card = { background: "#fff", padding: 25, marginBottom: 20, borderRadius: 12, boxShadow: "0 4px 14px rgba(0,0,0,0.08)" };
+const itemsContainer = { maxHeight: 120, overflowY: "auto", paddingLeft: 10 };
+const btnWrap = { marginTop: 15, display: "flex", gap: 10, flexWrap: "wrap" };
 const badgeYellow = { padding: "4px 10px", background: "#f4b400", color: "#fff", borderRadius: 6 };
 const badgeBlue = { padding: "4px 10px", background: "#4285f4", color: "#fff", borderRadius: 6 };
 const badgePurple = { padding: "4px 10px", background: "#8e24aa", color: "#fff", borderRadius: 6 };
