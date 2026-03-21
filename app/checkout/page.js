@@ -18,6 +18,7 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(false);
   const [paymentSettings, setPaymentSettings] = useState(null);
   const [method, setMethod] = useState("COD");
+  const [upiPlaced, setUpiPlaced] = useState(false); // ✅ track if UPI order is placed
 
   const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
@@ -69,7 +70,7 @@ export default function CheckoutPage() {
         return;
       }
 
-      /* ================== HANDLE PAYMENT METHODS ================== */
+      /* ================== COD & WhatsApp ================== */
       if (method === "COD" || method === "WHATSAPP") {
         clearCart();
         router.push(`/order-success?orderId=${data.orderId}`);
@@ -77,9 +78,9 @@ export default function CheckoutPage() {
 
       /* ================== UPI ================== */
       if (method === "UPI" && paymentSettings?.upiId) {
-        alert("Scan the QR code and pay. Your order will be confirmed by admin.");
-        clearCart();
-        router.push(`/order-success?orderId=${data.orderId}`);
+        // UPI: user sees QR and message
+        setUpiPlaced(true);
+        clearCart(); // cart cleared
       }
 
     } catch (err) {
@@ -102,7 +103,8 @@ export default function CheckoutPage() {
 
       <h2>Total ₹ {total}</h2>
 
-      {paymentSettings && (
+      {/* ================= PAYMENT OPTIONS ================= */}
+      {paymentSettings && !upiPlaced && (
         <div style={{ margin: "20px 0" }}>
           <h3>Select Payment Method</h3>
           {paymentSettings.cod && <label><input type="radio" checked={method === "COD"} onChange={() => setMethod("COD")} /> COD</label>}
@@ -111,16 +113,29 @@ export default function CheckoutPage() {
         </div>
       )}
 
-      {method === "UPI" && paymentSettings?.upiId && (
+      {/* ================= UPI QR ================= */}
+      {method === "UPI" && paymentSettings?.upiId && !upiPlaced && (
         <div style={{ textAlign: "center", margin: "20px 0" }}>
           <QRCode value={`upi://pay?pa=${paymentSettings.upiId}&pn=Store&am=${total}&cu=INR`} />
           <p>Scan & Pay. Admin will confirm your payment.</p>
         </div>
       )}
 
-      <button onClick={handleCheckout} disabled={loading} style={btnStyle}>
-        {loading ? "Processing..." : "Continue"}
-      </button>
+      {/* ================= UPI SUCCESS MESSAGE ================= */}
+      {upiPlaced && (
+        <div style={{ textAlign: "center", marginTop: 20, background: "#fef3c7", padding: 20, borderRadius: 6 }}>
+          <h3>✅ Order Placed Successfully!</h3>
+          <p>Your UPI payment is pending admin confirmation.</p>
+          <p>Once admin confirms the payment, the status will be updated to "Paid".</p>
+        </div>
+      )}
+
+      {/* ================= CONTINUE BUTTON ================= */}
+      {!upiPlaced && (
+        <button onClick={handleCheckout} disabled={loading} style={btnStyle}>
+          {loading ? "Processing..." : "Continue"}
+        </button>
+      )}
     </div>
   );
 }
