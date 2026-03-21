@@ -6,37 +6,24 @@ export default function PendingUPIOrders() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadOrders();
-  }, []);
+  useEffect(() => { loadOrders(); }, []);
 
   async function loadOrders() {
     setLoading(true);
     try {
       const res = await fetch("/api/orders");
       const data = await res.json();
-      if (data.success) {
-        const pendingUPI = data.orders.filter(o => o.paymentMethod === "UPI" && o.paymentStatus === "Pending");
-        setOrders(pendingUPI);
-      }
-    } catch (err) {
-      console.error(err);
-    }
+      if (data.success) setOrders(data.orders.filter(o => o.paymentMethod === "UPI" && o.paymentStatus === "Pending"));
+    } catch (err) { console.error(err); }
     setLoading(false);
   }
 
   async function markPaid(id) {
     try {
-      const res = await fetch("/api/orders", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, status: "Paid" }),
-      });
+      const res = await fetch("/api/orders", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, status: "Paid" }) });
       const data = await res.json();
       if (data.success) loadOrders();
-    } catch (err) {
-      console.error(err);
-    }
+    } catch (err) { console.error(err); }
   }
 
   if (loading) return <h2>Loading Pending UPI Orders...</h2>;
@@ -63,17 +50,7 @@ export default function PendingUPIOrders() {
               <td>{o.phone}</td>
               <td>₹{o.totalAmount}</td>
               <td>
-                <button
-                  onClick={() => markPaid(o._id)}
-                  style={{
-                    padding: "6px 12px",
-                    background: "#16a34a",
-                    color: "#fff",
-                    border: "none",
-                    borderRadius: 6,
-                    cursor: "pointer",
-                  }}
-                >
+                <button onClick={() => markPaid(o._id)} style={{ padding: "6px 12px", background: "#16a34a", color: "#fff", border: "none", borderRadius: 6, cursor: "pointer" }}>
                   Mark Paid
                 </button>
               </td>
