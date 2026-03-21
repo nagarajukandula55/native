@@ -18,9 +18,7 @@ export async function POST(req) {
     const isMatch = await bcrypt.compare(password, store.password);
     if (!isMatch) return NextResponse.json({ success: false, msg: "Invalid credentials" });
 
-    // Return store info (without password) + warehouseId
     const { _id, name, warehouseId } = store;
-
     return NextResponse.json({ success: true, store: { _id, name, email, warehouseId } });
   } catch (err) {
     console.error(err);
