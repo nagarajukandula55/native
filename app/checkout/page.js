@@ -16,165 +16,105 @@ export default function CheckoutPage() {
   const [pincode, setPincode] = useState("");
 
   const [loading, setLoading] = useState(false);
-
   const [paymentSettings, setPaymentSettings] = useState(null);
   const [method, setMethod] = useState("COD");
 
   const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
-  /* ================= LOAD PAYMENT SETTINGS ================= */
   useEffect(() => {
     fetch("/api/admin/payment-settings")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success) setPaymentSettings(data.settings);
-      });
+      .then(res => res.json())
+      .then(data => { if (data.success) setPaymentSettings(data.settings); });
   }, []);
 
-  /* ================= VALIDATION ================= */
   const validate = () => {
-    if (cart.length === 0) {
-      alert("Cart is empty");
-      return false;
-    }
-    if (!name || !phone || !address || !pincode) {
-      alert("Please fill all required fields");
-      return false;
-    }
+    if (cart.length === 0) { alert("Cart is empty"); return false; }
+    if (!name || !phone || !address || !pincode) { alert("Please fill all fields"); return false; }
     return true;
   };
 
-  /* ================= CLEAR CART ================= */
   const clearCart = () => {
-    cart.forEach((item) => removeFromCart(item._id));
+    cart.forEach(item => removeFromCart(item._id));
     closeCart();
   };
 
-  /* ================= PLACE ORDER ================= */
-  async function placeOrder(paymentMethod) {
+  /* ================== HANDLE CHECKOUT ================== */
+  async function handleCheckout() {
     if (!validate()) return;
 
     setLoading(true);
 
     try {
+      const body = {
+        customerName: name,
+        phone,
+        email,
+        address,
+        pincode,
+        items: cart,
+        paymentMethod: method
+      };
+
+      /* ================== CREATE ORDER ================== */
       const res = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          customerName: name,
-          phone,
-          email,
-          address,
-          pincode,
-          items: cart,
-          paymentMethod,
-          paymentStatus: paymentMethod === "UPI" ? "Pending" : "Pending", // UPI manual confirmation
-        }),
+        body: JSON.stringify(body),
       });
-
       const data = await res.json();
 
-      if (data.success) {
+      if (!data.success) {
+        alert("Order creation failed");
+        setLoading(false);
+        return;
+      }
+
+      /* ================== HANDLE PAYMENT METHODS ================== */
+      if (method === "COD" || method === "WHATSAPP") {
         clearCart();
         router.push(`/order-success?orderId=${data.orderId}`);
-      } else {
-        alert("Order failed");
       }
+
+      /* ================== UPI ================== */
+      if (method === "UPI" && paymentSettings?.upiId) {
+        alert("Scan the QR code and pay. Your order will be confirmed by admin.");
+        clearCart();
+        router.push(`/order-success?orderId=${data.orderId}`);
+      }
+
     } catch (err) {
-      alert("Server error");
       console.error(err);
+      alert("Server error");
     }
 
     setLoading(false);
   }
 
-  /* ================= RAZORPAY ================= */
-  async function handleRazorpay() {
-    // Existing Razorpay logic unchanged
-  }
-
-  /* ================= MAIN CHECKOUT ================= */
-  async function handleCheckout() {
-    if (!paymentSettings) return;
-
-    if (method === "COD") return placeOrder("COD");
-
-    if (method === "WHATSAPP") {
-      const msg = `
-Order Request
-Name: ${name}
-Phone: ${phone}
-Address: ${address}
-Pincode: ${pincode}
-Total: ₹${total}
-      `;
-      window.open(
-        `https://wa.me/${paymentSettings.whatsappNumber}?text=${encodeURIComponent(msg)}`,
-        "_blank"
-      );
-      return;
-    }
-
-    if (method === "RAZORPAY") return handleRazorpay();
-
-    if (method === "UPI") return placeOrder("UPI");
-  }
-
   return (
-    <div style={{ maxWidth: "600px", margin: "40px auto", padding: "20px" }}>
+    <div style={{ maxWidth: 600, margin: "40px auto", padding: 20 }}>
       <h1>Checkout</h1>
 
-      <input placeholder="Full Name" value={name} onChange={(e) => setName(e.target.value)} style={inputStyle} />
-      <input placeholder="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} style={inputStyle} />
-      <input placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} style={inputStyle} />
-      <textarea placeholder="Address" value={address} onChange={(e) => setAddress(e.target.value)} style={{ ...inputStyle, height: "80px" }} />
-      <input placeholder="Pincode" value={pincode} onChange={(e) => setPincode(e.target.value)} style={inputStyle} />
+      <input placeholder="Full Name" value={name} onChange={e => setName(e.target.value)} style={inputStyle} />
+      <input placeholder="Phone" value={phone} onChange={e => setPhone(e.target.value)} style={inputStyle} />
+      <input placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} style={inputStyle} />
+      <textarea placeholder="Address" value={address} onChange={e => setAddress(e.target.value)} style={{ ...inputStyle, height: 80 }} />
+      <input placeholder="Pincode" value={pincode} onChange={e => setPincode(e.target.value)} style={inputStyle} />
 
       <h2>Total ₹ {total}</h2>
 
-      {/* PAYMENT OPTIONS */}
       {paymentSettings && (
         <div style={{ margin: "20px 0" }}>
           <h3>Select Payment Method</h3>
-
-          {paymentSettings.cod && (
-            <label>
-              <input type="radio" checked={method === "COD"} onChange={() => setMethod("COD")} />
-              COD
-            </label>
-          )}
-
-          {paymentSettings.whatsapp && (
-            <label>
-              <input type="radio" checked={method === "WHATSAPP"} onChange={() => setMethod("WHATSAPP")} />
-              WhatsApp
-            </label>
-          )}
-
-          {paymentSettings.razorpay && (
-            <label>
-              <input type="radio" checked={method === "RAZORPAY"} onChange={() => setMethod("RAZORPAY")} />
-              Pay Online
-            </label>
-          )}
-
-          {paymentSettings.upi && (
-            <label>
-              <input type="radio" checked={method === "UPI"} onChange={() => setMethod("UPI")} />
-              UPI QR
-            </label>
-          )}
+          {paymentSettings.cod && <label><input type="radio" checked={method === "COD"} onChange={() => setMethod("COD")} /> COD</label>}
+          {paymentSettings.whatsapp && <label><input type="radio" checked={method === "WHATSAPP"} onChange={() => setMethod("WHATSAPP")} /> WhatsApp</label>}
+          {paymentSettings.upi && <label><input type="radio" checked={method === "UPI"} onChange={() => setMethod("UPI")} /> UPI QR</label>}
         </div>
       )}
 
-      {/* UPI QR */}
       {method === "UPI" && paymentSettings?.upiId && (
         <div style={{ textAlign: "center", margin: "20px 0" }}>
-          <QRCode
-            value={`upi://pay?pa=${paymentSettings.upiId}&pn=Store&am=${total}&cu=INR`}
-          />
-          <p>Scan & Pay</p>
-          <p style={{ color: "orange" }}>Payment will be confirmed manually by admin.</p>
+          <QRCode value={`upi://pay?pa=${paymentSettings.upiId}&pn=Store&am=${total}&cu=INR`} />
+          <p>Scan & Pay. Admin will confirm your payment.</p>
         </div>
       )}
 
@@ -185,17 +125,5 @@ Total: ₹${total}
   );
 }
 
-const inputStyle = {
-  width: "100%",
-  padding: "10px",
-  margin: "10px 0",
-  border: "1px solid #ccc",
-};
-
-const btnStyle = {
-  padding: "12px",
-  background: "#16a34a",
-  color: "#fff",
-  width: "100%",
-  border: "none",
-};
+const inputStyle = { width: "100%", padding: 10, margin: "10px 0", border: "1px solid #ccc" };
+const btnStyle = { padding: 12, background: "#16a34a", color: "#fff", width: "100%", border: "none" };
