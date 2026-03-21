@@ -7,6 +7,7 @@ export async function GET(req) {
     await connectDB();
 
     const token = req.headers.get("authorization")?.split(" ")[1];
+
     if (!token) {
       return Response.json({ success: false, msg: "Unauthorized" });
     }
