@@ -41,13 +41,13 @@ export default function LoginPage() {
 
       /* ================= FORCE HARD REDIRECT ================= */
       if (data.role === "admin") {
-        window.location.href = "/admin";
-      } 
+        router.push("/admin/products");
+      }
       else if (data.role === "store") {
-        window.location.href = "/admin/store/dashboard";
-      } 
+        router.push("/admin/store/dashboard");
+      }
       else {
-        window.location.href = "/account";
+        router.push("/account");
       }
 
     } catch (err) {
