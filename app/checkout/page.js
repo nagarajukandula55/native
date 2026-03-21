@@ -18,11 +18,12 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(false);
   const [paymentSettings, setPaymentSettings] = useState(null);
   const [method, setMethod] = useState("COD");
-  const [upiQR, setUPIQR] = useState(null);
+  const [orderCreated, setOrderCreated] = useState(false); // Prevent multiple clicks
+  const [upiOrderId, setUpiOrderId] = useState(null);
 
   const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
-  // Load payment settings
+  /* ================= LOAD PAYMENT SETTINGS ================= */
   useEffect(() => {
     fetch("/api/admin/payment-settings")
       .then((res) => res.json())
@@ -31,7 +32,7 @@ export default function CheckoutPage() {
       });
   }, []);
 
-  // Validation
+  /* ================= VALIDATION ================= */
   const validate = () => {
     if (cart.length === 0) {
       alert("Cart is empty");
@@ -44,18 +45,17 @@ export default function CheckoutPage() {
     return true;
   };
 
-  // Clear cart
+  /* ================= CLEAR CART ================= */
   const clearCart = () => {
     cart.forEach((item) => removeFromCart(item._id));
     closeCart();
   };
 
-  // COD Order
+  /* ================= COD ================= */
   async function placeOrder() {
     if (!validate()) return;
 
     setLoading(true);
-
     try {
       const res = await fetch("/api/orders", {
         method: "POST",
@@ -82,18 +82,15 @@ export default function CheckoutPage() {
     } catch {
       alert("Server error");
     }
-
     setLoading(false);
   }
 
-  // Razorpay Payment
-  async function handlePayment() {
+  /* ================= RAZORPAY ================= */
+  async function handleRazorpay() {
     if (!validate()) return;
 
     setLoading(true);
-
     try {
-      // 1️⃣ Create order
       const orderRes = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -118,21 +115,19 @@ export default function CheckoutPage() {
       const orderId = orderData.orderId;
       const dbOrderId = orderData._id;
 
-      // 2️⃣ Create Razorpay order
       const paymentRes = await fetch("/api/payment/create-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ amount: total }),
       });
-
       const paymentData = await paymentRes.json();
+
       if (!paymentData.success) {
         alert("Payment failed");
         setLoading(false);
         return;
       }
 
-      // 3️⃣ Open Razorpay
       const options = {
         key: process.env.NEXT_PUBLIC_RAZORPAY_KEY,
         amount: paymentData.order.amount,
@@ -152,7 +147,6 @@ export default function CheckoutPage() {
           });
 
           const verifyData = await verifyRes.json();
-
           if (verifyData.success) {
             clearCart();
             router.push(`/order-success?orderId=${orderId}`);
@@ -166,35 +160,23 @@ export default function CheckoutPage() {
 
       const rzp = new window.Razorpay(options);
       rzp.open();
+
     } catch (err) {
       console.error(err);
       alert("Payment error");
     }
-
     setLoading(false);
   }
 
-  // Main Checkout
-  async function handleCheckout() {
-    if (!paymentSettings) return;
+  /* ================= UPI ================= */
+  async function handleUpi() {
+    if (!validate() || orderCreated) return;
 
-    if (method === "COD") return placeOrder();
+    setLoading(true);
+    setOrderCreated(true); // Prevent multiple order creation
 
-    if (method === "WHATSAPP") {
-      const msg = `Order Request\nName: ${name}\nPhone: ${phone}\nAddress: ${address}\nPincode: ${pincode}\nTotal: ₹${total}`;
-      window.open(`https://wa.me/${paymentSettings.whatsappNumber}?text=${encodeURIComponent(msg)}`, "_blank");
-      return;
-    }
-
-    if (method === "RAZORPAY") return handlePayment();
-
-    // ================= UPI =================
-    if (method === "UPI") {
-      if (loading) return;
-
-      setLoading(true);
-
-      // 1️⃣ Create order once
+    try {
+      // 1️⃣ Create order
       const res = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -208,25 +190,22 @@ export default function CheckoutPage() {
           paymentMethod: "UPI",
         }),
       });
-
       const data = await res.json();
       if (!data.success) {
         alert("Order creation failed");
         setLoading(false);
+        setOrderCreated(false);
         return;
       }
 
-      const orderId = data._id;
+      setUpiOrderId(data._id);
 
-      // 2️⃣ Generate UPI QR
-      setUPIQR(`upi://pay?pa=${paymentSettings.upiId}&pn=Store&am=${total}&cu=INR`);
-
-      // 3️⃣ Poll payment status every 3 seconds
+      // 2️⃣ Poll payment status every 3s
       const interval = setInterval(async () => {
         const statusRes = await fetch("/api/payment/upi-status", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ orderId }),
+          body: JSON.stringify({ orderId: data._id }),
         });
 
         const statusData = await statusRes.json();
@@ -237,8 +216,39 @@ export default function CheckoutPage() {
           router.push(`/order-success?orderId=${data.orderId}`);
         }
       }, 3000);
+
+    } catch (err) {
+      console.error(err);
+      alert("UPI Payment error");
+      setOrderCreated(false);
     }
+
+    setLoading(false);
   }
+
+  /* ================= MAIN ================= */
+  const handleCheckout = () => {
+    if (!paymentSettings) return;
+
+    if (method === "COD") return placeOrder();
+    if (method === "WHATSAPP") {
+      const msg = `
+Order Request
+Name: ${name}
+Phone: ${phone}
+Address: ${address}
+Pincode: ${pincode}
+Total: ₹${total}
+      `;
+      window.open(
+        `https://wa.me/${paymentSettings.whatsappNumber}?text=${encodeURIComponent(msg)}`,
+        "_blank"
+      );
+      return;
+    }
+    if (method === "RAZORPAY") return handleRazorpay();
+    if (method === "UPI") return handleUpi();
+  };
 
   return (
     <div style={{ maxWidth: "600px", margin: "40px auto", padding: "20px" }}>
@@ -252,27 +262,46 @@ export default function CheckoutPage() {
 
       <h2>Total ₹ {total}</h2>
 
-      {/* PAYMENT OPTIONS */}
       {paymentSettings && (
         <div style={{ margin: "20px 0" }}>
           <h3>Select Payment Method</h3>
 
-          {paymentSettings.cod && <label><input type="radio" checked={method === "COD"} onChange={() => setMethod("COD")} /> COD</label>}
-          {paymentSettings.whatsapp && <label><input type="radio" checked={method === "WHATSAPP"} onChange={() => setMethod("WHATSAPP")} /> WhatsApp</label>}
-          {paymentSettings.razorpay && <label><input type="radio" checked={method === "RAZORPAY"} onChange={() => setMethod("RAZORPAY")} /> Pay Online</label>}
-          {paymentSettings.upi && <label><input type="radio" checked={method === "UPI"} onChange={() => setMethod("UPI")} /> UPI QR</label>}
+          {paymentSettings.cod && (
+            <label>
+              <input type="radio" checked={method === "COD"} onChange={() => setMethod("COD")} />
+              COD
+            </label>
+          )}
+          {paymentSettings.whatsapp && (
+            <label>
+              <input type="radio" checked={method === "WHATSAPP"} onChange={() => setMethod("WHATSAPP")} />
+              WhatsApp
+            </label>
+          )}
+          {paymentSettings.razorpay && (
+            <label>
+              <input type="radio" checked={method === "RAZORPAY"} onChange={() => setMethod("RAZORPAY")} />
+              Pay Online
+            </label>
+          )}
+          {paymentSettings.upi && (
+            <label>
+              <input type="radio" checked={method === "UPI"} onChange={() => setMethod("UPI")} />
+              UPI QR
+            </label>
+          )}
         </div>
       )}
 
       {/* UPI QR */}
-      {method === "UPI" && upiQR && (
+      {method === "UPI" && paymentSettings?.upiId && (
         <div style={{ textAlign: "center", margin: "20px 0" }}>
-          <QRCode value={upiQR} />
+          <QRCode value={`upi://pay?pa=${paymentSettings.upiId}&pn=Store&am=${total}&cu=INR`} />
           <p>Scan & Pay</p>
         </div>
       )}
 
-      <button onClick={handleCheckout} disabled={loading} style={btnStyle}>
+      <button onClick={handleCheckout} disabled={loading || (method === "UPI" && orderCreated)} style={btnStyle}>
         {loading ? "Processing..." : "Continue"}
       </button>
     </div>
@@ -292,4 +321,5 @@ const btnStyle = {
   color: "#fff",
   width: "100%",
   border: "none",
+  cursor: "pointer",
 };
