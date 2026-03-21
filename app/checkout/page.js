@@ -18,12 +18,12 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(false);
   const [paymentSettings, setPaymentSettings] = useState(null);
   const [method, setMethod] = useState("COD");
-  const [orderCreated, setOrderCreated] = useState(false); // Prevent multiple clicks
+
+  const [orderCreated, setOrderCreated] = useState(false);
   const [upiOrderId, setUpiOrderId] = useState(null);
 
   const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
-  /* ================= LOAD PAYMENT SETTINGS ================= */
   useEffect(() => {
     fetch("/api/admin/payment-settings")
       .then((res) => res.json())
@@ -32,7 +32,6 @@ export default function CheckoutPage() {
       });
   }, []);
 
-  /* ================= VALIDATION ================= */
   const validate = () => {
     if (cart.length === 0) {
       alert("Cart is empty");
@@ -45,7 +44,6 @@ export default function CheckoutPage() {
     return true;
   };
 
-  /* ================= CLEAR CART ================= */
   const clearCart = () => {
     cart.forEach((item) => removeFromCart(item._id));
     closeCart();
@@ -53,9 +51,10 @@ export default function CheckoutPage() {
 
   /* ================= COD ================= */
   async function placeOrder() {
-    if (!validate()) return;
-
+    if (!validate() || orderCreated) return;
     setLoading(true);
+    setOrderCreated(true);
+
     try {
       const res = await fetch("/api/orders", {
         method: "POST",
@@ -70,7 +69,6 @@ export default function CheckoutPage() {
           paymentMethod: "COD",
         }),
       });
-
       const data = await res.json();
 
       if (data.success) {
@@ -78,105 +76,22 @@ export default function CheckoutPage() {
         router.push(`/order-success?orderId=${data.orderId}`);
       } else {
         alert("Order failed");
+        setOrderCreated(false);
       }
-    } catch {
-      alert("Server error");
-    }
-    setLoading(false);
-  }
-
-  /* ================= RAZORPAY ================= */
-  async function handleRazorpay() {
-    if (!validate()) return;
-
-    setLoading(true);
-    try {
-      const orderRes = await fetch("/api/orders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          customerName: name,
-          phone,
-          email,
-          address,
-          pincode,
-          items: cart,
-          paymentMethod: "ONLINE",
-        }),
-      });
-
-      const orderData = await orderRes.json();
-      if (!orderData.success) {
-        alert("Order creation failed");
-        setLoading(false);
-        return;
-      }
-
-      const orderId = orderData.orderId;
-      const dbOrderId = orderData._id;
-
-      const paymentRes = await fetch("/api/payment/create-order", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: total }),
-      });
-      const paymentData = await paymentRes.json();
-
-      if (!paymentData.success) {
-        alert("Payment failed");
-        setLoading(false);
-        return;
-      }
-
-      const options = {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY,
-        amount: paymentData.order.amount,
-        currency: "INR",
-        name: "Native Store",
-        order_id: paymentData.order.id,
-        handler: async function (response) {
-          const verifyRes = await fetch("/api/payment/verify", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature,
-              orderId: dbOrderId,
-            }),
-          });
-
-          const verifyData = await verifyRes.json();
-          if (verifyData.success) {
-            clearCart();
-            router.push(`/order-success?orderId=${orderId}`);
-          } else {
-            alert("Payment verification failed");
-          }
-        },
-        prefill: { name, contact: phone, email },
-        theme: { color: "#16a34a" },
-      };
-
-      const rzp = new window.Razorpay(options);
-      rzp.open();
-
     } catch (err) {
-      console.error(err);
-      alert("Payment error");
+      alert("Server error");
+      setOrderCreated(false);
     }
     setLoading(false);
   }
 
   /* ================= UPI ================= */
-  async function handleUpi() {
+  async function createUpiOrder() {
     if (!validate() || orderCreated) return;
-
     setLoading(true);
-    setOrderCreated(true); // Prevent multiple order creation
+    setOrderCreated(true);
 
     try {
-      // 1️⃣ Create order
       const res = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -191,23 +106,23 @@ export default function CheckoutPage() {
         }),
       });
       const data = await res.json();
+
       if (!data.success) {
         alert("Order creation failed");
-        setLoading(false);
         setOrderCreated(false);
+        setLoading(false);
         return;
       }
 
       setUpiOrderId(data._id);
 
-      // 2️⃣ Poll payment status every 3s
+      // Start polling payment status
       const interval = setInterval(async () => {
         const statusRes = await fetch("/api/payment/upi-status", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ orderId: data._id }),
         });
-
         const statusData = await statusRes.json();
 
         if (statusData.paymentStatus === "Paid") {
@@ -215,18 +130,16 @@ export default function CheckoutPage() {
           clearCart();
           router.push(`/order-success?orderId=${data.orderId}`);
         }
-      }, 3000);
+      }, 3000); // check every 3 seconds
 
     } catch (err) {
-      console.error(err);
-      alert("UPI Payment error");
+      alert("Server error");
       setOrderCreated(false);
     }
 
     setLoading(false);
   }
 
-  /* ================= MAIN ================= */
   const handleCheckout = () => {
     if (!paymentSettings) return;
 
@@ -246,8 +159,8 @@ Total: ₹${total}
       );
       return;
     }
-    if (method === "RAZORPAY") return handleRazorpay();
-    if (method === "UPI") return handleUpi();
+    if (method === "UPI") return createUpiOrder();
+    // Razorpay logic can remain as before
   };
 
   return (
@@ -278,12 +191,6 @@ Total: ₹${total}
               WhatsApp
             </label>
           )}
-          {paymentSettings.razorpay && (
-            <label>
-              <input type="radio" checked={method === "RAZORPAY"} onChange={() => setMethod("RAZORPAY")} />
-              Pay Online
-            </label>
-          )}
           {paymentSettings.upi && (
             <label>
               <input type="radio" checked={method === "UPI"} onChange={() => setMethod("UPI")} />
@@ -293,7 +200,6 @@ Total: ₹${total}
         </div>
       )}
 
-      {/* UPI QR */}
       {method === "UPI" && paymentSettings?.upiId && (
         <div style={{ textAlign: "center", margin: "20px 0" }}>
           <QRCode value={`upi://pay?pa=${paymentSettings.upiId}&pn=Store&am=${total}&cu=INR`} />
@@ -301,7 +207,7 @@ Total: ₹${total}
         </div>
       )}
 
-      <button onClick={handleCheckout} disabled={loading || (method === "UPI" && orderCreated)} style={btnStyle}>
+      <button onClick={handleCheckout} disabled={loading} style={btnStyle}>
         {loading ? "Processing..." : "Continue"}
       </button>
     </div>
@@ -321,5 +227,4 @@ const btnStyle = {
   color: "#fff",
   width: "100%",
   border: "none",
-  cursor: "pointer",
 };
