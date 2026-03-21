@@ -74,7 +74,6 @@ export async function POST(req) {
 
     /* ===== ORDER ID ===== */
     let orderId = generateOrderId();
-
     const exists = await Order.findOne({ orderId });
     if (exists) {
       orderId = generateOrderId();
@@ -93,7 +92,7 @@ export async function POST(req) {
 
       status: "Order Placed",
       paymentMethod: body.paymentMethod || "COD",
-      paymentStatus: "Pending",
+      paymentStatus: body.paymentMethod === "COD" ? "Paid" : "Pending", // ✅ Updated for COD
 
       statusHistory: [
         {
@@ -105,7 +104,6 @@ export async function POST(req) {
 
     /* ===== AUTO ASSIGN WAREHOUSE ===== */
     const warehouse = await Warehouse.findOne();
-
     if (warehouse) {
       order.warehouseAssignments = [
         {
@@ -138,7 +136,7 @@ Status: ${order.status}`
     return NextResponse.json({
       success: true,
       orderId: order.orderId,
-      _id: order._id,
+      _id: order._id, // ✅ Added for UPI tracking
     });
 
   } catch (e) {
