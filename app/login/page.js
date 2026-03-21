@@ -26,7 +26,7 @@ export default function LoginPage() {
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",
-        headers: {"Content-Type": "application/json"},
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
 
@@ -38,19 +38,16 @@ export default function LoginPage() {
         return;
       }
 
-      // Clear old tokens
-      localStorage.removeItem("adminToken");
-      localStorage.removeItem("storeToken");
-      localStorage.removeItem("userToken");
+      /* ================= STORE TOKEN IN COOKIE ================= */
+      document.cookie = `token=${data.token}; path=/`;
+      document.cookie = `role=${data.role}; path=/`;
 
+      /* ================= ROLE BASED REDIRECT ================= */
       if (data.role === "admin") {
-        localStorage.setItem("adminToken", data.token);
         router.push("/admin");
       } else if (data.role === "store") {
-        localStorage.setItem("storeToken", data.token);
         router.push("/admin/store/dashboard");
       } else {
-        localStorage.setItem("userToken", data.token);
         router.push("/account");
       }
 
@@ -87,7 +84,6 @@ export default function LoginPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             style={input}
-            required
           />
           <label style={email ? labelActive : label}>Email address</label>
         </div>
@@ -99,14 +95,10 @@ export default function LoginPage() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             style={input}
-            required
           />
           <label style={password ? labelActive : label}>Password</label>
 
-          <span
-            onClick={() => setShowPass(!showPass)}
-            style={eye}
-          >
+          <span onClick={() => setShowPass(!showPass)} style={eye}>
             {showPass ? "🙈" : "👁"}
           </span>
         </div>
@@ -132,10 +124,7 @@ export default function LoginPage() {
         <button
           onClick={handleLogin}
           disabled={loading}
-          style={{
-            ...button,
-            opacity: loading ? 0.7 : 1,
-          }}
+          style={{ ...button, opacity: loading ? 0.7 : 1 }}
         >
           {loading ? <Spinner /> : "Sign in"}
         </button>
@@ -155,15 +144,17 @@ export default function LoginPage() {
 /* ===== SPINNER ===== */
 function Spinner() {
   return (
-    <div style={{
-      width: 18,
-      height: 18,
-      border: "2px solid #fff",
-      borderTop: "2px solid transparent",
-      borderRadius: "50%",
-      animation: "spin 0.8s linear infinite",
-      margin: "auto"
-    }} />
+    <div
+      style={{
+        width: 18,
+        height: 18,
+        border: "2px solid #fff",
+        borderTop: "2px solid transparent",
+        borderRadius: "50%",
+        animation: "spin 0.8s linear infinite",
+        margin: "auto",
+      }}
+    />
   );
 }
 
@@ -231,7 +222,6 @@ const eye = {
   right: 12,
   top: 14,
   cursor: "pointer",
-  fontSize: 14,
 };
 
 const button = {
@@ -243,14 +233,12 @@ const button = {
   background: "#111",
   color: "#fff",
   fontSize: 15,
-  fontWeight: 500,
   cursor: "pointer",
 };
 
 const options = {
   display: "flex",
   justifyContent: "space-between",
-  alignItems: "center",
   marginBottom: 10,
 };
 
