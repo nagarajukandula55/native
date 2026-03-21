@@ -27,40 +27,19 @@ export default function AdminOrders() {
     setLoading(false);
   }
 
-  async function updateStatus(id, status) {
+  async function updateStatus(id, status = null, paymentStatus = null) {
     try {
       setUpdatingId(id);
       const res = await fetch("/api/orders", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, status }),
+        body: JSON.stringify({ id, status, paymentStatus }),
       });
       const data = await res.json();
       if (data.success) {
         await loadOrders();
       } else {
-        alert("❌ Failed to update status");
-      }
-    } catch (e) {
-      alert("Server error");
-    }
-    setUpdatingId(null);
-  }
-
-  async function markUpiPaid(orderId) {
-    if (!confirm("Mark this UPI payment as Paid?")) return;
-    try {
-      setUpdatingId(orderId);
-      const res = await fetch("/api/orders", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: orderId, status: "Paid", paymentStatus: "Paid" }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        await loadOrders();
-      } else {
-        alert("❌ Failed to mark payment");
+        alert("❌ Failed to mark status/payment");
       }
     } catch (e) {
       alert("Server error");
@@ -73,7 +52,12 @@ export default function AdminOrders() {
     if (status === "Shipped") return badgeBlue;
     if (status === "Out For Delivery") return badgePurple;
     if (status === "Delivered") return badgeGreen;
-    if (status === "Paid") return badgeGreen;
+    return badgeGray;
+  };
+
+  const getPaymentStyle = (paymentStatus) => {
+    if (paymentStatus === "Paid") return badgeGreen;
+    if (paymentStatus === "Pending") return badgeYellow;
     return badgeGray;
   };
 
@@ -87,6 +71,7 @@ export default function AdminOrders() {
 
       {orders.map((order) => {
         const status = order.status || "Order Placed";
+        const paymentStatus = order.paymentStatus || "Pending";
 
         return (
           <div key={order._id} style={card}>
@@ -100,7 +85,10 @@ export default function AdminOrders() {
               <b>Status:</b>
               <span style={{ ...getStatusStyle(status), marginLeft: 8 }}>{status}</span>
             </p>
-            <p><b>Payment:</b> {order.paymentMethod} — {order.paymentStatus || "Pending"}</p>
+            <p>
+              <b>Payment:</b>
+              <span style={{ ...getPaymentStyle(paymentStatus), marginLeft: 8 }}>{paymentStatus}</span>
+            </p>
             <p><b>Date:</b> {new Date(order.createdAt).toLocaleString()}</p>
 
             <h4 style={{ marginTop: 15 }}>Items:</h4>
@@ -137,13 +125,13 @@ export default function AdminOrders() {
                 onClick={() => updateStatus(order._id, "Delivered")}
               />
 
-              {/* UPI Payment Confirmation */}
-              {order.paymentMethod === "UPI" && order.paymentStatus === "Pending" && (
+              {/* Payment Button */}
+              {order.paymentMethod === "UPI" && paymentStatus !== "Paid" && (
                 <ActionButton
                   disabled={updatingId === order._id}
-                  color="#16a34a"
+                  color="#0f9d58"
                   text="💰 Mark Paid"
-                  onClick={() => markUpiPaid(order._id)}
+                  onClick={() => updateStatus(order._id, null, "Paid")}
                 />
               )}
             </div>
@@ -160,6 +148,7 @@ const title = { fontSize: 28, marginBottom: 25, fontWeight: 600 };
 const card = { background: "#fff", padding: 25, marginBottom: 20, borderRadius: 12, boxShadow: "0 4px 14px rgba(0,0,0,0.08)" };
 const itemsContainer = { maxHeight: 120, overflowY: "auto", paddingLeft: 10 };
 const btnWrap = { marginTop: 15, display: "flex", gap: 10, flexWrap: "wrap" };
+
 const badgeYellow = { padding: "4px 10px", background: "#f4b400", color: "#fff", borderRadius: 6 };
 const badgeBlue = { padding: "4px 10px", background: "#4285f4", color: "#fff", borderRadius: 6 };
 const badgePurple = { padding: "4px 10px", background: "#8e24aa", color: "#fff", borderRadius: 6 };
