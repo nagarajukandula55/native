@@ -13,10 +13,14 @@ export default function SignupPage() {
   });
 
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   async function handleSignup() {
+    setError("");
+
     if (!form.name || !form.email || !form.password) {
-      return alert("Fill all fields");
+      setError("All fields required");
+      return;
     }
 
     setLoading(true);
@@ -31,17 +35,17 @@ export default function SignupPage() {
       const data = await res.json();
 
       if (!data.success) {
-        alert(data.msg);
+        setError(data.msg);
         setLoading(false);
         return;
       }
 
-      alert("Account created. Please login.");
+      alert("Account created! Please login.");
       router.push("/login");
 
     } catch (err) {
       console.error(err);
-      alert("Error");
+      setError("Server error");
     }
 
     setLoading(false);
@@ -49,22 +53,24 @@ export default function SignupPage() {
 
   return (
     <div style={container}>
-      <h1>🛍️ Create Account</h1>
-
       <div style={card}>
-        <input placeholder="Name" onChange={e => setForm({...form, name: e.target.value})} style={input} />
-        <input placeholder="Email" onChange={e => setForm({...form, email: e.target.value})} style={input} />
-        <input type="password" placeholder="Password" onChange={e => setForm({...form, password: e.target.value})} style={input} />
+        <h2>Create Account</h2>
+
+        <input placeholder="Full Name" onChange={e => setForm({ ...form, name: e.target.value })} style={input} />
+        <input placeholder="Email" onChange={e => setForm({ ...form, email: e.target.value })} style={input} />
+        <input type="password" placeholder="Password" onChange={e => setForm({ ...form, password: e.target.value })} style={input} />
+
+        {error && <p style={{ color: "red" }}>{error}</p>}
 
         <button onClick={handleSignup} style={btn}>
-          {loading ? "Creating..." : "Sign Up"}
+          {loading ? "Creating..." : "Create Account"}
         </button>
       </div>
     </div>
   );
 }
 
-const container = { textAlign: "center", marginTop: 80 };
-const card = { width: 350, margin: "auto", padding: 20, background: "#fff" };
+const container = { display: "flex", justifyContent: "center", marginTop: 100 };
+const card = { width: 350, padding: 20, background: "#fff", borderRadius: 10 };
 const input = { width: "100%", padding: 10, marginTop: 10 };
 const btn = { width: "100%", padding: 12, marginTop: 15, background: "#111", color: "#fff" };
