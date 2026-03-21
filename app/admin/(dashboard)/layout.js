@@ -5,19 +5,10 @@ import ClientSidebar from "./ClientSidebar";
 export default function AdminLayout({ children }) {
   const token = cookies().get("adminToken")?.value;
 
-  // Get current path
-  const path = typeof window === "undefined" ? "" : window.location.pathname;
-
-  // ⚠️ Allow store routes WITHOUT admin login
-  if (
-    path?.startsWith("/admin/store/login") ||
-    path?.startsWith("/admin/store/create")
-  ) {
-    return <>{children}</>;
+  /* If not logged in, go to main login page */
+  if (!token) {
+    redirect("/login");
   }
-
-  // Protect only admin dashboard
-  if (!token) redirect("/admin/login");
 
   return <ClientSidebar>{children}</ClientSidebar>;
 }
