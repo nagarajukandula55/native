@@ -59,8 +59,9 @@ export async function POST(req) {
     );
 
     let orderId = generateOrderId();
-    const exists = await Order.findOne({ orderId });
-    if (exists) orderId = generateOrderId();
+    while (await Order.findOne({ orderId })) {
+      orderId = generateOrderId(); // Ensure unique orderId
+    }
 
     const order = await Order.create({
       orderId,
@@ -73,18 +74,18 @@ export async function POST(req) {
       totalAmount,
       status: "Order Placed",
       paymentMethod: body.paymentMethod || "COD",
-      paymentStatus: "Pending", // ✅ default Pending
+      paymentStatus: "Pending",
       statusHistory: [{ status: "Order Placed", time: new Date() }],
     });
 
-    // Assign warehouse automatically
+    // Auto-assign first available warehouse
     const warehouse = await Warehouse.findOne();
     if (warehouse) {
       order.warehouseAssignments = [{ warehouseId: warehouse._id }];
       await order.save();
     }
 
-    // Reduce inventory
+    // Reduce inventory safely
     for (const item of order.items) {
       await Inventory.findOneAndUpdate(
         { productId: item.productId },
@@ -94,22 +95,14 @@ export async function POST(req) {
 
     // Telegram notification
     await sendTelegramMessage(
-`🛒 NEW ORDER RECEIVED
-
-Order ID: ${order.orderId}
-Customer: ${order.customerName}
-Phone: ${order.phone}
-Amount: ₹${order.totalAmount}
-Payment: ${order.paymentMethod}
-Status: ${order.status}`
+      `🛒 NEW ORDER RECEIVED\n\nOrder ID: ${order.orderId}\nCustomer: ${order.customerName}\nPhone: ${order.phone}\nAmount: ₹${order.totalAmount}\nPayment: ${order.paymentMethod}\nStatus: ${order.status}`
     );
 
     return NextResponse.json({
       success: true,
       orderId: order.orderId,
-      _id: order._id, // ✅ Required for UPI polling
+      _id: order._id,
     });
-
   } catch (e) {
     console.log("CREATE ORDER ERROR:", e);
     return NextResponse.json({ success: false, msg: "Server error" });
@@ -133,12 +126,12 @@ export async function PUT(req) {
   try {
     await connectDB();
     const body = await req.json();
-    const { id, status, paymentStatus } = body;
+    const { id, status, paymentStatus, awbNumber } = body;
 
-    if (!id || (!status && !paymentStatus)) {
+    if (!id || (!status && !paymentStatus && !awbNumber)) {
       return NextResponse.json({
         success: false,
-        msg: "Missing id or update field",
+        msg: "Missing id or update fields",
       });
     }
 
@@ -147,45 +140,35 @@ export async function PUT(req) {
       return NextResponse.json({ success: false, msg: "Order not found" });
     }
 
-    // Update order status if provided
+    // Update order status
     if (status) {
       order.status = status;
       order.statusHistory.push({ status, time: new Date() });
+      await sendTelegramMessage(
+        `📦 ORDER STATUS UPDATED\n\nOrder ID: ${order.orderId}\nCustomer: ${order.customerName}\nNew Status: ${order.status}`
+      );
     }
 
-    // Update paymentStatus if provided
+    // Update payment status
     if (paymentStatus) {
       order.paymentStatus = paymentStatus;
+      await sendTelegramMessage(
+        `💰 PAYMENT STATUS UPDATED\n\nOrder ID: ${order.orderId}\nCustomer: ${order.customerName}\nPayment Status: ${order.paymentStatus}`
+      );
+    }
+
+    // Update AWB number if provided
+    if (awbNumber) {
+      order.awbNumber = awbNumber;
     }
 
     await order.save();
-
-    // Telegram notification for status updates
-    if (status) {
-      await sendTelegramMessage(
-`📦 ORDER STATUS UPDATED
-
-Order ID: ${order.orderId}
-Customer: ${order.customerName}
-New Status: ${order.status}`
-      );
-    }
-
-    // Telegram notification for payment updates
-    if (paymentStatus) {
-      await sendTelegramMessage(
-`💰 PAYMENT STATUS UPDATED
-
-Order ID: ${order.orderId}
-Customer: ${order.customerName}
-Payment Status: ${order.paymentStatus}`
-      );
-    }
 
     return NextResponse.json({
       success: true,
       status: order.status,
       paymentStatus: order.paymentStatus,
+      awbNumber: order.awbNumber || null,
     });
   } catch (e) {
     console.log("UPDATE ORDER ERROR:", e);
