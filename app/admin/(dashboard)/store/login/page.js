@@ -22,9 +22,8 @@ export default function StoreLogin() {
       if (!data.success) {
         alert(data.msg || "Login failed");
       } else {
-        // Save store info in localStorage for simplicity
         localStorage.setItem("store", JSON.stringify(data.store));
-        router.push("/store/warehouse-dashboard");
+        router.push("/admin/store/dashboard");
       }
     } catch (err) {
       alert("Server error");
