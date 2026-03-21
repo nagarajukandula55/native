@@ -42,21 +42,11 @@ export async function POST(req) {
     const body = await req.json();
 
     // Validation
-    if (
-      !body.customerName ||
-      !body.phone ||
-      !body.address ||
-      !body.pincode ||
-      !body.items ||
-      body.items.length === 0
-    ) {
+    if (!body.customerName || !body.phone || !body.address || !body.pincode || !body.items || body.items.length === 0) {
       return NextResponse.json({ success: false, msg: "Missing fields" });
     }
 
-    const totalAmount = body.items.reduce(
-      (sum, item) => sum + Number(item.price) * Number(item.quantity),
-      0
-    );
+    const totalAmount = body.items.reduce((sum, item) => sum + Number(item.price) * Number(item.quantity), 0);
 
     let orderId = generateOrderId();
     const exists = await Order.findOne({ orderId });
@@ -73,7 +63,7 @@ export async function POST(req) {
       totalAmount,
       status: "Order Placed",
       paymentMethod: body.paymentMethod || "COD",
-      paymentStatus: "Pending",
+      paymentStatus: body.paymentMethod === "UPI" ? "Pending" : "Pending",
       statusHistory: [{ status: "Order Placed", time: new Date() }],
     });
 
@@ -107,7 +97,7 @@ Status: ${order.status}`
     return NextResponse.json({
       success: true,
       orderId: order.orderId,
-      _id: order._id, // ✅ REQUIRED FOR UPI POLLING
+      _id: order._id, // required for UPI order tracking
     });
 
   } catch (e) {
@@ -142,6 +132,7 @@ export async function PUT(req) {
     if (!order) return NextResponse.json({ success: false, msg: "Order not found" });
 
     order.status = body.status;
+    if (body.status === "Paid") order.paymentStatus = "Paid"; // Mark payment paid if admin confirms
     order.statusHistory.push({ status: body.status, time: new Date() });
     await order.save();
 
