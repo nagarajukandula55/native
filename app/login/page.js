@@ -9,11 +9,15 @@ export default function LoginPage() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   async function handleLogin() {
+    setError("");
+
     if (!email || !password) {
-      alert("Enter email & password");
+      setError("Please enter email and password");
       return;
     }
 
@@ -22,42 +26,37 @@ export default function LoginPage() {
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {"Content-Type": "application/json"},
         body: JSON.stringify({ email, password }),
       });
 
       const data = await res.json();
 
       if (!data.success) {
-        alert(data.msg || "Login failed");
+        setError(data.msg || "Login failed");
         setLoading(false);
         return;
       }
 
-      /* ===== CLEAR OLD TOKENS ===== */
+      // Clear old tokens
       localStorage.removeItem("adminToken");
       localStorage.removeItem("storeToken");
       localStorage.removeItem("userToken");
 
-      /* ===== ROLE BASED LOGIN ===== */
       if (data.role === "admin") {
         localStorage.setItem("adminToken", data.token);
         router.push("/admin");
-      } 
-      
-      else if (data.role === "store") {
+      } else if (data.role === "store") {
         localStorage.setItem("storeToken", data.token);
-        router.push("/admin/store/dashboard"); // ✅ correct path
-      } 
-      
-      else {
+        router.push("/admin/store/dashboard");
+      } else {
         localStorage.setItem("userToken", data.token);
         router.push("/account");
       }
 
     } catch (err) {
       console.error(err);
-      alert("Server error");
+      setError("Server error. Try again.");
     }
 
     setLoading(false);
@@ -66,108 +65,208 @@ export default function LoginPage() {
   return (
     <div style={container}>
       
-      {/* ===== LOGO SECTION ===== */}
-      <div style={{ textAlign: "center", marginBottom: 20 }}>
+      {/* LOGO */}
+      <div style={{ marginBottom: 30 }}>
         <Image
-          src="/logo.png"   // 👉 put your logo in /public/logo.png
+          src="/logo.png"
           alt="Logo"
-          width={140}
+          width={170}
           height={60}
-          style={{ marginBottom: 10 }}
+          style={{ objectFit: "contain" }}
+          priority
         />
-        <p style={{ color: "#666", fontSize: 14 }}>
-          Login to continue
-        </p>
       </div>
 
-      {/* ===== LOGIN CARD ===== */}
+      {/* CARD */}
       <div style={card}>
-        <h2 style={{ textAlign: "center", marginBottom: 15 }}>
-          Welcome Back
-        </h2>
+        <h2 style={title}>Welcome back</h2>
 
-        <input
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          style={input}
-        />
+        {/* EMAIL */}
+        <div style={field}>
+          <input
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            style={input}
+            required
+          />
+          <label style={email ? labelActive : label}>Email address</label>
+        </div>
 
-        <input
-          placeholder="Password"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          style={input}
-        />
+        {/* PASSWORD */}
+        <div style={field}>
+          <input
+            type={showPass ? "text" : "password"}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            style={input}
+            required
+          />
+          <label style={password ? labelActive : label}>Password</label>
 
+          <span
+            onClick={() => setShowPass(!showPass)}
+            style={eye}
+          >
+            {showPass ? "🙈" : "👁"}
+          </span>
+        </div>
+
+        {/* ERROR */}
+        {error && <p style={errorText}>{error}</p>}
+
+        {/* OPTIONS */}
+        <div style={options}>
+          <label style={{ fontSize: 13 }}>
+            <input type="checkbox" /> Remember me
+          </label>
+
+          <span
+            style={link}
+            onClick={() => router.push("/forgot-password")}
+          >
+            Forgot password?
+          </span>
+        </div>
+
+        {/* BUTTON */}
         <button
           onClick={handleLogin}
           disabled={loading}
           style={{
-            ...btn,
-            opacity: loading ? 0.6 : 1,
-            cursor: loading ? "not-allowed" : "pointer",
+            ...button,
+            opacity: loading ? 0.7 : 1,
           }}
         >
-          {loading ? "Logging in..." : "Login"}
+          {loading ? <Spinner /> : "Sign in"}
         </button>
 
-        {/* ===== LINKS ===== */}
-        <div style={{ marginTop: 15, textAlign: "center" }}>
-          <p onClick={() => router.push("/signup")} style={link}>
-            Create Account
-          </p>
-
-          <p onClick={() => router.push("/forgot-password")} style={link}>
-            Forgot Password?
-          </p>
-        </div>
+        {/* FOOTER */}
+        <p style={footer}>
+          Don’t have an account?{" "}
+          <span onClick={() => router.push("/signup")} style={link}>
+            Sign up
+          </span>
+        </p>
       </div>
     </div>
   );
 }
 
-/* ================= STYLES ================= */
+/* ===== SPINNER ===== */
+function Spinner() {
+  return (
+    <div style={{
+      width: 18,
+      height: 18,
+      border: "2px solid #fff",
+      borderTop: "2px solid transparent",
+      borderRadius: "50%",
+      animation: "spin 0.8s linear infinite",
+      margin: "auto"
+    }} />
+  );
+}
+
+/* ===== STYLES ===== */
 
 const container = {
   minHeight: "100vh",
   display: "flex",
   flexDirection: "column",
-  alignItems: "center",
   justifyContent: "center",
-  background: "#f5f5f5",
+  alignItems: "center",
+  background: "#f3f4f6",
 };
 
 const card = {
-  width: 360,
-  padding: 25,
+  width: 400,
   background: "#fff",
-  borderRadius: 12,
-  boxShadow: "0 6px 20px rgba(0,0,0,0.1)",
+  padding: 32,
+  borderRadius: 18,
+  boxShadow: "0 15px 40px rgba(0,0,0,0.08)",
+};
+
+const title = {
+  fontSize: 24,
+  fontWeight: 600,
+  marginBottom: 25,
+  textAlign: "center",
+};
+
+const field = {
+  position: "relative",
+  marginBottom: 18,
 };
 
 const input = {
   width: "100%",
-  padding: 12,
-  marginTop: 12,
-  border: "1px solid #ccc",
-  borderRadius: 6,
+  padding: "14px 12px",
+  borderRadius: 8,
+  border: "1px solid #ddd",
+  fontSize: 14,
+  outline: "none",
 };
 
-const btn = {
+const label = {
+  position: "absolute",
+  left: 12,
+  top: 14,
+  fontSize: 13,
+  color: "#777",
+  transition: "0.2s",
+  pointerEvents: "none",
+};
+
+const labelActive = {
+  ...label,
+  top: -8,
+  fontSize: 11,
+  color: "#111",
+  background: "#fff",
+  padding: "0 4px",
+};
+
+const eye = {
+  position: "absolute",
+  right: 12,
+  top: 14,
+  cursor: "pointer",
+  fontSize: 14,
+};
+
+const button = {
   width: "100%",
-  padding: 12,
-  marginTop: 18,
+  padding: 14,
+  marginTop: 10,
+  borderRadius: 8,
+  border: "none",
   background: "#111",
   color: "#fff",
-  border: "none",
-  borderRadius: 6,
+  fontSize: 15,
+  fontWeight: 500,
+  cursor: "pointer",
+};
+
+const options = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  marginBottom: 10,
+};
+
+const errorText = {
+  color: "red",
+  fontSize: 13,
+  marginBottom: 10,
+};
+
+const footer = {
+  textAlign: "center",
+  marginTop: 15,
+  fontSize: 13,
 };
 
 const link = {
-  cursor: "pointer",
   color: "#2563eb",
-  fontSize: 14,
-  marginTop: 5,
+  cursor: "pointer",
 };
