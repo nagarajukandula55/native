@@ -5,26 +5,15 @@ export function middleware(req) {
   const token = req.cookies.get("token")?.value;
   const role = req.cookies.get("role")?.value;
 
-  const url = req.nextUrl.pathname;
+  const { pathname } = req.nextUrl;
 
   /* ================= PUBLIC ROUTES ================= */
-  const publicRoutes = ["/login", "/signup", "/forgot-password", "/reset-password"];
-
-  if (publicRoutes.some(route => url.startsWith(route))) {
-    
-    // 🔥 If already logged in → redirect away from login pages
-    if (token && role) {
-      if (role === "admin") {
-        return NextResponse.redirect(new URL("/admin", req.url));
-      } 
-      else if (role === "store") {
-        return NextResponse.redirect(new URL("/admin/store/dashboard", req.url));
-      } 
-      else {
-        return NextResponse.redirect(new URL("/account", req.url));
-      }
-    }
-
+  if (
+    pathname === "/login" ||
+    pathname === "/signup" ||
+    pathname === "/forgot-password" ||
+    pathname === "/reset-password"
+  ) {
     return NextResponse.next();
   }
 
@@ -40,24 +29,24 @@ export function middleware(req) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
-  /* ================= ROLE BASED ACCESS ================= */
+  /* ================= ROLE FIX (IMPORTANT) ================= */
 
-  // 🔥 STORE (check FIRST)
-  if (url.startsWith("/admin/store")) {
-    if (role !== "store") {
-      return NextResponse.redirect(new URL("/login", req.url));
-    }
-  }
-
-  // 🔥 ADMIN
-  else if (url.startsWith("/admin")) {
+  // ADMIN
+  if (pathname.startsWith("/admin")) {
     if (role !== "admin") {
       return NextResponse.redirect(new URL("/login", req.url));
     }
   }
 
-  // 🔥 USER
-  else if (url.startsWith("/account")) {
+  // STORE
+  if (pathname.startsWith("/admin/store")) {
+    if (role !== "store") {
+      return NextResponse.redirect(new URL("/login", req.url));
+    }
+  }
+
+  // USER
+  if (pathname.startsWith("/account")) {
     if (role !== "user") {
       return NextResponse.redirect(new URL("/login", req.url));
     }
@@ -66,14 +55,7 @@ export function middleware(req) {
   return NextResponse.next();
 }
 
-/* ================= ROUTES TO PROTECT ================= */
+/* ================= MATCHER ================= */
 export const config = {
-  matcher: [
-    "/admin/:path*",
-    "/account/:path*",
-    "/login",
-    "/signup",
-    "/forgot-password",
-    "/reset-password",
-  ],
+  matcher: ["/admin/:path*", "/account/:path*"],
 };
