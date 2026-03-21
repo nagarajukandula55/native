@@ -16,7 +16,6 @@ export default function TrackPage() {
     "Delivered"
   ]
 
-  // Detect mobile for responsive layout
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768)
     checkMobile()
@@ -24,153 +23,146 @@ export default function TrackPage() {
     return () => window.removeEventListener("resize", checkMobile)
   }, [])
 
-  const stepIndex = status => steps.indexOf(status)
+  const stepIndex = status => {
+    const index = steps.indexOf(status)
+    return index === -1 ? 0 : index
+  }
 
   const getStepTime = status => {
     if (!order) return null
-    const history = order.statusHistory || []
-    const entry = history.find(e => e.status === status)
-    if (entry) return new Date(entry.time).toLocaleString()
-    if (status === order.status) return new Date(order.createdAt).toLocaleString()
-    return null
+    const entry = order.statusHistory?.find(e => e.status === status)
+    return entry ? new Date(entry.time).toLocaleString() : null
   }
 
   const getStepETA = i => {
     if (!order) return null
     const orderDate = new Date(order.createdAt)
-    let eta = new Date(orderDate)
+    const eta = new Date(orderDate)
 
-    switch (i) {
-      case 0: return eta.toLocaleDateString()
-      case 1: eta.setDate(eta.getDate() + 1); return eta.toLocaleDateString()
-      case 2: eta.setDate(eta.getDate() + 2); return eta.toLocaleDateString()
-      case 3: eta.setDate(eta.getDate() + 4); return eta.toLocaleDateString()
-      case 4: eta.setDate(eta.getDate() + 5); return eta.toLocaleDateString()
-      default: return null
-    }
+    const days = [0, 1, 2, 4, 5]
+    eta.setDate(eta.getDate() + (days[i] || 0))
+
+    return eta.toLocaleDateString()
   }
 
   const trackOrder = async () => {
-    if (!orderId) return
+    if (!orderId) return alert("Enter Order ID")
+
     setLoading(true)
+
     try {
       const res = await fetch(`/api/order-track?id=${orderId}`)
       const data = await res.json()
-      if (data.success) setOrder(data.order)
-      else { alert("Order not found"); setOrder(null) }
-    } catch (e) { console.log(e); alert("Error fetching order") }
+
+      if (data.success) {
+        setOrder(data.order)
+      } else {
+        alert("Order not found")
+        setOrder(null)
+      }
+    } catch (e) {
+      console.error(e)
+      alert("Server error")
+    }
+
     setLoading(false)
   }
 
   return (
-    <div style={{ maxWidth: 900, margin: "auto", padding: "20px 10px" }}>
+    <div style={{ maxWidth: 900, margin: "auto", padding: 20 }}>
       <h1 style={{ textAlign: "center" }}>📦 Track Order</h1>
 
       <input
         placeholder="Enter Order ID"
         value={orderId}
         onChange={e => setOrderId(e.target.value)}
-        style={{ padding: 10, width: "100%", marginTop: 10, borderRadius: 6, border: "1px solid #ccc" }}
+        onKeyDown={(e) => e.key === "Enter" && trackOrder()}
+        style={input}
       />
 
-      <button
-        onClick={trackOrder}
-        style={{
-          marginTop: 10,
-          padding: "10px 20px",
-          background: "#111",
-          color: "#fff",
-          border: "none",
-          borderRadius: 6,
-          cursor: "pointer",
-          width: "100%"
-        }}
-      >
+      <button onClick={trackOrder} style={btn}>
         {loading ? "Tracking..." : "Track"}
       </button>
 
       {order && (
-        <div style={{
-          marginTop: 30,
-          background: "#fff",
-          padding: 25,
-          borderRadius: 12,
-          boxShadow: "0 4px 20px rgba(0,0,0,0.1)"
-        }}>
+        <div style={card}>
           <h3>Order ID: {order.orderId}</h3>
+
           <p><b>Name:</b> {order.customerName}</p>
           <p><b>Phone:</b> {order.phone}</p>
-          <p><b>Address:</b><br />{order.address} - {order.pincode}</p>
+          <p><b>Address:</b> {order.address} - {order.pincode}</p>
           <p><b>Total:</b> ₹ {order.totalAmount}</p>
+
+          {/* ✅ PAYMENT STATUS */}
+          <p>
+            <b>Payment:</b>{" "}
+            <span style={{
+              color: order.paymentStatus === "Paid" ? "green" : "orange",
+              fontWeight: "bold"
+            }}>
+              {order.paymentStatus}
+            </span>
+          </p>
+
+          {/* ✅ COURIER DETAILS */}
+          {order.awb && (
+            <div style={{ marginTop: 10 }}>
+              <p><b>Courier:</b> {order.courierName || "-"}</p>
+              <p><b>AWB:</b> {order.awb}</p>
+
+              {order.trackingUrl && (
+                <a href={order.trackingUrl} target="_blank" style={trackBtn}>
+                  🚚 Track Shipment
+                </a>
+              )}
+            </div>
+          )}
 
           <h4 style={{ marginTop: 20 }}>Items</h4>
           {order.items?.map((item, i) => (
             <p key={i}>{item.name} — {item.quantity} × ₹{item.price}</p>
           ))}
 
-          {/* ⭐ RESPONSIVE & ANIMATED TIMELINE */}
+          {/* TIMELINE */}
           <div style={{
             display: "flex",
             flexDirection: isMobile ? "column" : "row",
-            justifyContent: isMobile ? "flex-start" : "space-between",
-            alignItems: isMobile ? "flex-start" : "center",
-            marginTop: 30,
-            position: "relative"
+            marginTop: 30
           }}>
             {steps.map((s, i) => {
               const current = stepIndex(order.status)
               const completed = i < current
               const isCurrent = i === current
-              const time = getStepTime(s)
-              const eta = getStepETA(i)
 
               return (
                 <div key={i} style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: isMobile ? "flex-start" : "center",
-                  position: "relative",
                   flex: 1,
-                  marginBottom: isMobile ? 50 : 0
+                  textAlign: isMobile ? "left" : "center",
+                  marginBottom: isMobile ? 20 : 0
                 }}>
-                  {/* Animated Connector */}
-                  {i < steps.length - 1 && (
-                    <div style={{
-                      position: "absolute",
-                      top: isMobile ? 18 : "50%",
-                      left: isMobile ? 8 : "50%",
-                      width: isMobile ? 2 : "100%",
-                      height: isMobile ? 40 : 2,
-                      background: i < current ? "green" : "#ddd",
-                      transition: "background 0.5s ease",
-                      zIndex: 0
-                    }} />
-                  )}
-
-                  {/* Dot with animated checkmark */}
                   <div style={{
                     width: 24,
                     height: 24,
                     borderRadius: "50%",
-                    background: completed || isCurrent ? "#111" : "#ddd",
+                    background: completed || isCurrent ? "#000" : "#ccc",
                     color: "#fff",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    fontWeight: "bold",
-                    fontSize: 12,
-                    transition: "all 0.3s ease",
-                    marginBottom: 5
+                    margin: "auto"
                   }}>
                     {completed ? "✓" : ""}
                   </div>
 
-                  {/* Step label + ETA */}
-                  <div style={{ textAlign: isMobile ? "left" : "center" }}>
-                    <div style={{ fontWeight: isCurrent ? "bold" : "normal", fontSize: 14 }}>{s}</div>
-                    <div style={{ fontSize: 12, color: "#666" }}>
-                      {time ? time : `ETA: ${eta}`}
-                    </div>
+                  <div style={{
+                    fontWeight: isCurrent ? "bold" : "normal",
+                    marginTop: 5
+                  }}>
+                    {s}
+                  </div>
+
+                  <div style={{ fontSize: 12, color: "#666" }}>
+                    {getStepTime(s) || `ETA: ${getStepETA(i)}`}
                   </div>
                 </div>
               )
@@ -180,4 +172,18 @@ export default function TrackPage() {
       )}
     </div>
   )
+}
+
+/* ===== STYLES ===== */
+const input = { width: "100%", padding: 10, marginTop: 10 }
+const btn = { width: "100%", padding: 10, marginTop: 10, background: "#000", color: "#fff" }
+const card = { marginTop: 30, padding: 20, background: "#fff", borderRadius: 10 }
+const trackBtn = {
+  display: "inline-block",
+  marginTop: 10,
+  padding: "8px 14px",
+  background: "#16a34a",
+  color: "#fff",
+  textDecoration: "none",
+  borderRadius: 6
 }
