@@ -60,16 +60,19 @@ export async function POST(req) {
       statusHistory: [{ status: "Order Placed", time: new Date() }],
     });
 
+    // Assign warehouse automatically
     const warehouse = await Warehouse.findOne();
     if (warehouse) {
       order.warehouseAssignments = [{ warehouseId: warehouse._id }];
       await order.save();
     }
 
+    // Reduce inventory
     for (const item of order.items) {
       await Inventory.findOneAndUpdate({ productId: item.productId }, { $inc: { quantity: -item.quantity } });
     }
 
+    // Telegram notification
     await sendTelegramMessage(
 `🛒 NEW ORDER RECEIVED
 Order ID: ${order.orderId}
@@ -103,27 +106,50 @@ export async function GET() {
 export async function PUT(req) {
   try {
     await connectDB();
-    const { id, status, paymentStatus, awb, courierName, trackingUrl } = await req.json();
+    const { id, status, paymentStatus, awbNumber, courierName, trackingUrl } = await req.json();
 
-    if (!id || (!status && !paymentStatus && !awb && !courierName && !trackingUrl)) {
+    if (!id || (!status && !paymentStatus && !awbNumber && !courierName && !trackingUrl)) {
       return NextResponse.json({ success: false, msg: "Missing update fields" });
     }
 
     const order = await Order.findById(id);
     if (!order) return NextResponse.json({ success: false, msg: "Order not found" });
 
-    if (status) { order.status = status; order.statusHistory.push({ status, time: new Date() }); }
-    if (paymentStatus) order.paymentStatus = paymentStatus;
-    if (awb) order.awb = awb;
+    if (status) {
+      order.status = status;
+      order.statusHistory.push({ status, time: new Date() });
+      await sendTelegramMessage(
+`📦 ORDER STATUS UPDATED
+Order ID: ${order.orderId}
+Customer: ${order.customerName}
+New Status: ${order.status}`
+      );
+    }
+
+    if (paymentStatus) {
+      order.paymentStatus = paymentStatus;
+      await sendTelegramMessage(
+`💰 PAYMENT STATUS UPDATED
+Order ID: ${order.orderId}
+Customer: ${order.customerName}
+Payment Status: ${order.paymentStatus}`
+      );
+    }
+
+    if (awbNumber) order.awbNumber = awbNumber;
     if (courierName) order.courierName = courierName;
     if (trackingUrl) order.trackingUrl = trackingUrl;
 
     await order.save();
 
-    if (status) await sendTelegramMessage(`📦 ORDER STATUS UPDATED\nOrder ID: ${order.orderId}\nNew Status: ${order.status}`);
-    if (paymentStatus) await sendTelegramMessage(`💰 PAYMENT STATUS UPDATED\nOrder ID: ${order.orderId}\nPayment Status: ${order.paymentStatus}`);
-
-    return NextResponse.json({ success: true, status: order.status, paymentStatus: order.paymentStatus });
+    return NextResponse.json({
+      success: true,
+      status: order.status,
+      paymentStatus: order.paymentStatus,
+      awbNumber: order.awbNumber,
+      courierName: order.courierName,
+      trackingUrl: order.trackingUrl,
+    });
   } catch (e) {
     console.log("UPDATE ORDER ERROR:", e);
     return NextResponse.json({ success: false });
