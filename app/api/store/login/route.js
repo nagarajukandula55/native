@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
-import bcrypt from "bcryptjs";
-import Store from "@/models/Store";
 import connectDB from "@/lib/mongodb";
+import Store from "@/models/Store";
+import jwt from "jsonwebtoken";
+
+export const dynamic = "force-dynamic";
 
 export async function POST(req) {
   try {
@@ -9,19 +11,24 @@ export async function POST(req) {
     const { email, password } = await req.json();
 
     if (!email || !password) {
-      return NextResponse.json({ success: false, msg: "Missing credentials" });
+      return NextResponse.json({ success: false, msg: "Missing credentials" }, { status: 400 });
     }
 
     const store = await Store.findOne({ email });
-    if (!store) return NextResponse.json({ success: false, msg: "Invalid credentials" });
+    if (!store) return NextResponse.json({ success: false, msg: "Invalid credentials" }, { status: 401 });
 
-    const isMatch = await bcrypt.compare(password, store.password);
-    if (!isMatch) return NextResponse.json({ success: false, msg: "Invalid credentials" });
+    const isMatch = await store.comparePassword(password);
+    if (!isMatch) return NextResponse.json({ success: false, msg: "Invalid credentials" }, { status: 401 });
 
-    const { _id, name, warehouseId } = store;
-    return NextResponse.json({ success: true, store: { _id, name, email, warehouseId } });
-  } catch (err) {
-    console.error(err);
-    return NextResponse.json({ success: false, msg: "Server error" });
+    const token = jwt.sign(
+      { storeId: store._id, warehouseId: store.warehouseId, name: store.name },
+      process.env.JWT_SECRET,
+      { expiresIn: "12h" }
+    );
+
+    return NextResponse.json({ success: true, token, name: store.name });
+  } catch (e) {
+    console.error("STORE LOGIN ERROR:", e);
+    return NextResponse.json({ success: false, msg: "Server error" }, { status: 500 });
   }
 }
