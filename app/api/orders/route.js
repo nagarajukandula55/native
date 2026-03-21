@@ -1,8 +1,5 @@
-export const dynamic = "force-dynamic";
-
 import { NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
-
 import Order from "@/models/Order";
 import Inventory from "@/models/Inventory";
 import Warehouse from "@/models/Warehouse";
@@ -20,27 +17,21 @@ async function sendTelegramMessage(text) {
 
     await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text,
-      }),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: chatId, text }),
     });
   } catch (e) {
     console.log("Telegram Error:", e);
   }
 }
 
-/* ================= ORDER ID ================= */
+/* ================= ORDER ID GENERATOR ================= */
 function generateOrderId() {
   const now = new Date();
   const yy = now.getFullYear().toString().slice(-2);
   const mm = String(now.getMonth() + 1).padStart(2, "0");
   const dd = String(now.getDate()).padStart(2, "0");
   const rand = Math.random().toString(36).substring(2, 6).toUpperCase();
-
   return `NAT-${yy}${mm}${dd}-${rand}`;
 }
 
@@ -50,7 +41,7 @@ export async function POST(req) {
     await connectDB();
     const body = await req.json();
 
-    /* ===== VALIDATION ===== */
+    // Validation
     if (
       !body.customerName ||
       !body.phone ||
@@ -59,28 +50,19 @@ export async function POST(req) {
       !body.items ||
       body.items.length === 0
     ) {
-      return NextResponse.json({
-        success: false,
-        msg: "Missing fields",
-      });
+      return NextResponse.json({ success: false, msg: "Missing fields" });
     }
 
-    /* ===== TOTAL ===== */
     const totalAmount = body.items.reduce(
-      (sum, item) =>
-        sum + Number(item.price) * Number(item.quantity),
+      (sum, item) => sum + Number(item.price) * Number(item.quantity),
       0
     );
 
-    /* ===== ORDER ID ===== */
     let orderId = generateOrderId();
     const exists = await Order.findOne({ orderId });
-    if (exists) {
-      orderId = generateOrderId();
-    }
+    if (exists) orderId = generateOrderId();
 
-    /* ===== CREATE ORDER ===== */
-    let order = await Order.create({
+    const order = await Order.create({
       orderId,
       customerName: body.customerName,
       phone: body.phone,
@@ -89,31 +71,20 @@ export async function POST(req) {
       pincode: body.pincode,
       items: body.items,
       totalAmount,
-
       status: "Order Placed",
       paymentMethod: body.paymentMethod || "COD",
-      paymentStatus: body.paymentMethod === "COD" ? "Paid" : "Pending", // ✅ Updated for COD
-
-      statusHistory: [
-        {
-          status: "Order Placed",
-          time: new Date(),
-        },
-      ],
+      paymentStatus: "Pending",
+      statusHistory: [{ status: "Order Placed", time: new Date() }],
     });
 
-    /* ===== AUTO ASSIGN WAREHOUSE ===== */
+    // Assign warehouse automatically
     const warehouse = await Warehouse.findOne();
     if (warehouse) {
-      order.warehouseAssignments = [
-        {
-          warehouseId: warehouse._id,
-        },
-      ];
+      order.warehouseAssignments = [{ warehouseId: warehouse._id }];
       await order.save();
     }
 
-    /* ===== INVENTORY REDUCTION ===== */
+    // Reduce inventory
     for (const item of order.items) {
       await Inventory.findOneAndUpdate(
         { productId: item.productId },
@@ -121,7 +92,7 @@ export async function POST(req) {
       );
     }
 
-    /* ===== TELEGRAM ===== */
+    // Telegram notification
     await sendTelegramMessage(
 `🛒 NEW ORDER RECEIVED
 
@@ -136,16 +107,12 @@ Status: ${order.status}`
     return NextResponse.json({
       success: true,
       orderId: order.orderId,
-      _id: order._id, // ✅ Added for UPI tracking
+      _id: order._id, // ✅ REQUIRED FOR UPI POLLING
     });
 
   } catch (e) {
     console.log("CREATE ORDER ERROR:", e);
-
-    return NextResponse.json({
-      success: false,
-      msg: "Server error",
-    });
+    return NextResponse.json({ success: false, msg: "Server error" });
   }
 }
 
@@ -153,20 +120,11 @@ Status: ${order.status}`
 export async function GET() {
   try {
     await connectDB();
-
     const orders = await Order.find().sort({ createdAt: -1 });
-
-    return NextResponse.json({
-      success: true,
-      orders,
-    });
-
+    return NextResponse.json({ success: true, orders });
   } catch (e) {
     console.log("FETCH ORDERS ERROR:", e);
-
-    return NextResponse.json({
-      success: false,
-    });
+    return NextResponse.json({ success: false });
   }
 }
 
@@ -174,32 +132,17 @@ export async function GET() {
 export async function PUT(req) {
   try {
     await connectDB();
-
     const body = await req.json();
 
     if (!body.id || !body.status) {
-      return NextResponse.json({
-        success: false,
-        msg: "Missing id or status",
-      });
+      return NextResponse.json({ success: false, msg: "Missing id or status" });
     }
 
     const order = await Order.findById(body.id);
-
-    if (!order) {
-      return NextResponse.json({
-        success: false,
-        msg: "Order not found",
-      });
-    }
+    if (!order) return NextResponse.json({ success: false, msg: "Order not found" });
 
     order.status = body.status;
-
-    order.statusHistory.push({
-      status: body.status,
-      time: new Date(),
-    });
-
+    order.statusHistory.push({ status: body.status, time: new Date() });
     await order.save();
 
     await sendTelegramMessage(
@@ -210,16 +153,9 @@ Customer: ${order.customerName}
 New Status: ${order.status}`
     );
 
-    return NextResponse.json({
-      success: true,
-      status: order.status,
-    });
-
+    return NextResponse.json({ success: true, status: order.status });
   } catch (e) {
     console.log("UPDATE STATUS ERROR:", e);
-
-    return NextResponse.json({
-      success: false,
-    });
+    return NextResponse.json({ success: false });
   }
 }
