@@ -9,11 +9,7 @@ async function sendTelegramMessage(text) {
   try {
     const token = process.env.TELEGRAM_BOT_TOKEN;
     const chatId = process.env.TELEGRAM_CHAT_ID;
-
-    if (!token || !chatId) {
-      console.log("Telegram ENV missing");
-      return;
-    }
+    if (!token || !chatId) return;
 
     await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: "POST",
@@ -25,7 +21,7 @@ async function sendTelegramMessage(text) {
   }
 }
 
-/* ================= ORDER ID GENERATOR ================= */
+/* ================= ORDER ID ================= */
 function generateOrderId() {
   const now = new Date();
   const yy = now.getFullYear().toString().slice(-2);
@@ -41,27 +37,13 @@ export async function POST(req) {
     await connectDB();
     const body = await req.json();
 
-    // Validation
-    if (
-      !body.customerName ||
-      !body.phone ||
-      !body.address ||
-      !body.pincode ||
-      !body.items ||
-      body.items.length === 0
-    ) {
+    if (!body.customerName || !body.phone || !body.address || !body.pincode || !body.items || body.items.length === 0) {
       return NextResponse.json({ success: false, msg: "Missing fields" });
     }
 
-    const totalAmount = body.items.reduce(
-      (sum, item) => sum + Number(item.price) * Number(item.quantity),
-      0
-    );
-
+    const totalAmount = body.items.reduce((sum, item) => sum + Number(item.price) * Number(item.quantity), 0);
     let orderId = generateOrderId();
-    while (await Order.findOne({ orderId })) {
-      orderId = generateOrderId(); // Ensure unique orderId
-    }
+    if (await Order.findOne({ orderId })) orderId = generateOrderId();
 
     const order = await Order.create({
       orderId,
@@ -78,31 +60,27 @@ export async function POST(req) {
       statusHistory: [{ status: "Order Placed", time: new Date() }],
     });
 
-    // Auto-assign first available warehouse
     const warehouse = await Warehouse.findOne();
     if (warehouse) {
       order.warehouseAssignments = [{ warehouseId: warehouse._id }];
       await order.save();
     }
 
-    // Reduce inventory safely
     for (const item of order.items) {
-      await Inventory.findOneAndUpdate(
-        { productId: item.productId },
-        { $inc: { quantity: -item.quantity } }
-      );
+      await Inventory.findOneAndUpdate({ productId: item.productId }, { $inc: { quantity: -item.quantity } });
     }
 
-    // Telegram notification
     await sendTelegramMessage(
-      `🛒 NEW ORDER RECEIVED\n\nOrder ID: ${order.orderId}\nCustomer: ${order.customerName}\nPhone: ${order.phone}\nAmount: ₹${order.totalAmount}\nPayment: ${order.paymentMethod}\nStatus: ${order.status}`
+`🛒 NEW ORDER RECEIVED
+Order ID: ${order.orderId}
+Customer: ${order.customerName}
+Phone: ${order.phone}
+Amount: ₹${order.totalAmount}
+Payment: ${order.paymentMethod}
+Status: ${order.status}`
     );
 
-    return NextResponse.json({
-      success: true,
-      orderId: order.orderId,
-      _id: order._id,
-    });
+    return NextResponse.json({ success: true, orderId: order.orderId, _id: order._id });
   } catch (e) {
     console.log("CREATE ORDER ERROR:", e);
     return NextResponse.json({ success: false, msg: "Server error" });
@@ -121,55 +99,31 @@ export async function GET() {
   }
 }
 
-/* ================= UPDATE STATUS / PAYMENT ================= */
+/* ================= UPDATE ORDER / PAYMENT ================= */
 export async function PUT(req) {
   try {
     await connectDB();
-    const body = await req.json();
-    const { id, status, paymentStatus, awbNumber } = body;
+    const { id, status, paymentStatus, awb, courierName, trackingUrl } = await req.json();
 
-    if (!id || (!status && !paymentStatus && !awbNumber)) {
-      return NextResponse.json({
-        success: false,
-        msg: "Missing id or update fields",
-      });
+    if (!id || (!status && !paymentStatus && !awb && !courierName && !trackingUrl)) {
+      return NextResponse.json({ success: false, msg: "Missing update fields" });
     }
 
     const order = await Order.findById(id);
-    if (!order) {
-      return NextResponse.json({ success: false, msg: "Order not found" });
-    }
+    if (!order) return NextResponse.json({ success: false, msg: "Order not found" });
 
-    // Update order status
-    if (status) {
-      order.status = status;
-      order.statusHistory.push({ status, time: new Date() });
-      await sendTelegramMessage(
-        `📦 ORDER STATUS UPDATED\n\nOrder ID: ${order.orderId}\nCustomer: ${order.customerName}\nNew Status: ${order.status}`
-      );
-    }
-
-    // Update payment status
-    if (paymentStatus) {
-      order.paymentStatus = paymentStatus;
-      await sendTelegramMessage(
-        `💰 PAYMENT STATUS UPDATED\n\nOrder ID: ${order.orderId}\nCustomer: ${order.customerName}\nPayment Status: ${order.paymentStatus}`
-      );
-    }
-
-    // Update AWB number if provided
-    if (awbNumber) {
-      order.awbNumber = awbNumber;
-    }
+    if (status) { order.status = status; order.statusHistory.push({ status, time: new Date() }); }
+    if (paymentStatus) order.paymentStatus = paymentStatus;
+    if (awb) order.awb = awb;
+    if (courierName) order.courierName = courierName;
+    if (trackingUrl) order.trackingUrl = trackingUrl;
 
     await order.save();
 
-    return NextResponse.json({
-      success: true,
-      status: order.status,
-      paymentStatus: order.paymentStatus,
-      awbNumber: order.awbNumber || null,
-    });
+    if (status) await sendTelegramMessage(`📦 ORDER STATUS UPDATED\nOrder ID: ${order.orderId}\nNew Status: ${order.status}`);
+    if (paymentStatus) await sendTelegramMessage(`💰 PAYMENT STATUS UPDATED\nOrder ID: ${order.orderId}\nPayment Status: ${order.paymentStatus}`);
+
+    return NextResponse.json({ success: true, status: order.status, paymentStatus: order.paymentStatus });
   } catch (e) {
     console.log("UPDATE ORDER ERROR:", e);
     return NextResponse.json({ success: false });
