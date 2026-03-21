@@ -1,12 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Image from "next/image";
 
 export default function LoginPage() {
-  const router = useRouter();
-
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
@@ -38,17 +35,19 @@ export default function LoginPage() {
         return;
       }
 
-      /* ================= STORE TOKEN IN COOKIE ================= */
-      document.cookie = `token=${data.token}; path=/`;
-      document.cookie = `role=${data.role}; path=/`;
+      /* ================= SET COOKIE (IMPORTANT) ================= */
+      document.cookie = `token=${data.token}; path=/; max-age=604800`;
+      document.cookie = `role=${data.role}; path=/; max-age=604800`;
 
-      /* ================= ROLE BASED REDIRECT ================= */
+      /* ================= FORCE HARD REDIRECT ================= */
       if (data.role === "admin") {
-        router.push("/admin");
-      } else if (data.role === "store") {
-        router.push("/admin/store/dashboard");
-      } else {
-        router.push("/account");
+        window.location.href = "/admin";
+      } 
+      else if (data.role === "store") {
+        window.location.href = "/admin/store/dashboard";
+      } 
+      else {
+        window.location.href = "/account";
       }
 
     } catch (err) {
@@ -114,7 +113,7 @@ export default function LoginPage() {
 
           <span
             style={link}
-            onClick={() => router.push("/forgot-password")}
+            onClick={() => (window.location.href = "/forgot-password")}
           >
             Forgot password?
           </span>
@@ -132,7 +131,10 @@ export default function LoginPage() {
         {/* FOOTER */}
         <p style={footer}>
           Don’t have an account?{" "}
-          <span onClick={() => router.push("/signup")} style={link}>
+          <span
+            onClick={() => (window.location.href = "/signup")}
+            style={link}
+          >
             Sign up
           </span>
         </p>
