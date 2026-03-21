@@ -10,53 +10,50 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  async function handleLogin() {
-    setError("");
+async function handleLogin() {
+  setError("");
 
-    if (!email || !password) {
-      setError("Please enter email and password");
+  if (!email || !password) {
+    setError("Please enter email and password");
+    return;
+  }
+
+  setLoading(true);
+
+  try {
+    const res = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+
+    const data = await res.json();
+
+    if (!data.success) {
+      setError(data.msg || "Login failed");
+      setLoading(false);
       return;
     }
 
-    setLoading(true);
+    // ✅ SET COOKIES
+    document.cookie = `token=${data.token}; path=/; max-age=604800; SameSite=Lax`;
+    document.cookie = `role=${data.role}; path=/; max-age=604800; SameSite=Lax`;
 
-    try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
+    // ✅ FORCE FULL RELOAD (IMPORTANT)
+    window.location.href =
+      data.role === "admin"
+        ? "/admin"
+        : data.role === "store"
+        ? "/admin/store/dashboard"
+        : "/account";
 
-      const data = await res.json();
-
-      if (!data.success) {
-        setError(data.msg || "Login failed");
-        setLoading(false);
-        return;
-      }
-
-      /* ================= SET COOKIE (IMPORTANT) ================= */
-      document.cookie = `token=${data.token}; path=/; max-age=604800`;
-      document.cookie = `role=${data.role}; path=/; max-age=604800`;
-
-      /* ================= FORCE HARD REDIRECT ================= */
-      if (data.role === "admin") {
-        router.push("/admin/products");
-      }
-      else if (data.role === "store") {
-        router.push("/admin/store/dashboard");
-      }
-      else {
-        router.push("/account");
-      }
-
-    } catch (err) {
-      console.error(err);
-      setError("Server error. Try again.");
-    }
-
-    setLoading(false);
+  } catch (err) {
+    console.error(err);
+    setError("Server error. Try again.");
   }
+
+  setLoading(false);
+}
 
   return (
     <div style={container}>
