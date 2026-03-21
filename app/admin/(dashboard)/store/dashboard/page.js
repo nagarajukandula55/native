@@ -62,7 +62,7 @@ export default function StoreDashboard() {
       {orders.length === 0 && <p>No orders assigned to your warehouse yet.</p>}
 
       {orders.map(order => {
-        const { _id, orderId, customerName, phone, address, pincode, items, totalAmount, status, paymentStatus, awb } = order;
+        const { _id, orderId, customerName, phone, address, pincode, items, totalAmount, status, paymentStatus, awb, courierName, trackingUrl } = order;
 
         return (
           <div key={_id} style={card}>
@@ -73,11 +73,29 @@ export default function StoreDashboard() {
             <p><b>Total:</b> ₹{totalAmount}</p>
             <p><b>Status:</b> <span style={badgeStyle(status)}>{status}</span></p>
             <p><b>Payment:</b> <span style={badgeStyle(paymentStatus)}>{paymentStatus}</span></p>
-            <p><b>AWB:</b>
+
+            <p>
+              <b>AWB:</b>
               <input
                 value={awb || ""}
                 onChange={e => updateOrder(_id, "awb", e.target.value)}
-                style={{ padding: 5, marginLeft: 10, width: 200 }}
+                style={inputStyle}
+              />
+            </p>
+            <p>
+              <b>Courier:</b>
+              <input
+                value={courierName || ""}
+                onChange={e => updateOrder(_id, "courierName", e.target.value)}
+                style={inputStyle}
+              />
+            </p>
+            <p>
+              <b>Tracking URL:</b>
+              <input
+                value={trackingUrl || ""}
+                onChange={e => updateOrder(_id, "trackingUrl", e.target.value)}
+                style={inputStyle}
               />
             </p>
 
@@ -92,7 +110,7 @@ export default function StoreDashboard() {
                   {s}
                 </button>
               ))}
-              {["Pending","Paid"].map(p => (
+              {["Pending","Paid","Failed"].map(p => (
                 <button
                   key={p}
                   disabled={updatingId === _id}
@@ -120,7 +138,8 @@ const container = { maxWidth: 1100, margin: "auto", padding: 30 };
 const title = { fontSize: 28, marginBottom: 25, fontWeight: 600 };
 const card = { background: "#fff", padding: 25, marginBottom: 20, borderRadius: 12, boxShadow: "0 4px 14px rgba(0,0,0,0.08)" };
 const btnWrap = { marginTop: 15, display: "flex", gap: 10, flexWrap: "wrap" };
-const actionBtn = { padding: "6px 12px", color: "#fff", border: "none", borderRadius: 6, cursor: "pointer" };
+const actionBtn = { padding: "6px 12px", color: "#fff", border: "none", borderRadius: 6, cursor: "pointer", transition: "0.2s" };
+const inputStyle = { padding: 5, marginLeft: 10, width: 200, borderRadius: 6, border: "1px solid #ccc" };
 
 const badgeStyle = (status) => ({
   padding: "4px 10px",
@@ -139,4 +158,11 @@ const statusColor = (status) => {
   }
 };
 
-const paymentColor = (status) => status === "Paid" ? "#0f9d58" : "#f4b400";
+const paymentColor = (status) => {
+  switch(status) {
+    case "Paid": return "#0f9d58";
+    case "Pending": return "#f4b400";
+    case "Failed": return "#e53935";
+    default: return "#777";
+  }
+};
