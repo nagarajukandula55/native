@@ -8,12 +8,12 @@ export async function POST(req) {
     const { name, email, password } = await req.json();
 
     if (!name || !email || !password) {
-      return Response.json({ success: false, msg: "All fields required" });
+      return Response.json({ success: false, msg: "All fields required" }, { status: 400 });
     }
 
-    const exists = await User.findOne({ email });
-    if (exists) {
-      return Response.json({ success: false, msg: "User already exists" });
+    const existing = await User.findOne({ email });
+    if (existing) {
+      return Response.json({ success: false, msg: "User already exists" }, { status: 400 });
     }
 
     const hashed = await bcrypt.hash(password, 10);
@@ -24,10 +24,10 @@ export async function POST(req) {
       password: hashed,
     });
 
-    return Response.json({ success: true, msg: "Account created" });
+    return Response.json({ success: true, msg: "Account created successfully" });
 
   } catch (err) {
-    console.log(err);
-    return Response.json({ success: false, msg: "Server error" });
+    console.error(err);
+    return Response.json({ success: false, msg: "Server error" }, { status: 500 });
   }
 }
