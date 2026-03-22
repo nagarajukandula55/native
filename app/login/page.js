@@ -1,77 +1,72 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 
 export default function LoginPage() {
+  const router = useRouter();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-async function handleLogin() {
-  setError("");
-
-  if (!email || !password) {
-    setError("Please enter email and password");
-    return;
-  }
-
-  setLoading(true);
-
-  try {
-    const res = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
-
-    const data = await res.json();
-
-    if (!data.success) {
-      setError(data.msg || "Login failed");
-      setLoading(false);
+  async function handleLogin() {
+    setError("");
+    if (!email || !password) {
+      setError("Please enter email and password");
       return;
     }
-    // SET COOKIE
-    document.cookie = `token=${data.token}; path=/; max-age=604800; SameSite=Lax`;
-    document.cookie = `role=${data.role}; path=/; max-age=604800; SameSite=Lax`;
-    
-    // FORCE HARD NAVIGATION (VERY IMPORTANT)
-    window.location.href =
-      data.role === "admin"
-        ? "/admin"
-        : data.role === "store"
-        ? "/admin/store/dashboard"
-        : "/account";
 
-  } catch (err) {
-    console.error(err);
-    setError("Server error. Try again.");
+    setLoading(true);
+
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await res.json();
+
+      if (!data.success) {
+        setError(data.msg || "Login failed");
+        setLoading(false);
+        return;
+      }
+
+      // ⚡ Redirect based on role after cookie is set
+      if (data.role === "admin") window.location.href = "/admin";
+      else if (data.role === "store") window.location.href = "/admin/store/dashboard";
+      else window.location.href = "/account";
+
+    } catch (err) {
+      console.error(err);
+      setError("Server error. Try again.");
+    }
+
+    setLoading(false);
   }
-
-  setLoading(false);
-}
 
   return (
     <div style={container}>
-      
       {/* LOGO */}
-      <div style={{ marginBottom: 30 }}>
+      <div style={{ marginBottom: 40 }}>
         <Image
           src="/logo.png"
           alt="Logo"
-          width={170}
+          width={180}
           height={60}
           style={{ objectFit: "contain" }}
           priority
         />
       </div>
 
-      {/* CARD */}
+      {/* LOGIN CARD */}
       <div style={card}>
-        <h2 style={title}>Welcome back</h2>
+        <h2 style={title}>Welcome Back</h2>
 
         {/* EMAIL */}
         <div style={field}>
@@ -80,7 +75,7 @@ async function handleLogin() {
             onChange={(e) => setEmail(e.target.value)}
             style={input}
           />
-          <label style={email ? labelActive : label}>Email address</label>
+          <label style={email ? labelActive : label}>Email Address</label>
         </div>
 
         {/* PASSWORD */}
@@ -109,7 +104,7 @@ async function handleLogin() {
 
           <span
             style={link}
-            onClick={() => (window.location.href = "/forgot-password")}
+            onClick={() => router.push("/forgot-password")}
           >
             Forgot password?
           </span>
@@ -127,10 +122,7 @@ async function handleLogin() {
         {/* FOOTER */}
         <p style={footer}>
           Don’t have an account?{" "}
-          <span
-            onClick={() => (window.location.href = "/signup")}
-            style={link}
-          >
+          <span onClick={() => router.push("/signup")} style={link}>
             Sign up
           </span>
         </p>
@@ -157,7 +149,6 @@ function Spinner() {
 }
 
 /* ===== STYLES ===== */
-
 const container = {
   minHeight: "100vh",
   display: "flex",
@@ -170,7 +161,7 @@ const container = {
 const card = {
   width: 400,
   background: "#fff",
-  padding: 32,
+  padding: 36,
   borderRadius: 18,
   boxShadow: "0 15px 40px rgba(0,0,0,0.08)",
 };
@@ -225,7 +216,7 @@ const eye = {
 const button = {
   width: "100%",
   padding: 14,
-  marginTop: 10,
+  marginTop: 12,
   borderRadius: 8,
   border: "none",
   background: "#111",
