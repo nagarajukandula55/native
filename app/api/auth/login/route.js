@@ -1,79 +1,251 @@
-// app/api/auth/login/route.js
-import connectDB from "@/lib/mongodb";
-import Admin from "@/models/Admin";
-import Store from "@/models/Store";
-import User from "@/models/User";
-import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
-import { serialize } from "cookie";
+"use client";
 
-export async function POST(req) {
-  try {
-    await connectDB();
-    const { email, password } = await req.json();
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import Image from "next/image";
+
+export default function LoginPage() {
+  const router = useRouter();
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPass, setShowPass] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleLogin(e) {
+    e.preventDefault(); // prevent default form reload
+    setError("");
 
     if (!email || !password) {
-      return new Response(JSON.stringify({ success: false, msg: "All fields are required" }), { status: 400 });
+      setError("Please enter email and password");
+      return;
     }
 
-    // ======== HELPER FUNCTION TO SET COOKIES ========
-    const setCookies = (res, token, role) => {
-      const tokenCookie = serialize("token", token, {
-        httpOnly: true,
-        path: "/",
-        maxAge: 7 * 24 * 60 * 60, // 7 days
-        sameSite: "lax",
-        secure: process.env.NODE_ENV === "production",
+    setLoading(true);
+
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
       });
 
-      const roleCookie = serialize("role", role, {
-        httpOnly: true,
-        path: "/",
-        maxAge: 7 * 24 * 60 * 60,
-        sameSite: "lax",
-        secure: process.env.NODE_ENV === "production",
-      });
+      const data = await res.json();
 
-      return new Response(JSON.stringify({ success: true, role }), {
-        status: 200,
-        headers: { "Set-Cookie": [tokenCookie, roleCookie], "Content-Type": "application/json" },
-      });
-    };
+      if (!data.success) {
+        setError(data.msg || "Login failed");
+        setLoading(false);
+        return;
+      }
 
-    // ======== CHECK ADMIN ========
-    const admin = await Admin.findOne({ email });
-    if (admin) {
-      const isMatch = await bcrypt.compare(password, admin.password);
-      if (!isMatch) return new Response(JSON.stringify({ success: false, msg: "Invalid credentials" }), { status: 401 });
-
-      const token = jwt.sign({ id: admin._id, role: "admin" }, process.env.JWT_SECRET, { expiresIn: "7d" });
-      return setCookies(null, token, "admin");
+      /* ROLE-BASED REDIRECT */
+      switch (data.role) {
+        case "admin":
+          router.push("/admin");
+          break;
+        case "store":
+          router.push("/admin/store/dashboard");
+          break;
+        case "user":
+          router.push("/account");
+          break;
+        default:
+          router.push("/login");
+      }
+    } catch (err) {
+      console.error(err);
+      setError("Server error. Try again.");
     }
 
-    // ======== CHECK STORE ========
-    const store = await Store.findOne({ email });
-    if (store) {
-      const isMatch = await bcrypt.compare(password, store.password);
-      if (!isMatch) return new Response(JSON.stringify({ success: false, msg: "Invalid credentials" }), { status: 401 });
-
-      const token = jwt.sign({ id: store._id, role: "store", warehouseId: store.warehouseId }, process.env.JWT_SECRET, { expiresIn: "7d" });
-      return setCookies(null, token, "store");
-    }
-
-    // ======== CHECK USER ========
-    const user = await User.findOne({ email });
-    if (user) {
-      const isMatch = await bcrypt.compare(password, user.password);
-      if (!isMatch) return new Response(JSON.stringify({ success: false, msg: "Invalid credentials" }), { status: 401 });
-
-      const token = jwt.sign({ id: user._id, role: "user" }, process.env.JWT_SECRET, { expiresIn: "7d" });
-      return setCookies(null, token, "user");
-    }
-
-    return new Response(JSON.stringify({ success: false, msg: "User not found" }), { status: 404 });
-
-  } catch (err) {
-    console.error(err);
-    return new Response(JSON.stringify({ success: false, msg: "Server error" }), { status: 500 });
+    setLoading(false);
   }
+
+  return (
+    <div style={container}>
+      {/* LOGO */}
+      <div style={{ marginBottom: 30 }}>
+        <Image
+          src="/logo.png"
+          alt="Logo"
+          width={170}
+          height={60}
+          style={{ objectFit: "contain" }}
+          priority
+        />
+      </div>
+
+      {/* LOGIN CARD */}
+      <form style={card} onSubmit={handleLogin}>
+        <h2 style={title}>Welcome Back</h2>
+
+        {/* EMAIL */}
+        <div style={field}>
+          <input
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            style={input}
+          />
+          <label style={email ? labelActive : label}>Email address</label>
+        </div>
+
+        {/* PASSWORD */}
+        <div style={field}>
+          <input
+            type={showPass ? "text" : "password"}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            style={input}
+          />
+          <label style={password ? labelActive : label}>Password</label>
+          <span onClick={() => setShowPass(!showPass)} style={eye}>
+            {showPass ? "🙈" : "👁"}
+          </span>
+        </div>
+
+        {/* ERROR MESSAGE */}
+        {error && <p style={errorText}>{error}</p>}
+
+        {/* OPTIONS */}
+        <div style={options}>
+          <label style={{ fontSize: 13 }}>
+            <input type="checkbox" /> Remember me
+          </label>
+          <span style={link} onClick={() => router.push("/forgot-password")}>
+            Forgot password?
+          </span>
+        </div>
+
+        {/* BUTTON */}
+        <button style={{ ...button, opacity: loading ? 0.7 : 1 }} disabled={loading}>
+          {loading ? <Spinner /> : "Sign in"}
+        </button>
+
+        {/* FOOTER */}
+        <p style={footer}>
+          Don’t have an account?{" "}
+          <span onClick={() => router.push("/signup")} style={link}>
+            Sign up
+          </span>
+        </p>
+      </form>
+    </div>
+  );
 }
+
+/* SPINNER */
+function Spinner() {
+  return (
+    <div
+      style={{
+        width: 18,
+        height: 18,
+        border: "2px solid #fff",
+        borderTop: "2px solid transparent",
+        borderRadius: "50%",
+        animation: "spin 0.8s linear infinite",
+        margin: "auto",
+      }}
+    />
+  );
+}
+
+/* ===== STYLES ===== */
+const container = {
+  minHeight: "100vh",
+  display: "flex",
+  flexDirection: "column",
+  justifyContent: "center",
+  alignItems: "center",
+  background: "#f3f4f6",
+};
+
+const card = {
+  width: 400,
+  background: "#fff",
+  padding: 32,
+  borderRadius: 18,
+  boxShadow: "0 15px 40px rgba(0,0,0,0.08)",
+};
+
+const title = {
+  fontSize: 24,
+  fontWeight: 600,
+  marginBottom: 25,
+  textAlign: "center",
+};
+
+const field = {
+  position: "relative",
+  marginBottom: 18,
+};
+
+const input = {
+  width: "100%",
+  padding: "14px 12px",
+  borderRadius: 8,
+  border: "1px solid #ddd",
+  fontSize: 14,
+  outline: "none",
+};
+
+const label = {
+  position: "absolute",
+  left: 12,
+  top: 14,
+  fontSize: 13,
+  color: "#777",
+  transition: "0.2s",
+  pointerEvents: "none",
+};
+
+const labelActive = {
+  ...label,
+  top: -8,
+  fontSize: 11,
+  color: "#111",
+  background: "#fff",
+  padding: "0 4px",
+};
+
+const eye = {
+  position: "absolute",
+  right: 12,
+  top: 14,
+  cursor: "pointer",
+};
+
+const button = {
+  width: "100%",
+  padding: 14,
+  marginTop: 10,
+  borderRadius: 8,
+  border: "none",
+  background: "#111",
+  color: "#fff",
+  fontSize: 15,
+  cursor: "pointer",
+};
+
+const options = {
+  display: "flex",
+  justifyContent: "space-between",
+  marginBottom: 10,
+};
+
+const errorText = {
+  color: "red",
+  fontSize: 13,
+  marginBottom: 10,
+};
+
+const footer = {
+  textAlign: "center",
+  marginTop: 15,
+  fontSize: 13,
+};
+
+const link = {
+  color: "#2563eb",
+  cursor: "pointer",
+};
