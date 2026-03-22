@@ -34,12 +34,11 @@ async function handleLogin() {
       setLoading(false);
       return;
     }
-
-    // ✅ SET COOKIES
+    // SET COOKIE
     document.cookie = `token=${data.token}; path=/; max-age=604800; SameSite=Lax`;
     document.cookie = `role=${data.role}; path=/; max-age=604800; SameSite=Lax`;
-
-    // ✅ FORCE FULL RELOAD (IMPORTANT)
+    
+    // FORCE HARD NAVIGATION (VERY IMPORTANT)
     window.location.href =
       data.role === "admin"
         ? "/admin"
