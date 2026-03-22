@@ -4,14 +4,14 @@ import jwt from "jsonwebtoken";
 export function middleware(req) {
   const token = req.cookies.get("token")?.value;
   const role = req.cookies.get("role")?.value;
-  const url = req.nextUrl.pathname;
+  const { pathname } = req.nextUrl;
 
-  /* ================= PUBLIC ROUTES ================= */
+  /* ================= PUBLIC ================= */
   if (
-    url.startsWith("/login") ||
-    url.startsWith("/signup") ||
-    url.startsWith("/forgot-password") ||
-    url.startsWith("/reset-password")
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/signup") ||
+    pathname.startsWith("/forgot-password") ||
+    pathname.startsWith("/reset-password")
   ) {
     return NextResponse.next();
   }
@@ -21,33 +21,33 @@ export function middleware(req) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
-  /* ================= VERIFY TOKEN ================= */
+  /* ================= VERIFY ================= */
   try {
     jwt.verify(token, process.env.JWT_SECRET);
-  } catch (e) {
+  } catch {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
-  /* ================= ROLE BASED ACCESS ================= */
+  /* ================= ROLE ================= */
 
-  // ✅ STORE FIRST (IMPORTANT)
-  if (url.startsWith("/admin/store")) {
+  // 🔥 STORE FIRST (IMPORTANT)
+  if (pathname.startsWith("/admin/store")) {
     if (role !== "store") {
       return NextResponse.redirect(new URL("/login", req.url));
     }
     return NextResponse.next();
   }
 
-  // ✅ ADMIN
-  if (url.startsWith("/admin")) {
+  // ADMIN
+  if (pathname.startsWith("/admin")) {
     if (role !== "admin") {
       return NextResponse.redirect(new URL("/login", req.url));
     }
     return NextResponse.next();
   }
 
-  // ✅ USER
-  if (url.startsWith("/account")) {
+  // USER
+  if (pathname.startsWith("/account")) {
     if (role !== "user") {
       return NextResponse.redirect(new URL("/login", req.url));
     }
@@ -56,7 +56,6 @@ export function middleware(req) {
   return NextResponse.next();
 }
 
-/* ================= ROUTES ================= */
 export const config = {
   matcher: ["/admin/:path*", "/account/:path*"],
 };
