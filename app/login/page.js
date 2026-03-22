@@ -13,8 +13,10 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  async function handleLogin() {
+  async function handleLogin(e) {
+    e.preventDefault(); // Prevent form reload
     setError("");
+
     if (!email || !password) {
       setError("Please enter email and password");
       return;
@@ -37,11 +39,20 @@ export default function LoginPage() {
         return;
       }
 
-      // ⚡ Redirect based on role after cookie is set
-      if (data.role === "admin") window.location.href = "/admin";
-      else if (data.role === "store") window.location.href = "/admin/store/dashboard";
-      else window.location.href = "/account";
-
+      // ================= ROLE-BASED REDIRECT =================
+      switch (data.role) {
+        case "admin":
+          router.push("/admin");
+          break;
+        case "store":
+          router.push("/admin/store/dashboard");
+          break;
+        case "user":
+          router.push("/account");
+          break;
+        default:
+          router.push("/login");
+      }
     } catch (err) {
       console.error(err);
       setError("Server error. Try again.");
@@ -53,11 +64,11 @@ export default function LoginPage() {
   return (
     <div style={container}>
       {/* LOGO */}
-      <div style={{ marginBottom: 40 }}>
+      <div style={{ marginBottom: 30 }}>
         <Image
           src="/logo.png"
           alt="Logo"
-          width={180}
+          width={170}
           height={60}
           style={{ objectFit: "contain" }}
           priority
@@ -65,7 +76,7 @@ export default function LoginPage() {
       </div>
 
       {/* LOGIN CARD */}
-      <div style={card}>
+      <form style={card} onSubmit={handleLogin}>
         <h2 style={title}>Welcome Back</h2>
 
         {/* EMAIL */}
@@ -75,7 +86,7 @@ export default function LoginPage() {
             onChange={(e) => setEmail(e.target.value)}
             style={input}
           />
-          <label style={email ? labelActive : label}>Email Address</label>
+          <label style={email ? labelActive : label}>Email address</label>
         </div>
 
         {/* PASSWORD */}
@@ -87,13 +98,12 @@ export default function LoginPage() {
             style={input}
           />
           <label style={password ? labelActive : label}>Password</label>
-
           <span onClick={() => setShowPass(!showPass)} style={eye}>
             {showPass ? "🙈" : "👁"}
           </span>
         </div>
 
-        {/* ERROR */}
+        {/* ERROR MESSAGE */}
         {error && <p style={errorText}>{error}</p>}
 
         {/* OPTIONS */}
@@ -101,21 +111,13 @@ export default function LoginPage() {
           <label style={{ fontSize: 13 }}>
             <input type="checkbox" /> Remember me
           </label>
-
-          <span
-            style={link}
-            onClick={() => router.push("/forgot-password")}
-          >
+          <span style={link} onClick={() => router.push("/forgot-password")}>
             Forgot password?
           </span>
         </div>
 
         {/* BUTTON */}
-        <button
-          onClick={handleLogin}
-          disabled={loading}
-          style={{ ...button, opacity: loading ? 0.7 : 1 }}
-        >
+        <button style={{ ...button, opacity: loading ? 0.7 : 1 }} disabled={loading}>
           {loading ? <Spinner /> : "Sign in"}
         </button>
 
@@ -126,12 +128,12 @@ export default function LoginPage() {
             Sign up
           </span>
         </p>
-      </div>
+      </form>
     </div>
   );
 }
 
-/* ===== SPINNER ===== */
+/* SPINNER */
 function Spinner() {
   return (
     <div
@@ -161,7 +163,7 @@ const container = {
 const card = {
   width: 400,
   background: "#fff",
-  padding: 36,
+  padding: 32,
   borderRadius: 18,
   boxShadow: "0 15px 40px rgba(0,0,0,0.08)",
 };
@@ -216,7 +218,7 @@ const eye = {
 const button = {
   width: "100%",
   padding: 14,
-  marginTop: 12,
+  marginTop: 10,
   borderRadius: 8,
   border: "none",
   background: "#111",
