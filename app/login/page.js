@@ -41,10 +41,9 @@ export default function LoginPage() {
 
       console.log("LOGIN SUCCESS:", data);
 
-      // ✅ SET COOKIE (IMPORTANT)
-      document.cookie = `token=${data.token}; path=/`;
+      // 🔥 IMPORTANT: NO COOKIE SET HERE (handled by backend)
 
-      // ✅ HARD REDIRECT (CRITICAL FIX)
+      // 🔥 HARD REDIRECT (required for middleware to pick cookie)
       if (data.role === "admin") {
         window.location.href = "/admin";
       } 
@@ -57,7 +56,7 @@ export default function LoginPage() {
 
     } catch (err) {
       console.error(err);
-      setError("Server error. Check console.");
+      setError("Server error. Try again.");
     }
 
     setLoading(false);
@@ -71,9 +70,10 @@ export default function LoginPage() {
         <Image
           src="/logo.png"
           alt="Logo"
-          width={170}
-          height={60}
+          width={180}
+          height={70}
           style={{ objectFit: "contain" }}
+          priority
         />
       </div>
 
@@ -84,7 +84,7 @@ export default function LoginPage() {
         {/* EMAIL */}
         <input
           type="email"
-          placeholder="Email"
+          placeholder="Email address"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           style={input}
@@ -109,17 +109,22 @@ export default function LoginPage() {
         {error && <p style={errorText}>{error}</p>}
 
         {/* BUTTON */}
-        <button disabled={loading} style={button}>
+        <button
+          type="submit"
+          disabled={loading}
+          style={{ ...button, opacity: loading ? 0.7 : 1 }}
+        >
           {loading ? "Signing in..." : "Sign in"}
         </button>
 
         {/* LINKS */}
-        <div style={{ marginTop: 15, textAlign: "center" }}>
-          <p onClick={() => window.location.href = "/signup"} style={link}>
-            Create Account
+        <div style={linksBox}>
+          <p onClick={() => (window.location.href = "/forgot-password")} style={link}>
+            Forgot password?
           </p>
-          <p onClick={() => window.location.href = "/forgot-password"} style={link}>
-            Forgot Password?
+
+          <p onClick={() => (window.location.href = "/signup")} style={link}>
+            Create account
           </p>
         </div>
 
@@ -143,8 +148,8 @@ const card = {
   width: 360,
   background: "#fff",
   padding: 30,
-  borderRadius: 14,
-  boxShadow: "0 10px 30px rgba(0,0,0,0.08)",
+  borderRadius: 16,
+  boxShadow: "0 15px 40px rgba(0,0,0,0.08)",
 };
 
 const title = {
@@ -157,26 +162,28 @@ const title = {
 const input = {
   width: "100%",
   padding: 12,
-  marginTop: 10,
+  marginTop: 12,
   borderRadius: 8,
   border: "1px solid #ddd",
+  fontSize: 14,
 };
 
 const button = {
   width: "100%",
   padding: 12,
-  marginTop: 15,
+  marginTop: 18,
   borderRadius: 8,
   border: "none",
   background: "#111",
   color: "#fff",
   cursor: "pointer",
+  fontSize: 15,
 };
 
 const errorText = {
-  color: "red",
+  color: "#e11d48",
   fontSize: 13,
-  marginTop: 8,
+  marginTop: 10,
 };
 
 const eye = {
@@ -186,8 +193,14 @@ const eye = {
   cursor: "pointer",
 };
 
+const linksBox = {
+  marginTop: 15,
+  textAlign: "center",
+};
+
 const link = {
   color: "#2563eb",
   cursor: "pointer",
   fontSize: 14,
+  marginTop: 5,
 };
