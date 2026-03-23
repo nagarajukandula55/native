@@ -14,31 +14,31 @@ export async function POST(req) {
       return new Response(JSON.stringify({ success: false, msg: "All fields required" }), { status: 400 });
     }
 
-    /* ================= ADMIN ================= */
+    // ADMIN
     const admin = await Admin.findOne({ email });
     if (admin) {
-      const isMatch = await bcrypt.compare(password, admin.password);
-      if (!isMatch) return new Response(JSON.stringify({ success: false, msg: "Invalid credentials" }), { status: 401 });
+      const match = await bcrypt.compare(password, admin.password);
+      if (!match) return new Response(JSON.stringify({ success: false, msg: "Invalid credentials" }), { status: 401 });
 
       const token = jwt.sign({ id: admin._id, role: "admin" }, process.env.JWT_SECRET, { expiresIn: "7d" });
       return new Response(JSON.stringify({ success: true, role: "admin", token }), { status: 200 });
     }
 
-    /* ================= STORE ================= */
+    // STORE
     const store = await Store.findOne({ email });
     if (store) {
-      const isMatch = await bcrypt.compare(password, store.password);
-      if (!isMatch) return new Response(JSON.stringify({ success: false, msg: "Invalid credentials" }), { status: 401 });
+      const match = await bcrypt.compare(password, store.password);
+      if (!match) return new Response(JSON.stringify({ success: false, msg: "Invalid credentials" }), { status: 401 });
 
       const token = jwt.sign({ id: store._id, role: "store", warehouseId: store.warehouseId }, process.env.JWT_SECRET, { expiresIn: "7d" });
       return new Response(JSON.stringify({ success: true, role: "store", token }), { status: 200 });
     }
 
-    /* ================= USER ================= */
+    // USER
     const user = await User.findOne({ email });
     if (user) {
-      const isMatch = await bcrypt.compare(password, user.password);
-      if (!isMatch) return new Response(JSON.stringify({ success: false, msg: "Invalid credentials" }), { status: 401 });
+      const match = await bcrypt.compare(password, user.password);
+      if (!match) return new Response(JSON.stringify({ success: false, msg: "Invalid credentials" }), { status: 401 });
 
       const token = jwt.sign({ id: user._id, role: "user" }, process.env.JWT_SECRET, { expiresIn: "7d" });
       return new Response(JSON.stringify({ success: true, role: "user", token }), { status: 200 });
@@ -47,7 +47,7 @@ export async function POST(req) {
     return new Response(JSON.stringify({ success: false, msg: "User not found" }), { status: 404 });
 
   } catch (err) {
-    console.error("Login API error:", err);
+    console.error(err);
     return new Response(JSON.stringify({ success: false, msg: "Server error" }), { status: 500 });
   }
 }
