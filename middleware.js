@@ -6,7 +6,9 @@ export function middleware(req) {
   const role = req.cookies.get("role")?.value;
   const url = req.nextUrl.pathname;
 
-  // PUBLIC
+  console.log("MIDDLEWARE:", { url, role, hasToken: !!token });
+
+  /* ================= PUBLIC ROUTES ================= */
   if (
     url.startsWith("/login") ||
     url.startsWith("/signup") ||
@@ -16,37 +18,42 @@ export function middleware(req) {
     return NextResponse.next();
   }
 
-  // NO TOKEN
+  /* ================= NO TOKEN ================= */
   if (!token) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
-  // VERIFY
+  /* ================= VERIFY TOKEN ================= */
   try {
     jwt.verify(token, process.env.JWT_SECRET);
-  } catch {
+  } catch (e) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
-  // 🔥 STORE FIRST
+  /* ================= ROLE CHECK ================= */
+
+  // 🔥 FIX: STORE FIRST
   if (url.startsWith("/admin/store")) {
     if (role !== "store") {
       return NextResponse.redirect(new URL("/login", req.url));
     }
+    return NextResponse.next(); // ✅ STOP HERE
   }
 
-  // ADMIN
+  // 🔥 FIX: ADMIN
   if (url.startsWith("/admin")) {
     if (role !== "admin") {
       return NextResponse.redirect(new URL("/login", req.url));
     }
+    return NextResponse.next(); // ✅ STOP HERE
   }
 
-  // USER
+  // 🔥 USER
   if (url.startsWith("/account")) {
     if (role !== "user") {
       return NextResponse.redirect(new URL("/login", req.url));
     }
+    return NextResponse.next();
   }
 
   return NextResponse.next();
