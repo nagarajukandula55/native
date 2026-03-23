@@ -1,76 +1,64 @@
-import mongoose from "mongoose";
-import bcrypt from "bcryptjs";
+import { NextResponse } from "next/server";
+import jwt from "jsonwebtoken";
 
-const UserSchema = new mongoose.Schema(
-  {
-    name: {
-      type: String,
-      required: true,
-      trim: true,
-    },
+export function middleware(req) {
+  const token = req.cookies.get("token")?.value;
+  const role = req.cookies.get("role")?.value;
+  const url = req.nextUrl.pathname;
 
-    email: {
-      type: String,
-      required: true,
-      unique: true,
-      lowercase: true,
-      trim: true,
-    },
+  console.log("MIDDLEWARE:", { url, role, hasToken: !!token });
 
-    password: {
-      type: String,
-      required: true,
-    },
-
-    /* ✅ ROLE SYSTEM */
-    role: {
-      type: String,
-      enum: ["user", "admin", "store"],
-      default: "user",
-    },
-
-    /* ✅ OPTIONAL FIELDS (FUTURE READY) */
-    phone: {
-      type: String,
-      default: "",
-    },
-
-    isActive: {
-      type: Boolean,
-      default: true,
-    },
-
-    /* 🔐 RESET PASSWORD */
-    resetToken: {
-      type: String,
-      default: "",
-    },
-
-    resetTokenExpiry: {
-      type: Date,
-    },
-  },
-  {
-    timestamps: true,
+  /* ================= PUBLIC ROUTES ================= */
+  if (
+    url.startsWith("/login") ||
+    url.startsWith("/signup") ||
+    url.startsWith("/forgot-password") ||
+    url.startsWith("/reset-password")
+  ) {
+    return NextResponse.next();
   }
-);
 
-/* 🔐 HASH PASSWORD BEFORE SAVE */
-UserSchema.pre("save", async function (next) {
-  if (!this.isModified("password")) return next();
+  /* ================= NO TOKEN ================= */
+  if (!token) {
+    return NextResponse.redirect(new URL("/login", req.url));
+  }
 
-  const salt = await bcrypt.genSalt(10);
-  this.password = await bcrypt.hash(this.password, salt);
+  /* ================= VERIFY TOKEN ================= */
+  try {
+    jwt.verify(token, process.env.JWT_SECRET);
+  } catch (e) {
+    return NextResponse.redirect(new URL("/login", req.url));
+  }
 
-  next();
-});
+  /* ================= ROLE CHECK ================= */
 
-/* 🔐 COMPARE PASSWORD */
-UserSchema.methods.comparePassword = async function (password) {
-  return await bcrypt.compare(password, this.password);
+  // 🔥 FIX: STORE FIRST
+  if (url.startsWith("/admin/store")) {
+    if (role !== "store") {
+      return NextResponse.redirect(new URL("/login", req.url));
+    }
+    return NextResponse.next(); // ✅ STOP HERE
+  }
+
+  // 🔥 FIX: ADMIN
+  if (url.startsWith("/admin")) {
+    if (role !== "admin") {
+      return NextResponse.redirect(new URL("/login", req.url));
+    }
+    return NextResponse.next(); // ✅ STOP HERE
+  }
+
+  // 🔥 USER
+  if (url.startsWith("/account")) {
+    if (role !== "user") {
+      return NextResponse.redirect(new URL("/login", req.url));
+    }
+    return NextResponse.next();
+  }
+
+  return NextResponse.next();
+}
+
+export const config = {
+  matcher: ["/admin/:path*", "/account/:path*"],
 };
-
-const User =
-  mongoose.models.User || mongoose.model("User", UserSchema);
-
-export default User;
