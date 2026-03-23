@@ -1,13 +1,22 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import jwt from "jsonwebtoken";
 
 export default function StoreLayout({ children }) {
-  const cookieStore = cookies();
+  const token = cookies().get("token")?.value;
 
-  const token = cookieStore.get("token")?.value;
-  const role = cookieStore.get("role")?.value;
+  if (!token) {
+    redirect("/login");
+  }
 
-  if (!token || role !== "store") {
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    if (decoded.role !== "store") {
+      redirect("/login");
+    }
+
+  } catch (err) {
     redirect("/login");
   }
 
