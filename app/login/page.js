@@ -14,7 +14,7 @@ export default function LoginPage() {
   const [error, setError] = useState("");
 
   async function handleLogin(e) {
-    e.preventDefault(); // Prevent form reload
+    e.preventDefault();
     setError("");
 
     if (!email || !password) {
@@ -33,29 +33,29 @@ export default function LoginPage() {
 
       const data = await res.json();
 
-      if (!data.success) {
+      // 🔥 SHOW ACTUAL BACKEND ERROR
+      if (!res.ok || !data.success) {
+        console.log("LOGIN ERROR:", data);
         setError(data.msg || "Login failed");
         setLoading(false);
         return;
       }
 
-      // ================= ROLE-BASED REDIRECT =================
-      switch (data.role) {
-        case "admin":
-          router.push("/admin");
-          break;
-        case "store":
-          router.push("/admin/store/dashboard");
-          break;
-        case "user":
-          router.push("/account");
-          break;
-        default:
-          router.push("/login");
+      // ✅ TEMP DEBUG (remove later)
+      console.log("LOGIN SUCCESS:", data);
+
+      // ================= ROLE REDIRECT =================
+      if (data.role === "admin") {
+        router.push("/admin");
+      } else if (data.role === "store") {
+        router.push("/admin/store/dashboard");
+      } else {
+        router.push("/account");
       }
+
     } catch (err) {
-      console.error(err);
-      setError("Server error. Try again.");
+      console.error("FETCH ERROR:", err);
+      setError("Network / Server issue. Check console.");
     }
 
     setLoading(false);
@@ -71,11 +71,10 @@ export default function LoginPage() {
           width={170}
           height={60}
           style={{ objectFit: "contain" }}
-          priority
         />
       </div>
 
-      {/* LOGIN CARD */}
+      {/* CARD */}
       <form style={card} onSubmit={handleLogin}>
         <h2 style={title}>Welcome Back</h2>
 
@@ -86,7 +85,7 @@ export default function LoginPage() {
             onChange={(e) => setEmail(e.target.value)}
             style={input}
           />
-          <label style={email ? labelActive : label}>Email address</label>
+          <label style={email ? labelActive : label}>Email</label>
         </div>
 
         {/* PASSWORD */}
@@ -98,34 +97,28 @@ export default function LoginPage() {
             style={input}
           />
           <label style={password ? labelActive : label}>Password</label>
+
           <span onClick={() => setShowPass(!showPass)} style={eye}>
             {showPass ? "🙈" : "👁"}
           </span>
         </div>
 
-        {/* ERROR MESSAGE */}
+        {/* ERROR */}
         {error && <p style={errorText}>{error}</p>}
 
-        {/* OPTIONS */}
-        <div style={options}>
-          <label style={{ fontSize: 13 }}>
-            <input type="checkbox" /> Remember me
-          </label>
-          <span style={link} onClick={() => router.push("/forgot-password")}>
-            Forgot password?
-          </span>
-        </div>
-
         {/* BUTTON */}
-        <button style={{ ...button, opacity: loading ? 0.7 : 1 }} disabled={loading}>
-          {loading ? <Spinner /> : "Sign in"}
+        <button disabled={loading} style={button}>
+          {loading ? "Signing in..." : "Sign in"}
         </button>
 
-        {/* FOOTER */}
+        {/* LINKS */}
         <p style={footer}>
-          Don’t have an account?{" "}
           <span onClick={() => router.push("/signup")} style={link}>
-            Sign up
+            Create Account
+          </span>{" "}
+          |{" "}
+          <span onClick={() => router.push("/forgot-password")} style={link}>
+            Forgot Password
           </span>
         </p>
       </form>
@@ -133,24 +126,8 @@ export default function LoginPage() {
   );
 }
 
-/* SPINNER */
-function Spinner() {
-  return (
-    <div
-      style={{
-        width: 18,
-        height: 18,
-        border: "2px solid #fff",
-        borderTop: "2px solid transparent",
-        borderRadius: "50%",
-        animation: "spin 0.8s linear infinite",
-        margin: "auto",
-      }}
-    />
-  );
-}
-
 /* ===== STYLES ===== */
+
 const container = {
   minHeight: "100vh",
   display: "flex",
@@ -162,87 +139,67 @@ const container = {
 
 const card = {
   width: 400,
+  padding: 30,
   background: "#fff",
-  padding: 32,
-  borderRadius: 18,
-  boxShadow: "0 15px 40px rgba(0,0,0,0.08)",
+  borderRadius: 14,
 };
 
 const title = {
-  fontSize: 24,
-  fontWeight: 600,
-  marginBottom: 25,
   textAlign: "center",
+  marginBottom: 20,
 };
 
 const field = {
   position: "relative",
-  marginBottom: 18,
+  marginBottom: 15,
 };
 
 const input = {
   width: "100%",
-  padding: "14px 12px",
-  borderRadius: 8,
+  padding: 12,
   border: "1px solid #ddd",
-  fontSize: 14,
-  outline: "none",
+  borderRadius: 6,
 };
 
 const label = {
   position: "absolute",
-  left: 12,
-  top: 14,
-  fontSize: 13,
+  left: 10,
+  top: 12,
+  fontSize: 12,
   color: "#777",
-  transition: "0.2s",
-  pointerEvents: "none",
 };
 
 const labelActive = {
   ...label,
   top: -8,
-  fontSize: 11,
-  color: "#111",
+  fontSize: 10,
   background: "#fff",
-  padding: "0 4px",
 };
 
 const eye = {
   position: "absolute",
-  right: 12,
-  top: 14,
+  right: 10,
+  top: 12,
   cursor: "pointer",
 };
 
 const button = {
   width: "100%",
-  padding: 14,
-  marginTop: 10,
-  borderRadius: 8,
-  border: "none",
+  padding: 12,
   background: "#111",
   color: "#fff",
-  fontSize: 15,
-  cursor: "pointer",
-};
-
-const options = {
-  display: "flex",
-  justifyContent: "space-between",
-  marginBottom: 10,
+  border: "none",
+  borderRadius: 6,
 };
 
 const errorText = {
   color: "red",
   fontSize: 13,
-  marginBottom: 10,
 };
 
 const footer = {
-  textAlign: "center",
   marginTop: 15,
-  fontSize: 13,
+  textAlign: "center",
 };
 
 const link = {
