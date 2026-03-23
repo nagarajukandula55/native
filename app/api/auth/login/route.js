@@ -1,3 +1,4 @@
+import { NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import User from "@/models/User";
 import Admin from "@/models/Admin";
@@ -11,43 +12,73 @@ export async function POST(req) {
     const { email, password } = await req.json();
 
     if (!email || !password) {
-      return new Response(JSON.stringify({ success: false, msg: "All fields required" }), { status: 400 });
+      return NextResponse.json({ success: false, msg: "All fields required" }, { status: 400 });
     }
+
+    let account = null;
+    let role = null;
 
     // ADMIN
     const admin = await Admin.findOne({ email });
     if (admin) {
       const match = await bcrypt.compare(password, admin.password);
-      if (!match) return new Response(JSON.stringify({ success: false, msg: "Invalid credentials" }), { status: 401 });
+      if (!match) return NextResponse.json({ success: false, msg: "Invalid credentials" }, { status: 401 });
 
-      const token = jwt.sign({ id: admin._id, role: "admin" }, process.env.JWT_SECRET, { expiresIn: "7d" });
-      return new Response(JSON.stringify({ success: true, role: "admin", token }), { status: 200 });
+      account = admin;
+      role = "admin";
     }
 
     // STORE
-    const store = await Store.findOne({ email });
-    if (store) {
-      const match = await bcrypt.compare(password, store.password);
-      if (!match) return new Response(JSON.stringify({ success: false, msg: "Invalid credentials" }), { status: 401 });
+    if (!account) {
+      const store = await Store.findOne({ email });
+      if (store) {
+        const match = await bcrypt.compare(password, store.password);
+        if (!match) return NextResponse.json({ success: false, msg: "Invalid credentials" }, { status: 401 });
 
-      const token = jwt.sign({ id: store._id, role: "store", warehouseId: store.warehouseId }, process.env.JWT_SECRET, { expiresIn: "7d" });
-      return new Response(JSON.stringify({ success: true, role: "store", token }), { status: 200 });
+        account = store;
+        role = "store";
+      }
     }
 
     // USER
-    const user = await User.findOne({ email });
-    if (user) {
-      const match = await bcrypt.compare(password, user.password);
-      if (!match) return new Response(JSON.stringify({ success: false, msg: "Invalid credentials" }), { status: 401 });
+    if (!account) {
+      const user = await User.findOne({ email });
+      if (user) {
+        const match = await bcrypt.compare(password, user.password);
+        if (!match) return NextResponse.json({ success: false, msg: "Invalid credentials" }, { status: 401 });
 
-      const token = jwt.sign({ id: user._id, role: "user" }, process.env.JWT_SECRET, { expiresIn: "7d" });
-      return new Response(JSON.stringify({ success: true, role: "user", token }), { status: 200 });
+        account = user;
+        role = "user";
+      }
     }
 
-    return new Response(JSON.stringify({ success: false, msg: "User not found" }), { status: 404 });
+    if (!account) {
+      return NextResponse.json({ success: false, msg: "User not found" }, { status: 404 });
+    }
+
+    const token = jwt.sign(
+      { id: account._id, role },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    // 🔥 SET COOKIE FROM SERVER (FIX)
+    const response = NextResponse.json({
+      success: true,
+      role,
+    });
+
+    response.cookies.set("token", token, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "lax",
+      path: "/",
+    });
+
+    return response;
 
   } catch (err) {
-    console.error(err);
-    return new Response(JSON.stringify({ success: false, msg: "Server error" }), { status: 500 });
+    console.error("LOGIN ERROR:", err);
+    return NextResponse.json({ success: false, msg: "Server error" }, { status: 500 });
   }
 }
