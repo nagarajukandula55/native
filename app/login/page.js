@@ -33,18 +33,19 @@ export default function LoginPage() {
 
       const data = await res.json();
 
-      // 🔥 SHOW ACTUAL BACKEND ERROR
       if (!res.ok || !data.success) {
-        console.log("LOGIN ERROR:", data);
         setError(data.msg || "Login failed");
         setLoading(false);
         return;
       }
 
-      // ✅ TEMP DEBUG (remove later)
       console.log("LOGIN SUCCESS:", data);
 
-      // ================= ROLE REDIRECT =================
+      // ✅ IMPORTANT: SET COOKIE
+      document.cookie = `token=${data.token}; path=/`;
+      document.cookie = `role=${data.role}; path=/`;
+
+      // ✅ REDIRECT
       if (data.role === "admin") {
         router.push("/admin");
       } else if (data.role === "store") {
@@ -54,8 +55,8 @@ export default function LoginPage() {
       }
 
     } catch (err) {
-      console.error("FETCH ERROR:", err);
-      setError("Network / Server issue. Check console.");
+      console.error(err);
+      setError("Server error");
     }
 
     setLoading(false);
@@ -63,146 +64,46 @@ export default function LoginPage() {
 
   return (
     <div style={container}>
-      {/* LOGO */}
       <div style={{ marginBottom: 30 }}>
-        <Image
-          src="/logo.png"
-          alt="Logo"
-          width={170}
-          height={60}
-          style={{ objectFit: "contain" }}
-        />
+        <Image src="/logo.png" alt="Logo" width={170} height={60} />
       </div>
 
-      {/* CARD */}
       <form style={card} onSubmit={handleLogin}>
-        <h2 style={title}>Welcome Back</h2>
+        <h2>Login</h2>
 
-        {/* EMAIL */}
-        <div style={field}>
-          <input
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            style={input}
-          />
-          <label style={email ? labelActive : label}>Email</label>
-        </div>
+        <input
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          style={input}
+        />
 
-        {/* PASSWORD */}
-        <div style={field}>
+        <div style={{ position: "relative" }}>
           <input
             type={showPass ? "text" : "password"}
+            placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             style={input}
           />
-          <label style={password ? labelActive : label}>Password</label>
-
           <span onClick={() => setShowPass(!showPass)} style={eye}>
-            {showPass ? "🙈" : "👁"}
+            👁
           </span>
         </div>
 
-        {/* ERROR */}
-        {error && <p style={errorText}>{error}</p>}
+        {error && <p style={{ color: "red" }}>{error}</p>}
 
-        {/* BUTTON */}
-        <button disabled={loading} style={button}>
+        <button disabled={loading} style={btn}>
           {loading ? "Signing in..." : "Sign in"}
         </button>
-
-        {/* LINKS */}
-        <p style={footer}>
-          <span onClick={() => router.push("/signup")} style={link}>
-            Create Account
-          </span>{" "}
-          |{" "}
-          <span onClick={() => router.push("/forgot-password")} style={link}>
-            Forgot Password
-          </span>
-        </p>
       </form>
     </div>
   );
 }
 
-/* ===== STYLES ===== */
-
-const container = {
-  minHeight: "100vh",
-  display: "flex",
-  flexDirection: "column",
-  justifyContent: "center",
-  alignItems: "center",
-  background: "#f3f4f6",
-};
-
-const card = {
-  width: 400,
-  padding: 30,
-  background: "#fff",
-  borderRadius: 14,
-};
-
-const title = {
-  textAlign: "center",
-  marginBottom: 20,
-};
-
-const field = {
-  position: "relative",
-  marginBottom: 15,
-};
-
-const input = {
-  width: "100%",
-  padding: 12,
-  border: "1px solid #ddd",
-  borderRadius: 6,
-};
-
-const label = {
-  position: "absolute",
-  left: 10,
-  top: 12,
-  fontSize: 12,
-  color: "#777",
-};
-
-const labelActive = {
-  ...label,
-  top: -8,
-  fontSize: 10,
-  background: "#fff",
-};
-
-const eye = {
-  position: "absolute",
-  right: 10,
-  top: 12,
-  cursor: "pointer",
-};
-
-const button = {
-  width: "100%",
-  padding: 12,
-  background: "#111",
-  color: "#fff",
-  border: "none",
-  borderRadius: 6,
-};
-
-const errorText = {
-  color: "red",
-  fontSize: 13,
-};
-
-const footer = {
-  marginTop: 15,
-  textAlign: "center",
-};
-
-const link = {
-  color: "#2563eb",
-  cursor: "pointer",
-};
+/* STYLES */
+const container = { minHeight: "100vh", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", background: "#f3f4f6" };
+const card = { width: 350, padding: 25, background: "#fff", borderRadius: 10 };
+const input = { width: "100%", padding: 10, marginTop: 10 };
+const btn = { width: "100%", padding: 12, marginTop: 15, background: "#111", color: "#fff" };
+const eye = { position: "absolute", right: 10, top: 12, cursor: "pointer" };
