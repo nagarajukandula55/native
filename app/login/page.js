@@ -43,7 +43,6 @@ export default function LoginPage() {
 
       // ✅ SET COOKIE (IMPORTANT)
       document.cookie = `token=${data.token}; path=/`;
-      document.cookie = `role=${data.role}; path=/`;
 
       // ✅ HARD REDIRECT (CRITICAL FIX)
       if (data.role === "admin") {
