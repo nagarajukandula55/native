@@ -4,50 +4,46 @@ import jwt from "jsonwebtoken";
 export function middleware(req) {
   const token = req.cookies.get("token")?.value;
   const role = req.cookies.get("role")?.value;
-  const { pathname } = req.nextUrl;
+  const url = req.nextUrl.pathname;
 
-  /* ================= PUBLIC ================= */
+  // PUBLIC
   if (
-    pathname.startsWith("/login") ||
-    pathname.startsWith("/signup") ||
-    pathname.startsWith("/forgot-password") ||
-    pathname.startsWith("/reset-password")
+    url.startsWith("/login") ||
+    url.startsWith("/signup") ||
+    url.startsWith("/forgot-password") ||
+    url.startsWith("/reset-password")
   ) {
     return NextResponse.next();
   }
 
-  /* ================= NO TOKEN ================= */
+  // NO TOKEN
   if (!token) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
-  /* ================= VERIFY ================= */
+  // VERIFY
   try {
     jwt.verify(token, process.env.JWT_SECRET);
   } catch {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
-  /* ================= ROLE ================= */
-
-  // 🔥 STORE FIRST (IMPORTANT)
-  if (pathname.startsWith("/admin/store")) {
+  // 🔥 STORE FIRST
+  if (url.startsWith("/admin/store")) {
     if (role !== "store") {
       return NextResponse.redirect(new URL("/login", req.url));
     }
-    return NextResponse.next();
   }
 
   // ADMIN
-  if (pathname.startsWith("/admin")) {
+  if (url.startsWith("/admin")) {
     if (role !== "admin") {
       return NextResponse.redirect(new URL("/login", req.url));
     }
-    return NextResponse.next();
   }
 
   // USER
-  if (pathname.startsWith("/account")) {
+  if (url.startsWith("/account")) {
     if (role !== "user") {
       return NextResponse.redirect(new URL("/login", req.url));
     }
