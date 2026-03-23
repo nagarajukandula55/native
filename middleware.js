@@ -3,10 +3,7 @@ import jwt from "jsonwebtoken";
 
 export function middleware(req) {
   const token = req.cookies.get("token")?.value;
-  const role = req.cookies.get("role")?.value;
   const url = req.nextUrl.pathname;
-
-  console.log("MIDDLEWARE:", { url, role, hasToken: !!token });
 
   /* ================= PUBLIC ROUTES ================= */
   if (
@@ -23,32 +20,35 @@ export function middleware(req) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
-  /* ================= VERIFY TOKEN ================= */
+  let decoded;
+
   try {
-    jwt.verify(token, process.env.JWT_SECRET);
+    decoded = jwt.verify(token, process.env.JWT_SECRET);
   } catch (e) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
+  const role = decoded.role; // ✅ TAKE ROLE FROM TOKEN
+
   /* ================= ROLE CHECK ================= */
 
-  // 🔥 FIX: STORE FIRST
+  // STORE FIRST
   if (url.startsWith("/admin/store")) {
     if (role !== "store") {
       return NextResponse.redirect(new URL("/login", req.url));
     }
-    return NextResponse.next(); // ✅ STOP HERE
+    return NextResponse.next();
   }
 
-  // 🔥 FIX: ADMIN
+  // ADMIN
   if (url.startsWith("/admin")) {
     if (role !== "admin") {
       return NextResponse.redirect(new URL("/login", req.url));
     }
-    return NextResponse.next(); // ✅ STOP HERE
+    return NextResponse.next();
   }
 
-  // 🔥 USER
+  // USER
   if (url.startsWith("/account")) {
     if (role !== "user") {
       return NextResponse.redirect(new URL("/login", req.url));
