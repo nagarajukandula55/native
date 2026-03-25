@@ -5,10 +5,13 @@ import { useRouter } from "next/navigation"
 import { useState, useEffect } from "react"
 import { useCart } from "@/context/CartContext"
 import CartDrawer from "./CartDrawer"
+import useAuth from "@/lib/useAuth"
 
 export default function Navbar() {
   const { cart, drawerOpen, openCart, closeCart } = useCart()
   const router = useRouter()
+  const user = useAuth() // 🔥 AUTH HOOK
+
   const [search, setSearch] = useState("")
   const [menuOpen, setMenuOpen] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
@@ -27,6 +30,11 @@ export default function Navbar() {
     router.push(`/products?search=${search}`)
     setSearch("")
     if (isMobile) setMenuOpen(false)
+  }
+
+  async function handleLogout() {
+    await fetch("/api/auth/logout", { method: "POST" })
+    window.location.href = "/login"
   }
 
   const links = ["Home", "Products", "Track Order", "Blog"]
@@ -93,14 +101,13 @@ export default function Navbar() {
             zIndex: 1100,
             display: isMobile ? "flex" : "none"
           }}
-          className="hamburger-btn"
         >
-          <span style={{ display: "block", height: "3px", background: "#3a2a1c", borderRadius: "2px" }} />
-          <span style={{ display: "block", height: "3px", background: "#3a2a1c", borderRadius: "2px" }} />
-          <span style={{ display: "block", height: "3px", background: "#3a2a1c", borderRadius: "2px" }} />
+          <span style={{ height: "3px", background: "#3a2a1c" }} />
+          <span style={{ height: "3px", background: "#3a2a1c" }} />
+          <span style={{ height: "3px", background: "#3a2a1c" }} />
         </button>
 
-        {/* MENU LINKS */}
+        {/* MENU */}
         <nav
           style={{
             display: isMobile ? (menuOpen ? "flex" : "none") : "flex",
@@ -114,10 +121,10 @@ export default function Navbar() {
             background: isMobile ? "#fff" : "transparent",
             padding: isMobile ? "20px 0" : 0,
             boxShadow: isMobile ? "0 5px 15px rgba(0,0,0,0.1)" : "none",
-            zIndex: 1050,
-            flexWrap: "wrap"
+            zIndex: 1050
           }}
         >
+          {/* LINKS */}
           {links.map((link, i) => (
             <Link
               key={i}
@@ -132,18 +139,14 @@ export default function Navbar() {
                 textDecoration: "none",
                 color: "#3a2a1c",
                 fontWeight: "500",
-                fontSize: "16px",
-                position: "relative",
-                padding: "5px 0",
-                transition: "all 0.2s ease-in-out"
+                fontSize: "16px"
               }}
             >
               {link}
-              <span style={{ display: "block", height: "2px", background: "#c28b45", width: "0%", transition: "0.3s" }} />
             </Link>
           ))}
 
-          {/* CART BUTTON */}
+          {/* CART */}
           <button
             onClick={openCart}
             style={{
@@ -152,36 +155,54 @@ export default function Navbar() {
               cursor: "pointer",
               fontWeight: "500",
               fontSize: "16px",
-              color: "#3a2a1c",
-              position: "relative"
+              color: "#3a2a1c"
             }}
           >
             Cart ({cart.length})
           </button>
 
-          {/* LOGIN */}
-          <Link
-            href="/login"
-            style={{
-              textDecoration: "none",
-              color: "#3a2a1c",
-              fontWeight: "500",
-              fontSize: "16px"
-            }}
-          >
-            Login
-          </Link>
+          {/* 🔥 AUTH SECTION */}
+          {!user ? (
+            <Link
+              href="/login"
+              style={{
+                textDecoration: "none",
+                color: "#3a2a1c",
+                fontWeight: "500",
+                fontSize: "16px"
+              }}
+            >
+              Login
+            </Link>
+          ) : (
+            <>
+              <span style={{ fontSize: 14 }}>
+                {user.name}
+              </span>
+
+              <button
+                onClick={handleLogout}
+                style={{
+                  border: "none",
+                  background: "#111",
+                  color: "#fff",
+                  padding: "6px 12px",
+                  borderRadius: 6,
+                  cursor: "pointer"
+                }}
+              >
+                Logout
+              </button>
+            </>
+          )}
         </nav>
       </header>
 
-      {/* ⭐ GLOBAL CART DRAWER */}
       <CartDrawer open={drawerOpen} setOpen={closeCart} />
 
-      {/* HOVER STYLES */}
       <style>
         {`
           nav a:hover { color: #c28b45; }
-          nav a:hover span { width: 100% !important; }
         `}
       </style>
     </>
