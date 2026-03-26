@@ -14,34 +14,65 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  async function handleLogin(e) {
-    e.preventDefault();
-    setError("");
+async function handleLogin(e) {
+  e.preventDefault();
+  setError("");
 
-    if (!email || !password) {
-      setError("Please enter email and password");
+  if (!email || !password) {
+    setError("Please enter email and password");
+    return;
+  }
+
+  setLoading(true);
+
+  try {
+    const res = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include",
+      body: JSON.stringify({ email, password }),
+    });
+
+    // ✅ DEFINE DATA PROPERLY
+    const data = await res.json();
+
+    console.log("LOGIN RESPONSE:", data);
+
+    if (!res.ok || !data.success) {
+      setError(data.msg || "Login failed");
+      setLoading(false);
       return;
     }
 
-    setLoading(true);
+    // ✅ SAFE ACCESS
+    const role = data.user?.role;
 
-    try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        credentials: "include", // 🔥 CRITICAL FIX
-        body: JSON.stringify({ email, password }),
-      });
+    if (!role) {
+      setError("Invalid response from server");
+      setLoading(false);
+      return;
+    }
 
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
-        setError(data.msg || "Login failed");
-        setLoading(false);
-        return;
+    // ✅ REDIRECT
+    setTimeout(() => {
+      if (role === "admin") {
+        window.location.href = "/admin";
+      } else if (role === "store") {
+        window.location.href = "/admin/store/dashboard";
+      } else {
+        window.location.href = "/account";
       }
+    }, 300);
+
+  } catch (err) {
+    console.error(err);
+    setError("Server error. Try again.");
+  }
+
+  setLoading(false);
+}
 
       console.log("LOGIN SUCCESS:", data);
 
