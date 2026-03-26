@@ -8,8 +8,7 @@ export async function POST(req) {
   try {
     await connectDB();
 
-    const body = await req.json();
-    const { email, password } = body;
+    const { email, password } = await req.json();
 
     /* ================= VALIDATION ================= */
     if (!email || !password) {
@@ -43,7 +42,8 @@ export async function POST(req) {
     const token = jwt.sign(
       {
         id: user._id,
-        role: user.role, // 🔥 important
+        role: user.role,
+        name: user.name, // 🔥 IMPORTANT
       },
       process.env.JWT_SECRET,
       { expiresIn: "7d" }
@@ -52,14 +52,19 @@ export async function POST(req) {
     /* ================= RESPONSE ================= */
     const response = NextResponse.json({
       success: true,
-      role: user.role,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
     });
 
-    /* ================= SET COOKIE ================= */
+    /* ================= SET COOKIE (FIXED) ================= */
     response.cookies.set("token", token, {
       httpOnly: true,
-      secure: true,
-      sameSite: "none",
+      secure: process.env.NODE_ENV === "production", // 🔥 FIX
+      sameSite: "lax", // 🔥 FIX
       path: "/",
     });
 
