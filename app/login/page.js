@@ -137,6 +137,10 @@ export default function LoginPage() {
   );
 }
 
+if (data.success) {
+  alert("Login successful"); // simple feedback
+}
+
 /* ===== STYLES ===== */
 
 const container = {
