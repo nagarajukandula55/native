@@ -5,7 +5,9 @@ import { useEffect, useState } from "react";
 export default function StoreDashboard() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [updatingId, setUpdatingId] = useState(null);
 
+  /* ================= FETCH ORDERS ================= */
   const fetchOrders = async () => {
     try {
       const res = await fetch("/api/store/orders");
@@ -21,13 +23,14 @@ export default function StoreDashboard() {
     }
   };
 
+  /* ================= UPDATE ORDER ================= */
   const updateOrder = async (id, updates) => {
+    setUpdatingId(id);
+
     try {
       const res = await fetch("/api/store/orders", {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, ...updates }),
       });
 
@@ -38,33 +41,70 @@ export default function StoreDashboard() {
           prev.map((o) => (o._id === id ? data.order : o))
         );
       } else {
-        alert(data.msg);
+        console.error(data.msg);
       }
     } catch (err) {
       console.error(err);
-      alert("Update failed");
     }
+
+    setUpdatingId(null);
+  };
+
+  /* ================= PRINT ================= */
+  const printLabel = (order) => {
+    const content = `
+      <h2>Order: ${order.orderId}</h2>
+      <p><b>Name:</b> ${order.customerName}</p>
+      <p><b>Phone:</b> ${order.phone}</p>
+      <p><b>Address:</b> ${order.address}</p>
+      <hr/>
+      ${order.items
+        .map(
+          (i) =>
+            `<p>${i.name} x ${i.quantity} = ₹${i.price * i.quantity}</p>`
+        )
+        .join("")}
+    `;
+
+    const win = window.open("", "", "width=800,height=600");
+    win.document.write(content);
+    win.document.close();
+    win.print();
   };
 
   useEffect(() => {
     fetchOrders();
   }, []);
 
-  if (loading) return <p className="p-6">Loading orders...</p>;
+  /* ================= UI ================= */
+
+  if (loading) {
+    return (
+      <div className="p-6 text-gray-500">Loading orders...</div>
+    );
+  }
+
+  if (orders.length === 0) {
+    return (
+      <div className="p-6 text-center text-gray-500">
+        No orders assigned yet 🚀
+      </div>
+    );
+  }
 
   return (
     <div className="p-6">
       <h1 className="text-2xl font-semibold mb-6">
-        Store Order Dashboard
+        Store Dashboard
       </h1>
 
-      <div className="space-y-5">
+      <div className="space-y-6">
         {orders.map((order) => (
           <div
             key={order._id}
-            className="bg-white shadow rounded-xl p-5 border"
+            className="bg-white border shadow-sm rounded-xl p-5"
           >
-            {/* TOP SECTION */}
+            {/* HEADER */}
             <div className="flex justify-between flex-wrap gap-4">
               <div>
                 <h2 className="font-semibold text-lg">
@@ -79,13 +119,15 @@ export default function StoreDashboard() {
                 </p>
               </div>
 
+              {/* STATUS */}
               <div>
-                <p className="font-medium mb-2">
-                  Status: {order.status}
+                <p className="mb-2 text-sm text-gray-600">
+                  Status
                 </p>
 
                 <select
                   value={order.status}
+                  disabled={updatingId === order._id}
                   onChange={(e) =>
                     updateOrder(order._id, {
                       status: e.target.value,
@@ -100,12 +142,18 @@ export default function StoreDashboard() {
                   <option>Delivered</option>
                   <option>Cancelled</option>
                 </select>
+
+                {updatingId === order._id && (
+                  <p className="text-xs text-blue-500 mt-1">
+                    Updating...
+                  </p>
+                )}
               </div>
             </div>
 
             {/* ITEMS */}
             <div className="mt-4">
-              <h3 className="font-medium mb-2">Items:</h3>
+              <h3 className="font-medium mb-2">Items</h3>
               {order.items.map((item, i) => (
                 <div key={i} className="text-sm">
                   {item.name} × {item.quantity} = ₹
@@ -115,15 +163,15 @@ export default function StoreDashboard() {
             </div>
 
             {/* PAYMENT */}
-            <div className="mt-4">
-              <p>
-                Payment:{" "}
-                <strong>{order.paymentStatus}</strong> (
-                {order.paymentMethod})
-              </p>
+            <div className="mt-4 text-sm">
+              Payment:{" "}
+              <span className="font-medium">
+                {order.paymentStatus}
+              </span>{" "}
+              ({order.paymentMethod})
             </div>
 
-            {/* COURIER SECTION */}
+            {/* COURIER */}
             <div className="mt-4 grid md:grid-cols-3 gap-3">
               <input
                 placeholder="AWB Number"
@@ -159,9 +207,9 @@ export default function StoreDashboard() {
               />
             </div>
 
-            {/* STATUS HISTORY */}
+            {/* TIMELINE */}
             <div className="mt-4 text-sm text-gray-600">
-              <h3 className="font-medium">Timeline:</h3>
+              <h3 className="font-medium">Timeline</h3>
               {order.statusHistory.map((s, i) => (
                 <div key={i}>
                   {s.status} →{" "}
@@ -170,20 +218,20 @@ export default function StoreDashboard() {
               ))}
             </div>
 
-            {/* PRINT */}
+            {/* ACTIONS */}
             <div className="mt-4 flex gap-3">
               <button
-                onClick={() => window.print()}
+                onClick={() => printLabel(order)}
                 className="bg-blue-600 text-white px-4 py-1 rounded"
               >
-                Print Packing Label
+                Print Packing
               </button>
 
               <button
-                onClick={() => window.print()}
+                onClick={() => printLabel(order)}
                 className="bg-green-600 text-white px-4 py-1 rounded"
               >
-                Print Courier Label
+                Print Courier
               </button>
             </div>
           </div>
