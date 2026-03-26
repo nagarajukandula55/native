@@ -1,20 +1,43 @@
 import mongoose from "mongoose";
 
+/* ================= STATUS ENUM ================= */
+const ORDER_STATUS = [
+  "Order Placed",
+  "Packed",
+  "Shipped",
+  "Out For Delivery",
+  "Delivered",
+  "Cancelled",
+];
+
 /* ================= STATUS HISTORY ================= */
 const StatusHistorySchema = new mongoose.Schema(
   {
     status: {
       type: String,
-      enum: [
-        "Order Placed",
-        "Packed",
-        "Shipped",
-        "Out For Delivery",
-        "Delivered",
-        "Cancelled",
-      ],
+      enum: ORDER_STATUS,
+      required: true,
     },
-    time: { type: Date, default: Date.now },
+    time: {
+      type: Date,
+      default: Date.now,
+    },
+    updatedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+  },
+  { _id: false }
+);
+
+/* ================= ITEMS ================= */
+const ItemSchema = new mongoose.Schema(
+  {
+    productId: String,
+    name: { type: String, required: true },
+    price: { type: Number, required: true },
+    quantity: { type: Number, required: true },
   },
   { _id: false }
 );
@@ -22,7 +45,13 @@ const StatusHistorySchema = new mongoose.Schema(
 /* ================= ORDER ================= */
 const OrderSchema = new mongoose.Schema(
   {
-    orderId: { type: String, required: true, unique: true, index: true },
+    /* ===== ORDER ID ===== */
+    orderId: {
+      type: String,
+      required: true,
+      unique: true,
+      index: true,
+    },
 
     /* ===== CUSTOMER INFO ===== */
     customerName: { type: String, required: true, trim: true },
@@ -32,33 +61,38 @@ const OrderSchema = new mongoose.Schema(
     pincode: { type: String, required: true },
 
     /* ===== ITEMS ===== */
-    items: [
-      {
-        productId: String,
-        name: { type: String, required: true },
-        price: { type: Number, required: true },
-        quantity: { type: Number, required: true },
-      },
-    ],
+    items: {
+      type: [ItemSchema],
+      required: true,
+    },
 
     totalAmount: { type: Number, required: true },
 
     /* ===== ORDER STATUS ===== */
     status: {
       type: String,
-      enum: [
-        "Order Placed",
-        "Packed",
-        "Shipped",
-        "Out For Delivery",
-        "Delivered",
-        "Cancelled",
-      ],
+      enum: ORDER_STATUS,
       default: "Order Placed",
+      index: true,
     },
+
     statusHistory: {
       type: [StatusHistorySchema],
-      default: [{ status: "Order Placed", time: new Date() }],
+      default: function () {
+        return [
+          {
+            status: "Order Placed",
+            time: new Date(),
+          },
+        ];
+      },
+    },
+
+    /* ===== STORE ASSIGNMENT (🔥 IMPORTANT) ===== */
+    assignedStore: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      index: true,
     },
 
     /* ===== PAYMENT ===== */
@@ -66,12 +100,15 @@ const OrderSchema = new mongoose.Schema(
       type: String,
       enum: ["Pending", "Paid", "Failed"],
       default: "Pending",
+      index: true,
     },
+
     paymentMethod: {
       type: String,
       enum: ["COD", "UPI", "RAZORPAY", "WHATSAPP"],
       default: "COD",
     },
+
     paymentId: { type: String, default: "" },
     razorpayOrderId: { type: String, default: "" },
 
@@ -80,17 +117,28 @@ const OrderSchema = new mongoose.Schema(
     courierName: { type: String, default: "" },
     trackingUrl: { type: String, default: "" },
 
-    /* ===== WAREHOUSE ===== */
+    /* ===== WAREHOUSE SUPPORT (FUTURE READY) ===== */
     warehouseAssignments: [
       {
-        warehouseId: { type: mongoose.Schema.Types.ObjectId, ref: "Warehouse" },
+        warehouseId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Warehouse",
+        },
         assignedAt: { type: Date, default: Date.now },
       },
     ],
+
+    /* ===== FLAGS ===== */
+    isDeleted: { type: Boolean, default: false },
   },
-  { timestamps: true, collection: "orders" }
+  {
+    timestamps: true,
+    collection: "orders",
+  }
 );
 
 /* ================= EXPORT ================= */
-const Order = mongoose.models.Order || mongoose.model("Order", OrderSchema);
+const Order =
+  mongoose.models.Order || mongoose.model("Order", OrderSchema);
+
 export default Order;
