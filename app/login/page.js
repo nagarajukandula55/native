@@ -10,6 +10,7 @@ export default function LoginPage() {
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
 
   async function handleLogin(e) {
     e.preventDefault();
@@ -28,7 +29,7 @@ export default function LoginPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        credentials: "include", // 🔥 important
+        credentials: "include",
         body: JSON.stringify({ email, password }),
       });
 
@@ -42,9 +43,6 @@ export default function LoginPage() {
         return;
       }
 
-      // ✅ Success feedback
-      alert("Login successful");
-
       const role = data.user?.role;
 
       if (!role) {
@@ -53,7 +51,10 @@ export default function LoginPage() {
         return;
       }
 
-      // ✅ Redirect (hard redirect for middleware)
+      // ✅ Show success UI
+      setSuccess(true);
+
+      // ✅ Redirect after animation
       setTimeout(() => {
         if (role === "admin") {
           window.location.href = "/admin";
@@ -62,7 +63,7 @@ export default function LoginPage() {
         } else {
           window.location.href = "/account";
         }
-      }, 300);
+      }, 1200);
 
     } catch (err) {
       console.error(err);
@@ -87,58 +88,68 @@ export default function LoginPage() {
         />
       </div>
 
-      {/* LOGIN CARD */}
-      <form style={card} onSubmit={handleLogin}>
-        <h2 style={title}>Welcome Back</h2>
+      {/* ✅ SUCCESS SCREEN */}
+      {success ? (
+        <div style={successBox}>
+          <h2 style={successTitle}>Login Successful ✅</h2>
+          <p style={{ marginTop: 10 }}>Redirecting to dashboard...</p>
 
-        {/* EMAIL */}
-        <input
-          type="email"
-          placeholder="Email address"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          style={input}
-        />
+          <div style={loader}></div>
+        </div>
+      ) : (
+        /* LOGIN FORM */
+        <form style={card} onSubmit={handleLogin}>
+          <h2 style={title}>Welcome Back</h2>
 
-        {/* PASSWORD */}
-        <div style={{ position: "relative" }}>
+          {/* EMAIL */}
           <input
-            type={showPass ? "text" : "password"}
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            type="email"
+            placeholder="Email address"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
             style={input}
           />
 
-          <span onClick={() => setShowPass(!showPass)} style={eye}>
-            {showPass ? "🙈" : "👁"}
-          </span>
-        </div>
+          {/* PASSWORD */}
+          <div style={{ position: "relative" }}>
+            <input
+              type={showPass ? "text" : "password"}
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              style={input}
+            />
 
-        {/* ERROR */}
-        {error && <p style={errorText}>{error}</p>}
+            <span onClick={() => setShowPass(!showPass)} style={eye}>
+              {showPass ? "🙈" : "👁"}
+            </span>
+          </div>
 
-        {/* BUTTON */}
-        <button
-          type="submit"
-          disabled={loading}
-          style={{ ...button, opacity: loading ? 0.7 : 1 }}
-        >
-          {loading ? "Signing in..." : "Sign in"}
-        </button>
+          {/* ERROR */}
+          {error && <p style={errorText}>{error}</p>}
 
-        {/* LINKS */}
-        <div style={linksBox}>
-          <p onClick={() => (window.location.href = "/forgot-password")} style={link}>
-            Forgot password?
-          </p>
+          {/* BUTTON */}
+          <button
+            type="submit"
+            disabled={loading}
+            style={{ ...button, opacity: loading ? 0.7 : 1 }}
+          >
+            {loading ? "Signing in..." : "Sign in"}
+          </button>
 
-          <p onClick={() => (window.location.href = "/signup")} style={link}>
-            Create account
-          </p>
-        </div>
+          {/* LINKS */}
+          <div style={linksBox}>
+            <p onClick={() => (window.location.href = "/forgot-password")} style={link}>
+              Forgot password?
+            </p>
 
-      </form>
+            <p onClick={() => (window.location.href = "/signup")} style={link}>
+              Create account
+            </p>
+          </div>
+
+        </form>
+      )}
     </div>
   );
 }
@@ -213,4 +224,31 @@ const link = {
   cursor: "pointer",
   fontSize: 14,
   marginTop: 5,
+};
+
+/* 🔥 SUCCESS UI */
+const successBox = {
+  width: 360,
+  background: "#fff",
+  padding: 30,
+  borderRadius: 16,
+  boxShadow: "0 15px 40px rgba(0,0,0,0.08)",
+  textAlign: "center",
+};
+
+const successTitle = {
+  color: "#16a34a",
+  fontSize: 22,
+  fontWeight: 600,
+};
+
+/* 🔥 LOADER */
+const loader = {
+  margin: "20px auto 0",
+  width: 30,
+  height: 30,
+  border: "3px solid #ddd",
+  borderTop: "3px solid #16a34a",
+  borderRadius: "50%",
+  animation: "spin 1s linear infinite",
 };
