@@ -1,12 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Image from "next/image";
 
 export default function LoginPage() {
-
-  const router = useRouter();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -14,78 +11,56 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-async function handleLogin(e) {
-  e.preventDefault();
-  setError("");
+  async function handleLogin(e) {
+    e.preventDefault();
+    setError("");
 
-  if (!email || !password) {
-    setError("Please enter email and password");
-    return;
-  }
-
-  setLoading(true);
-
-  try {
-    const res = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      credentials: "include",
-      body: JSON.stringify({ email, password }),
-    });
-
-    // ✅ DEFINE DATA PROPERLY
-    const data = await res.json();
-
-    console.log("LOGIN RESPONSE:", data);
-
-    if (!res.ok || !data.success) {
-      setError(data.msg || "Login failed");
-      setLoading(false);
+    if (!email || !password) {
+      setError("Please enter email and password");
       return;
     }
 
-    // ✅ SAFE ACCESS
-    const role = data.user?.role;
+    setLoading(true);
 
-    if (!role) {
-      setError("Invalid response from server");
-      setLoading(false);
-      return;
-    }
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include", // 🔥 important
+        body: JSON.stringify({ email, password }),
+      });
 
-    // ✅ REDIRECT
-    setTimeout(() => {
-      if (role === "admin") {
-        window.location.href = "/admin";
-      } else if (role === "store") {
-        window.location.href = "/admin/store/dashboard";
-      } else {
-        window.location.href = "/account";
+      const data = await res.json();
+
+      console.log("LOGIN RESPONSE:", data);
+
+      if (!res.ok || !data.success) {
+        setError(data.msg || "Login failed");
+        setLoading(false);
+        return;
       }
-    }, 300);
 
-  } catch (err) {
-    console.error(err);
-    setError("Server error. Try again.");
-  }
+      // ✅ Success feedback
+      alert("Login successful");
 
-  setLoading(false);
-}
+      const role = data.user?.role;
 
-      console.log("LOGIN SUCCESS:", data);
+      if (!role) {
+        setError("Invalid response from server");
+        setLoading(false);
+        return;
+      }
 
-      // 🔥 Small delay ensures cookie is set before redirect
+      // ✅ Redirect (hard redirect for middleware)
       setTimeout(() => {
-        if (data.user.role === "admin") {
-          router.push("/admin");
-        } 
-        else if (data.user.role === "store") {
-          router.push("/admin/store/dashboard");
-        } 
-        else {
-          router.push("/account");
+        if (role === "admin") {
+          window.location.href = "/admin";
+        } else if (role === "store") {
+          window.location.href = "/admin/store/dashboard";
+        } else {
+          window.location.href = "/account";
         }
       }, 300);
 
@@ -154,11 +129,11 @@ async function handleLogin(e) {
 
         {/* LINKS */}
         <div style={linksBox}>
-          <p onClick={() => router.push("/forgot-password")} style={link}>
+          <p onClick={() => (window.location.href = "/forgot-password")} style={link}>
             Forgot password?
           </p>
 
-          <p onClick={() => router.push("/signup")} style={link}>
+          <p onClick={() => (window.location.href = "/signup")} style={link}>
             Create account
           </p>
         </div>
@@ -166,10 +141,6 @@ async function handleLogin(e) {
       </form>
     </div>
   );
-}
-
-if (data.success) {
-  alert("Login successful"); // simple feedback
 }
 
 /* ===== STYLES ===== */
