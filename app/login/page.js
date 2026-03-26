@@ -1,9 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 
 export default function LoginPage() {
+
+  const router = useRouter();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -28,6 +31,7 @@ export default function LoginPage() {
         headers: {
           "Content-Type": "application/json"
         },
+        credentials: "include", // 🔥 CRITICAL FIX
         body: JSON.stringify({ email, password }),
       });
 
@@ -41,18 +45,18 @@ export default function LoginPage() {
 
       console.log("LOGIN SUCCESS:", data);
 
-      // 🔥 IMPORTANT: NO COOKIE SET HERE (handled by backend)
-
-      // 🔥 HARD REDIRECT (required for middleware to pick cookie)
-      if (data.role === "admin") {
-        window.location.href = "/admin";
-      } 
-      else if (data.role === "store") {
-        window.location.href = "/admin/store/dashboard";
-      } 
-      else {
-        window.location.href = "/account";
-      }
+      // 🔥 Small delay ensures cookie is set before redirect
+      setTimeout(() => {
+        if (data.user.role === "admin") {
+          router.push("/admin");
+        } 
+        else if (data.user.role === "store") {
+          router.push("/admin/store/dashboard");
+        } 
+        else {
+          router.push("/account");
+        }
+      }, 300);
 
     } catch (err) {
       console.error(err);
@@ -119,11 +123,11 @@ export default function LoginPage() {
 
         {/* LINKS */}
         <div style={linksBox}>
-          <p onClick={() => (window.location.href = "/forgot-password")} style={link}>
+          <p onClick={() => router.push("/forgot-password")} style={link}>
             Forgot password?
           </p>
 
-          <p onClick={() => (window.location.href = "/signup")} style={link}>
+          <p onClick={() => router.push("/signup")} style={link}>
             Create account
           </p>
         </div>
