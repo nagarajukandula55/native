@@ -5,12 +5,13 @@ import { useRouter } from "next/navigation"
 import { useState, useEffect } from "react"
 import { useCart } from "@/context/CartContext"
 import CartDrawer from "./CartDrawer"
-import useAuth from "@/lib/useAuth"
+import useAuth from "@/hooks/useAuth"
 
 export default function Navbar() {
   const { cart, drawerOpen, openCart, closeCart } = useCart()
   const router = useRouter()
-  const user = useAuth()
+
+  const { user, loading } = useAuth() // ✅ FIXED
 
   const [search, setSearch] = useState("")
   const [menuOpen, setMenuOpen] = useState(false)
@@ -32,11 +33,16 @@ export default function Navbar() {
   }
 
   async function handleLogout() {
-    await fetch("/api/auth/logout", { method: "POST" })
+    await fetch("/api/auth/logout", {
+      method: "POST",
+      credentials: "include", // 🔥 FIX
+    })
     window.location.href = "/login"
   }
 
   const links = ["Home", "Products", "Track Order", "Blog"]
+
+  if (loading) return null // 🔥 Prevent flicker
 
   return (
     <>
@@ -80,17 +86,20 @@ export default function Navbar() {
             </Link>
           ))}
 
-          {/* CART */}
-          <button onClick={openCart} style={linkStyle}>
-            Cart ({cart.length})
-          </button>
+          {/* 🔥 CART (IMPROVED UI) */}
+          <div onClick={openCart} style={cartBox}>
+            🛒
+            {cart.length > 0 && (
+              <span style={cartBadge}>{cart.length}</span>
+            )}
+          </div>
 
-          {/* 🔥 AUTH SECTION */}
+          {/* 🔥 AUTH */}
           {!user ? (
             <Link href="/login" style={linkStyle}>Login</Link>
           ) : (
             <>
-              <span style={{ fontSize: 14 }}>{user.name}</span>
+              <span style={userName}>{user.name}</span>
 
               {user.role === "admin" && (
                 <Link href="/admin" style={roleLink}>Admin Panel</Link>
@@ -172,6 +181,29 @@ const roleLink = {
   textDecoration: "none",
   color: "#2563eb",
   fontSize: 14
+}
+
+const userName = {
+  fontSize: 14,
+  fontWeight: 500
+}
+
+/* 🔥 CART STYLE */
+const cartBox = {
+  position: "relative",
+  cursor: "pointer",
+  fontSize: 20
+}
+
+const cartBadge = {
+  position: "absolute",
+  top: "-6px",
+  right: "-10px",
+  background: "#ef4444",
+  color: "#fff",
+  fontSize: 10,
+  padding: "2px 6px",
+  borderRadius: "50%"
 }
 
 const logoutBtn = {
