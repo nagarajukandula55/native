@@ -8,7 +8,7 @@ export async function POST() {
     secure: true,
     sameSite: "none",
     path: "/",
-    expires: new Date(0), // delete cookie
+    expires: new Date(0),
   });
 
   return response;
