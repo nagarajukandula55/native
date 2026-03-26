@@ -11,6 +11,7 @@ export async function GET(req) {
     await connectDB();
 
     const token = req.cookies.get("token")?.value;
+
     if (!token) {
       return NextResponse.json(
         { success: false, msg: "Unauthorized" },
@@ -27,30 +28,19 @@ export async function GET(req) {
       );
     }
 
-    // 🔥 PRIMARY: Assigned store orders
-    let query = {
-      assignedStore: decoded.id,
-      isDeleted: false,
-    };
+    /* 🔥 CORRECT QUERY (MATCHES YOUR SCHEMA) */
+    const orders = await Order.find({
+      "warehouseAssignments.warehouseId": decoded.id,
+    }).sort({ createdAt: -1 });
 
-    // 🔁 OPTIONAL: also support warehouse mapping (future)
-    if (decoded.warehouseId) {
-      query = {
-        $or: [
-          { assignedStore: decoded.id },
-          { "warehouseAssignments.warehouseId": decoded.warehouseId },
-        ],
-        isDeleted: false,
-      };
-    }
-
-    const orders = await Order.find(query)
-      .sort({ createdAt: -1 });
-
-    return NextResponse.json({ success: true, orders });
+    return NextResponse.json({
+      success: true,
+      orders,
+    });
 
   } catch (e) {
     console.error("STORE GET ORDERS ERROR:", e);
+
     return NextResponse.json(
       { success: false, msg: "Server error" },
       { status: 500 }
@@ -64,6 +54,7 @@ export async function PUT(req) {
     await connectDB();
 
     const token = req.cookies.get("token")?.value;
+
     if (!token) {
       return NextResponse.json(
         { success: false, msg: "Unauthorized" },
@@ -105,32 +96,26 @@ export async function PUT(req) {
       );
     }
 
-    /* ===== ACCESS CONTROL ===== */
-    const isAssignedStore =
-      order.assignedStore?.toString() === decoded.id;
+    /* 🔥 ACCESS CONTROL (FIXED) */
+    const isAssigned = order.warehouseAssignments.some(
+      (w) => w.warehouseId.toString() === decoded.id
+    );
 
-    const isWarehouseAssigned =
-      decoded.warehouseId &&
-      order.warehouseAssignments.some(
-        (w) => w.warehouseId.toString() === decoded.warehouseId
-      );
-
-    if (!isAssignedStore && !isWarehouseAssigned) {
+    if (!isAssigned) {
       return NextResponse.json(
         { success: false, msg: "Not allowed for this order" },
         { status: 403 }
       );
     }
 
-    /* ===== UPDATE FIELDS ===== */
+    /* ================= UPDATE FIELDS ================= */
 
-    if (status) {
+    if (status && status !== order.status) {
       order.status = status;
 
       order.statusHistory.push({
         status,
         time: new Date(),
-        updatedBy: decoded.id, // 🔥 track who updated
       });
     }
 
@@ -159,6 +144,7 @@ export async function PUT(req) {
 
   } catch (e) {
     console.error("STORE UPDATE ORDER ERROR:", e);
+
     return NextResponse.json(
       { success: false, msg: "Server error" },
       { status: 500 }
