@@ -5,61 +5,163 @@ import jwt from "jsonwebtoken";
 
 export const dynamic = "force-dynamic";
 
-/* ================= GET ORDERS FOR STORE ================= */
+/* ================= GET STORE ORDERS ================= */
 export async function GET(req) {
   try {
     await connectDB();
-    const authHeader = req.headers.get("authorization");
-    if (!authHeader) return NextResponse.json({ success: false, msg: "Unauthorized" }, { status: 401 });
 
-    const token = authHeader.split(" ")[1];
+    const token = req.cookies.get("token")?.value;
+    if (!token) {
+      return NextResponse.json(
+        { success: false, msg: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    const orders = await Order.find({ "warehouseAssignments.warehouseId": decoded.warehouseId }).sort({ createdAt: -1 });
+    if (decoded.role !== "store") {
+      return NextResponse.json(
+        { success: false, msg: "Forbidden" },
+        { status: 403 }
+      );
+    }
+
+    // 🔥 PRIMARY: Assigned store orders
+    let query = {
+      assignedStore: decoded.id,
+      isDeleted: false,
+    };
+
+    // 🔁 OPTIONAL: also support warehouse mapping (future)
+    if (decoded.warehouseId) {
+      query = {
+        $or: [
+          { assignedStore: decoded.id },
+          { "warehouseAssignments.warehouseId": decoded.warehouseId },
+        ],
+        isDeleted: false,
+      };
+    }
+
+    const orders = await Order.find(query)
+      .sort({ createdAt: -1 });
+
     return NextResponse.json({ success: true, orders });
+
   } catch (e) {
     console.error("STORE GET ORDERS ERROR:", e);
-    return NextResponse.json({ success: false, msg: "Server error" }, { status: 500 });
+    return NextResponse.json(
+      { success: false, msg: "Server error" },
+      { status: 500 }
+    );
   }
 }
 
-/* ================= UPDATE ORDER FOR STORE ================= */
+/* ================= UPDATE ORDER ================= */
 export async function PUT(req) {
   try {
     await connectDB();
-    const authHeader = req.headers.get("authorization");
-    if (!authHeader) return NextResponse.json({ success: false, msg: "Unauthorized" }, { status: 401 });
 
-    const token = authHeader.split(" ")[1];
+    const token = req.cookies.get("token")?.value;
+    if (!token) {
+      return NextResponse.json(
+        { success: false, msg: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    const { id, status, paymentStatus, awb, courierName, trackingUrl } = await req.json();
+    if (decoded.role !== "store") {
+      return NextResponse.json(
+        { success: false, msg: "Forbidden" },
+        { status: 403 }
+      );
+    }
 
-    if (!id || (!status && !paymentStatus && awb === undefined && courierName === undefined && trackingUrl === undefined)) {
-      return NextResponse.json({ success: false, msg: "Missing fields" }, { status: 400 });
+    const {
+      id,
+      status,
+      paymentStatus,
+      awbNumber,
+      courierName,
+      trackingUrl,
+    } = await req.json();
+
+    if (!id) {
+      return NextResponse.json(
+        { success: false, msg: "Order ID required" },
+        { status: 400 }
+      );
     }
 
     const order = await Order.findById(id);
-    if (!order) return NextResponse.json({ success: false, msg: "Order not found" }, { status: 404 });
 
-    // Ensure the store can only update its own warehouse orders
-    const assigned = order.warehouseAssignments.some(w => w.warehouseId.toString() === decoded.warehouseId);
-    if (!assigned) return NextResponse.json({ success: false, msg: "Unauthorized for this order" }, { status: 403 });
+    if (!order) {
+      return NextResponse.json(
+        { success: false, msg: "Order not found" },
+        { status: 404 }
+      );
+    }
+
+    /* ===== ACCESS CONTROL ===== */
+    const isAssignedStore =
+      order.assignedStore?.toString() === decoded.id;
+
+    const isWarehouseAssigned =
+      decoded.warehouseId &&
+      order.warehouseAssignments.some(
+        (w) => w.warehouseId.toString() === decoded.warehouseId
+      );
+
+    if (!isAssignedStore && !isWarehouseAssigned) {
+      return NextResponse.json(
+        { success: false, msg: "Not allowed for this order" },
+        { status: 403 }
+      );
+    }
+
+    /* ===== UPDATE FIELDS ===== */
 
     if (status) {
       order.status = status;
-      order.statusHistory.push({ status, time: new Date() });
+
+      order.statusHistory.push({
+        status,
+        time: new Date(),
+        updatedBy: decoded.id, // 🔥 track who updated
+      });
     }
-    if (paymentStatus) order.paymentStatus = paymentStatus;
-    if (awb !== undefined) order.awb = awb;
-    if (courierName !== undefined) order.courierName = courierName;
-    if (trackingUrl !== undefined) order.trackingUrl = trackingUrl;
+
+    if (paymentStatus) {
+      order.paymentStatus = paymentStatus;
+    }
+
+    if (awbNumber !== undefined) {
+      order.awbNumber = awbNumber;
+    }
+
+    if (courierName !== undefined) {
+      order.courierName = courierName;
+    }
+
+    if (trackingUrl !== undefined) {
+      order.trackingUrl = trackingUrl;
+    }
 
     await order.save();
 
-    return NextResponse.json({ success: true, order });
+    return NextResponse.json({
+      success: true,
+      order,
+    });
+
   } catch (e) {
     console.error("STORE UPDATE ORDER ERROR:", e);
-    return NextResponse.json({ success: false, msg: "Server error" }, { status: 500 });
+    return NextResponse.json(
+      { success: false, msg: "Server error" },
+      { status: 500 }
+    );
   }
 }
