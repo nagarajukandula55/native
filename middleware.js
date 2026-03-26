@@ -5,19 +5,40 @@ export function middleware(req) {
   const token = req.cookies.get("token")?.value;
   const { pathname } = req.nextUrl;
 
-  /* ===== PUBLIC ROUTES ===== */
+  /* ================= AUTH PAGES ================= */
+  if (pathname.startsWith("/login") || pathname.startsWith("/signup")) {
+    if (token) {
+      try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+        // 🔥 Redirect logged-in users away from login/signup
+        if (decoded.role === "admin") {
+          return NextResponse.redirect(new URL("/admin", req.url));
+        }
+        if (decoded.role === "store") {
+          return NextResponse.redirect(new URL("/admin/store/dashboard", req.url));
+        }
+        return NextResponse.redirect(new URL("/account", req.url));
+
+      } catch {
+        return NextResponse.next();
+      }
+    }
+
+    return NextResponse.next();
+  }
+
+  /* ================= PUBLIC ================= */
   if (
-    pathname.startsWith("/login") ||
-    pathname.startsWith("/signup") ||
     pathname.startsWith("/api") ||
     pathname === "/"
   ) {
     return NextResponse.next();
   }
 
-  /* ===== PROTECTED ROUTES ===== */
+  /* ================= PROTECTED ================= */
   if (pathname.startsWith("/admin") || pathname.startsWith("/account")) {
-    
+
     if (!token) {
       return NextResponse.redirect(new URL("/login", req.url));
     }
@@ -34,7 +55,7 @@ export function middleware(req) {
         }
       }
 
-      // USER ACCOUNT
+      // USER ONLY
       if (pathname.startsWith("/account")) {
         if (decoded.role !== "user") {
           return NextResponse.redirect(new URL("/", req.url));
@@ -53,5 +74,5 @@ export function middleware(req) {
 
 /* ===== MATCHER ===== */
 export const config = {
-  matcher: ["/admin/:path*", "/account/:path*"],
+  matcher: ["/admin/:path*", "/account/:path*", "/login", "/signup"],
 };
