@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Rnd } from "react-rnd";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { v4 as uuidv4 } from "uuid";
 
-// Preloaded templates
+// Sample Templates
 const templates = [
   { id: 1, name: "Classic", bg: "#fff", color: "#000" },
   { id: 2, name: "Minimal", bg: "#f5f5f5", color: "#333" },
@@ -14,11 +14,17 @@ const templates = [
 ];
 
 export default function LabelsPage() {
-  const [elements, setElements] = useState([]);
-  const [selectedTemplate, setSelectedTemplate] = useState(templates[0]);
-  const [activeSide, setActiveSide] = useState("front"); // front/back
+  const [activeTemplate, setActiveTemplate] = useState(templates[0]);
+  const [activeSide, setActiveSide] = useState("front");
   const [frontElements, setFrontElements] = useState([]);
   const [backElements, setBackElements] = useState([]);
+  const [elements, setElements] = useState([]);
+
+  /* ================= SWITCH SIDE ================= */
+  const switchSide = (side) => {
+    setActiveSide(side);
+    setElements(side === "front" ? frontElements : backElements);
+  };
 
   /* ================= ADD ELEMENT ================= */
   const addElement = (type) => {
@@ -33,31 +39,26 @@ export default function LabelsPage() {
       fontSize: 16,
       color: "#000",
     };
-    setElements([...elements, newEl]);
-    if (activeSide === "front") setFrontElements([...frontElements, newEl]);
-    else setBackElements([...backElements, newEl]);
+    const updated = [...elements, newEl];
+    setElements(updated);
+    if (activeSide === "front") setFrontElements(updated);
+    else setBackElements(updated);
   };
 
   /* ================= UPDATE ELEMENT ================= */
   const updateElement = (id, newProps) => {
-    setElements(elements.map(el => el.id === id ? { ...el, ...newProps } : el));
-    if (activeSide === "front") setFrontElements(elements);
-    else setBackElements(elements);
+    const updated = elements.map(el => el.id === id ? { ...el, ...newProps } : el);
+    setElements(updated);
+    if (activeSide === "front") setFrontElements(updated);
+    else setBackElements(updated);
   };
 
   /* ================= DELETE ELEMENT ================= */
   const deleteElement = (id) => {
-    setElements(elements.filter(el => el.id !== id));
-    if (activeSide === "front")
-      setFrontElements(frontElements.filter(el => el.id !== id));
-    else
-      setBackElements(backElements.filter(el => el.id !== id));
-  };
-
-  /* ================= SWITCH SIDE ================= */
-  const switchSide = (side) => {
-    setActiveSide(side);
-    setElements(side === "front" ? frontElements : backElements);
+    const updated = elements.filter(el => el.id !== id);
+    setElements(updated);
+    if (activeSide === "front") setFrontElements(updated);
+    else setBackElements(updated);
   };
 
   /* ================= EXPORT ================= */
@@ -65,9 +66,8 @@ export default function LabelsPage() {
     const labelDiv = document.getElementById("label-canvas");
     const canvas = await html2canvas(labelDiv, { scale: 2 });
     if (format === "png") {
-      const dataURL = canvas.toDataURL("image/png");
       const link = document.createElement("a");
-      link.href = dataURL;
+      link.href = canvas.toDataURL("image/png");
       link.download = `label-${activeSide}.png`;
       link.click();
     } else if (format === "pdf") {
@@ -90,15 +90,15 @@ export default function LabelsPage() {
         {templates.map((tpl) => (
           <div
             key={tpl.id}
+            onClick={() => setActiveTemplate(tpl)}
             style={{
               padding: 10,
               marginBottom: 10,
               cursor: "pointer",
-              border: selectedTemplate.id === tpl.id ? "2px solid #2563eb" : "1px solid #ccc",
+              border: tpl.id === activeTemplate.id ? "2px solid #2563eb" : "1px solid #ccc",
               background: tpl.bg,
               color: tpl.color,
             }}
-            onClick={() => setSelectedTemplate(tpl)}
           >
             {tpl.name}
           </div>
@@ -123,11 +123,11 @@ export default function LabelsPage() {
           height: 400,
           border: "1px solid #ccc",
           position: "relative",
-          background: selectedTemplate.bg,
-          color: selectedTemplate.color,
+          background: activeTemplate.bg,
+          color: activeTemplate.color,
         }}
       >
-        {elements.map((el) => (
+        {elements.map(el => (
           <Rnd
             key={el.id}
             bounds="parent"
