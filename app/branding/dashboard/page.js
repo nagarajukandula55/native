@@ -1,64 +1,85 @@
 "use client";
 
-import Link from "next/link";
-
-// Import your modules (placeholders or actual implementations)
+import { useState } from "react";
 import LabelsPage from "../labels/page";
 import NutritionCalculatorPage from "../nutrition-calculator/page";
 import SocialPostsPage from "../social-posts/page";
 import AssetsPage from "../assets/page";
 
 export default function BrandingDashboard() {
+  const [activeModule, setActiveModule] = useState("labels");
+
+  const renderModule = () => {
+    switch (activeModule) {
+      case "labels":
+        return <LabelsPage />;
+      case "nutrition":
+        return <NutritionCalculatorPage />;
+      case "social":
+        return <SocialPostsPage />;
+      case "assets":
+        return <AssetsPage />;
+      default:
+        return <LabelsPage />;
+    }
+  };
+
   return (
     <div style={container}>
-      <h1>Branding Dashboard</h1>
-      <p>Manage everything about your brand, labels, nutrition, pricing, and social posts from here.</p>
+      <aside style={sidebar}>
+        <h2>Branding Dashboard</h2>
+        <nav>
+          <button style={sidebarBtn} onClick={() => setActiveModule("labels")}>
+            Labels
+          </button>
+          <button style={sidebarBtn} onClick={() => setActiveModule("nutrition")}>
+            Nutrition Calculator
+          </button>
+          <button style={sidebarBtn} onClick={() => setActiveModule("social")}>
+            Social Posts
+          </button>
+          <button style={sidebarBtn} onClick={() => setActiveModule("assets")}>
+            Assets & Templates
+          </button>
+        </nav>
+      </aside>
 
-      <div style={section}>
-        <h2>Labels</h2>
-        <LabelsPage />
-        <Link href="/branding/labels/create" style={button}>+ Create New Label</Link>
-      </div>
-
-      <div style={section}>
-        <h2>Nutrition Calculator</h2>
-        <NutritionCalculatorPage />
-      </div>
-
-      <div style={section}>
-        <h2>Social Media Posts</h2>
-        <SocialPostsPage />
-      </div>
-
-      <div style={section}>
-        <h2>Assets & Templates</h2>
-        <AssetsPage />
-      </div>
+      <main style={main}>{renderModule()}</main>
     </div>
   );
 }
 
 /* ===== STYLES ===== */
 const container = {
-  padding: "30px",
-  maxWidth: "1200px",
-  margin: "0 auto",
+  display: "flex",
+  minHeight: "100vh",
   fontFamily: "sans-serif",
 };
 
-const section = {
-  marginTop: "40px",
+const sidebar = {
+  width: "250px",
+  background: "#111",
+  color: "#fff",
   padding: "20px",
-  border: "1px solid #ddd",
-  borderRadius: "10px",
+  display: "flex",
+  flexDirection: "column",
+  gap: "10px",
 };
 
-const button = {
-  display: "inline-block",
-  marginTop: "10px",
-  padding: "8px 16px",
+const sidebarBtn = {
+  width: "100%",
+  padding: "10px",
+  marginTop: "5px",
+  border: "none",
   background: "#2563eb",
   color: "#fff",
+  cursor: "pointer",
+  textAlign: "left",
   borderRadius: "6px",
-  textDecoration: "none",
+};
+
+const main = {
+  flex: 1,
+  padding: "30px",
+  background: "#f9f9f9",
 };
