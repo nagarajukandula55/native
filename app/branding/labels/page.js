@@ -27,7 +27,7 @@ export default function LabelsPage() {
   if (loading) return <p>Loading...</p>;
 
   return (
-    <div>
+    <div style={{ padding: 20 }}>
       <h1>Labels</h1>
       <a href="/branding/labels/create" style={{ marginBottom: 10, display: "inline-block", color: "#2563eb" }}>+ Create Label</a>
 
