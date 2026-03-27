@@ -2,52 +2,125 @@
 
 import { useState } from "react";
 
-export default function NutritionCalculator() {
-  const [ingredients, setIngredients] = useState([{ name: "", calories: 0, protein: 0, fat: 0, carbs: 0 }]);
-  const [totals, setTotals] = useState({ calories: 0, protein: 0, fat: 0, carbs: 0 });
+export default function NutritionCalculatorPage() {
+  const [form, setForm] = useState({
+    productName: "",
+    rawMaterialCost: 0,
+    packagingCost: 0,
+    laborCost: 0,
+    logisticsCost: 0,
+    taxPercent: 0,
+    profitMarginPercent: 0,
+  });
 
-  const calculateNutrition = () => {
-    let totals = { calories: 0, protein: 0, fat: 0, carbs: 0 };
-    ingredients.forEach(i => {
-      totals.calories += i.calories;
-      totals.protein += i.protein;
-      totals.fat += i.fat;
-      totals.carbs += i.carbs;
-    });
-    setTotals(totals);
+  const [calculated, setCalculated] = useState({
+    totalCost: 0,
+    taxAmount: 0,
+    sellingPrice: 0,
+    mrp: 0,
+  });
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm({ ...form, [name]: parseFloat(value) || 0 });
+  };
+
+  const calculatePricing = () => {
+    const totalCost =
+      form.rawMaterialCost +
+      form.packagingCost +
+      form.laborCost +
+      form.logisticsCost;
+
+    const taxAmount = (totalCost * form.taxPercent) / 100;
+    const sellingPrice = totalCost + taxAmount;
+    const mrp = sellingPrice + (sellingPrice * form.profitMarginPercent) / 100;
+
+    setCalculated({ totalCost, taxAmount, sellingPrice, mrp });
   };
 
   return (
     <div>
-      <h1>Nutrition Calculator</h1>
+      <h2>Pricing & Nutrition Calculator</h2>
 
-      {ingredients.map((ing, idx) => (
-        <div key={idx} style={{ marginBottom: 10 }}>
-          <input placeholder="Ingredient" value={ing.name} onChange={e => { const arr=[...ingredients]; arr[idx].name=e.target.value; setIngredients(arr); }} />
-          <input type="number" placeholder="Calories" value={ing.calories} onChange={e => { const arr=[...ingredients]; arr[idx].calories=parseFloat(e.target.value); setIngredients(arr); }} />
-          <input type="number" placeholder="Protein (g)" value={ing.protein} onChange={e => { const arr=[...ingredients]; arr[idx].protein=parseFloat(e.target.value); setIngredients(arr); }} />
-          <input type="number" placeholder="Fat (g)" value={ing.fat} onChange={e => { const arr=[...ingredients]; arr[idx].fat=parseFloat(e.target.value); setIngredients(arr); }} />
-          <input type="number" placeholder="Carbs (g)" value={ing.carbs} onChange={e => { const arr=[...ingredients]; arr[idx].carbs=parseFloat(e.target.value); setIngredients(arr); }} />
-        </div>
-      ))}
+      <div style={formContainer}>
+        <input
+          placeholder="Product Name"
+          name="productName"
+          value={form.productName}
+          onChange={handleChange}
+        />
+        <input
+          type="number"
+          placeholder="Raw Material Cost (₹)"
+          name="rawMaterialCost"
+          value={form.rawMaterialCost}
+          onChange={handleChange}
+        />
+        <input
+          type="number"
+          placeholder="Packaging Cost (₹)"
+          name="packagingCost"
+          value={form.packagingCost}
+          onChange={handleChange}
+        />
+        <input
+          type="number"
+          placeholder="Labor / Production Cost (₹)"
+          name="laborCost"
+          value={form.laborCost}
+          onChange={handleChange}
+        />
+        <input
+          type="number"
+          placeholder="Logistics / Shipping Cost (₹)"
+          name="logisticsCost"
+          value={form.logisticsCost}
+          onChange={handleChange}
+        />
+        <input
+          type="number"
+          placeholder="Tax %"
+          name="taxPercent"
+          value={form.taxPercent}
+          onChange={handleChange}
+        />
+        <input
+          type="number"
+          placeholder="Profit Margin %"
+          name="profitMarginPercent"
+          value={form.profitMarginPercent}
+          onChange={handleChange}
+        />
 
-      <button onClick={() => setIngredients([...ingredients, { name: "", calories: 0, protein: 0, fat: 0, carbs: 0 }])}>
-        Add Ingredient
-      </button>
-
-      <div style={{ marginTop: 20 }}>
-        <button onClick={calculateNutrition}>Calculate Total Nutrition</button>
+        <button style={button} onClick={calculatePricing}>
+          Calculate MRP
+        </button>
       </div>
 
-      {totals.calories > 0 && (
-        <div style={{ marginTop: 20 }}>
-          <h3>Totals:</h3>
-          <p>Calories: {totals.calories}</p>
-          <p>Protein: {totals.protein} g</p>
-          <p>Fat: {totals.fat} g</p>
-          <p>Carbs: {totals.carbs} g</p>
-        </div>
-      )}
+      <div style={{ marginTop: 20 }}>
+        <h3>Calculated Pricing</h3>
+        <p>Total Cost: ₹{calculated.totalCost.toFixed(2)}</p>
+        <p>Tax Amount: ₹{calculated.taxAmount.toFixed(2)}</p>
+        <p>Selling Price (Cost + Tax): ₹{calculated.sellingPrice.toFixed(2)}</p>
+        <p>MRP (with Profit): ₹{calculated.mrp.toFixed(2)}</p>
+      </div>
     </div>
   );
 }
+
+const formContainer = {
+  display: "grid",
+  gap: "10px",
+  maxWidth: "400px",
+};
+
+const button = {
+  marginTop: "10px",
+  padding: "10px",
+  background: "#2563eb",
+  color: "#fff",
+  border: "none",
+  borderRadius: "6px",
+  cursor: "pointer",
+};
