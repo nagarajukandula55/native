@@ -1,184 +1,221 @@
 "use client";
 
-import { useState } from "react";
-import { Rnd } from "react-rnd";
+import { useState, useEffect, useRef } from "react";
+import { Rnd } from "react-rnd"; // Drag & resize
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
-import { v4 as uuidv4 } from "uuid";
 
-// Sample Templates
-const templates = [
-  { id: 1, name: "Classic", bg: "#fff", color: "#000" },
-  { id: 2, name: "Minimal", bg: "#f5f5f5", color: "#333" },
-  { id: 3, name: "Bold", bg: "#000", color: "#fff" },
+// Example templates
+const TEMPLATES = [
+  {
+    id: 1,
+    name: "Classic Label",
+    width: 400,
+    height: 250,
+    elements: [
+      { id: "title", type: "text", text: "Product Name", x: 50, y: 20, fontSize: 24, color: "#000" },
+      { id: "subtitle", type: "text", text: "Subtitle / Tagline", x: 50, y: 60, fontSize: 16, color: "#333" },
+      { id: "logo", type: "image", src: "/logo.png", x: 300, y: 20, width: 80, height: 80 },
+    ],
+  },
+  {
+    id: 2,
+    name: "Modern Label",
+    width: 400,
+    height: 250,
+    elements: [
+      { id: "title", type: "text", text: "Brand Name", x: 50, y: 30, fontSize: 26, color: "#111" },
+      { id: "subtitle", type: "text", text: "Organic & Fresh", x: 50, y: 70, fontSize: 14, color: "#555" },
+      { id: "image", type: "image", src: "/sample-product.png", x: 250, y: 50, width: 120, height: 120 },
+    ],
+  },
 ];
 
 export default function LabelsPage() {
-  const [activeTemplate, setActiveTemplate] = useState(templates[0]);
-  const [activeSide, setActiveSide] = useState("front");
-  const [frontElements, setFrontElements] = useState([]);
-  const [backElements, setBackElements] = useState([]);
-  const [elements, setElements] = useState([]);
+  const [canvasElements, setCanvasElements] = useState([]);
+  const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [side, setSide] = useState("front"); // front/back toggle
+  const canvasRef = useRef();
 
-  /* ================= SWITCH SIDE ================= */
-  const switchSide = (side) => {
-    setActiveSide(side);
-    setElements(side === "front" ? frontElements : backElements);
+  // Load template
+  const loadTemplate = (templateId) => {
+    const temp = TEMPLATES.find((t) => t.id === templateId);
+    if (!temp) return;
+    setSelectedTemplate(temp);
+    setCanvasElements(temp.elements.map((e) => ({ ...e })));
   };
 
-  /* ================= ADD ELEMENT ================= */
-  const addElement = (type) => {
-    const newEl = {
-      id: uuidv4(),
-      type,
-      text: type === "text" ? "New Text" : "",
-      x: 50,
-      y: 50,
-      width: 120,
-      height: 40,
-      fontSize: 16,
-      color: "#000",
-    };
-    const updated = [...elements, newEl];
-    setElements(updated);
-    if (activeSide === "front") setFrontElements(updated);
-    else setBackElements(updated);
-  };
-
-  /* ================= UPDATE ELEMENT ================= */
+  // Update element properties
   const updateElement = (id, newProps) => {
-    const updated = elements.map(el => el.id === id ? { ...el, ...newProps } : el);
-    setElements(updated);
-    if (activeSide === "front") setFrontElements(updated);
-    else setBackElements(updated);
+    setCanvasElements((prev) =>
+      prev.map((el) => (el.id === id ? { ...el, ...newProps } : el))
+    );
   };
 
-  /* ================= DELETE ELEMENT ================= */
-  const deleteElement = (id) => {
-    const updated = elements.filter(el => el.id !== id);
-    setElements(updated);
-    if (activeSide === "front") setFrontElements(updated);
-    else setBackElements(updated);
+  // Export canvas
+  const exportPNG = async () => {
+    if (!canvasRef.current) return;
+    const canvas = await html2canvas(canvasRef.current);
+    const dataURL = canvas.toDataURL("image/png");
+
+    const link = document.createElement("a");
+    link.download = `label_${side}.png`;
+    link.href = dataURL;
+    link.click();
   };
 
-  /* ================= EXPORT ================= */
-  const exportLabel = async (format = "png") => {
-    const labelDiv = document.getElementById("label-canvas");
-    const canvas = await html2canvas(labelDiv, { scale: 2 });
-    if (format === "png") {
-      const link = document.createElement("a");
-      link.href = canvas.toDataURL("image/png");
-      link.download = `label-${activeSide}.png`;
-      link.click();
-    } else if (format === "pdf") {
-      const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF({
-        orientation: "portrait",
-        unit: "px",
-        format: [canvas.width, canvas.height],
-      });
-      pdf.addImage(imgData, "PNG", 0, 0, canvas.width, canvas.height);
-      pdf.save(`label-${activeSide}.pdf`);
-    }
+  const exportPDF = async () => {
+    if (!canvasRef.current) return;
+    const canvas = await html2canvas(canvasRef.current);
+    const imgData = canvas.toDataURL("image/png");
+    const pdf = new jsPDF({
+      orientation: "landscape",
+      unit: "px",
+      format: [canvas.width, canvas.height],
+    });
+    pdf.addImage(imgData, "PNG", 0, 0, canvas.width, canvas.height);
+    pdf.save(`label_${side}.pdf`);
+  };
+
+  // AI generate placeholder (replace with real API later)
+  const generateAIText = (elementId) => {
+    const sampleTexts = [
+      "Fresh & Organic",
+      "100% Natural",
+      "Premium Quality",
+      "Delicious Taste",
+    ];
+    const randomText = sampleTexts[Math.floor(Math.random() * sampleTexts.length)];
+    updateElement(elementId, { text: randomText });
   };
 
   return (
-    <div style={{ display: "flex", padding: 20, gap: 20 }}>
-      {/* ================= SIDEBAR ================= */}
-      <div style={{ width: 250 }}>
-        <h2>Templates</h2>
-        {templates.map((tpl) => (
-          <div
-            key={tpl.id}
-            onClick={() => setActiveTemplate(tpl)}
+    <div style={{ padding: 20 }}>
+      <h1>Branding Labels</h1>
+
+      {/* TEMPLATE SELECTION */}
+      <div style={{ marginBottom: 20 }}>
+        <h3>Choose a Template:</h3>
+        {TEMPLATES.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => loadTemplate(t.id)}
             style={{
-              padding: 10,
-              marginBottom: 10,
+              marginRight: 10,
+              padding: 8,
+              background: selectedTemplate?.id === t.id ? "#2563eb" : "#eee",
+              color: selectedTemplate?.id === t.id ? "#fff" : "#000",
+              border: "none",
               cursor: "pointer",
-              border: tpl.id === activeTemplate.id ? "2px solid #2563eb" : "1px solid #ccc",
-              background: tpl.bg,
-              color: tpl.color,
             }}
           >
-            {tpl.name}
-          </div>
+            {t.name}
+          </button>
         ))}
-
-        <h2>Actions</h2>
-        <button onClick={() => addElement("text")} style={{ width: "100%", marginBottom: 10 }}>Add Text</button>
-        <button onClick={() => addElement("image")} style={{ width: "100%", marginBottom: 10 }}>Add Image</button>
-        <button onClick={() => exportLabel("png")} style={{ width: "100%", marginBottom: 10 }}>Export PNG</button>
-        <button onClick={() => exportLabel("pdf")} style={{ width: "100%" }}>Export PDF</button>
-
-        <h2>Sides</h2>
-        <button onClick={() => switchSide("front")} style={{ width: "100%", marginBottom: 5 }}>Front</button>
-        <button onClick={() => switchSide("back")} style={{ width: "100%" }}>Back</button>
       </div>
 
-      {/* ================= LABEL CANVAS ================= */}
+      {/* FRONT/BACK TOGGLE */}
+      <div style={{ marginBottom: 20 }}>
+        <button
+          onClick={() => setSide("front")}
+          style={{
+            padding: 8,
+            marginRight: 10,
+            background: side === "front" ? "#2563eb" : "#eee",
+            color: side === "front" ? "#fff" : "#000",
+            border: "none",
+            cursor: "pointer",
+          }}
+        >
+          Front
+        </button>
+        <button
+          onClick={() => setSide("back")}
+          style={{
+            padding: 8,
+            background: side === "back" ? "#2563eb" : "#eee",
+            color: side === "back" ? "#fff" : "#000",
+            border: "none",
+            cursor: "pointer",
+          }}
+        >
+          Back
+        </button>
+      </div>
+
+      {/* CANVAS */}
       <div
-        id="label-canvas"
+        ref={canvasRef}
         style={{
-          width: 400,
-          height: 400,
-          border: "1px solid #ccc",
+          width: selectedTemplate?.width || 400,
+          height: selectedTemplate?.height || 250,
+          border: "2px dashed #ccc",
           position: "relative",
-          background: activeTemplate.bg,
-          color: activeTemplate.color,
+          marginBottom: 20,
+          background: "#fff",
         }}
       >
-        {elements.map(el => (
-          <Rnd
-            key={el.id}
-            bounds="parent"
-            size={{ width: el.width, height: el.height }}
-            position={{ x: el.x, y: el.y }}
-            onDragStop={(e, d) => updateElement(el.id, { x: d.x, y: d.y })}
-            onResizeStop={(e, direction, ref, delta, position) =>
-              updateElement(el.id, {
-                width: parseInt(ref.style.width),
-                height: parseInt(ref.style.height),
-                ...position,
-              })
-            }
-            style={{
-              border: "1px dashed #999",
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-              background: el.type === "text" ? "transparent" : "#ddd",
-              cursor: "move",
-            }}
-          >
-            {el.type === "text" ? (
-              <input
-                type="text"
-                value={el.text}
-                onChange={(e) => updateElement(el.id, { text: e.target.value })}
-                style={{ width: "100%", border: "none", background: "transparent", textAlign: "center" }}
-              />
-            ) : (
-              <span>Image</span>
-            )}
-            <button
-              onClick={() => deleteElement(el.id)}
-              style={{
-                position: "absolute",
-                top: -10,
-                right: -10,
-                background: "red",
-                color: "#fff",
-                borderRadius: "50%",
-                border: "none",
-                width: 20,
-                height: 20,
-                cursor: "pointer",
+        {canvasElements.map((el) =>
+          el.type === "text" ? (
+            <Rnd
+              key={el.id}
+              size={{ width: el.text.length * 10 + 20, height: el.fontSize + 10 }}
+              position={{ x: el.x, y: el.y }}
+              onDragStop={(e, d) => updateElement(el.id, { x: d.x, y: d.y })}
+              onResizeStop={(e, direction, ref, delta, position) => {
+                updateElement(el.id, { x: position.x, y: position.y });
               }}
             >
-              ×
-            </button>
-          </Rnd>
-        ))}
+              <div
+                style={{
+                  fontSize: el.fontSize,
+                  color: el.color,
+                  cursor: "move",
+                  userSelect: "none",
+                }}
+                onDoubleClick={() => generateAIText(el.id)}
+              >
+                {el.text}
+              </div>
+            </Rnd>
+          ) : (
+            <Rnd
+              key={el.id}
+              size={{ width: el.width, height: el.height }}
+              position={{ x: el.x, y: el.y }}
+              onDragStop={(e, d) => updateElement(el.id, { x: d.x, y: d.y })}
+              onResizeStop={(e, direction, ref, delta, position) => {
+                updateElement(el.id, {
+                  x: position.x,
+                  y: position.y,
+                  width: ref.offsetWidth,
+                  height: ref.offsetHeight,
+                });
+              }}
+            >
+              <img
+                src={el.src}
+                style={{ width: "100%", height: "100%", objectFit: "contain" }}
+              />
+            </Rnd>
+          )
+        )}
+      </div>
+
+      {/* EXPORT BUTTONS */}
+      <div>
+        <button
+          onClick={exportPNG}
+          style={{ padding: 10, marginRight: 10, cursor: "pointer" }}
+        >
+          Export PNG
+        </button>
+        <button
+          onClick={exportPDF}
+          style={{ padding: 10, cursor: "pointer" }}
+        >
+          Export PDF
+        </button>
       </div>
     </div>
   );
