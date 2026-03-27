@@ -54,7 +54,7 @@ export default function Footer() {
           <a href="https://facebook.com" target="_blank" rel="noopener noreferrer">
             <img src="/icons/facebook.svg" alt="Facebook" width={24} height={24} />
           </a>
-          <a href="https://instagram.com" target="_blank" rel="noopener noreferrer">
+          <a href="https://instagram.com/native_foodstore" target="_blank" rel="noopener noreferrer">
             <img src="/icons/instagram.svg" alt="Instagram" width={24} height={24} />
           </a>
           <a href="https://twitter.com" target="_blank" rel="noopener noreferrer">
