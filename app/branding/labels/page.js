@@ -8,19 +8,16 @@ export default function LabelsPage() {
   const [labels, setLabels] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  /* ================= FETCH LABELS ================= */
   const fetchLabels = async () => {
     try {
-      const res = await fetch("/api/branding/labels");
-      const data = await res.json();
-      if (data.success) setLabels(data.labels);
+      const res = await axios.get("/api/branding/labels");
+      if (res.data.success) setLabels(res.data.labels);
     } catch (err) {
       console.error("Fetch Labels Error:", err);
     }
     setLoading(false);
   };
 
-  /* ================= DELETE LABEL ================= */
   const deleteLabel = async (id) => {
     if (!confirm("Delete this label?")) return;
     try {
@@ -63,10 +60,10 @@ export default function LabelsPage() {
             <h3>{label.name} ({label.sku})</h3>
             <p>Size: {label.size}, Quality: {label.quality}</p>
             <p>Price: ₹{label.price}</p>
-
             <p>
               Nutrition: Calories {label.nutrition?.calories || "-"}, Protein {label.nutrition?.protein || "-"}, Fat {label.nutrition?.fat || "-"}, Carbs {label.nutrition?.carbs || "-"}
             </p>
+            <p>{label.description}</p>
 
             <div style={{ marginTop: 10, display: "flex", gap: 10 }}>
               <button
@@ -80,12 +77,6 @@ export default function LabelsPage() {
                 style={{ color: "#2563eb" }}
               >
                 Edit
-              </Link>
-              <Link
-                href={`/branding/labels/ai/${label._id}`}
-                style={{ color: "#16a34a" }}
-              >
-                AI Enhance
               </Link>
             </div>
           </div>
