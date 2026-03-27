@@ -48,6 +48,7 @@ export default function Navbar() {
 
   /* ================= ROUTE DETECTION ================= */
   const isAdminArea = pathname.startsWith("/admin");
+  const isBrandingArea = pathname.startsWith("/branding");
 
   /* ================= LINKS ================= */
   const publicLinks = ["Home", "Products", "Track Order", "Blog"];
@@ -62,8 +63,8 @@ export default function Navbar() {
           <img src="/logo.png" alt="Logo" style={logo} />
         </Link>
 
-        {/* SEARCH (HIDE IN ADMIN) */}
-        {!isAdminArea && (
+        {/* SEARCH (HIDE IN ADMIN/BRANDING) */}
+        {!isAdminArea && !isBrandingArea && (
           <form onSubmit={handleSearch} style={{ display: "flex" }}>
             <input
               type="text"
@@ -90,6 +91,7 @@ export default function Navbar() {
 
           {/* ================= PUBLIC LINKS ================= */}
           {!isAdminArea &&
+            !isBrandingArea &&
             publicLinks.map((link, i) => (
               <Link
                 key={i}
@@ -107,7 +109,7 @@ export default function Navbar() {
             ))}
 
           {/* ================= CART ================= */}
-          {!isAdminArea && (
+          {!isAdminArea && !isBrandingArea && (
             <div onClick={openCart} style={cartBox}>
               🛒
               {cart.length > 0 && (
@@ -144,7 +146,7 @@ export default function Navbar() {
                 </Link>
               )}
 
-               {user.role === "branding" && (
+              {user.role === "branding" && (
                 <Link href="/branding/dashboard" style={roleLink}>
                   Branding Dashboard
                 </Link>
