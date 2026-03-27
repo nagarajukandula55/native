@@ -55,17 +55,18 @@ export default function LoginPage() {
       setSuccess(true);
 
       // ✅ Redirect after animation
-      setTimeout(() => {
-        if (role === "admin") {
-          window.location.href = "/admin";
-        } else if (role === "store") {
-          window.location.href = "/admin/store/dashboard";
-        } else if (role === "branding") {
-          window.location.href = "/branding/dashboard";
-        } else {
-          window.location.href = "/account";
-        }
-      }, 1200);
+      // After successful login in handleLogin
+        setTimeout(() => {
+          if (role === "admin") {
+            window.location.href = "/admin";
+          } else if (role === "store") {
+            window.location.href = "/admin/store/dashboard";
+          } else if (role === "branding") {
+            window.location.href = "/branding"; // NEW
+          } else {
+            window.location.href = "/account";
+          }
+        }, 1200);
 
     } catch (err) {
       console.error(err);
