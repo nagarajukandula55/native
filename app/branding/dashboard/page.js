@@ -1,85 +1,49 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
-import LabelsPage from "../labels/page";
-import NutritionCalculatorPage from "../nutrition-calculator/page";
-import SocialPostsPage from "../social-posts/page";
-import AssetsPage from "../assets/page";
 
 export default function BrandingDashboard() {
-  const [activeModule, setActiveModule] = useState("labels");
+  const [active, setActive] = useState("labels");
 
-  const renderModule = () => {
-    switch (activeModule) {
-      case "labels":
-        return <LabelsPage />;
-      case "nutrition":
-        return <NutritionCalculatorPage />;
-      case "social":
-        return <SocialPostsPage />;
-      case "assets":
-        return <AssetsPage />;
-      default:
-        return <LabelsPage />;
-    }
-  };
+  const menu = [
+    { name: "Labels", key: "labels", href: "/branding/labels" },
+    { name: "Nutrition / Pricing", key: "nutrition", href: "/branding/nutrition-calculator" },
+    { name: "Social Media Posts", key: "social", href: "/branding/social-posts" },
+    { name: "Assets", key: "assets", href: "/branding/assets" },
+  ];
 
   return (
-    <div style={container}>
-      <aside style={sidebar}>
-        <h2>Branding Dashboard</h2>
-        <nav>
-          <button style={sidebarBtn} onClick={() => setActiveModule("labels")}>
-            Labels
-          </button>
-          <button style={sidebarBtn} onClick={() => setActiveModule("nutrition")}>
-            Nutrition Calculator
-          </button>
-          <button style={sidebarBtn} onClick={() => setActiveModule("social")}>
-            Social Posts
-          </button>
-          <button style={sidebarBtn} onClick={() => setActiveModule("assets")}>
-            Assets & Templates
-          </button>
-        </nav>
-      </aside>
+    <div style={{ display: "flex", minHeight: "100vh" }}>
+      {/* Sidebar */}
+      <div style={sidebar}>
+        {menu.map((item) => (
+          <Link key={item.key} href={item.href} style={link(active === item.key)}>
+            {item.name}
+          </Link>
+        ))}
+      </div>
 
-      <main style={main}>{renderModule()}</main>
+      {/* Main Content */}
+      <div style={{ flex: 1, padding: 20 }}>
+        <h1>Branding Dashboard</h1>
+        <p>Use the sidebar to navigate modules.</p>
+      </div>
     </div>
   );
 }
 
-/* ===== STYLES ===== */
-const container = {
-  display: "flex",
-  minHeight: "100vh",
-  fontFamily: "sans-serif",
-};
-
 const sidebar = {
-  width: "250px",
-  background: "#111",
-  color: "#fff",
-  padding: "20px",
+  width: "220px",
+  borderRight: "1px solid #ddd",
   display: "flex",
   flexDirection: "column",
-  gap: "10px",
+  padding: 20,
 };
 
-const sidebarBtn = {
-  width: "100%",
-  padding: "10px",
-  marginTop: "5px",
-  border: "none",
-  background: "#2563eb",
-  color: "#fff",
-  cursor: "pointer",
-  textAlign: "left",
-  borderRadius: "6px",
-};
-
-const main = {
-  flex: 1,
-  padding: "30px",
-  background: "#f9f9f9",
-};
+const link = (active) => ({
+  marginBottom: 10,
+  color: active ? "#2563eb" : "#333",
+  textDecoration: "none",
+  fontWeight: active ? 600 : 400,
+});
