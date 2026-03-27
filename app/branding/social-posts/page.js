@@ -2,34 +2,35 @@
 
 import { useState } from "react";
 
-export default function SocialPostsPage() {
-  const [prompt, setPrompt] = useState("");
-  const [posts, setPosts] = useState([]);
+export default function SocialPosts() {
+  const [product, setProduct] = useState("");
+  const [caption, setCaption] = useState("");
+  const [hashtags, setHashtags] = useState("");
+  const [generated, setGenerated] = useState("");
 
   const generatePost = async () => {
-    if (!prompt) return alert("Enter product details or idea");
-
-    // 🔹 Call your AI API here (OpenAI, etc.)
-    const res = await fetch("/api/branding/generate-social", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt }),
-    });
-    const data = await res.json();
-    if (data.success) setPosts([data.post, ...posts]);
+    // Example: can integrate OpenAI GPT for AI captions
+    const text = `Check out our new product: ${product}! ${caption} #${hashtags.replace(/,/g, " #")}`;
+    setGenerated(text);
   };
 
   return (
-    <div>
+    <div style={{ padding: 20 }}>
       <h1>Social Media Post Generator</h1>
-      <input value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Enter product description..." style={{ width: "100%", padding: 8 }} />
-      <button onClick={generatePost} style={{ marginTop: 10, padding: 10, background: "#2563eb", color: "#fff" }}>Generate Post</button>
-
-      {posts.map((post, i) => (
-        <div key={i} style={{ border: "1px solid #ddd", marginTop: 10, padding: 10 }}>
-          <p>{post}</p>
-        </div>
-      ))}
+      <div style={{ display: "grid", gap: 10, maxWidth: 500 }}>
+        <input placeholder="Product Name" value={product} onChange={(e) => setProduct(e.target.value)} />
+        <input placeholder="Caption / Description" value={caption} onChange={(e) => setCaption(e.target.value)} />
+        <input placeholder="Hashtags (comma separated)" value={hashtags} onChange={(e) => setHashtags(e.target.value)} />
+        <button onClick={generatePost} style={{ padding: "8px 16px", background: "#2563eb", color: "#fff", border: "none", borderRadius: 6 }}>
+          Generate Post
+        </button>
+        {generated && (
+          <div style={{ marginTop: 10, padding: 10, border: "1px solid #ddd", borderRadius: 6, background: "#fff" }}>
+            <h3>Generated Post</h3>
+            <p>{generated}</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
