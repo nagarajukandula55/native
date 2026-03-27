@@ -1,6 +1,5 @@
 "use client";
 
-import jsPDF from "jspdf";
 import { useState } from "react";
 
 export default function ExportLabel() {
