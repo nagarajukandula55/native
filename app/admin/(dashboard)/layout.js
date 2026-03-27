@@ -13,8 +13,9 @@ export default function AdminLayout({ children }) {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    if (decoded.role !== "admin") {
-      redirect("/login");
+    /* 🔥 ALLOW BOTH ADMIN + STORE */
+    if (decoded.role !== "admin" && decoded.role !== "store") {
+      redirect("/");
     }
 
   } catch (err) {
