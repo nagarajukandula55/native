@@ -9,7 +9,6 @@ export function middleware(req) {
   /* ================= AUTH PAGES ================= */
   if (pathname.startsWith("/login") || pathname.startsWith("/signup")) {
     if (token) {
-      // already logged in → redirect based on role
       try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         if (decoded.role === "branding") url.pathname = "/branding/dashboard";
@@ -38,12 +37,14 @@ export function middleware(req) {
 
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+      // Only allow branding role
       if (decoded.role !== "branding") {
         url.pathname = "/unauthorized";
         return NextResponse.redirect(url);
       }
 
-      // Default redirect for /branding → /branding/dashboard
+      // Only redirect /branding → /branding/dashboard once
       if (pathname === "/branding") {
         url.pathname = "/branding/dashboard";
         return NextResponse.redirect(url);
@@ -76,7 +77,7 @@ export const config = {
     "/account/:path*",
     "/login",
     "/signup",
-    "/branding/:path*",
-    "/branding", // redirect /branding → /branding/dashboard
+    "/branding/:path*",   // includes /branding/dashboard
+    "/branding",          // catch /branding for redirect
   ],
 };
