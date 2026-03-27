@@ -1,143 +1,177 @@
 "use client";
 
-import { useRef, useState } from "react";
-import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
+import { useState } from "react";
+import { Rnd } from "react-rnd";
 import { QRCodeCanvas } from "qrcode.react";
 
-export default function LabelSystem() {
-  const frontRef = useRef(null);
-  const backRef = useRef(null);
+export default function LabelBuilder() {
+  const [elements, setElements] = useState([
+    {
+      id: "title",
+      text: "Dosa Mix",
+      x: 150,
+      y: 200,
+      width: 200,
+      height: 40,
+      fontSize: 28,
+      color: "#fff",
+    },
+    {
+      id: "tagline",
+      text: "100% Natural - No Preservatives",
+      x: 140,
+      y: 250,
+      width: 260,
+      height: 30,
+      fontSize: 14,
+      color: "#eee",
+    },
+  ]);
 
-  const [form, setForm] = useState({
-    name: "",
-    tagline: "",
-    netWeight: "",
-    price: "",
-    ingredients: "",
-    fssai: "",
-    manufacturer: "",
-    expiry: "",
-    calories: "",
-    protein: "",
-    fat: "",
-    carbs: "",
-    logo: "/logo.png",
-  });
-
-  /* ================= PDF EXPORT (FIXED) ================= */
-  const exportPDF = async () => {
-    const pdf = new jsPDF("p", "mm", "a4");
-
-    const frontCanvas = await html2canvas(frontRef.current);
-    const frontImg = frontCanvas.toDataURL("image/png");
-
-    const backCanvas = await html2canvas(backRef.current);
-    const backImg = backCanvas.toDataURL("image/png");
-
-    // Front page
-    pdf.addImage(frontImg, "PNG", 10, 10, 180, 100);
-
-    // Back page
-    pdf.addPage();
-    pdf.addImage(backImg, "PNG", 10, 10, 180, 150);
-
-    pdf.save(`${form.name || "label"}.pdf`);
+  const updateElement = (id, newProps) => {
+    setElements(prev =>
+      prev.map(el => (el.id === id ? { ...el, ...newProps } : el))
+    );
   };
 
   return (
     <div style={{ padding: 20 }}>
-      <h1>Professional Label Generator</h1>
-
-      {/* ================= FORM ================= */}
-      <div style={{ marginBottom: 20 }}>
-        <input placeholder="Product Name" onChange={e => setForm({ ...form, name: e.target.value })} style={input}/>
-        <input placeholder="Tagline" onChange={e => setForm({ ...form, tagline: e.target.value })} style={input}/>
-        <input placeholder="Net Weight (500g)" onChange={e => setForm({ ...form, netWeight: e.target.value })} style={input}/>
-        <input placeholder="MRP ₹" onChange={e => setForm({ ...form, price: e.target.value })} style={input}/>
-        <input placeholder="Ingredients" onChange={e => setForm({ ...form, ingredients: e.target.value })} style={input}/>
-        <input placeholder="FSSAI License" onChange={e => setForm({ ...form, fssai: e.target.value })} style={input}/>
-        <input placeholder="Manufacturer Details" onChange={e => setForm({ ...form, manufacturer: e.target.value })} style={input}/>
-        <input placeholder="Expiry Date" onChange={e => setForm({ ...form, expiry: e.target.value })} style={input}/>
-
-        <h4>Nutrition</h4>
-        <input placeholder="Calories" onChange={e => setForm({ ...form, calories: e.target.value })} style={input}/>
-        <input placeholder="Protein" onChange={e => setForm({ ...form, protein: e.target.value })} style={input}/>
-        <input placeholder="Fat" onChange={e => setForm({ ...form, fat: e.target.value })} style={input}/>
-        <input placeholder="Carbs" onChange={e => setForm({ ...form, carbs: e.target.value })} style={input}/>
-      </div>
+      <h1>Premium Label Builder</h1>
 
       {/* ================= FRONT LABEL ================= */}
-      <h2>Front Label</h2>
-      <div ref={frontRef} style={frontStyle}>
-        <img src={form.logo} style={{ height: 50 }} />
+      <div style={canvas}>
 
-        <h1>{form.name || "Product Name"}</h1>
-        <p>{form.tagline || "Tagline here"}</p>
+        {/* Background */}
+        <div style={background}></div>
 
-        <p><b>Net Weight:</b> {form.netWeight}</p>
-        <p><b>MRP:</b> ₹{form.price}</p>
+        {/* Logo Badge */}
+        <div style={badge}>
+          <img src="/logo.png" style={{ width: 120 }} />
+        </div>
+
+        {/* Product Image */}
+        <img
+          src="/dosa.png"
+          style={productImage}
+        />
+
+        {/* Veg Icon */}
+        <div style={veg}></div>
+
+        {/* Editable Elements */}
+        {elements.map(el => (
+          <Rnd
+            key={el.id}
+            size={{ width: el.width, height: el.height }}
+            position={{ x: el.x, y: el.y }}
+            onDragStop={(e, d) => updateElement(el.id, { x: d.x, y: d.y })}
+            onResizeStop={(e, dir, ref, delta, pos) =>
+              updateElement(el.id, {
+                width: parseInt(ref.style.width),
+                height: parseInt(ref.style.height),
+                ...pos,
+              })
+            }
+          >
+            <div
+              contentEditable
+              suppressContentEditableWarning
+              onBlur={(e) => updateElement(el.id, { text: e.target.innerText })}
+              style={{
+                color: el.color,
+                fontSize: el.fontSize,
+                textAlign: "center",
+                cursor: "move",
+              }}
+            >
+              {el.text}
+            </div>
+          </Rnd>
+        ))}
       </div>
 
       {/* ================= BACK LABEL ================= */}
-      <h2>Back Label</h2>
-      <div ref={backRef} style={backStyle}>
+      <h2 style={{ marginTop: 40 }}>Back Label</h2>
+
+      <div style={backLabel}>
         <h3>Ingredients</h3>
-        <p>{form.ingredients}</p>
+        <p>Rice Flour, Urad Dal, Salt</p>
 
         <h3>Nutrition Facts</h3>
         <table style={table}>
           <tbody>
-            <tr><td>Calories</td><td>{form.calories}</td></tr>
-            <tr><td>Protein</td><td>{form.protein}</td></tr>
-            <tr><td>Fat</td><td>{form.fat}</td></tr>
-            <tr><td>Carbohydrates</td><td>{form.carbs}</td></tr>
+            <tr><td>Calories</td><td>120 kcal</td></tr>
+            <tr><td>Protein</td><td>4g</td></tr>
+            <tr><td>Fat</td><td>2g</td></tr>
+            <tr><td>Carbs</td><td>22g</td></tr>
           </tbody>
         </table>
 
-        <p><b>FSSAI:</b> {form.fssai}</p>
-        <p><b>Manufacturer:</b> {form.manufacturer}</p>
-        <p><b>Expiry:</b> {form.expiry}</p>
+        <p><b>FSSAI:</b> 1234567890</p>
+        <p><b>Manufacturer:</b> Native Foods Pvt Ltd</p>
+        <p><b>Expiry:</b> 6 Months</p>
 
-        <div style={{ marginTop: 10 }}>
-          <QRCodeCanvas value={form.name || "product"} size={80} />
-        </div>
+        <QRCodeCanvas value="Native Dosa Mix" size={80} />
       </div>
-
-      {/* ================= BUTTON ================= */}
-      <button onClick={exportPDF} style={btn}>Download PDF</button>
     </div>
   );
 }
 
 /* ================= STYLES ================= */
 
-const input = { display: "block", marginBottom: 6, padding: 6, width: 300 };
-
-const frontStyle = {
-  width: 350,
-  height: 220,
-  border: "1px solid #000",
-  padding: 10,
-  background: "#fff",
-  marginBottom: 20
+const canvas = {
+  width: 400,
+  height: 600,
+  position: "relative",
+  borderRadius: 30,
+  overflow: "hidden",
+  background: "#3b2415",
 };
 
-const backStyle = {
-  width: 350,
-  border: "1px solid #000",
+const background = {
+  position: "absolute",
+  width: "100%",
+  height: "60%",
+  background: "#e8dccb",
+  borderBottomLeftRadius: "50%",
+  borderBottomRightRadius: "50%",
+};
+
+const badge = {
+  position: "absolute",
+  top: 40,
+  left: "50%",
+  transform: "translateX(-50%)",
+  background: "#fff",
   padding: 10,
-  background: "#fff"
+  borderRadius: "50%",
+};
+
+const productImage = {
+  position: "absolute",
+  bottom: 0,
+  width: "100%",
+};
+
+const veg = {
+  position: "absolute",
+  bottom: 20,
+  right: 20,
+  width: 20,
+  height: 20,
+  border: "2px solid green",
+  background: "green",
+};
+
+const backLabel = {
+  width: 400,
+  padding: 20,
+  border: "1px solid #000",
+  marginTop: 20,
+  background: "#fff",
 };
 
 const table = {
   width: "100%",
   border: "1px solid #000",
-  marginTop: 10
-};
-
-const btn = {
-  padding: "10px 20px",
-  marginTop: 20,
-  cursor: "pointer"
 };
