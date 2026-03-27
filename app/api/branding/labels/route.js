@@ -19,8 +19,32 @@ export async function POST(req) {
   try {
     await connectDB();
     const data = await req.json();
+
+    // 🔹 AUTO GENERATE SKU
+    if (!data.sku) {
+      const ts = Date.now().toString().slice(-5);
+      const namePart = data.name ? data.name.replace(/\s+/g, "").toUpperCase().slice(0, 3) : "LBL";
+      data.sku = `${namePart}-${ts}`;
+    }
+
+    // 🔹 AUTO PRICE SUGGESTION
+    if (!data.price) {
+      let base = 50; // default base
+      if (data.size?.toLowerCase().includes("large")) base += 30;
+      if (data.quality?.toLowerCase().includes("premium")) base += 50;
+      data.price = base;
+    }
+
+    // 🔹 DEFAULT NUTRITION IF EMPTY
+    data.nutrition = data.nutrition || {};
+    data.nutrition.calories = data.nutrition.calories || 100;
+    data.nutrition.protein = data.nutrition.protein || 5;
+    data.nutrition.fat = data.nutrition.fat || 3;
+    data.nutrition.carbs = data.nutrition.carbs || 15;
+
     const label = await Label.create(data);
     return NextResponse.json({ success: true, label });
+
   } catch (error) {
     return NextResponse.json({ success: false, msg: error.message }, { status: 500 });
   }
