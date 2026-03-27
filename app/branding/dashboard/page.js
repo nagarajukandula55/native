@@ -1,27 +1,15 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { jsPDF } from "jspdf";
-import QRCode from "qrcode.react";
+import { useEffect, useState, useRef } from "react";
+import jsPDF from "jspdf";
 import { useReactToPrint } from "react-to-print";
 
 export default function BrandingDashboard() {
   const [labels, setLabels] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [newLabel, setNewLabel] = useState({
-    name: "",
-    sku: "",
-    size: "",
-    quality: "",
-    price: 0,
-    nutrition: { calories: 0, protein: 0, fat: 0, carbs: 0 },
-  });
-  const [logo, setLogo] = useState(null);
-  const [socialText, setSocialText] = useState("");
-
+  const [logoUrl, setLogoUrl] = useState("");
   const printRef = useRef();
 
-  /* ================= FETCH EXISTING LABELS ================= */
   const fetchLabels = async () => {
     const res = await fetch("/api/branding/labels");
     const data = await res.json();
@@ -31,28 +19,6 @@ export default function BrandingDashboard() {
 
   useEffect(() => { fetchLabels(); }, []);
 
-  /* ================= CREATE NEW LABEL ================= */
-  const createLabel = async () => {
-    const res = await fetch("/api/branding/labels", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(newLabel),
-    });
-    const data = await res.json();
-    if (data.success) {
-      fetchLabels();
-      setNewLabel({
-        name: "",
-        sku: "",
-        size: "",
-        quality: "",
-        price: 0,
-        nutrition: { calories: 0, protein: 0, fat: 0, carbs: 0 },
-      });
-    }
-  };
-
-  /* ================= DELETE LABEL ================= */
   const deleteLabel = async (id) => {
     if (!confirm("Delete this label?")) return;
     await fetch("/api/branding/labels", {
@@ -63,77 +29,58 @@ export default function BrandingDashboard() {
     fetchLabels();
   };
 
-  /* ================= PDF & PRINT ================= */
-  const handlePrint = useReactToPrint({
-    content: () => printRef.current,
-  });
+  const handlePrint = useReactToPrint({ content: () => printRef.current });
 
-  const generatePDF = () => {
-    const doc = new jsPDF();
-    doc.text("Product Label", 10, 10);
-    labels.forEach((label, i) => {
-      doc.text(`${label.name} (${label.sku}) - ₹${label.price}`, 10, 20 + i * 10);
-    });
-    doc.save("labels.pdf");
-  };
-
-  /* ================= UI ================= */
   if (loading) return <p>Loading...</p>;
 
   return (
     <div style={{ padding: 20 }}>
-      <h1 style={{ fontSize: 24, marginBottom: 20 }}>Branding Dashboard</h1>
+      <h1>Branding Dashboard</h1>
 
-      {/* 🔹 Upload Logo */}
+      {/* Logo Upload */}
       <div style={{ marginBottom: 20 }}>
         <h3>Upload Logo</h3>
-        <input type="file" onChange={(e) => setLogo(e.target.files[0])} />
-        {logo && <p>Uploaded: {logo.name}</p>}
+        <input
+          type="file"
+          accept="image/*"
+          onChange={(e) => {
+            const file = e.target.files[0];
+            setLogoUrl(URL.createObjectURL(file));
+          }}
+        />
+        {logoUrl && <img src={logoUrl} alt="Logo" style={{ maxHeight: 80, marginTop: 10 }} />}
       </div>
 
-      {/* 🔹 Create Label */}
-      <div style={{ marginBottom: 20, border: "1px solid #ddd", padding: 15 }}>
-        <h3>Create New Label</h3>
-        <input placeholder="Product Name" value={newLabel.name} onChange={(e) => setNewLabel({ ...newLabel, name: e.target.value })} />
-        <input placeholder="SKU" value={newLabel.sku} onChange={(e) => setNewLabel({ ...newLabel, sku: e.target.value })} />
-        <input placeholder="Size" value={newLabel.size} onChange={(e) => setNewLabel({ ...newLabel, size: e.target.value })} />
-        <input placeholder="Quality" value={newLabel.quality} onChange={(e) => setNewLabel({ ...newLabel, quality: e.target.value })} />
-        <input type="number" placeholder="Price" value={newLabel.price} onChange={(e) => setNewLabel({ ...newLabel, price: Number(e.target.value) })} />
-        <h4>Nutrition</h4>
-        <input type="number" placeholder="Calories" value={newLabel.nutrition.calories} onChange={(e) => setNewLabel({ ...newLabel, nutrition: { ...newLabel.nutrition, calories: Number(e.target.value) } })} />
-        <input type="number" placeholder="Protein" value={newLabel.nutrition.protein} onChange={(e) => setNewLabel({ ...newLabel, nutrition: { ...newLabel.nutrition, protein: Number(e.target.value) } })} />
-        <input type="number" placeholder="Fat" value={newLabel.nutrition.fat} onChange={(e) => setNewLabel({ ...newLabel, nutrition: { ...newLabel.nutrition, fat: Number(e.target.value) } })} />
-        <input type="number" placeholder="Carbs" value={newLabel.nutrition.carbs} onChange={(e) => setNewLabel({ ...newLabel, nutrition: { ...newLabel.nutrition, carbs: Number(e.target.value) } })} />
-        <button onClick={createLabel} style={{ marginTop: 10 }}>Create Label</button>
-      </div>
+      {/* Create Label Link */}
+      <a
+        href="/branding/labels/create"
+        style={{ marginBottom: 10, display: "inline-block", color: "#2563eb" }}
+      >
+        + Create Label
+      </a>
 
-      {/* 🔹 Social Media Post */}
-      <div style={{ marginBottom: 20 }}>
-        <h3>Generate Social Media Post</h3>
-        <textarea placeholder="Write your post..." value={socialText} onChange={(e) => setSocialText(e.target.value)} rows={3} style={{ width: "100%", marginBottom: 10 }} />
-        <div style={{ border: "1px solid #ddd", padding: 10 }}>
-          {logo && <img src={URL.createObjectURL(logo)} alt="logo" width={50} />}
-          <p>{socialText}</p>
-        </div>
-      </div>
-
-      {/* 🔹 Labels Preview & Actions */}
-      <div ref={printRef} style={{ border: "1px solid #000", padding: 10 }}>
+      <div ref={printRef}>
         {labels.map((label) => (
-          <div key={label._id} style={{ border: "1px solid #ddd", marginBottom: 10, padding: 5 }}>
-            <h4>{label.name} ({label.sku}) - ₹{label.price}</h4>
+          <div key={label._id} style={{ border: "1px solid #ddd", padding: 10, marginBottom: 10 }}>
+            {logoUrl && <img src={logoUrl} alt="Logo" style={{ maxHeight: 50 }} />}
+            <h3>{label.name} ({label.sku})</h3>
             <p>Size: {label.size}, Quality: {label.quality}</p>
-            <p>Calories: {label.nutrition.calories}, Protein: {label.nutrition.protein}, Fat: {label.nutrition.fat}, Carbs: {label.nutrition.carbs}</p>
-            <QRCode value={label.sku} size={64} />
-            <button onClick={() => deleteLabel(label._id)} style={{ color: "red", marginTop: 5 }}>Delete</button>
+            <p>Price: ₹{label.price}</p>
+            <p>
+              Nutrition: Calories {label.nutrition?.calories}, Protein {label.nutrition?.protein}, Fat {label.nutrition?.fat}, Carbs {label.nutrition?.carbs}
+            </p>
+            <button onClick={() => deleteLabel(label._id)} style={{ color: "red", marginRight: 10 }}>Delete</button>
+            <a href={`/branding/labels/edit/${label._id}`} style={{ color: "blue" }}>Edit</a>
           </div>
         ))}
       </div>
 
-      <div style={{ marginTop: 20 }}>
-        <button onClick={handlePrint} style={{ marginRight: 10 }}>Print Labels</button>
-        <button onClick={generatePDF}>Download PDF</button>
-      </div>
+      <button
+        onClick={handlePrint}
+        style={{ marginTop: 20, background: "#111", color: "#fff", padding: 10, borderRadius: 6 }}
+      >
+        Print / PDF Export
+      </button>
     </div>
   );
 }
