@@ -1,78 +1,64 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import LabelsPage from "./labels/page";
-import NutritionCalculator from "./nutrition-calculator/page";
-import SocialPosts from "./social-posts/page";
-import AssetsManager from "./assets/page";
+import Link from "next/link";
+
+// Import your modules (placeholders or actual implementations)
+import LabelsPage from "../labels/page";
+import NutritionCalculatorPage from "../nutrition-calculator/page";
+import SocialPostsPage from "../social-posts/page";
+import AssetsPage from "../assets/page";
 
 export default function BrandingDashboard() {
-  const [tab, setTab] = useState("labels");
-
   return (
-    <div style={{ padding: 20 }}>
+    <div style={container}>
       <h1>Branding Dashboard</h1>
+      <p>Manage everything about your brand, labels, nutrition, pricing, and social posts from here.</p>
 
-      <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
-        <button onClick={() => setTab("labels")}>Labels</button>
-        <button onClick={() => setTab("nutrition")}>Nutrition</button>
-        <button onClick={() => setTab("pricing")}>Pricing Calculator</button>
-        <button onClick={() => setTab("social")}>Social Media Posts</button>
-        <button onClick={() => setTab("assets")}>Assets / Logos</button>
+      <div style={section}>
+        <h2>Labels</h2>
+        <LabelsPage />
+        <Link href="/branding/labels/create" style={button}>+ Create New Label</Link>
       </div>
 
-      <div style={{ border: "1px solid #ddd", padding: 20 }}>
-        {tab === "labels" && <LabelsPage />}
-        {tab === "nutrition" && <NutritionCalculator />}
-        {tab === "pricing" && <PricingCalculator />}
-        {tab === "social" && <SocialPosts />}
-        {tab === "assets" && <AssetsManager />}
+      <div style={section}>
+        <h2>Nutrition Calculator</h2>
+        <NutritionCalculatorPage />
+      </div>
+
+      <div style={section}>
+        <h2>Social Media Posts</h2>
+        <SocialPostsPage />
+      </div>
+
+      <div style={section}>
+        <h2>Assets & Templates</h2>
+        <AssetsPage />
       </div>
     </div>
   );
 }
 
-/* ================= PRICING CALCULATOR COMPONENT ================= */
+/* ===== STYLES ===== */
+const container = {
+  padding: "30px",
+  maxWidth: "1200px",
+  margin: "0 auto",
+  fontFamily: "sans-serif",
+};
 
-function PricingCalculator() {
-  const [params, setParams] = useState({
-    rawMaterial: 0,
-    labor: 0,
-    packaging: 0,
-    marketing: 0,
-    transport: 0,
-    taxes: 0,
-    misc: 0,
-  });
-  const [total, setTotal] = useState(0);
+const section = {
+  marginTop: "40px",
+  padding: "20px",
+  border: "1px solid #ddd",
+  borderRadius: "10px",
+};
 
-  const calculatePrice = () => {
-    const sum = Object.values(params).reduce((a, b) => parseFloat(a) + parseFloat(b), 0);
-    setTotal(sum);
-  };
-
-  return (
-    <div>
-      <h2>Full Pricing Calculator</h2>
-
-      {Object.keys(params).map((key) => (
-        <div key={key} style={{ marginBottom: 10 }}>
-          <label style={{ marginRight: 10 }}>{key}:</label>
-          <input
-            type="number"
-            value={params[key]}
-            onChange={(e) => setParams({ ...params, [key]: e.target.value })}
-          />
-        </div>
-      ))}
-
-      <button onClick={calculatePrice} style={{ marginTop: 10 }}>Calculate Total Price</button>
-
-      {total > 0 && (
-        <div style={{ marginTop: 20 }}>
-          <h3>Final Price: ₹{total.toFixed(2)}</h3>
-        </div>
-      )}
-    </div>
-  );
-}
+const button = {
+  display: "inline-block",
+  marginTop: "10px",
+  padding: "8px 16px",
+  background: "#2563eb",
+  color: "#fff",
+  borderRadius: "6px",
+  textDecoration: "none",
+};
