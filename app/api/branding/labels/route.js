@@ -8,7 +8,8 @@ export async function GET() {
     const labels = await Label.find().sort({ createdAt: -1 });
     return NextResponse.json({ success: true, labels });
   } catch (err) {
-    return NextResponse.json({ success: false, msg: err.message });
+    console.error(err);
+    return NextResponse.json({ success: false, msg: err.message }, { status: 500 });
   }
 }
 
@@ -16,19 +17,23 @@ export async function POST(req) {
   try {
     await connectDB();
     const data = await req.json();
-    if (!data.name) return NextResponse.json({ success: false, msg: "Name required" });
-
-    // create new or update existing
-    let label;
-    if (data._id) {
-      label = await Label.findByIdAndUpdate(data._id, data, { new: true });
-    } else {
-      label = await Label.create(data);
-    }
-
+    const label = await Label.create(data);
     return NextResponse.json({ success: true, label });
   } catch (err) {
-    return NextResponse.json({ success: false, msg: err.message });
+    console.error(err);
+    return NextResponse.json({ success: false, msg: err.message }, { status: 500 });
+  }
+}
+
+export async function PUT(req) {
+  try {
+    await connectDB();
+    const { id, ...updates } = await req.json();
+    const label = await Label.findByIdAndUpdate(id, updates, { new: true });
+    return NextResponse.json({ success: true, label });
+  } catch (err) {
+    console.error(err);
+    return NextResponse.json({ success: false, msg: err.message }, { status: 500 });
   }
 }
 
@@ -39,6 +44,7 @@ export async function DELETE(req) {
     await Label.findByIdAndDelete(id);
     return NextResponse.json({ success: true });
   } catch (err) {
-    return NextResponse.json({ success: false, msg: err.message });
+    console.error(err);
+    return NextResponse.json({ success: false, msg: err.message }, { status: 500 });
   }
 }
