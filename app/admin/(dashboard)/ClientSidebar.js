@@ -3,76 +3,132 @@
 import { useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
+import useAuth from "@/hooks/useAuth";
 
 export default function AdminLayout({ children }) {
   const pathname = usePathname();
+  const { user, loading } = useAuth();
   const [collapsed, setCollapsed] = useState({});
 
   const toggle = (section) => {
     setCollapsed((prev) => ({ ...prev, [section]: !prev[section] }));
   };
 
+  if (loading) return null;
+
   return (
     <div style={wrapper}>
       {/* SIDEBAR */}
       <aside style={sidebar}>
-        <h2 style={{ marginBottom: 30, fontSize: 20 }}>🚀 ADMIN ERP</h2>
+        <h2 style={{ marginBottom: 30, fontSize: 20 }}>
+          🚀 {user?.role === "store" ? "STORE PANEL" : "ADMIN ERP"}
+        </h2>
 
-        {/* COMMERCE */}
-        <Section
-          title="Commerce"
-          collapsed={collapsed.commerce}
-          toggle={() => toggle("commerce")}
-        >
-          <NavLink href="/admin/orders" active={pathname.startsWith("/admin/orders")}>Orders</NavLink>
-          <NavLink href="/admin/products" active={pathname.startsWith("/admin/products")}>Products</NavLink>
-          <NavLink href="/admin/customers" active={pathname.startsWith("/admin/customers")}>Customers</NavLink>
-        </Section>
+        {/* ================= ADMIN VIEW ================= */}
+        {user?.role === "admin" && (
+          <>
+            {/* COMMERCE */}
+            <Section
+              title="Commerce"
+              collapsed={collapsed.commerce}
+              toggle={() => toggle("commerce")}
+            >
+              <NavLink href="/admin/orders" active={pathname.startsWith("/admin/orders")}>
+                Orders
+              </NavLink>
+              <NavLink href="/admin/products" active={pathname.startsWith("/admin/products")}>
+                Products
+              </NavLink>
+              <NavLink href="/admin/customers" active={pathname.startsWith("/admin/customers")}>
+                Customers
+              </NavLink>
+            </Section>
 
-        {/* WAREHOUSE */}
-        <Section
-          title="Warehouse"
-          collapsed={collapsed.warehouse}
-          toggle={() => toggle("warehouse")}
-        >
-          <NavLink href="/admin/warehouses" active={pathname.startsWith("/admin/warehouses")}>Manage Warehouses</NavLink>
-          <NavLink href="/admin/warehouses/create" active={pathname.startsWith("/admin/warehouses/create")}>Create Warehouse</NavLink>
-        </Section>
+            {/* WAREHOUSE */}
+            <Section
+              title="Warehouse"
+              collapsed={collapsed.warehouse}
+              toggle={() => toggle("warehouse")}
+            >
+              <NavLink href="/admin/warehouses" active={pathname.startsWith("/admin/warehouses")}>
+                Manage Warehouses
+              </NavLink>
+              <NavLink href="/admin/warehouses/create" active={pathname.startsWith("/admin/warehouses/create")}>
+                Create Warehouse
+              </NavLink>
+            </Section>
 
-        {/* INVENTORY */}
-        <Section
-          title="Inventory"
-          collapsed={collapsed.inventory}
-          toggle={() => toggle("inventory")}
-        >
-          <NavLink href="/admin/skus" active={pathname.startsWith("/admin/skus")}>SKU Master</NavLink>
-          <NavLink href="/admin/inventory" active={pathname.startsWith("/admin/inventory")}>Stock</NavLink>
-        </Section>
+            {/* INVENTORY */}
+            <Section
+              title="Inventory"
+              collapsed={collapsed.inventory}
+              toggle={() => toggle("inventory")}
+            >
+              <NavLink href="/admin/skus" active={pathname.startsWith("/admin/skus")}>
+                SKU Master
+              </NavLink>
+              <NavLink href="/admin/inventory" active={pathname.startsWith("/admin/inventory")}>
+                Stock
+              </NavLink>
+            </Section>
 
-        {/* REPORTS */}
-        <Section
-          title="Reports"
-          collapsed={collapsed.reports}
-          toggle={() => toggle("reports")}
-        >
-          <NavLink href="/admin/analytics" active={pathname.startsWith("/admin/analytics")}>Analytics</NavLink>
-          <NavLink href="/admin/reports/sales" active={pathname.startsWith("/admin/reports/sales")}>Sales Report</NavLink>
-          <NavLink href="/admin/reports/inventory" active={pathname.startsWith("/admin/reports/inventory")}>Inventory Report</NavLink>
-        </Section>
+            {/* REPORTS */}
+            <Section
+              title="Reports"
+              collapsed={collapsed.reports}
+              toggle={() => toggle("reports")}
+            >
+              <NavLink href="/admin/analytics" active={pathname.startsWith("/admin/analytics")}>
+                Analytics
+              </NavLink>
+              <NavLink href="/admin/reports/sales" active={pathname.startsWith("/admin/reports/sales")}>
+                Sales Report
+              </NavLink>
+              <NavLink href="/admin/reports/inventory" active={pathname.startsWith("/admin/reports/inventory")}>
+                Inventory Report
+              </NavLink>
+            </Section>
 
-        {/* SETTINGS */}
-        <Section
-          title="Settings"
-          collapsed={collapsed.settings}
-          toggle={() => toggle("settings")}
-        >
-          <NavLink href="/admin/settings/general" active={pathname.startsWith("/admin/settings/general")}>General</NavLink>
-          <NavLink href="/admin/settings/payments" active={pathname.startsWith("/admin/settings/payments")}>Payments</NavLink>
-          <NavLink href="/admin/settings/notifications" active={pathname.startsWith("/admin/settings/notifications")}>Notifications</NavLink>
-        </Section>
+            {/* SETTINGS */}
+            <Section
+              title="Settings"
+              collapsed={collapsed.settings}
+              toggle={() => toggle("settings")}
+            >
+              <NavLink href="/admin/settings/general" active={pathname.startsWith("/admin/settings/general")}>
+                General
+              </NavLink>
+              <NavLink href="/admin/settings/payments" active={pathname.startsWith("/admin/settings/payments")}>
+                Payments
+              </NavLink>
+              <NavLink href="/admin/settings/notifications" active={pathname.startsWith("/admin/settings/notifications")}>
+                Notifications
+              </NavLink>
+            </Section>
+          </>
+        )}
 
+        {/* ================= STORE VIEW ================= */}
+        {user?.role === "store" && (
+          <>
+            <Section
+              title="Orders"
+              collapsed={collapsed.storeOrders}
+              toggle={() => toggle("storeOrders")}
+            >
+              <NavLink
+                href="/admin/store/dashboard"
+                active={pathname.startsWith("/admin/store/dashboard")}
+              >
+                My Orders
+              </NavLink>
+            </Section>
+          </>
+        )}
+
+        {/* LOGOUT */}
         <div style={{ marginTop: "auto" }}>
-          <NavLink href="/admin/logout" active={pathname.startsWith("/admin/logout")}>Logout</NavLink>
+          <NavLink href="/login">Logout</NavLink>
         </div>
       </aside>
 
@@ -127,28 +183,21 @@ const wrapper = {
   display: "flex",
   minHeight: "100vh",
   fontFamily: "Inter, Arial",
-  overflow: "hidden",
 };
 
 const sidebar = {
-  width: 280,
+  width: 260,
   background: "#0f172a",
   color: "#fff",
   padding: 25,
   display: "flex",
   flexDirection: "column",
-  position: "sticky",
-  top: 0,
-  height: "100vh",
-  overflowY: "auto",
 };
 
 const content = {
   flex: 1,
   background: "#f1f5f9",
   padding: 30,
-  overflowY: "auto",
-  height: "100vh",
 };
 
 const sectionTitle = {
@@ -164,5 +213,4 @@ const link = {
   textDecoration: "none",
   padding: "8px 12px",
   borderRadius: 6,
-  transition: "all 0.2s",
 };
