@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import Barcode from "react-barcode";
 
 export default function CourierLabel() {
   const params = useParams();
