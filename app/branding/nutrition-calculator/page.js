@@ -2,125 +2,65 @@
 
 import { useState } from "react";
 
-export default function NutritionCalculatorPage() {
+export default function NutritionPricing() {
   const [form, setForm] = useState({
     productName: "",
     rawMaterialCost: 0,
     packagingCost: 0,
     laborCost: 0,
+    marketingCost: 0,
     logisticsCost: 0,
-    taxPercent: 0,
-    profitMarginPercent: 0,
+    gstPercent: 18,
+    nutrition: { calories: 0, protein: 0, fat: 0, carbs: 0 },
   });
 
-  const [calculated, setCalculated] = useState({
-    totalCost: 0,
-    taxAmount: 0,
-    sellingPrice: 0,
-    mrp: 0,
-  });
+  const [finalPrice, setFinalPrice] = useState(0);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setForm({ ...form, [name]: parseFloat(value) || 0 });
+    if (name.startsWith("nutrition.")) {
+      const key = name.split(".")[1];
+      setForm((prev) => ({ ...prev, nutrition: { ...prev.nutrition, [key]: parseFloat(value) || 0 } }));
+    } else {
+      setForm((prev) => ({ ...prev, [name]: parseFloat(value) || value }));
+    }
   };
 
-  const calculatePricing = () => {
-    const totalCost =
-      form.rawMaterialCost +
-      form.packagingCost +
-      form.laborCost +
-      form.logisticsCost;
+  const calculatePrice = () => {
+    const base = parseFloat(form.rawMaterialCost || 0) +
+                 parseFloat(form.packagingCost || 0) +
+                 parseFloat(form.laborCost || 0) +
+                 parseFloat(form.marketingCost || 0) +
+                 parseFloat(form.logisticsCost || 0);
 
-    const taxAmount = (totalCost * form.taxPercent) / 100;
-    const sellingPrice = totalCost + taxAmount;
-    const mrp = sellingPrice + (sellingPrice * form.profitMarginPercent) / 100;
-
-    setCalculated({ totalCost, taxAmount, sellingPrice, mrp });
+    const gst = (base * parseFloat(form.gstPercent)) / 100;
+    setFinalPrice(base + gst);
   };
 
   return (
-    <div>
-      <h2>Pricing & Nutrition Calculator</h2>
+    <div style={{ padding: 20 }}>
+      <h1>Nutrition & Pricing Calculator</h1>
+      <div style={{ display: "grid", gap: 10, maxWidth: 500 }}>
+        <input name="productName" placeholder="Product Name" value={form.productName} onChange={handleChange} />
+        <input type="number" name="rawMaterialCost" placeholder="Raw Material Cost" value={form.rawMaterialCost} onChange={handleChange} />
+        <input type="number" name="packagingCost" placeholder="Packaging Cost" value={form.packagingCost} onChange={handleChange} />
+        <input type="number" name="laborCost" placeholder="Labor Cost" value={form.laborCost} onChange={handleChange} />
+        <input type="number" name="marketingCost" placeholder="Marketing Cost" value={form.marketingCost} onChange={handleChange} />
+        <input type="number" name="logisticsCost" placeholder="Logistics Cost" value={form.logisticsCost} onChange={handleChange} />
+        <input type="number" name="gstPercent" placeholder="GST %" value={form.gstPercent} onChange={handleChange} />
 
-      <div style={formContainer}>
-        <input
-          placeholder="Product Name"
-          name="productName"
-          value={form.productName}
-          onChange={handleChange}
-        />
-        <input
-          type="number"
-          placeholder="Raw Material Cost (₹)"
-          name="rawMaterialCost"
-          value={form.rawMaterialCost}
-          onChange={handleChange}
-        />
-        <input
-          type="number"
-          placeholder="Packaging Cost (₹)"
-          name="packagingCost"
-          value={form.packagingCost}
-          onChange={handleChange}
-        />
-        <input
-          type="number"
-          placeholder="Labor / Production Cost (₹)"
-          name="laborCost"
-          value={form.laborCost}
-          onChange={handleChange}
-        />
-        <input
-          type="number"
-          placeholder="Logistics / Shipping Cost (₹)"
-          name="logisticsCost"
-          value={form.logisticsCost}
-          onChange={handleChange}
-        />
-        <input
-          type="number"
-          placeholder="Tax %"
-          name="taxPercent"
-          value={form.taxPercent}
-          onChange={handleChange}
-        />
-        <input
-          type="number"
-          placeholder="Profit Margin %"
-          name="profitMarginPercent"
-          value={form.profitMarginPercent}
-          onChange={handleChange}
-        />
+        <h3>Nutrition</h3>
+        <input type="number" name="nutrition.calories" placeholder="Calories" value={form.nutrition.calories} onChange={handleChange} />
+        <input type="number" name="nutrition.protein" placeholder="Protein" value={form.nutrition.protein} onChange={handleChange} />
+        <input type="number" name="nutrition.fat" placeholder="Fat" value={form.nutrition.fat} onChange={handleChange} />
+        <input type="number" name="nutrition.carbs" placeholder="Carbs" value={form.nutrition.carbs} onChange={handleChange} />
 
-        <button style={button} onClick={calculatePricing}>
-          Calculate MRP
+        <button onClick={calculatePrice} style={{ padding: "8px 16px", background: "#2563eb", color: "#fff", border: "none", borderRadius: 6 }}>
+          Calculate Final MRP
         </button>
-      </div>
 
-      <div style={{ marginTop: 20 }}>
-        <h3>Calculated Pricing</h3>
-        <p>Total Cost: ₹{calculated.totalCost.toFixed(2)}</p>
-        <p>Tax Amount: ₹{calculated.taxAmount.toFixed(2)}</p>
-        <p>Selling Price (Cost + Tax): ₹{calculated.sellingPrice.toFixed(2)}</p>
-        <p>MRP (with Profit): ₹{calculated.mrp.toFixed(2)}</p>
+        <h2>Final Price: ₹{finalPrice.toFixed(2)}</h2>
       </div>
     </div>
   );
 }
-
-const formContainer = {
-  display: "grid",
-  gap: "10px",
-  maxWidth: "400px",
-};
-
-const button = {
-  marginTop: "10px",
-  padding: "10px",
-  background: "#2563eb",
-  color: "#fff",
-  border: "none",
-  borderRadius: "6px",
-  cursor: "pointer",
-};
