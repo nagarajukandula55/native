@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef, useState } from "react";
-import jsPDF from "jspdf";
 import QRCode from "qrcode.react";
 
 export default function LabelSystem() {
