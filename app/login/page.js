@@ -60,6 +60,8 @@ export default function LoginPage() {
           window.location.href = "/admin";
         } else if (role === "store") {
           window.location.href = "/admin/store/dashboard";
+        } else if (role === "branding") {
+          window.location.href = "/branding/dashboard";
         } else {
           window.location.href = "/account";
         }
