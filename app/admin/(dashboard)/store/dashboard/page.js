@@ -1,23 +1,40 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import useAuth from "@/hooks/useAuth";
+import { useRouter } from "next/navigation";
 
 export default function StoreDashboard() {
+  const { user, loading: authLoading } = useAuth();
+  const router = useRouter();
+
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState(null);
 
+  /* ================= PROTECT PAGE ================= */
+  useEffect(() => {
+    if (!authLoading && (!user || user.role !== "store")) {
+      router.push("/");
+    }
+  }, [user, authLoading, router]);
+
   /* ================= FETCH ORDERS ================= */
   const fetchOrders = async () => {
     try {
-      const res = await fetch("/api/store/orders");
+      const res = await fetch("/api/store/orders", {
+        credentials: "include",
+      });
+
       const data = await res.json();
 
       if (data.success) {
         setOrders(data.orders);
+      } else {
+        console.error(data.msg);
       }
     } catch (err) {
-      console.error(err);
+      console.error("Fetch error:", err);
     } finally {
       setLoading(false);
     }
@@ -31,6 +48,7 @@ export default function StoreDashboard() {
       const res = await fetch("/api/store/orders", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ id, ...updates }),
       });
 
@@ -44,26 +62,41 @@ export default function StoreDashboard() {
         console.error(data.msg);
       }
     } catch (err) {
-      console.error(err);
+      console.error("Update error:", err);
     }
 
     setUpdatingId(null);
   };
 
   /* ================= PRINT ================= */
-  const printLabel = (order) => {
+  const printLabel = (order, type = "packing") => {
     const content = `
-      <h2>Order: ${order.orderId}</h2>
-      <p><b>Name:</b> ${order.customerName}</p>
-      <p><b>Phone:</b> ${order.phone}</p>
-      <p><b>Address:</b> ${order.address}</p>
-      <hr/>
-      ${order.items
-        .map(
-          (i) =>
-            `<p>${i.name} x ${i.quantity} = ₹${i.price * i.quantity}</p>`
-        )
-        .join("")}
+      <div style="font-family: Arial; padding: 20px">
+        <h2>${type === "packing" ? "Packing Slip" : "Courier Label"}</h2>
+        <h3>Order: ${order.orderId}</h3>
+
+        <p><b>Name:</b> ${order.customerName}</p>
+        <p><b>Phone:</b> ${order.phone}</p>
+        <p><b>Address:</b> ${order.address}</p>
+
+        ${
+          type === "courier"
+            ? `
+          <hr/>
+          <p><b>Courier:</b> ${order.courierName || "-"}</p>
+          <p><b>AWB:</b> ${order.awbNumber || "-"}</p>
+          `
+            : ""
+        }
+
+        <hr/>
+        ${order.items
+          .map(
+            (i) =>
+              `<p>${i.name} × ${i.quantity} = ₹${i.price * i.quantity}</p>`
+          )
+          .join("")}
+      </div>
     `;
 
     const win = window.open("", "", "width=800,height=600");
@@ -78,13 +111,13 @@ export default function StoreDashboard() {
 
   /* ================= UI ================= */
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="p-6 text-gray-500">Loading orders...</div>
     );
   }
 
-  if (orders.length === 0) {
+  if (!orders.length) {
     return (
       <div className="p-6 text-center text-gray-500">
         No orders assigned yet 🚀
@@ -221,14 +254,14 @@ export default function StoreDashboard() {
             {/* ACTIONS */}
             <div className="mt-4 flex gap-3">
               <button
-                onClick={() => printLabel(order)}
+                onClick={() => printLabel(order, "packing")}
                 className="bg-blue-600 text-white px-4 py-1 rounded"
               >
                 Print Packing
               </button>
 
               <button
-                onClick={() => printLabel(order)}
+                onClick={() => printLabel(order, "courier")}
                 className="bg-green-600 text-white px-4 py-1 rounded"
               >
                 Print Courier
