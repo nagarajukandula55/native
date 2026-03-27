@@ -11,24 +11,35 @@ export function middleware(req) {
     if (token) {
       try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        if (decoded.role === "branding") url.pathname = "/branding/dashboard";
-        else if (decoded.role === "store") url.pathname = "/admin/store/dashboard";
-        else if (decoded.role === "admin") url.pathname = "/admin";
-        else url.pathname = "/account";
+        // Redirect logged-in users based on role
+        switch (decoded.role) {
+          case "branding":
+            url.pathname = "/branding/dashboard";
+            break;
+          case "store":
+            url.pathname = "/admin/store/dashboard";
+            break;
+          case "admin":
+            url.pathname = "/admin";
+            break;
+          default:
+            url.pathname = "/account";
+        }
+        return NextResponse.redirect(url);
       } catch {
-        url.pathname = "/login";
+        // Invalid token → continue to login
+        return NextResponse.next();
       }
-      return NextResponse.redirect(url);
     }
     return NextResponse.next();
   }
 
-  /* ================= PUBLIC ================= */
+  /* ================= PUBLIC API / HOME ================= */
   if (pathname.startsWith("/api") || pathname === "/") {
     return NextResponse.next();
   }
 
-  /* ================= BRANDING ================= */
+  /* ================= BRANDING PAGES ================= */
   if (pathname.startsWith("/branding")) {
     if (!token) {
       url.pathname = "/login";
@@ -38,27 +49,25 @@ export function middleware(req) {
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-      // Only allow branding role
       if (decoded.role !== "branding") {
         url.pathname = "/unauthorized";
         return NextResponse.redirect(url);
       }
 
-      // Only redirect /branding → /branding/dashboard once
+      // Redirect only /branding (not /branding/dashboard)
       if (pathname === "/branding") {
         url.pathname = "/branding/dashboard";
         return NextResponse.redirect(url);
       }
 
-    } catch (err) {
+      return NextResponse.next();
+    } catch {
       url.pathname = "/login";
       return NextResponse.redirect(url);
     }
-
-    return NextResponse.next();
   }
 
-  /* ================= ADMIN / ACCOUNT ================= */
+  /* ================= ADMIN / ACCOUNT PAGES ================= */
   if (pathname.startsWith("/admin") || pathname.startsWith("/account")) {
     if (!token) {
       url.pathname = "/login";
@@ -73,11 +82,11 @@ export function middleware(req) {
 /* ===== MATCHER ===== */
 export const config = {
   matcher: [
-    "/admin/:path*",
-    "/account/:path*",
     "/login",
     "/signup",
-    "/branding/:path*",   // includes /branding/dashboard
-    "/branding",          // catch /branding for redirect
+    "/admin/:path*",
+    "/account/:path*",
+    "/branding",
+    "/branding/:path*",
   ],
 };
