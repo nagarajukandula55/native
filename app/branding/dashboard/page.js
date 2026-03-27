@@ -2,10 +2,13 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { jsPDF } from "jspdf";
 
 export default function BrandingDashboard() {
   const [labels, setLabels] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [greeting, setGreeting] = useState("Hello, check out our products!");
+  const [logoUrl, setLogoUrl] = useState("/logo.png"); // default logo
 
   const fetchLabels = async () => {
     const res = await fetch("/api/branding/labels");
@@ -16,11 +19,72 @@ export default function BrandingDashboard() {
 
   useEffect(() => { fetchLabels(); }, []);
 
+  const generatePDFLabel = (label) => {
+    const doc = new jsPDF();
+    doc.setFontSize(16);
+    doc.text(`Product: ${label.name}`, 10, 10);
+    doc.text(`SKU: ${label.sku}`, 10, 20);
+    doc.text(`Size: ${label.size}, Quality: ${label.quality}`, 10, 30);
+    doc.text(`Price: ₹${label.price}`, 10, 40);
+    doc.save(`${label.name}_label.pdf`);
+  };
+
+  const generateSocialPost = (label) => {
+    const doc = new jsPDF("landscape", "px", [1080, 1080]); // Instagram post size
+    const img = new Image();
+    img.src = logoUrl;
+
+    img.onload = () => {
+      // Draw logo
+      doc.addImage(img, "PNG", 20, 20, 200, 100);
+
+      // Draw greeting
+      doc.setFontSize(28);
+      doc.setTextColor(37, 99, 235);
+      doc.text(greeting, 250, 100);
+
+      // Draw product info
+      doc.setFontSize(22);
+      doc.setTextColor(0, 0, 0);
+      doc.text(`Product: ${label.name}`, 50, 200);
+      doc.text(`SKU: ${label.sku}`, 50, 240);
+      doc.text(`Size: ${label.size}`, 50, 280);
+      doc.text(`Quality: ${label.quality}`, 50, 320);
+      doc.text(`Price: ₹${label.price}`, 50, 360);
+
+      doc.save(`${label.name}_social_post.pdf`);
+    };
+  };
+
   if (loading) return <p>Loading...</p>;
 
   return (
     <div style={{ padding: 20 }}>
       <h1>Branding Dashboard</h1>
+
+      {/* Logo & Greeting Inputs */}
+      <div style={{ margin: "20px 0", border: "1px solid #ddd", padding: 10, borderRadius: 8 }}>
+        <h2>Brand Settings</h2>
+        <label>
+          Logo URL:
+          <input
+            type="text"
+            value={logoUrl}
+            onChange={(e) => setLogoUrl(e.target.value)}
+            style={{ width: "100%", margin: "5px 0", padding: 6 }}
+          />
+        </label>
+        <label>
+          Default Greeting:
+          <input
+            type="text"
+            value={greeting}
+            onChange={(e) => setGreeting(e.target.value)}
+            style={{ width: "100%", margin: "5px 0", padding: 6 }}
+          />
+        </label>
+      </div>
+
       <div style={{ margin: "20px 0" }}>
         <Link href="/branding/labels/create" style={{ color: "#2563eb" }}>
           + Create New Label
@@ -55,33 +119,15 @@ export default function BrandingDashboard() {
             >
               Delete
             </button>
-            <button
-              onClick={() => {
-                // Generate PDF/Label
-                const doc = new window.jsPDF();
-                doc.text(`Product: ${label.name}`, 10, 10);
-                doc.text(`SKU: ${label.sku}`, 10, 20);
-                doc.text(`Size: ${label.size}, Quality: ${label.quality}`, 10, 30);
-                doc.text(`Price: ₹${label.price}`, 10, 40);
-                doc.save(`${label.name}_label.pdf`);
-              }}
-            >
-              Download PDF
+            <button onClick={() => generatePDFLabel(label)}>
+              Download Label PDF
+            </button>
+            <button onClick={() => generateSocialPost(label)}>
+              Generate Social Post
             </button>
           </div>
         </div>
       ))}
-
-      <div style={{ marginTop: 30 }}>
-        <h2>Social Media Post Generator</h2>
-        <p>Create simple branding posts for Instagram, Facebook, etc.</p>
-        <button
-          onClick={() => alert("This will open a post generation modal (to implement)")}
-          style={socialBtn}
-        >
-          Generate Post
-        </button>
-      </div>
     </div>
   );
 }
@@ -92,13 +138,4 @@ const labelCard = {
   padding: 10,
   marginBottom: 10,
   borderRadius: 8,
-};
-
-const socialBtn = {
-  padding: "10px 20px",
-  background: "#2563eb",
-  color: "#fff",
-  border: "none",
-  borderRadius: 6,
-  cursor: "pointer",
 };
