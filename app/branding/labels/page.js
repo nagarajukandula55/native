@@ -1,24 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import jsPDF from "jspdf";
 
-export default function BrandingDashboard() {
+export default function LabelsPage() {
   const [labels, setLabels] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
 
-  /* ===== FORM STATE ===== */
-  const [form, setForm] = useState({
-    name: "",
-    sku: "",
-    size: "",
-    quality: "",
-    price: "",
-    nutrition: { calories: "", protein: "", fat: "", carbs: "" },
-    greeting: "",
-  });
-
-  /* ===== FETCH LABELS ===== */
+  /* ================= FETCH LABELS ================= */
   const fetchLabels = async () => {
     const res = await fetch("/api/branding/labels");
     const data = await res.json();
@@ -26,9 +15,7 @@ export default function BrandingDashboard() {
     setLoading(false);
   };
 
-  useEffect(() => { fetchLabels(); }, []);
-
-  /* ===== DELETE LABEL ===== */
+  /* ================= DELETE LABEL ================= */
   const deleteLabel = async (id) => {
     if (!confirm("Delete this label?")) return;
     await fetch("/api/branding/labels", {
@@ -39,180 +26,90 @@ export default function BrandingDashboard() {
     fetchLabels();
   };
 
-  /* ===== AUTO GENERATE LABEL ===== */
-  const handleAutoGenerate = () => {
-    const ts = Date.now().toString().slice(-5);
-    const namePart = form.name ? form.name.replace(/\s+/g, "").toUpperCase().slice(0, 3) : "LBL";
-    setForm(prev => ({
-      ...prev,
-      sku: `${namePart}-${ts}`,
-      price: prev.price || (prev.size?.toLowerCase().includes("large") ? 80 : 50) + (prev.quality?.toLowerCase().includes("premium") ? 50 : 0),
-      nutrition: {
-        calories: prev.nutrition.calories || 100,
-        protein: prev.nutrition.protein || 5,
-        fat: prev.nutrition.fat || 3,
-        carbs: prev.nutrition.carbs || 15,
-      },
-      greeting: prev.greeting || `Enjoy your ${prev.name || "product"}!`,
-    }));
-  };
+  useEffect(() => { fetchLabels(); }, []);
 
-  /* ===== SAVE LABEL ===== */
-  const saveLabel = async () => {
-    setSaving(true);
-    const res = await fetch("/api/branding/labels", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
-    });
-    const data = await res.json();
-    if (data.success) {
-      alert("Label saved!");
-      setForm({
-        name: "",
-        sku: "",
-        size: "",
-        quality: "",
-        price: "",
-        nutrition: { calories: "", protein: "", fat: "", carbs: "" },
-        greeting: "",
-      });
-      fetchLabels();
-    } else {
-      alert(data.msg || "Error saving label");
-    }
-    setSaving(false);
-  };
+  /* ================= GENERATE PDF ================= */
+  const generatePDF = (label) => {
+    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a6" });
+    
+    // LOGO
+    const img = new Image();
+    img.src = "/logo.png"; // Change if you have dynamic logo path
+    img.onload = () => {
+      doc.addImage(img, "PNG", 10, 5, 40, 15); // x, y, width, height
 
-  /* ===== PRINT PREVIEW ===== */
-  const printLabel = () => {
-    const content = `
-      <h2>${form.name} (${form.sku})</h2>
-      <p>Size: ${form.size}, Quality: ${form.quality}</p>
-      <p>Price: ₹${form.price}</p>
-      <p>Nutrition: Calories ${form.nutrition.calories}, Protein ${form.nutrition.protein}, Fat ${form.nutrition.fat}, Carbs ${form.nutrition.carbs}</p>
-      <p>Greeting: ${form.greeting}</p>
-    `;
-    const win = window.open("", "", "width=600,height=400");
-    win.document.write(content);
-    win.document.close();
-    win.print();
+      // LABEL CONTENT
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "bold");
+      doc.text(`Product: ${label.name}`, 10, 30);
+      doc.setFont("helvetica", "normal");
+      doc.text(`SKU: ${label.sku}`, 10, 37);
+      doc.text(`Size: ${label.size}`, 10, 44);
+      doc.text(`Quality: ${label.quality}`, 10, 51);
+      doc.text(`Price: ₹${label.price}`, 10, 58);
+
+      // NUTRITION INFO
+      if (label.nutrition) {
+        doc.setFont("helvetica", "bold");
+        doc.text("Nutrition:", 10, 65);
+        doc.setFont("helvetica", "normal");
+        const y = 72;
+        doc.text(`Calories: ${label.nutrition.calories}`, 10, y);
+        doc.text(`Protein: ${label.nutrition.protein}`, 10, y + 7);
+        doc.text(`Fat: ${label.nutrition.fat}`, 10, y + 14);
+        doc.text(`Carbs: ${label.nutrition.carbs}`, 10, y + 21);
+      }
+
+      doc.save(`${label.name}-label.pdf`);
+    };
   };
 
   if (loading) return <p>Loading...</p>;
 
   return (
     <div style={{ padding: 20 }}>
-      <h1>Branding & Labels Dashboard</h1>
+      <h1 style={{ marginBottom: 15 }}>Product Labels</h1>
+      <a
+        href="/branding/labels/create"
+        style={{ marginBottom: 15, display: "inline-block", color: "#2563eb" }}
+      >
+        + Create Label
+      </a>
 
-      {/* ===== CREATE NEW LABEL ===== */}
-      <div style={{ border: "1px solid #ddd", padding: 15, marginBottom: 20 }}>
-        <h2>Create / Edit Label</h2>
+      {labels.length === 0 && <p>No labels found.</p>}
 
-        <input
-          type="text"
-          placeholder="Product Name"
-          value={form.name}
-          onChange={e => setForm({ ...form, name: e.target.value })}
-          style={inputStyle}
-        />
-
-        <input
-          type="text"
-          placeholder="Size (Small / Medium / Large)"
-          value={form.size}
-          onChange={e => setForm({ ...form, size: e.target.value })}
-          style={inputStyle}
-        />
-
-        <input
-          type="text"
-          placeholder="Quality (Standard / Premium)"
-          value={form.quality}
-          onChange={e => setForm({ ...form, quality: e.target.value })}
-          style={inputStyle}
-        />
-
-        <input
-          type="number"
-          placeholder="Price"
-          value={form.price}
-          onChange={e => setForm({ ...form, price: Number(e.target.value) })}
-          style={inputStyle}
-        />
-
-        <h4>Nutrition Info</h4>
-        <input
-          type="number"
-          placeholder="Calories"
-          value={form.nutrition.calories}
-          onChange={e => setForm({ ...form, nutrition: { ...form.nutrition, calories: Number(e.target.value) } })}
-          style={inputStyle}
-        />
-        <input
-          type="number"
-          placeholder="Protein"
-          value={form.nutrition.protein}
-          onChange={e => setForm({ ...form, nutrition: { ...form.nutrition, protein: Number(e.target.value) } })}
-          style={inputStyle}
-        />
-        <input
-          type="number"
-          placeholder="Fat"
-          value={form.nutrition.fat}
-          onChange={e => setForm({ ...form, nutrition: { ...form.nutrition, fat: Number(e.target.value) } })}
-          style={inputStyle}
-        />
-        <input
-          type="number"
-          placeholder="Carbs"
-          value={form.nutrition.carbs}
-          onChange={e => setForm({ ...form, nutrition: { ...form.nutrition, carbs: Number(e.target.value) } })}
-          style={inputStyle}
-        />
-
-        <input
-          type="text"
-          placeholder="Greeting / Social Post"
-          value={form.greeting}
-          onChange={e => setForm({ ...form, greeting: e.target.value })}
-          style={inputStyle}
-        />
-
-        <div style={{ marginTop: 10 }}>
-          <button onClick={handleAutoGenerate} style={btnStyle}>Auto-Generate</button>
-          <button onClick={saveLabel} style={{ ...btnStyle, marginLeft: 10 }} disabled={saving}>
-            {saving ? "Saving..." : "Save Label"}
-          </button>
-          <button onClick={printLabel} style={{ ...btnStyle, marginLeft: 10 }}>Print Preview</button>
-        </div>
-
-        {/* ===== PREVIEW CARD ===== */}
-        <div style={{ border: "1px dashed #aaa", padding: 10, marginTop: 10 }}>
-          <h3>{form.name || "Product"} ({form.sku || "SKU"})</h3>
-          <p>Size: {form.size || "-"}, Quality: {form.quality || "-"}</p>
-          <p>Price: ₹{form.price || "-"}</p>
-          <p>Nutrition: Calories {form.nutrition.calories || "-"}, Protein {form.nutrition.protein || "-"}, Fat {form.nutrition.fat || "-"}, Carbs {form.nutrition.carbs || "-"}</p>
-          <p>Greeting: {form.greeting || "Your greeting here"}</p>
-        </div>
-      </div>
-
-      {/* ===== EXISTING LABELS ===== */}
-      {labels.map(label => (
-        <div key={label._id} style={{ border: "1px solid #ddd", padding: 10, marginBottom: 10 }}>
+      {labels.map((label) => (
+        <div key={label._id} style={{ border: "1px solid #ddd", padding: 15, marginBottom: 15, borderRadius: 8 }}>
           <h3>{label.name} ({label.sku})</h3>
           <p>Size: {label.size}, Quality: {label.quality}</p>
           <p>Price: ₹{label.price}</p>
-          <p>Nutrition: Calories {label.nutrition?.calories}, Protein {label.nutrition?.protein}, Fat {label.nutrition?.fat}, Carbs {label.nutrition?.carbs}</p>
-          <p>Greeting: {label.greeting}</p>
-          <button onClick={() => deleteLabel(label._id)} style={{ color: "red", marginRight: 10 }}>Delete</button>
-          <a href={`/branding/labels/edit/${label._id}`} style={{ color: "blue" }}>Edit</a>
+          <p>
+            Nutrition: Calories {label.nutrition?.calories}, Protein {label.nutrition?.protein}, 
+            Fat {label.nutrition?.fat}, Carbs {label.nutrition?.carbs}
+          </p>
+
+          <div style={{ marginTop: 10 }}>
+            <button
+              onClick={() => generatePDF(label)}
+              style={{ marginRight: 10, background: "#10b981", color: "#fff", padding: "6px 12px", borderRadius: 6 }}
+            >
+              Export PDF
+            </button>
+            <button
+              onClick={() => deleteLabel(label._id)}
+              style={{ marginRight: 10, background: "#ef4444", color: "#fff", padding: "6px 12px", borderRadius: 6 }}
+            >
+              Delete
+            </button>
+            <a
+              href={`/branding/labels/edit/${label._id}`}
+              style={{ background: "#2563eb", color: "#fff", padding: "6px 12px", borderRadius: 6, textDecoration: "none" }}
+            >
+              Edit
+            </a>
+          </div>
         </div>
       ))}
     </div>
   );
 }
-
-/* ===== STYLES ===== */
-const inputStyle = { width: "100%", marginBottom: 5, padding: 6 };
-const btnStyle = { padding: "6px 12px", cursor: "pointer" };
