@@ -1,222 +1,143 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { Rnd } from "react-rnd"; // Drag & resize
-import html2canvas from "html2canvas";
+import { useRef, useState } from "react";
 import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
+import { QRCodeCanvas } from "qrcode.react";
 
-// Example templates
-const TEMPLATES = [
-  {
-    id: 1,
-    name: "Classic Label",
-    width: 400,
-    height: 250,
-    elements: [
-      { id: "title", type: "text", text: "Product Name", x: 50, y: 20, fontSize: 24, color: "#000" },
-      { id: "subtitle", type: "text", text: "Subtitle / Tagline", x: 50, y: 60, fontSize: 16, color: "#333" },
-      { id: "logo", type: "image", src: "/logo.png", x: 300, y: 20, width: 80, height: 80 },
-    ],
-  },
-  {
-    id: 2,
-    name: "Modern Label",
-    width: 400,
-    height: 250,
-    elements: [
-      { id: "title", type: "text", text: "Brand Name", x: 50, y: 30, fontSize: 26, color: "#111" },
-      { id: "subtitle", type: "text", text: "Organic & Fresh", x: 50, y: 70, fontSize: 14, color: "#555" },
-      { id: "image", type: "image", src: "/sample-product.png", x: 250, y: 50, width: 120, height: 120 },
-    ],
-  },
-];
+export default function LabelSystem() {
+  const frontRef = useRef(null);
+  const backRef = useRef(null);
 
-export default function LabelsPage() {
-  const [canvasElements, setCanvasElements] = useState([]);
-  const [selectedTemplate, setSelectedTemplate] = useState(null);
-  const [side, setSide] = useState("front"); // front/back toggle
-  const canvasRef = useRef();
+  const [form, setForm] = useState({
+    name: "",
+    tagline: "",
+    netWeight: "",
+    price: "",
+    ingredients: "",
+    fssai: "",
+    manufacturer: "",
+    expiry: "",
+    calories: "",
+    protein: "",
+    fat: "",
+    carbs: "",
+    logo: "/logo.png",
+  });
 
-  // Load template
-  const loadTemplate = (templateId) => {
-    const temp = TEMPLATES.find((t) => t.id === templateId);
-    if (!temp) return;
-    setSelectedTemplate(temp);
-    setCanvasElements(temp.elements.map((e) => ({ ...e })));
-  };
-
-  // Update element properties
-  const updateElement = (id, newProps) => {
-    setCanvasElements((prev) =>
-      prev.map((el) => (el.id === id ? { ...el, ...newProps } : el))
-    );
-  };
-
-  // Export canvas
-  const exportPNG = async () => {
-    if (!canvasRef.current) return;
-    const canvas = await html2canvas(canvasRef.current);
-    const dataURL = canvas.toDataURL("image/png");
-
-    const link = document.createElement("a");
-    link.download = `label_${side}.png`;
-    link.href = dataURL;
-    link.click();
-  };
-
+  /* ================= PDF EXPORT (FIXED) ================= */
   const exportPDF = async () => {
-    if (!canvasRef.current) return;
-    const canvas = await html2canvas(canvasRef.current);
-    const imgData = canvas.toDataURL("image/png");
-    const pdf = new jsPDF({
-      orientation: "landscape",
-      unit: "px",
-      format: [canvas.width, canvas.height],
-    });
-    pdf.addImage(imgData, "PNG", 0, 0, canvas.width, canvas.height);
-    pdf.save(`label_${side}.pdf`);
-  };
+    const pdf = new jsPDF("p", "mm", "a4");
 
-  // AI generate placeholder (replace with real API later)
-  const generateAIText = (elementId) => {
-    const sampleTexts = [
-      "Fresh & Organic",
-      "100% Natural",
-      "Premium Quality",
-      "Delicious Taste",
-    ];
-    const randomText = sampleTexts[Math.floor(Math.random() * sampleTexts.length)];
-    updateElement(elementId, { text: randomText });
+    const frontCanvas = await html2canvas(frontRef.current);
+    const frontImg = frontCanvas.toDataURL("image/png");
+
+    const backCanvas = await html2canvas(backRef.current);
+    const backImg = backCanvas.toDataURL("image/png");
+
+    // Front page
+    pdf.addImage(frontImg, "PNG", 10, 10, 180, 100);
+
+    // Back page
+    pdf.addPage();
+    pdf.addImage(backImg, "PNG", 10, 10, 180, 150);
+
+    pdf.save(`${form.name || "label"}.pdf`);
   };
 
   return (
     <div style={{ padding: 20 }}>
-      <h1>Branding Labels</h1>
+      <h1>Professional Label Generator</h1>
 
-      {/* TEMPLATE SELECTION */}
+      {/* ================= FORM ================= */}
       <div style={{ marginBottom: 20 }}>
-        <h3>Choose a Template:</h3>
-        {TEMPLATES.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => loadTemplate(t.id)}
-            style={{
-              marginRight: 10,
-              padding: 8,
-              background: selectedTemplate?.id === t.id ? "#2563eb" : "#eee",
-              color: selectedTemplate?.id === t.id ? "#fff" : "#000",
-              border: "none",
-              cursor: "pointer",
-            }}
-          >
-            {t.name}
-          </button>
-        ))}
+        <input placeholder="Product Name" onChange={e => setForm({ ...form, name: e.target.value })} style={input}/>
+        <input placeholder="Tagline" onChange={e => setForm({ ...form, tagline: e.target.value })} style={input}/>
+        <input placeholder="Net Weight (500g)" onChange={e => setForm({ ...form, netWeight: e.target.value })} style={input}/>
+        <input placeholder="MRP ₹" onChange={e => setForm({ ...form, price: e.target.value })} style={input}/>
+        <input placeholder="Ingredients" onChange={e => setForm({ ...form, ingredients: e.target.value })} style={input}/>
+        <input placeholder="FSSAI License" onChange={e => setForm({ ...form, fssai: e.target.value })} style={input}/>
+        <input placeholder="Manufacturer Details" onChange={e => setForm({ ...form, manufacturer: e.target.value })} style={input}/>
+        <input placeholder="Expiry Date" onChange={e => setForm({ ...form, expiry: e.target.value })} style={input}/>
+
+        <h4>Nutrition</h4>
+        <input placeholder="Calories" onChange={e => setForm({ ...form, calories: e.target.value })} style={input}/>
+        <input placeholder="Protein" onChange={e => setForm({ ...form, protein: e.target.value })} style={input}/>
+        <input placeholder="Fat" onChange={e => setForm({ ...form, fat: e.target.value })} style={input}/>
+        <input placeholder="Carbs" onChange={e => setForm({ ...form, carbs: e.target.value })} style={input}/>
       </div>
 
-      {/* FRONT/BACK TOGGLE */}
-      <div style={{ marginBottom: 20 }}>
-        <button
-          onClick={() => setSide("front")}
-          style={{
-            padding: 8,
-            marginRight: 10,
-            background: side === "front" ? "#2563eb" : "#eee",
-            color: side === "front" ? "#fff" : "#000",
-            border: "none",
-            cursor: "pointer",
-          }}
-        >
-          Front
-        </button>
-        <button
-          onClick={() => setSide("back")}
-          style={{
-            padding: 8,
-            background: side === "back" ? "#2563eb" : "#eee",
-            color: side === "back" ? "#fff" : "#000",
-            border: "none",
-            cursor: "pointer",
-          }}
-        >
-          Back
-        </button>
+      {/* ================= FRONT LABEL ================= */}
+      <h2>Front Label</h2>
+      <div ref={frontRef} style={frontStyle}>
+        <img src={form.logo} style={{ height: 50 }} />
+
+        <h1>{form.name || "Product Name"}</h1>
+        <p>{form.tagline || "Tagline here"}</p>
+
+        <p><b>Net Weight:</b> {form.netWeight}</p>
+        <p><b>MRP:</b> ₹{form.price}</p>
       </div>
 
-      {/* CANVAS */}
-      <div
-        ref={canvasRef}
-        style={{
-          width: selectedTemplate?.width || 400,
-          height: selectedTemplate?.height || 250,
-          border: "2px dashed #ccc",
-          position: "relative",
-          marginBottom: 20,
-          background: "#fff",
-        }}
-      >
-        {canvasElements.map((el) =>
-          el.type === "text" ? (
-            <Rnd
-              key={el.id}
-              size={{ width: el.text.length * 10 + 20, height: el.fontSize + 10 }}
-              position={{ x: el.x, y: el.y }}
-              onDragStop={(e, d) => updateElement(el.id, { x: d.x, y: d.y })}
-              onResizeStop={(e, direction, ref, delta, position) => {
-                updateElement(el.id, { x: position.x, y: position.y });
-              }}
-            >
-              <div
-                style={{
-                  fontSize: el.fontSize,
-                  color: el.color,
-                  cursor: "move",
-                  userSelect: "none",
-                }}
-                onDoubleClick={() => generateAIText(el.id)}
-              >
-                {el.text}
-              </div>
-            </Rnd>
-          ) : (
-            <Rnd
-              key={el.id}
-              size={{ width: el.width, height: el.height }}
-              position={{ x: el.x, y: el.y }}
-              onDragStop={(e, d) => updateElement(el.id, { x: d.x, y: d.y })}
-              onResizeStop={(e, direction, ref, delta, position) => {
-                updateElement(el.id, {
-                  x: position.x,
-                  y: position.y,
-                  width: ref.offsetWidth,
-                  height: ref.offsetHeight,
-                });
-              }}
-            >
-              <img
-                src={el.src}
-                style={{ width: "100%", height: "100%", objectFit: "contain" }}
-              />
-            </Rnd>
-          )
-        )}
+      {/* ================= BACK LABEL ================= */}
+      <h2>Back Label</h2>
+      <div ref={backRef} style={backStyle}>
+        <h3>Ingredients</h3>
+        <p>{form.ingredients}</p>
+
+        <h3>Nutrition Facts</h3>
+        <table style={table}>
+          <tbody>
+            <tr><td>Calories</td><td>{form.calories}</td></tr>
+            <tr><td>Protein</td><td>{form.protein}</td></tr>
+            <tr><td>Fat</td><td>{form.fat}</td></tr>
+            <tr><td>Carbohydrates</td><td>{form.carbs}</td></tr>
+          </tbody>
+        </table>
+
+        <p><b>FSSAI:</b> {form.fssai}</p>
+        <p><b>Manufacturer:</b> {form.manufacturer}</p>
+        <p><b>Expiry:</b> {form.expiry}</p>
+
+        <div style={{ marginTop: 10 }}>
+          <QRCodeCanvas value={form.name || "product"} size={80} />
+        </div>
       </div>
 
-      {/* EXPORT BUTTONS */}
-      <div>
-        <button
-          onClick={exportPNG}
-          style={{ padding: 10, marginRight: 10, cursor: "pointer" }}
-        >
-          Export PNG
-        </button>
-        <button
-          onClick={exportPDF}
-          style={{ padding: 10, cursor: "pointer" }}
-        >
-          Export PDF
-        </button>
-      </div>
+      {/* ================= BUTTON ================= */}
+      <button onClick={exportPDF} style={btn}>Download PDF</button>
     </div>
   );
 }
+
+/* ================= STYLES ================= */
+
+const input = { display: "block", marginBottom: 6, padding: 6, width: 300 };
+
+const frontStyle = {
+  width: 350,
+  height: 220,
+  border: "1px solid #000",
+  padding: 10,
+  background: "#fff",
+  marginBottom: 20
+};
+
+const backStyle = {
+  width: 350,
+  border: "1px solid #000",
+  padding: 10,
+  background: "#fff"
+};
+
+const table = {
+  width: "100%",
+  border: "1px solid #000",
+  marginTop: 10
+};
+
+const btn = {
+  padding: "10px 20px",
+  marginTop: 20,
+  cursor: "pointer"
+};
