@@ -8,11 +8,12 @@ import html2canvas from "html2canvas";
 export default function BrandingDashboard() {
   const [labels, setLabels] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [greeting, setGreeting] = useState("Hello, check out our products!");
-  const [logoUrl, setLogoUrl] = useState("/logo.png"); // default logo
-  const [bgColor, setBgColor] = useState("#ffffff"); // background color
+  const [greeting, setGreeting] = useState("Check out our products!");
+  const [logoUrl, setLogoUrl] = useState("/logo.png");
+  const [bgColors, setBgColors] = useState(["#ffffff", "#f3f4f6", "#2563eb"]); // multiple templates
   const postRef = useRef(null);
 
+  /* Fetch Labels */
   const fetchLabels = async () => {
     const res = await fetch("/api/branding/labels");
     const data = await res.json();
@@ -22,7 +23,7 @@ export default function BrandingDashboard() {
 
   useEffect(() => { fetchLabels(); }, []);
 
-  /* ================= PDF LABEL ================= */
+  /* Generate PDF Label */
   const generatePDFLabel = (label) => {
     const doc = new jsPDF();
     doc.setFontSize(16);
@@ -33,29 +34,35 @@ export default function BrandingDashboard() {
     doc.save(`${label.name}_label.pdf`);
   };
 
-  /* ================= SOCIAL POST ================= */
-  const generateSocialPost = async (label) => {
+  /* Generate Multiple Social Posts */
+  const generateAllSocialPosts = async (label) => {
     if (!postRef.current) return;
 
-    const element = postRef.current;
-    // Populate label info dynamically
-    element.querySelector("#postProductName").innerText = label.name;
-    element.querySelector("#postSKU").innerText = label.sku;
-    element.querySelector("#postSize").innerText = label.size;
-    element.querySelector("#postQuality").innerText = label.quality;
-    element.querySelector("#postPrice").innerText = `₹${label.price}`;
+    for (let i = 0; i < bgColors.length; i++) {
+      const element = postRef.current;
 
-    const canvas = await html2canvas(element, { scale: 2 });
-    const imgData = canvas.toDataURL("image/png");
+      // Populate template
+      element.style.backgroundColor = bgColors[i];
+      element.querySelector("#postLogo").src = logoUrl;
+      element.querySelector("#postGreeting").innerText = greeting;
+      element.querySelector("#postProductName").innerText = label.name;
+      element.querySelector("#postSKU").innerText = label.sku;
+      element.querySelector("#postSize").innerText = label.size;
+      element.querySelector("#postQuality").innerText = label.quality;
+      element.querySelector("#postPrice").innerText = `₹${label.price}`;
 
-    const pdf = new jsPDF({
-      orientation: "portrait",
-      unit: "px",
-      format: [1080, 1080],
-    });
+      const canvas = await html2canvas(element, { scale: 2 });
+      const imgData = canvas.toDataURL("image/png");
 
-    pdf.addImage(imgData, "PNG", 0, 0, 1080, 1080);
-    pdf.save(`${label.name}_social_post.pdf`);
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "px",
+        format: [1080, 1080],
+      });
+
+      pdf.addImage(imgData, "PNG", 0, 0, 1080, 1080);
+      pdf.save(`${label.name}_social_post_template_${i + 1}.pdf`);
+    }
   };
 
   if (loading) return <p>Loading...</p>;
@@ -65,7 +72,7 @@ export default function BrandingDashboard() {
       <h1>Branding Dashboard</h1>
 
       {/* Brand Settings */}
-      <div style={{ margin: "20px 0", border: "1px solid #ddd", padding: 10, borderRadius: 8 }}>
+      <div style={brandSettings}>
         <h2>Brand Settings</h2>
         <label>
           Logo URL:
@@ -73,7 +80,7 @@ export default function BrandingDashboard() {
             type="text"
             value={logoUrl}
             onChange={(e) => setLogoUrl(e.target.value)}
-            style={{ width: "100%", margin: "5px 0", padding: 6 }}
+            style={inputStyle}
           />
         </label>
         <label>
@@ -82,21 +89,24 @@ export default function BrandingDashboard() {
             type="text"
             value={greeting}
             onChange={(e) => setGreeting(e.target.value)}
-            style={{ width: "100%", margin: "5px 0", padding: 6 }}
+            style={inputStyle}
           />
         </label>
         <label>
-          Background Color:
+          Background Colors (comma separated hex):
           <input
-            type="color"
-            value={bgColor}
-            onChange={(e) => setBgColor(e.target.value)}
-            style={{ margin: "5px 0" }}
+            type="text"
+            value={bgColors.join(",")}
+            onChange={(e) =>
+              setBgColors(
+                e.target.value.split(",").map((c) => c.trim())
+              )
+            }
+            style={inputStyle}
           />
         </label>
       </div>
 
-      {/* Create Label */}
       <div style={{ margin: "20px 0" }}>
         <Link href="/branding/labels/create" style={{ color: "#2563eb" }}>
           + Create New Label
@@ -133,7 +143,7 @@ export default function BrandingDashboard() {
               Delete
             </button>
             <button onClick={() => generatePDFLabel(label)}>Download Label PDF</button>
-            <button onClick={() => generateSocialPost(label)}>Generate Social Post</button>
+            <button onClick={() => generateAllSocialPosts(label)}>Generate All Social Posts</button>
           </div>
         </div>
       ))}
@@ -141,22 +151,10 @@ export default function BrandingDashboard() {
       {/* Hidden Post Template */}
       <div
         ref={postRef}
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          width: 1080,
-          height: 1080,
-          position: "absolute",
-          left: -2000, // offscreen
-          backgroundColor: bgColor,
-          padding: 50,
-          gap: 20,
-        }}
+        style={postTemplate}
       >
         <img id="postLogo" src={logoUrl} alt="Logo" style={{ width: 300, objectFit: "contain" }} />
-        <h2 style={{ color: "#2563eb" }}>{greeting}</h2>
+        <h2 id="postGreeting" style={{ color: "#2563eb" }}>{greeting}</h2>
         <p id="postProductName" style={{ fontSize: 28, fontWeight: 600 }}>Product</p>
         <p id="postSKU">SKU</p>
         <p id="postSize">Size</p>
@@ -168,9 +166,31 @@ export default function BrandingDashboard() {
 }
 
 /* ===== STYLES ===== */
+const brandSettings = {
+  margin: "20px 0",
+  border: "1px solid #ddd",
+  padding: 10,
+  borderRadius: 8,
+};
+
+const inputStyle = { width: "100%", margin: "5px 0", padding: 6 };
+
 const labelCard = {
   border: "1px solid #ddd",
   padding: 10,
   marginBottom: 10,
   borderRadius: 8,
+};
+
+const postTemplate = {
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "center",
+  justifyContent: "center",
+  width: 1080,
+  height: 1080,
+  position: "absolute",
+  left: -2000,
+  padding: 50,
+  gap: 20,
 };
