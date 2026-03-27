@@ -144,6 +144,12 @@ export default function Navbar() {
                 </Link>
               )}
 
+               {user.role === "branding" && (
+                <Link href="/branding/dashboard" style={roleLink}>
+                  Branding Dashboard
+                </Link>
+              )}
+
               <button onClick={handleLogout} style={logoutBtn}>
                 Logout
               </button>
