@@ -2,16 +2,17 @@ import { NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
 
 export function middleware(req) {
-  const token = req.cookies.get("token")?.value || "";
   const url = req.nextUrl.clone();
   const pathname = url.pathname;
+
+  // Get token from cookie
+  const token = req.cookies.get("token")?.value;
 
   /* ================= AUTH PAGES ================= */
   if (pathname.startsWith("/login") || pathname.startsWith("/signup")) {
     if (token) {
       try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        // Redirect logged-in users based on role
         switch (decoded.role) {
           case "branding":
             url.pathname = "/branding/dashboard";
@@ -27,7 +28,6 @@ export function middleware(req) {
         }
         return NextResponse.redirect(url);
       } catch {
-        // Invalid token → continue to login
         return NextResponse.next();
       }
     }
@@ -54,14 +54,15 @@ export function middleware(req) {
         return NextResponse.redirect(url);
       }
 
-      // Redirect only /branding (not /branding/dashboard)
+      // Only redirect /branding → /branding/dashboard
       if (pathname === "/branding") {
         url.pathname = "/branding/dashboard";
         return NextResponse.redirect(url);
       }
 
       return NextResponse.next();
-    } catch {
+    } catch (err) {
+      console.error("JWT ERROR:", err);
       url.pathname = "/login";
       return NextResponse.redirect(url);
     }
