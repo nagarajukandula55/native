@@ -1,35 +1,30 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-export default function AssetsManager() {
-  const [files, setFiles] = useState([]);
-  const [uploaded, setUploaded] = useState([]);
+export default function AssetsPage() {
+  const [assets, setAssets] = useState([]);
 
-  const handleFiles = (e) => setFiles(e.target.files);
-
-  const uploadFiles = async () => {
-    const formData = new FormData();
-    for (let i = 0; i < files.length; i++) formData.append("files", files[i]);
-
-    const res = await fetch("/api/branding/assets", {
-      method: "POST",
-      body: formData,
-    });
+  const fetchAssets = async () => {
+    const res = await fetch("/api/branding/assets");
     const data = await res.json();
-    if (data.success) setUploaded(data.files);
+    if (data.success) setAssets(data.assets);
   };
 
-  return (
-    <div>
-      <h1>Assets / Logo Manager</h1>
-      <input type="file" multiple onChange={handleFiles} />
-      <button onClick={uploadFiles}>Upload</button>
+  useEffect(() => fetchAssets(), []);
 
-      <div style={{ marginTop: 20 }}>
-        <h3>Uploaded Files:</h3>
-        {uploaded.map((f, i) => (
-          <div key={i}>{f.name}</div>
+  return (
+    <div style={{ padding: 20 }}>
+      <h1>Brand Assets / Logos</h1>
+      <button style={{ marginBottom: 10, padding: "8px 16px", background: "#2563eb", color: "#fff", border: "none", borderRadius: 6 }}>
+        Upload New Asset
+      </button>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+        {assets.map((a) => (
+          <div key={a._id} style={{ width: 120, textAlign: "center" }}>
+            <img src={a.url} alt={a.name} style={{ width: 100, height: 100, objectFit: "contain" }} />
+            <p>{a.name}</p>
+          </div>
         ))}
       </div>
     </div>
