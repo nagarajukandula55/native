@@ -1,22 +1,30 @@
 "use client";
 
-import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
-import jwt from "jsonwebtoken";
-import BrandingSidebar from "./BrandingSidebar";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 export default function BrandingLayout({ children }) {
-  const token = cookies().get("token")?.value;
+  const pathname = usePathname();
 
-  if (!token) redirect("/login");
+  const linkStyle = (href) => ({
+    display: "block",
+    padding: "8px 12px",
+    textDecoration: "none",
+    color: pathname.startsWith(href) ? "#fff" : "#0f172a",
+    backgroundColor: pathname.startsWith(href) ? "#2563eb" : "transparent",
+    borderRadius: 6,
+    marginBottom: 6,
+  });
 
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-    if (decoded.role !== "branding") redirect("/login");
-  } catch (err) {
-    redirect("/login");
-  }
-
-  return <BrandingSidebar>{children}</BrandingSidebar>;
+  return (
+    <div style={{ display: "flex", minHeight: "100vh" }}>
+      <aside style={{ width: 220, padding: 20, background: "#f1f5f9" }}>
+        <h2>Branding Manager</h2>
+        <Link href="/branding/labels" style={linkStyle("/branding/labels")}>Labels</Link>
+        <Link href="/branding/greetings" style={linkStyle("/branding/greetings")}>Greetings</Link>
+        <Link href="/branding/nutrition" style={linkStyle("/branding/nutrition")}>Nutrition & Price Calc</Link>
+      </aside>
+      <main style={{ flex: 1, padding: 30 }}>{children}</main>
+    </div>
+  );
 }
