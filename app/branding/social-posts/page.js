@@ -2,39 +2,34 @@
 
 import { useState } from "react";
 
-export default function SocialPosts() {
-  const [topic, setTopic] = useState("");
-  const [style, setStyle] = useState("Informative");
-  const [post, setPost] = useState("");
+export default function SocialPostsPage() {
+  const [prompt, setPrompt] = useState("");
+  const [posts, setPosts] = useState([]);
 
   const generatePost = async () => {
-    const res = await fetch("/api/branding/social-post", {
+    if (!prompt) return alert("Enter product details or idea");
+
+    // 🔹 Call your AI API here (OpenAI, etc.)
+    const res = await fetch("/api/branding/generate-social", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ topic, style }),
+      body: JSON.stringify({ prompt }),
     });
     const data = await res.json();
-    if (data.success) setPost(data.content);
+    if (data.success) setPosts([data.post, ...posts]);
   };
 
   return (
     <div>
-      <h1>AI Social Media Post Generator</h1>
-      <input placeholder="Topic / Product Name" value={topic} onChange={e => setTopic(e.target.value)} />
-      <select value={style} onChange={e => setStyle(e.target.value)}>
-        <option value="Informative">Informative</option>
-        <option value="Promotional">Promotional</option>
-        <option value="Fun">Fun</option>
-        <option value="Creative">Creative</option>
-      </select>
-      <button onClick={generatePost}>Generate Post</button>
+      <h1>Social Media Post Generator</h1>
+      <input value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Enter product description..." style={{ width: "100%", padding: 8 }} />
+      <button onClick={generatePost} style={{ marginTop: 10, padding: 10, background: "#2563eb", color: "#fff" }}>Generate Post</button>
 
-      {post && (
-        <div style={{ marginTop: 20, border: "1px solid #ccc", padding: 10 }}>
-          <h3>Generated Post:</h3>
+      {posts.map((post, i) => (
+        <div key={i} style={{ border: "1px solid #ddd", marginTop: 10, padding: 10 }}>
           <p>{post}</p>
         </div>
-      )}
+      ))}
     </div>
   );
 }
