@@ -4,7 +4,6 @@ import { useState } from "react";
 import { Rnd } from "react-rnd";
 import html2canvas from "html2canvas";
 import { QRCodeCanvas } from "qrcode.react";
-import Barcode from "react-barcode";
 import * as Icons from "react-icons/fa";
 import { templates } from "@/lib/templates";
 
