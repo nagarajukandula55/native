@@ -1,19 +1,31 @@
 "use client";
-
-import Link from "next/link";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function BrandingDashboard() {
-  return (
-    <div style={{ padding: 30 }}>
-      <h1>Branding Dashboard ✅</h1>
-      <p>Welcome to your Branding Panel. Here you can manage:</p>
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
 
-      <ul>
-        <li><Link href="/branding/labels">Product Labels</Link></li>
-        <li><Link href="/branding/social-posts">Social Media Posts</Link></li>
-        <li><Link href="/branding/logos">Logos & Branding Assets</Link></li>
-        <li><Link href="/branding/calculators">Price & Nutrition Calculators</Link></li>
-      </ul>
+  useEffect(() => {
+    async function checkRole() {
+      const res = await fetch("/api/auth/me", { credentials: "include" });
+      const data = await res.json();
+      if (!data.success || data.user.role !== "branding") {
+        router.push("/login");
+      } else {
+        setLoading(false);
+      }
+    }
+    checkRole();
+  }, []);
+
+  if (loading) return <p>Loading Branding Dashboard...</p>;
+
+  return (
+    <div style={{ padding: 20 }}>
+      <h1>Branding Dashboard</h1>
+      <p>Manage Labels, Social Media Posts, Nutrition & Price Calculators here</p>
+      {/* TODO: Add links/buttons to Labels, Logo, Social Posts */}
     </div>
   );
 }
