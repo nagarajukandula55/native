@@ -14,7 +14,7 @@ export function middleware(req) {
     return NextResponse.next();
   }
 
-  /* ================= PUBLIC ================= */
+  /* ================= PUBLIC PAGES ================= */
   if (pathname.startsWith("/api") || pathname === "/") {
     return NextResponse.next();
   }
@@ -22,15 +22,21 @@ export function middleware(req) {
   /* ================= BRANDING PAGES ================= */
   if (pathname.startsWith("/branding")) {
     if (!token) {
+      // Not logged in → redirect to login
       return NextResponse.redirect(new URL("/login", req.url));
     }
 
     try {
+      // Verify JWT
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+      // Only allow "branding" role
       if (decoded.role !== "branding") {
         return NextResponse.redirect(new URL("/unauthorized", req.url));
       }
+
     } catch (err) {
+      // Invalid token → redirect to login
       return NextResponse.redirect(new URL("/login", req.url));
     }
 
@@ -42,6 +48,8 @@ export function middleware(req) {
     if (!token) {
       return NextResponse.redirect(new URL("/login", req.url));
     }
+
+    // Optional: you can verify token here for extra security
     return NextResponse.next();
   }
 
@@ -55,6 +63,6 @@ export const config = {
     "/account/:path*",
     "/login",
     "/signup",
-    "/branding/:path*", // ✅ NEW
+    "/branding/:path*", // Branding dashboard & labels
   ],
 };
