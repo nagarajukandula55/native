@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 
 const PostSchema = new mongoose.Schema({
   title: { type: String, required: true },
-  platform: { type: String, enum: ["Instagram", "Facebook", "Twitter", "LinkedIn"], required: true },
+  platform: { type: String, enum: ["Instagram","Facebook","Twitter","LinkedIn"], required: true },
   content: String,
   imageUrl: String,
   hashtags: [String],
