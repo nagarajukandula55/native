@@ -1,14 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { jsPDF } from "jspdf";
+import html2canvas from "html2canvas";
 
 export default function BrandingDashboard() {
   const [labels, setLabels] = useState([]);
   const [loading, setLoading] = useState(true);
   const [greeting, setGreeting] = useState("Hello, check out our products!");
   const [logoUrl, setLogoUrl] = useState("/logo.png"); // default logo
+  const [bgColor, setBgColor] = useState("#ffffff"); // background color
+  const postRef = useRef(null);
 
   const fetchLabels = async () => {
     const res = await fetch("/api/branding/labels");
@@ -19,6 +22,7 @@ export default function BrandingDashboard() {
 
   useEffect(() => { fetchLabels(); }, []);
 
+  /* ================= PDF LABEL ================= */
   const generatePDFLabel = (label) => {
     const doc = new jsPDF();
     doc.setFontSize(16);
@@ -29,31 +33,29 @@ export default function BrandingDashboard() {
     doc.save(`${label.name}_label.pdf`);
   };
 
-  const generateSocialPost = (label) => {
-    const doc = new jsPDF("landscape", "px", [1080, 1080]); // Instagram post size
-    const img = new Image();
-    img.src = logoUrl;
+  /* ================= SOCIAL POST ================= */
+  const generateSocialPost = async (label) => {
+    if (!postRef.current) return;
 
-    img.onload = () => {
-      // Draw logo
-      doc.addImage(img, "PNG", 20, 20, 200, 100);
+    const element = postRef.current;
+    // Populate label info dynamically
+    element.querySelector("#postProductName").innerText = label.name;
+    element.querySelector("#postSKU").innerText = label.sku;
+    element.querySelector("#postSize").innerText = label.size;
+    element.querySelector("#postQuality").innerText = label.quality;
+    element.querySelector("#postPrice").innerText = `₹${label.price}`;
 
-      // Draw greeting
-      doc.setFontSize(28);
-      doc.setTextColor(37, 99, 235);
-      doc.text(greeting, 250, 100);
+    const canvas = await html2canvas(element, { scale: 2 });
+    const imgData = canvas.toDataURL("image/png");
 
-      // Draw product info
-      doc.setFontSize(22);
-      doc.setTextColor(0, 0, 0);
-      doc.text(`Product: ${label.name}`, 50, 200);
-      doc.text(`SKU: ${label.sku}`, 50, 240);
-      doc.text(`Size: ${label.size}`, 50, 280);
-      doc.text(`Quality: ${label.quality}`, 50, 320);
-      doc.text(`Price: ₹${label.price}`, 50, 360);
+    const pdf = new jsPDF({
+      orientation: "portrait",
+      unit: "px",
+      format: [1080, 1080],
+    });
 
-      doc.save(`${label.name}_social_post.pdf`);
-    };
+    pdf.addImage(imgData, "PNG", 0, 0, 1080, 1080);
+    pdf.save(`${label.name}_social_post.pdf`);
   };
 
   if (loading) return <p>Loading...</p>;
@@ -62,7 +64,7 @@ export default function BrandingDashboard() {
     <div style={{ padding: 20 }}>
       <h1>Branding Dashboard</h1>
 
-      {/* Logo & Greeting Inputs */}
+      {/* Brand Settings */}
       <div style={{ margin: "20px 0", border: "1px solid #ddd", padding: 10, borderRadius: 8 }}>
         <h2>Brand Settings</h2>
         <label>
@@ -83,14 +85,25 @@ export default function BrandingDashboard() {
             style={{ width: "100%", margin: "5px 0", padding: 6 }}
           />
         </label>
+        <label>
+          Background Color:
+          <input
+            type="color"
+            value={bgColor}
+            onChange={(e) => setBgColor(e.target.value)}
+            style={{ margin: "5px 0" }}
+          />
+        </label>
       </div>
 
+      {/* Create Label */}
       <div style={{ margin: "20px 0" }}>
         <Link href="/branding/labels/create" style={{ color: "#2563eb" }}>
           + Create New Label
         </Link>
       </div>
 
+      {/* Existing Labels */}
       <h2>Existing Labels</h2>
       {labels.length === 0 && <p>No labels created yet.</p>}
 
@@ -119,15 +132,37 @@ export default function BrandingDashboard() {
             >
               Delete
             </button>
-            <button onClick={() => generatePDFLabel(label)}>
-              Download Label PDF
-            </button>
-            <button onClick={() => generateSocialPost(label)}>
-              Generate Social Post
-            </button>
+            <button onClick={() => generatePDFLabel(label)}>Download Label PDF</button>
+            <button onClick={() => generateSocialPost(label)}>Generate Social Post</button>
           </div>
         </div>
       ))}
+
+      {/* Hidden Post Template */}
+      <div
+        ref={postRef}
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          width: 1080,
+          height: 1080,
+          position: "absolute",
+          left: -2000, // offscreen
+          backgroundColor: bgColor,
+          padding: 50,
+          gap: 20,
+        }}
+      >
+        <img id="postLogo" src={logoUrl} alt="Logo" style={{ width: 300, objectFit: "contain" }} />
+        <h2 style={{ color: "#2563eb" }}>{greeting}</h2>
+        <p id="postProductName" style={{ fontSize: 28, fontWeight: 600 }}>Product</p>
+        <p id="postSKU">SKU</p>
+        <p id="postSize">Size</p>
+        <p id="postQuality">Quality</p>
+        <p id="postPrice" style={{ fontSize: 24, fontWeight: 500 }}>₹Price</p>
+      </div>
     </div>
   );
 }
