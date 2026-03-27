@@ -11,11 +11,11 @@ export default function LabelEditor() {
   const [label, setLabel] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Canvas elements
   const canvasRef = useRef(null);
 
-  const [textElements, setTextElements] = useState([]);
-  const [selectedText, setSelectedText] = useState(null);
+  const [elements, setElements] = useState([]);
+  const [selectedId, setSelectedId] = useState(null);
+  const [view, setView] = useState("front"); // front/back toggle
 
   /* ================= FETCH LABEL ================= */
   useEffect(() => {
@@ -24,76 +24,142 @@ export default function LabelEditor() {
         const res = await axios.get("/api/branding/labels");
         const found = res.data.labels.find((l) => l._id === id);
         setLabel(found || null);
+        setElements(found?.design || []);
       } catch (err) {
-        console.error("Fetch Label Error:", err);
+        console.error(err);
       }
       setLoading(false);
     };
     fetchLabel();
   }, [id]);
 
-  /* ================= TEXT ELEMENTS ================= */
+  /* ================= ELEMENT FUNCTIONS ================= */
   const addText = () => {
-    const newText = { id: Date.now(), text: "New Text", x: 50, y: 50, fontSize: 20, color: "#000000" };
-    setTextElements((prev) => [...prev, newText]);
-    setSelectedText(newText.id);
+    const newText = {
+      id: Date.now(),
+      type: "text",
+      text: "New Text",
+      x: 50,
+      y: 50,
+      fontSize: 20,
+      color: "#000",
+      fontFamily: "Arial",
+      view: "front",
+    };
+    setElements((prev) => [...prev, newText]);
+    setSelectedId(newText.id);
   };
 
-  const updateText = (key, value) => {
-    setTextElements((prev) =>
-      prev.map((el) => (el.id === selectedText ? { ...el, [key]: value } : el))
+  const addImage = (url) => {
+    const newImage = {
+      id: Date.now(),
+      type: "image",
+      src: url,
+      x: 50,
+      y: 50,
+      width: 100,
+      height: 100,
+      view: "front",
+    };
+    setElements((prev) => [...prev, newImage]);
+    setSelectedId(newImage.id);
+  };
+
+  const updateElement = (key, value) => {
+    setElements((prev) =>
+      prev.map((el) => (el.id === selectedId ? { ...el, [key]: value } : el))
     );
   };
 
   const saveLabel = async () => {
     try {
-      const updatedLabel = { ...label, design: textElements };
+      const updatedLabel = { ...label, design: elements };
       await axios.put("/api/branding/labels", { id: label._id, ...updatedLabel });
-      alert("Label Saved!");
+      alert("Label saved!");
       router.push("/branding/labels");
     } catch (err) {
-      console.error("Save Label Error:", err);
+      console.error(err);
     }
   };
 
   if (loading) return <p>Loading editor...</p>;
   if (!label) return <p>Label not found!</p>;
 
+  /* ================= SIDE PANEL ================= */
+  const selectedElement = elements.find((el) => el.id === selectedId);
+
   return (
     <div style={{ display: "flex", height: "100vh" }}>
-      {/* ================= SIDE PANEL ================= */}
-      <div style={{ width: 300, padding: 20, borderRight: "1px solid #ddd" }}>
-        <h2>Editor Tools</h2>
+      <div style={{ width: 300, padding: 20, borderRight: "1px solid #ddd", overflowY: "auto" }}>
+        <h2>Tools</h2>
         <button onClick={addText} style={{ marginBottom: 10 }}>Add Text</button>
+        <input
+          type="file"
+          accept="image/*"
+          onChange={(e) => e.target.files[0] && addImage(URL.createObjectURL(e.target.files[0]))}
+          style={{ marginBottom: 10 }}
+        />
 
-        {selectedText && (
+        <div>
+          <button onClick={() => setView("front")} disabled={view === "front"}>Front</button>
+          <button onClick={() => setView("back")} disabled={view === "back"}>Back</button>
+        </div>
+
+        {selectedElement && (
           <div style={{ marginTop: 20 }}>
-            <h4>Selected Text</h4>
-            <input
-              type="text"
-              value={textElements.find(el => el.id === selectedText)?.text || ""}
-              onChange={(e) => updateText("text", e.target.value)}
-              placeholder="Text"
-              style={{ width: "100%", marginBottom: 10 }}
-            />
-            <input
-              type="number"
-              value={textElements.find(el => el.id === selectedText)?.fontSize || 20}
-              onChange={(e) => updateText("fontSize", parseInt(e.target.value))}
-              placeholder="Font Size"
-              style={{ width: "100%", marginBottom: 10 }}
-            />
-            <input
-              type="color"
-              value={textElements.find(el => el.id === selectedText)?.color || "#000000"}
-              onChange={(e) => updateText("color", e.target.value)}
-              style={{ width: "100%" }}
-            />
+            <h4>Selected Element</h4>
+            {selectedElement.type === "text" && (
+              <>
+                <input
+                  type="text"
+                  value={selectedElement.text}
+                  onChange={(e) => updateElement("text", e.target.value)}
+                  style={{ width: "100%", marginBottom: 10 }}
+                />
+                <input
+                  type="number"
+                  value={selectedElement.fontSize}
+                  onChange={(e) => updateElement("fontSize", parseInt(e.target.value))}
+                  style={{ width: "100%", marginBottom: 10 }}
+                />
+                <input
+                  type="color"
+                  value={selectedElement.color}
+                  onChange={(e) => updateElement("color", e.target.value)}
+                  style={{ width: "100%", marginBottom: 10 }}
+                />
+                <input
+                  type="text"
+                  value={selectedElement.fontFamily}
+                  onChange={(e) => updateElement("fontFamily", e.target.value)}
+                  style={{ width: "100%", marginBottom: 10 }}
+                />
+              </>
+            )}
+            {selectedElement.type === "image" && (
+              <>
+                <input
+                  type="number"
+                  value={selectedElement.width}
+                  onChange={(e) => updateElement("width", parseInt(e.target.value))}
+                  style={{ width: "100%", marginBottom: 10 }}
+                />
+                <input
+                  type="number"
+                  value={selectedElement.height}
+                  onChange={(e) => updateElement("height", parseInt(e.target.value))}
+                  style={{ width: "100%", marginBottom: 10 }}
+                />
+              </>
+            )}
           </div>
         )}
 
-        <button onClick={saveLabel} style={{ marginTop: 20, background: "#2563eb", color: "#fff", padding: "8px 12px" }}>
-          Save Design
+        <button
+          onClick={saveLabel}
+          style={{ marginTop: 20, background: "#2563eb", color: "#fff", padding: "8px 12px", width: "100%" }}
+        >
+          Save Label
         </button>
       </div>
 
@@ -107,31 +173,54 @@ export default function LabelEditor() {
           overflow: "hidden",
         }}
       >
-        {textElements.map((el) => (
-          <div
-            key={el.id}
-            onClick={() => setSelectedText(el.id)}
-            style={{
-              position: "absolute",
-              top: el.y,
-              left: el.x,
-              fontSize: el.fontSize,
-              color: el.color,
-              cursor: "move",
-            }}
-            draggable
-            onDragEnd={(e) => {
-              const rect = canvasRef.current.getBoundingClientRect();
-              const x = e.clientX - rect.left;
-              const y = e.clientY - rect.top;
-              setTextElements((prev) =>
-                prev.map((t) => (t.id === el.id ? { ...t, x, y } : t))
-              );
-            }}
-          >
-            {el.text}
-          </div>
-        ))}
+        {elements
+          .filter((el) => el.view === view)
+          .map((el) =>
+            el.type === "text" ? (
+              <div
+                key={el.id}
+                onClick={() => setSelectedId(el.id)}
+                style={{
+                  position: "absolute",
+                  top: el.y,
+                  left: el.x,
+                  fontSize: el.fontSize,
+                  color: el.color,
+                  fontFamily: el.fontFamily,
+                  cursor: "move",
+                }}
+                draggable
+                onDragEnd={(e) => {
+                  const rect = canvasRef.current.getBoundingClientRect();
+                  updateElement("x", e.clientX - rect.left);
+                  updateElement("y", e.clientY - rect.top);
+                }}
+              >
+                {el.text}
+              </div>
+            ) : (
+              <img
+                key={el.id}
+                src={el.src}
+                alt="img"
+                style={{
+                  position: "absolute",
+                  top: el.y,
+                  left: el.x,
+                  width: el.width,
+                  height: el.height,
+                  cursor: "move",
+                }}
+                onClick={() => setSelectedId(el.id)}
+                draggable
+                onDragEnd={(e) => {
+                  const rect = canvasRef.current.getBoundingClientRect();
+                  updateElement("x", e.clientX - rect.left);
+                  updateElement("y", e.clientY - rect.top);
+                }}
+              />
+            )
+          )}
       </div>
     </div>
   );
