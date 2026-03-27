@@ -1,114 +1,183 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import axios from "axios";
+import { useState, useEffect } from "react";
+import { Rnd } from "react-rnd";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
+import { v4 as uuidv4 } from "uuid";
+
+// Preloaded templates
+const templates = [
+  { id: 1, name: "Classic", bg: "#fff", color: "#000" },
+  { id: 2, name: "Minimal", bg: "#f5f5f5", color: "#333" },
+  { id: 3, name: "Bold", bg: "#000", color: "#fff" },
+];
 
 export default function LabelsPage() {
-  const router = useRouter();
-  const [labels, setLabels] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [elements, setElements] = useState([]);
+  const [selectedTemplate, setSelectedTemplate] = useState(templates[0]);
+  const [activeSide, setActiveSide] = useState("front"); // front/back
+  const [frontElements, setFrontElements] = useState([]);
+  const [backElements, setBackElements] = useState([]);
 
-  /* ================= FETCH LABELS ================= */
-  useEffect(() => {
-    const fetchLabels = async () => {
-      try {
-        const res = await axios.get("/api/branding/labels");
-        setLabels(res.data.labels || []);
-      } catch (err) {
-        console.error(err);
-      }
-      setLoading(false);
+  /* ================= ADD ELEMENT ================= */
+  const addElement = (type) => {
+    const newEl = {
+      id: uuidv4(),
+      type,
+      text: type === "text" ? "New Text" : "",
+      x: 50,
+      y: 50,
+      width: 120,
+      height: 40,
+      fontSize: 16,
+      color: "#000",
     };
-    fetchLabels();
-  }, []);
+    setElements([...elements, newEl]);
+    if (activeSide === "front") setFrontElements([...frontElements, newEl]);
+    else setBackElements([...backElements, newEl]);
+  };
 
-  /* ================= CREATE NEW LABEL ================= */
-  const createLabel = async (template = null) => {
-    try {
-      const res = await axios.post("/api/branding/labels", {
-        name: template?.name || "New Label",
-        design: template?.design || [],
+  /* ================= UPDATE ELEMENT ================= */
+  const updateElement = (id, newProps) => {
+    setElements(elements.map(el => el.id === id ? { ...el, ...newProps } : el));
+    if (activeSide === "front") setFrontElements(elements);
+    else setBackElements(elements);
+  };
+
+  /* ================= DELETE ELEMENT ================= */
+  const deleteElement = (id) => {
+    setElements(elements.filter(el => el.id !== id));
+    if (activeSide === "front")
+      setFrontElements(frontElements.filter(el => el.id !== id));
+    else
+      setBackElements(backElements.filter(el => el.id !== id));
+  };
+
+  /* ================= SWITCH SIDE ================= */
+  const switchSide = (side) => {
+    setActiveSide(side);
+    setElements(side === "front" ? frontElements : backElements);
+  };
+
+  /* ================= EXPORT ================= */
+  const exportLabel = async (format = "png") => {
+    const labelDiv = document.getElementById("label-canvas");
+    const canvas = await html2canvas(labelDiv, { scale: 2 });
+    if (format === "png") {
+      const dataURL = canvas.toDataURL("image/png");
+      const link = document.createElement("a");
+      link.href = dataURL;
+      link.download = `label-${activeSide}.png`;
+      link.click();
+    } else if (format === "pdf") {
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "px",
+        format: [canvas.width, canvas.height],
       });
-      router.push(`/branding/labels/edit/${res.data.label._id}`);
-    } catch (err) {
-      console.error(err);
+      pdf.addImage(imgData, "PNG", 0, 0, canvas.width, canvas.height);
+      pdf.save(`label-${activeSide}.pdf`);
     }
   };
 
-  if (loading) return <p>Loading labels...</p>;
-
-  /* ================= LABEL TEMPLATES ================= */
-  const templates = [
-    {
-      name: "Classic White",
-      design: [
-        { id: 1, type: "text", text: "Brand Name", x: 50, y: 50, fontSize: 24, color: "#000", fontFamily: "Arial", view: "front" },
-        { id: 2, type: "text", text: "Ingredients", x: 50, y: 100, fontSize: 14, color: "#333", fontFamily: "Arial", view: "front" },
-      ],
-    },
-    {
-      name: "Eco Green",
-      design: [
-        { id: 1, type: "text", text: "Eco Brand", x: 50, y: 50, fontSize: 24, color: "#1B5E20", fontFamily: "Georgia", view: "front" },
-        { id: 2, type: "text", text: "Organic Ingredients", x: 50, y: 100, fontSize: 14, color: "#2E7D32", fontFamily: "Georgia", view: "front" },
-      ],
-    },
-    {
-      name: "Premium Gold",
-      design: [
-        { id: 1, type: "text", text: "Luxury Brand", x: 50, y: 50, fontSize: 24, color: "#FFD700", fontFamily: "Times New Roman", view: "front" },
-        { id: 2, type: "text", text: "High Quality Ingredients", x: 50, y: 100, fontSize: 14, color: "#FFA000", fontFamily: "Times New Roman", view: "front" },
-      ],
-    },
-  ];
-
   return (
-    <div style={{ padding: 20 }}>
-      <h1>Labels</h1>
-
-      <div style={{ marginBottom: 20 }}>
-        <button
-          onClick={() => createLabel()}
-          style={{ marginRight: 10, padding: "8px 12px", background: "#2563eb", color: "#fff", border: "none", borderRadius: 4 }}
-        >
-          Create Blank Label
-        </button>
-        <span style={{ fontSize: 14, color: "#555" }}>Or select a template:</span>
-      </div>
-
-      <div style={{ display: "flex", gap: 20, flexWrap: "wrap", marginBottom: 40 }}>
-        {templates.map((tpl, i) => (
-          <div key={i} style={{ border: "1px solid #ddd", padding: 10, width: 200, cursor: "pointer" }} onClick={() => createLabel(tpl)}>
-            <h4>{tpl.name}</h4>
-            <div style={{ border: "1px solid #ccc", height: 100, background: "#f9f9f9", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center" }}>
-              {tpl.design.map((el) => el.type === "text" && (
-                <span key={el.id} style={{ fontSize: el.fontSize, color: el.color, fontFamily: el.fontFamily }}>
-                  {el.text}
-                </span>
-              ))}
-            </div>
+    <div style={{ display: "flex", padding: 20, gap: 20 }}>
+      {/* ================= SIDEBAR ================= */}
+      <div style={{ width: 250 }}>
+        <h2>Templates</h2>
+        {templates.map((tpl) => (
+          <div
+            key={tpl.id}
+            style={{
+              padding: 10,
+              marginBottom: 10,
+              cursor: "pointer",
+              border: selectedTemplate.id === tpl.id ? "2px solid #2563eb" : "1px solid #ccc",
+              background: tpl.bg,
+              color: tpl.color,
+            }}
+            onClick={() => setSelectedTemplate(tpl)}
+          >
+            {tpl.name}
           </div>
         ))}
+
+        <h2>Actions</h2>
+        <button onClick={() => addElement("text")} style={{ width: "100%", marginBottom: 10 }}>Add Text</button>
+        <button onClick={() => addElement("image")} style={{ width: "100%", marginBottom: 10 }}>Add Image</button>
+        <button onClick={() => exportLabel("png")} style={{ width: "100%", marginBottom: 10 }}>Export PNG</button>
+        <button onClick={() => exportLabel("pdf")} style={{ width: "100%" }}>Export PDF</button>
+
+        <h2>Sides</h2>
+        <button onClick={() => switchSide("front")} style={{ width: "100%", marginBottom: 5 }}>Front</button>
+        <button onClick={() => switchSide("back")} style={{ width: "100%" }}>Back</button>
       </div>
 
-      <div style={{ display: "grid", gap: 10 }}>
-        {labels.map((label) => (
-          <div
-            key={label._id}
-            style={{ border: "1px solid #ddd", padding: 10, cursor: "pointer" }}
-            onClick={() => router.push(`/branding/labels/edit/${label._id}`)}
+      {/* ================= LABEL CANVAS ================= */}
+      <div
+        id="label-canvas"
+        style={{
+          width: 400,
+          height: 400,
+          border: "1px solid #ccc",
+          position: "relative",
+          background: selectedTemplate.bg,
+          color: selectedTemplate.color,
+        }}
+      >
+        {elements.map((el) => (
+          <Rnd
+            key={el.id}
+            bounds="parent"
+            size={{ width: el.width, height: el.height }}
+            position={{ x: el.x, y: el.y }}
+            onDragStop={(e, d) => updateElement(el.id, { x: d.x, y: d.y })}
+            onResizeStop={(e, direction, ref, delta, position) =>
+              updateElement(el.id, {
+                width: parseInt(ref.style.width),
+                height: parseInt(ref.style.height),
+                ...position,
+              })
+            }
+            style={{
+              border: "1px dashed #999",
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              background: el.type === "text" ? "transparent" : "#ddd",
+              cursor: "move",
+            }}
           >
-            <h4>{label.name}</h4>
-            <div style={{ height: 80, background: "#f9f9f9", border: "1px solid #ccc" }}>
-              {/* Placeholder preview */}
-              {label.design?.map((el) => el.type === "text" && (
-                <span key={el.id} style={{ fontSize: el.fontSize, color: el.color, fontFamily: el.fontFamily, marginRight: 5 }}>
-                  {el.text}
-                </span>
-              ))}
-            </div>
-          </div>
+            {el.type === "text" ? (
+              <input
+                type="text"
+                value={el.text}
+                onChange={(e) => updateElement(el.id, { text: e.target.value })}
+                style={{ width: "100%", border: "none", background: "transparent", textAlign: "center" }}
+              />
+            ) : (
+              <span>Image</span>
+            )}
+            <button
+              onClick={() => deleteElement(el.id)}
+              style={{
+                position: "absolute",
+                top: -10,
+                right: -10,
+                background: "red",
+                color: "#fff",
+                borderRadius: "50%",
+                border: "none",
+                width: 20,
+                height: 20,
+                cursor: "pointer",
+              }}
+            >
+              ×
+            </button>
+          </Rnd>
         ))}
       </div>
     </div>
