@@ -12,8 +12,8 @@ const LabelSchema = new mongoose.Schema({
     fat: Number,
     carbs: Number,
   },
-  qrCodeUrl: String,       // QR linking to product page
-  barcodeUrl: String,      // Barcode image
+  qrCodeUrl: String,
+  barcodeUrl: String,
   createdAt: { type: Date, default: Date.now },
 });
 
