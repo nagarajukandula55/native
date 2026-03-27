@@ -1,29 +1,25 @@
 import connectDB from "@/lib/mongodb";
 import Label from "@/models/Label";
 
-export async function GET() {
+export default async function handler(req, res) {
   await connectDB();
-  const labels = await Label.find({});
-  return new Response(JSON.stringify({ success: true, labels }), { status: 200 });
-}
 
-export async function POST(req) {
-  await connectDB();
-  const data = await req.json();
-  const label = await Label.create(data);
-  return new Response(JSON.stringify({ success: true, label }), { status: 201 });
-}
+  if (req.method === "GET") {
+    const labels = await Label.find();
+    return res.status(200).json({ success: true, labels });
+  }
 
-export async function PUT(req) {
-  await connectDB();
-  const { id, ...updates } = await req.json();
-  const label = await Label.findByIdAndUpdate(id, updates, { new: true });
-  return new Response(JSON.stringify({ success: true, label }), { status: 200 });
-}
+  if (req.method === "POST") {
+    const data = req.body;
+    const label = await Label.create(data);
+    return res.status(201).json({ success: true, label });
+  }
 
-export async function DELETE(req) {
-  await connectDB();
-  const { id } = await req.json();
-  await Label.findByIdAndDelete(id);
-  return new Response(JSON.stringify({ success: true }), { status: 200 });
+  if (req.method === "DELETE") {
+    const { id } = req.body;
+    await Label.findByIdAndDelete(id);
+    return res.status(200).json({ success: true, msg: "Deleted" });
+  }
+
+  return res.status(405).json({ success: false, msg: "Method not allowed" });
 }
