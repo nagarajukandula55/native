@@ -1,50 +1,57 @@
 import mongoose from "mongoose";
 
-const InventorySchema = new mongoose.Schema({
+const InventorySchema = new mongoose.Schema(
+  {
+    /* ================= PRODUCT ================= */
+    productId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Product", // ✅ FIXED (was SKU)
+      required: true,
+    },
 
-  skuId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "SKU",
-    required: true
+    /* ================= WAREHOUSE ================= */
+    warehouseId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Warehouse",
+      required: true,
+    },
+
+    /* ================= STOCK BUCKETS ================= */
+
+    // 🟢 Ready to sell
+    availableQty: {
+      type: Number,
+      default: 0,
+    },
+
+    // 🟡 Reserved for orders (assigned but not packed)
+    reservedQty: {
+      type: Number,
+      default: 0,
+    },
+
+    // 🔵 Packed / shipped (in transit)
+    shippedQty: {
+      type: Number,
+      default: 0,
+    },
+
+    /* ================= TOTAL ================= */
+    totalQty: {
+      type: Number,
+      default: 0,
+    },
   },
+  { timestamps: true }
+);
 
-  warehouseId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "Warehouse",
-    required: true
-  },
-
-  /* 🔥 CORE STOCK */
-  availableQty: {
-    type: Number,
-    default: 0
-  },
-
-  reservedQty: {
-    type: Number,
-    default: 0 // occupied for orders
-  },
-
-  shippedQty: {
-    type: Number,
-    default: 0 // dispatched
-  },
-
-  /* 🔥 DERIVED TOTAL (OPTIONAL BUT USEFUL) */
-  totalQty: {
-    type: Number,
-    default: 0
-  }
-
-}, { timestamps: true });
-
-/* ⭐ UNIQUE SKU PER WAREHOUSE */
+/* ================= UNIQUE INDEX ================= */
 InventorySchema.index(
-  { skuId: 1, warehouseId: 1 },
+  { productId: 1, warehouseId: 1 },
   { unique: true }
 );
 
-/* 🔥 AUTO CALCULATE TOTAL */
+/* ================= AUTO TOTAL ================= */
 InventorySchema.pre("save", function (next) {
   this.totalQty =
     (this.availableQty || 0) +
@@ -55,4 +62,4 @@ InventorySchema.pre("save", function (next) {
 });
 
 export default mongoose.models.Inventory ||
-mongoose.model("Inventory", InventorySchema);
+  mongoose.model("Inventory", InventorySchema);
