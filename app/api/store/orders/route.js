@@ -11,23 +11,36 @@ export const dynamic = "force-dynamic";
 async function verifyStore(req) {
   const token = req.cookies.get("token")?.value;
 
-  if (!token) throw new Error("Unauthorized");
+  if (!token) {
+    return { error: "Unauthorized", status: 401 };
+  }
 
-  const decoded = jwt.verify(token, process.env.JWT_SECRET);
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-  if (decoded.role !== "store") throw new Error("Forbidden");
+    if (decoded.role !== "store") {
+      return { error: "Forbidden", status: 403 };
+    }
 
-  return decoded;
+    return { user: decoded };
+
+  } catch (err) {
+    return { error: "Invalid token", status: 401 };
+  }
 }
 
 /* ================= GET STORE ORDERS ================= */
 export async function GET(req) {
   try {
     await connectDB();
-    const user = await verifyStore(req);
+
+    const { user, error, status } = await verifyStore(req);
+    if (error) {
+      return NextResponse.json({ success: false, message: error }, { status });
+    }
 
     const orders = await Order.find({
-      assignedStore: user.id, // ✅ STRICT ONLY STORE ORDERS
+      assignedStore: user.id,
       isDeleted: false,
     })
       .sort({ createdAt: -1 })
@@ -36,6 +49,7 @@ export async function GET(req) {
 
     return NextResponse.json({
       success: true,
+      count: orders.length,
       orders,
     });
 
@@ -53,11 +67,15 @@ export async function GET(req) {
 export async function PUT(req) {
   try {
     await connectDB();
-    const user = await verifyStore(req);
+
+    const { user, error, status } = await verifyStore(req);
+    if (error) {
+      return NextResponse.json({ success: false, message: error }, { status });
+    }
 
     const {
       id,
-      status,
+      status: newStatus,
       paymentStatus,
       awbNumber,
       courierName,
@@ -80,7 +98,7 @@ export async function PUT(req) {
       );
     }
 
-    /* ✅ STRICT ACCESS CONTROL */
+    /* ================= ACCESS CONTROL ================= */
     if (!order.assignedStore || order.assignedStore.toString() !== user.id) {
       return NextResponse.json(
         { success: false, message: "Not allowed for this order" },
@@ -97,20 +115,28 @@ export async function PUT(req) {
       "Out For Delivery": "Delivered",
     };
 
-    if (status && status !== order.status) {
-      if (validFlow[order.status] !== status) {
+    if (newStatus && newStatus !== order.status) {
+
+      if (!validFlow[order.status]) {
         return NextResponse.json(
-          { success: false, message: "Invalid status transition" },
+          { success: false, message: "Invalid current status" },
+          { status: 400 }
+        );
+      }
+
+      if (validFlow[order.status] !== newStatus) {
+        return NextResponse.json(
+          { success: false, message: `Invalid transition: ${order.status} → ${newStatus}` },
           { status: 400 }
         );
       }
 
       // ✅ Update status
-      order.status = status;
+      order.status = newStatus;
 
-      // ✅ Timeline
+      // ✅ Push timeline
       order.statusHistory.push({
-        status,
+        status: newStatus,
         time: new Date(),
         updatedBy: user.id,
       });
@@ -119,6 +145,7 @@ export async function PUT(req) {
     /* ================= OPTIONAL FIELDS ================= */
 
     if (paymentStatus) order.paymentStatus = paymentStatus;
+
     if (awbNumber !== undefined) order.awbNumber = awbNumber;
     if (courierName !== undefined) order.courierName = courierName;
     if (trackingUrl !== undefined) order.trackingUrl = trackingUrl;
