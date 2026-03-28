@@ -1,4 +1,3 @@
-// app/api/admin/users/route.js
 import { NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
 import connectDB from "@/lib/db";
@@ -16,17 +15,15 @@ export async function GET(req) {
     if (decoded.role !== "admin")
       return NextResponse.json({ message: "Forbidden" }, { status: 403 });
 
-    const users = await User.find({}, "-password").sort({ createdAt: -1 }).lean();
-    const warehouses = await Warehouse.find({}).lean();
+    const users = await User.find({}, "-password").sort({ createdAt: -1 });
+    const warehouses = await Warehouse.find({});
 
     const usersWithWarehouse = users.map((u) => {
-      const warehouse = warehouses.find(
-        (w) => u.warehouseId && w._id.toString() === u.warehouseId.toString()
-      );
+      const warehouse = warehouses.find((w) => w._id.toString() === u.warehouseId?.toString());
       return {
-        ...u,
-        warehouseName: warehouse?.name || null,
-        warehouseCode: warehouse?.code || null,
+        ...u._doc,
+        warehouseName: warehouse ? warehouse.name : null,
+        warehouseCode: warehouse ? warehouse.code : null,
       };
     });
 
@@ -37,10 +34,10 @@ export async function GET(req) {
   }
 }
 
+// Update store assignment / role / warehouse
 export async function PUT(req) {
   try {
     await connectDB();
-
     const token = req.cookies.get("token")?.value;
     if (!token) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
@@ -55,30 +52,21 @@ export async function PUT(req) {
     if (!user) return NextResponse.json({ message: "User not found" }, { status: 404 });
 
     if (role) user.role = role;
-    if (warehouseId !== undefined) user.warehouseId = warehouseId;
+    if (warehouseId !== undefined) {
+      user.warehouseId = warehouseId;
+      if (warehouseId) {
+        const warehouse = await Warehouse.findById(warehouseId);
+        user.warehouseName = warehouse?.name || null;
+        user.warehouseCode = warehouse?.code || null;
+      } else {
+        user.warehouseName = null;
+        user.warehouseCode = null;
+      }
+    }
     if (isActive !== undefined) user.isActive = isActive;
 
     await user.save();
-
-    // Return updated user including warehouse info
-    let warehouseName = null;
-    let warehouseCode = null;
-    if (user.warehouseId) {
-      const warehouse = await Warehouse.findById(user.warehouseId);
-      if (warehouse) {
-        warehouseName = warehouse.name;
-        warehouseCode = warehouse.code;
-      }
-    }
-
-    return NextResponse.json({
-      success: true,
-      user: {
-        ...user.toObject(),
-        warehouseName,
-        warehouseCode,
-      },
-    });
+    return NextResponse.json({ success: true, user });
   } catch (error) {
     console.error("UPDATE USER ERROR:", error);
     return NextResponse.json({ message: "Server error" }, { status: 500 });
