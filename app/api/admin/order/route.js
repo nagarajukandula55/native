@@ -2,9 +2,10 @@ import { NextResponse } from "next/server";
 import connectDB from "@/lib/db";
 import jwt from "jsonwebtoken";
 import Order from "@/models/Order";
+import User from "@/models/User";
+import Warehouse from "@/models/Warehouse";
 import Inventory from "@/models/Inventory";
 
-// ✅ Helper to verify admin
 async function verifyAdmin(req) {
   const token = req.cookies.get("token")?.value;
   if (!token) throw new Error("Unauthorized");
@@ -18,19 +19,15 @@ export async function GET(req) {
   try {
     await connectDB();
     await verifyAdmin(req);
-
-    const orders = await Order.find({ assignedStore: null, isDeleted: false })
-      .sort({ createdAt: -1 });
-    
-    return NextResponse.json({ success: true, orders });
+    const orders = await Order.find({ assignedStore: null, isDeleted: false }).sort({ createdAt: -1 });
+    return NextResponse.json({ orders });
   } catch (err) {
     console.error(err);
-    const status = err.message === "Unauthorized" ? 401 : err.message === "Forbidden" ? 403 : 500;
-    return NextResponse.json({ success: false, message: err.message || "Server error" }, { status });
+    return NextResponse.json({ message: err.message || "Server error" }, { status: err.message === "Unauthorized" ? 401 : err.message === "Forbidden" ? 403 : 500 });
   }
 }
 
-// PUT → Assign store + warehouse in one request and return inventory
+// PUT assign order
 export async function PUT(req) {
   try {
     await connectDB();
@@ -38,23 +35,26 @@ export async function PUT(req) {
 
     const { orderId, storeId, warehouseId } = await req.json();
     if (!orderId || !storeId || !warehouseId) 
-      return NextResponse.json({ success: false, message: "Order, store and warehouse required" }, { status: 400 });
+      return NextResponse.json({ message: "Order, store, warehouse required" }, { status: 400 });
 
     const order = await Order.findById(orderId);
-    if (!order) return NextResponse.json({ success: false, message: "Order not found" }, { status: 404 });
+    if (!order) return NextResponse.json({ message: "Order not found" }, { status: 404 });
 
-    // Assign store + warehouse
+    const store = await User.findById(storeId);
+    if (!store || store.role !== "store") return NextResponse.json({ message: "Invalid store", status: 400 });
+
+    const warehouse = await Warehouse.findById(warehouseId);
+    if (!warehouse) return NextResponse.json({ message: "Warehouse not found", status: 404 });
+
     order.assignedStore = storeId;
     order.warehouseAssignments = [{ warehouseId, assignedAt: new Date() }];
     await order.save();
 
-    // Fetch inventory for assigned warehouse
     const inventory = await Inventory.find({ warehouseId }).populate("skuId");
 
     return NextResponse.json({ success: true, order, inventory });
   } catch (err) {
-    console.error(err);
-    const status = err.message === "Unauthorized" ? 401 : err.message === "Forbidden" ? 403 : 500;
-    return NextResponse.json({ success: false, message: err.message || "Server error" }, { status });
+    console.error("ASSIGN ORDER ERROR:", err);
+    return NextResponse.json({ message: err.message || "Server error" }, { status: 500 });
   }
 }
