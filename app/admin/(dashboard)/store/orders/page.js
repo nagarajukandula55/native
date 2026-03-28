@@ -14,9 +14,14 @@ export default function StoreOrders() {
   async function loadOrders() {
     setLoading(true);
     try {
-      const res = await fetch("/api/store/orders"); // your store orders API
+      const res = await fetch("/api/store/orders");
       const json = await res.json();
-      if (json.success) setOrders(json.orders || []);
+
+      if (json.success) {
+        setOrders(json.orders || []);
+      } else {
+        alert(json.message);
+      }
     } catch (err) {
       console.error(err);
       alert("Failed to load orders");
@@ -24,24 +29,28 @@ export default function StoreOrders() {
     setLoading(false);
   }
 
-  async function handleUpdate(orderId, field, value) {
+  async function handleUpdate(orderId, payload) {
     setUpdatingId(orderId);
+
     try {
-      const res = await fetch("/api/store/update-status", {
+      const res = await fetch("/api/store/orders", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: orderId, [field]: value }),
+        body: JSON.stringify({ id: orderId, ...payload }),
       });
+
       const json = await res.json();
+
       if (json.success) {
         loadOrders();
       } else {
-        alert(json.msg || "Failed to update");
+        alert(json.message || "Update failed");
       }
     } catch (err) {
       console.error(err);
       alert("Server error");
     }
+
     setUpdatingId(null);
   }
 
@@ -49,63 +58,93 @@ export default function StoreOrders() {
 
   return (
     <div style={{ maxWidth: 1200, margin: "auto", padding: 20 }}>
-      <h1 style={{ fontSize: 28, fontWeight: "bold" }}>📦 My Assigned Orders</h1>
+      <h1 style={{ fontSize: 28, fontWeight: "bold" }}>
+        📦 My Assigned Orders
+      </h1>
 
       {orders.length === 0 && <p>No orders assigned to you yet.</p>}
 
       {orders.map((o) => (
-        <div
-          key={o._id}
-          style={{
-            border: "1px solid #eee",
-            borderRadius: 10,
-            padding: 15,
-            marginTop: 15,
-            background: "#f9fafb",
-          }}
-        >
-          <p><strong>Order ID:</strong> {o._id}</p>
+        <div key={o._id} style={card}>
+          
+          {/* ✅ FIXED ORDER ID */}
+          <p><strong>Order ID:</strong> {o.orderId}</p>
+
           <p><strong>Status:</strong> {o.status}</p>
           <p><strong>Payment:</strong> {o.paymentStatus || "Pending"}</p>
 
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 10 }}>
-            <select
-              value={o.status}
-              onChange={(e) => handleUpdate(o._id, "status", e.target.value)}
-              disabled={updatingId === o._id}
-            >
-              <option value="Pending">Pending</option>
-              <option value="Processing">Processing</option>
-              <option value="Shipped">Shipped</option>
-              <option value="Delivered">Delivered</option>
-            </select>
+          {/* ================= ACTION BUTTONS ================= */}
+          <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap" }}>
 
+            {o.status === "Order Placed" && (
+              <button
+                onClick={() => handleUpdate(o._id, { status: "Packed" })}
+                disabled={updatingId === o._id}
+              >
+                📦 Mark Packed
+              </button>
+            )}
+
+            {o.status === "Packed" && (
+              <button
+                onClick={() => handleUpdate(o._id, { status: "Shipped" })}
+                disabled={updatingId === o._id}
+              >
+                🚚 Mark Shipped
+              </button>
+            )}
+
+            {o.status === "Shipped" && (
+              <button
+                onClick={() => handleUpdate(o._id, { status: "Out For Delivery" })}
+                disabled={updatingId === o._id}
+              >
+                🚛 Out For Delivery
+              </button>
+            )}
+
+            {o.status === "Out For Delivery" && (
+              <button
+                onClick={() => handleUpdate(o._id, { status: "Delivered" })}
+                disabled={updatingId === o._id}
+              >
+                ✅ Delivered
+              </button>
+            )}
+          </div>
+
+          {/* ================= COURIER DETAILS ================= */}
+          <div style={{ marginTop: 15 }}>
             <input
               type="text"
               placeholder="AWB Number"
-              value={o.awbNumber || ""}
-              onChange={(e) => handleUpdate(o._id, "awbNumber", e.target.value)}
-              disabled={updatingId === o._id}
+              defaultValue={o.awbNumber || ""}
+              onBlur={(e) =>
+                handleUpdate(o._id, { awbNumber: e.target.value })
+              }
             />
 
             <input
               type="text"
               placeholder="Courier Name"
-              value={o.courierName || ""}
-              onChange={(e) => handleUpdate(o._id, "courierName", e.target.value)}
-              disabled={updatingId === o._id}
+              defaultValue={o.courierName || ""}
+              onBlur={(e) =>
+                handleUpdate(o._id, { courierName: e.target.value })
+              }
             />
 
             <input
               type="text"
               placeholder="Tracking URL"
-              value={o.trackingUrl || ""}
-              onChange={(e) => handleUpdate(o._id, "trackingUrl", e.target.value)}
-              disabled={updatingId === o._id}
+              defaultValue={o.trackingUrl || ""}
+              onBlur={(e) =>
+                handleUpdate(o._id, { trackingUrl: e.target.value })
+              }
             />
           </div>
 
-          {o.statusHistory && o.statusHistory.length > 0 && (
+          {/* ================= STATUS HISTORY ================= */}
+          {o.statusHistory?.length > 0 && (
             <div style={{ marginTop: 15 }}>
               <strong>Status History:</strong>
               <ul>
@@ -122,3 +161,11 @@ export default function StoreOrders() {
     </div>
   );
 }
+
+const card = {
+  border: "1px solid #eee",
+  borderRadius: 10,
+  padding: 15,
+  marginTop: 15,
+  background: "#f9fafb",
+};
