@@ -10,9 +10,7 @@ async function verifyAdmin(req) {
   try {
     const token = req.cookies.get("token")?.value;
 
-    if (!token) {
-      return { error: "Unauthorized", status: 401 };
-    }
+    if (!token) return { error: "Unauthorized", status: 401 };
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
@@ -21,7 +19,6 @@ async function verifyAdmin(req) {
     }
 
     return { user: decoded };
-
   } catch (err) {
     return { error: "Invalid token", status: 401 };
   }
@@ -33,40 +30,26 @@ export async function GET(req) {
     await connectDB();
 
     const { error, status } = await verifyAdmin(req);
-
     if (error) {
-      return NextResponse.json(
-        { success: false, message: error },
-        { status }
-      );
+      return NextResponse.json({ success: false, message: error }, { status });
     }
 
     const inventory = await Inventory.find({})
-      .populate({
-        path: "productId",
-        select: "name",
-      })
-      .populate({
-        path: "warehouseId",
-        select: "name code",
-      })
+      .populate("productId", "name sku") // ✅ IMPORTANT
+      .populate("warehouseId", "name code")
       .sort({ createdAt: -1 })
-      .lean(); // ✅ better performance
+      .lean();
 
     return NextResponse.json({
       success: true,
-      count: inventory.length,
       inventory,
     });
 
   } catch (err) {
-    console.error("INVENTORY FETCH ERROR:", err);
+    console.error("INVENTORY LIST ERROR:", err);
 
     return NextResponse.json(
-      {
-        success: false,
-        message: err.message || "Server error",
-      },
+      { success: false, message: err.message },
       { status: 500 }
     );
   }
