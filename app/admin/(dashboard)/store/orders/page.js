@@ -11,7 +11,6 @@ export default function StoreOrders() {
     loadOrders();
   }, []);
 
-  /* ================= LOAD ORDERS ================= */
   async function loadOrders() {
     setLoading(true);
     try {
@@ -19,9 +18,9 @@ export default function StoreOrders() {
       const json = await res.json();
 
       if (json.success) {
-        setOrders(Array.isArray(json.orders) ? json.orders : []);
+        setOrders(json.orders || []);
       } else {
-        alert(json.message || "Failed to load orders");
+        alert(json.message);
       }
     } catch (err) {
       console.error(err);
@@ -30,33 +29,31 @@ export default function StoreOrders() {
     setLoading(false);
   }
 
-  /* ================= UPDATE ================= */
   async function handleUpdate(orderId, payload) {
     if (!orderId) {
-      alert("Order ID missing ❌");
+      alert("❌ Order ID missing");
       return;
     }
 
     setUpdatingId(orderId);
 
     try {
-      console.log("Updating:", orderId, payload); // 🔍 debug
+      const body = { id: orderId, ...payload };
+
+      console.log("🚀 Sending:", body);
 
       const res = await fetch("/api/store/orders", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: orderId, // ✅ FIXED
-          ...payload,
-        }),
+        body: JSON.stringify(body),
       });
 
       const json = await res.json();
 
       if (json.success) {
-        await loadOrders();
+        loadOrders();
       } else {
-        alert(json.message || "Update failed");
+        alert(json.message);
       }
     } catch (err) {
       console.error(err);
@@ -66,27 +63,14 @@ export default function StoreOrders() {
     setUpdatingId(null);
   }
 
-  /* ================= STATUS BUTTON ================= */
   function renderActions(o) {
     const disabled = updatingId === o._id;
 
     const btn = (label, nextStatus) => (
       <button
-        onClick={() => {
-          if (!o._id) {
-            alert("Invalid order ❌");
-            return;
-          }
-
-          if (!o.warehouseAssignments?.length) {
-            alert("⚠ Warehouse not assigned");
-            return;
-          }
-
-          handleUpdate(o._id, { status: nextStatus });
-        }}
+        onClick={() => handleUpdate(o._id, { status: nextStatus })}
         disabled={disabled}
-        style={buttonPrimary}
+        style={button}
       >
         {disabled ? "Updating..." : label}
       </button>
@@ -102,70 +86,24 @@ export default function StoreOrders() {
       case "Out For Delivery":
         return btn("✅ Delivered", "Delivered");
       default:
-        return <span style={{ color: "#888" }}>No actions</span>;
+        return null;
     }
   }
 
-  if (loading)
-    return <h2 style={{ padding: 40 }}>Loading your orders...</h2>;
+  if (loading) return <h2 style={{ padding: 40 }}>Loading...</h2>;
 
   return (
-    <div style={{ maxWidth: 1200, margin: "auto", padding: 20 }}>
-      <h1 style={{ fontSize: 28, fontWeight: "bold" }}>
-        📦 Store Order Dashboard
-      </h1>
-
-      {orders.length === 0 && (
-        <p style={{ marginTop: 20 }}>No orders assigned to you yet.</p>
-      )}
+    <div style={{ padding: 20 }}>
+      <h1>📦 Store Orders</h1>
 
       {orders.map((o) => (
         <div key={o._id} style={card}>
-          {/* ================= HEADER ================= */}
-          <div style={header}>
-            <div>
-              <p><strong>Order ID:</strong> {o.orderId}</p>
-              <p><strong>Customer:</strong> {o.customerName}</p>
-            </div>
+          <p><strong>Order ID:</strong> {o.orderId}</p>
+          <p><strong>Status:</strong> {o.status}</p>
 
-            <span style={statusBadge(o.status)}>{o.status}</span>
-          </div>
+          {renderActions(o)}
 
-          {/* ================= PAYMENT ================= */}
-          <p>
-            <strong>Payment:</strong>{" "}
-            {o.paymentStatus === "Paid" ? (
-              <span style={{ color: "green" }}>💰 Paid</span>
-            ) : (
-              <span style={{ color: "red" }}>Pending</span>
-            )}
-          </p>
-
-          {/* ================= WAREHOUSE ================= */}
-          {o.warehouseAssignments?.length > 0 && (
-            <div style={box}>
-              <strong>🏬 Warehouse:</strong>{" "}
-              {o.warehouseAssignments[0]?.warehouseId?.name || "N/A"}
-            </div>
-          )}
-
-          {/* ================= ITEMS ================= */}
-          <div style={box}>
-            <strong>🧾 Items:</strong>
-            {o.items?.map((i, idx) => (
-              <div key={idx}>
-                {i.name} × {i.quantity}
-              </div>
-            ))}
-          </div>
-
-          {/* ================= ACTIONS ================= */}
           <div style={{ marginTop: 10 }}>
-            {renderActions(o)}
-          </div>
-
-          {/* ================= COURIER ================= */}
-          <div style={{ marginTop: 15, display: "flex", gap: 10 }}>
             <input
               placeholder="AWB"
               defaultValue={o.awbNumber || ""}
@@ -173,77 +111,23 @@ export default function StoreOrders() {
                 handleUpdate(o._id, { awbNumber: e.target.value })
               }
             />
-
-            <input
-              placeholder="Courier"
-              defaultValue={o.courierName || ""}
-              onBlur={(e) =>
-                handleUpdate(o._id, { courierName: e.target.value })
-              }
-            />
           </div>
-
-          {/* ================= HISTORY ================= */}
-          {o.statusHistory?.length > 0 && (
-            <div style={{ marginTop: 10 }}>
-              <strong>Timeline:</strong>
-              <ul>
-                {o.statusHistory.map((s, i) => (
-                  <li key={i}>
-                    {new Date(s.time).toLocaleString()} → {s.status}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
         </div>
       ))}
     </div>
   );
 }
 
-/* ================= STYLES ================= */
-
 const card = {
-  border: "1px solid #eee",
-  borderRadius: 12,
-  padding: 15,
-  marginTop: 15,
-  background: "#f9fafb",
-};
-
-const box = {
-  background: "#fff",
+  border: "1px solid #ccc",
   padding: 10,
-  borderRadius: 6,
   marginTop: 10,
 };
 
-const header = {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-};
-
-const buttonPrimary = {
-  padding: "8px 12px",
+const button = {
+  padding: "6px 10px",
   background: "#1e40af",
   color: "#fff",
   border: "none",
-  borderRadius: 6,
-  cursor: "pointer",
+  borderRadius: 5,
 };
-
-const statusBadge = (status) => ({
-  padding: "5px 10px",
-  borderRadius: 20,
-  background:
-    status === "Delivered"
-      ? "#16a34a"
-      : status === "Shipped"
-      ? "#9333ea"
-      : status === "Packed"
-      ? "#f59e0b"
-      : "#6b7280",
-  color: "#fff",
-});
