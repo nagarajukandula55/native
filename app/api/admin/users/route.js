@@ -1,3 +1,4 @@
+// app/api/admin/users/route.js
 import { NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
 import connectDB from "@/lib/db";
@@ -11,10 +12,11 @@ export async function GET(req) {
     if (!token) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    if (decoded.role !== "admin") return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+    if (decoded.role !== "admin")
+      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
 
     const users = await User.find({}, "-password").sort({ createdAt: -1 });
-    return NextResponse.json({ success: true, users });
+    return NextResponse.json(users);
   } catch (error) {
     console.error(error);
     return NextResponse.json({ message: "Server error" }, { status: 500 });
