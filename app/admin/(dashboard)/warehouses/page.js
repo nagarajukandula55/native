@@ -1,92 +1,116 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
+import { useEffect, useState } from "react";
 
 export default function Warehouses() {
   const emptyForm = {
-    code: "",
     name: "",
+    code: "",
     type: "",
     city: "",
     managerName: "",
-    allowDispatch: false,
-    allowPurchase: false,
+    allowDispatch: true,
+    allowPurchase: true,
     isActive: true,
-  }
+  };
 
-  const [data, setData] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [form, setForm] = useState(emptyForm)
-  const [saving, setSaving] = useState(false)
-  const [message, setMessage] = useState("")
+  const [warehouses, setWarehouses] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [form, setForm] = useState(emptyForm);
+  const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [message, setMessage] = useState("");
 
   useEffect(() => {
-    load()
-  }, [])
+    loadWarehouses();
+  }, []);
 
-  async function load() {
-    setLoading(true)
+  async function loadWarehouses() {
+    setLoading(true);
     try {
-      const res = await fetch("/api/admin/warehouse/list")
-      const json = await res.json()
-      if (json.success) setData(json.warehouses)
-    } catch {
-      alert("Failed to load warehouses")
+      const res = await fetch("/api/admin/warehouses");
+      const json = await res.json();
+      if (json.success) setWarehouses(json.warehouses);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to load warehouses");
     }
-    setLoading(false)
-  }
-
-  async function toggleStatus(id, current) {
-    await fetch("/api/admin/warehouse/toggle", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, value: !current }),
-    })
-    load()
+    setLoading(false);
   }
 
   async function handleSubmit(e) {
-    e.preventDefault()
-    if (!form.code || !form.name) return alert("Code & Name required")
-    setSaving(true)
+    e.preventDefault();
+    if (!form.name) return alert("Warehouse name required");
+    setSaving(true);
 
     try {
-      await fetch("/api/admin/warehouses", {
-        method: "POST",
+      const url = editingId ? `/api/admin/warehouses/${editingId}` : "/api/admin/warehouses";
+      const method = editingId ? "PUT" : "POST";
+      const res = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
-      })
-      setMessage("✅ Warehouse Added Successfully")
-      setForm(emptyForm)
-      load()
-    } catch (err) {
-      console.error(err)
-      alert("Failed to add warehouse")
-    }
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.message);
 
-    setSaving(false)
-    setTimeout(() => setMessage(""), 2000)
+      setMessage(editingId ? "✅ Warehouse updated" : "✅ Warehouse added");
+      setForm(emptyForm);
+      setEditingId(null);
+      loadWarehouses();
+    } catch (err) {
+      console.error(err);
+      alert(err.message || "Failed to save warehouse");
+    }
+    setSaving(false);
+    setTimeout(() => setMessage(""), 3000);
+  }
+
+  function editWarehouse(w) {
+    setForm({
+      name: w.name,
+      code: w.code,
+      type: w.type || "",
+      city: w.city || "",
+      managerName: w.managerName || "",
+      allowDispatch: w.allowDispatch,
+      allowPurchase: w.allowPurchase,
+      isActive: w.isActive,
+    });
+    setEditingId(w._id);
+  }
+
+  async function toggleStatus(id, current) {
+    try {
+      await fetch(`/api/admin/warehouses/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive: !current }),
+      });
+      loadWarehouses();
+    } catch {
+      alert("Failed to toggle status");
+    }
   }
 
   async function deleteWarehouse(id) {
-    if (!confirm("Delete this warehouse?")) return
+    if (!confirm("Delete this warehouse?")) return;
     try {
-      await fetch("/api/admin/warehouses/" + id, { method: "DELETE" })
-      load()
-    } catch (err) {
-      alert("Failed to delete warehouse")
+      await fetch(`/api/admin/warehouses/${id}`, { method: "DELETE" });
+      loadWarehouses();
+    } catch {
+      alert("Failed to delete warehouse");
     }
   }
 
-  if (loading) return <h2 style={{ padding: 40 }}>Loading Warehouses...</h2>
+  if (loading) return <h2 style={{ padding: 40 }}>Loading Warehouses...</h2>;
 
   return (
     <div style={{ maxWidth: 1300, margin: "auto", padding: 30 }}>
       <h1 style={{ fontSize: 28, fontWeight: "bold" }}>🏭 Warehouses Management</h1>
-
       {message && <p style={{ color: "green", marginTop: 10 }}>{message}</p>}
 
-      {/* Add Warehouse Form */}
+      {/* Add / Edit Form */}
       <form
         onSubmit={handleSubmit}
         style={{
@@ -102,33 +126,28 @@ export default function Warehouses() {
         }}
       >
         <input
-          name="code"
-          placeholder="Warehouse Code"
-          value={form.code}
-          onChange={(e) => setForm({ ...form, code: e.target.value })}
-          required
-        />
-        <input
-          name="name"
-          placeholder="Warehouse Name"
+          placeholder="Name"
           value={form.name}
           onChange={(e) => setForm({ ...form, name: e.target.value })}
           required
         />
         <input
-          name="type"
+          placeholder="Code"
+          value={form.code}
+          onChange={(e) => setForm({ ...form, code: e.target.value })}
+          required
+        />
+        <input
           placeholder="Type"
           value={form.type}
           onChange={(e) => setForm({ ...form, type: e.target.value })}
         />
         <input
-          name="city"
           placeholder="City"
           value={form.city}
           onChange={(e) => setForm({ ...form, city: e.target.value })}
         />
         <input
-          name="managerName"
           placeholder="Manager Name"
           value={form.managerName}
           onChange={(e) => setForm({ ...form, managerName: e.target.value })}
@@ -168,19 +187,13 @@ export default function Warehouses() {
             gridColumn: "span 2",
           }}
         >
-          {saving ? "Saving..." : "Add Warehouse"}
+          {saving ? "Saving..." : editingId ? "Update Warehouse" : "Add Warehouse"}
         </button>
       </form>
 
       {/* Warehouses Table */}
       <div style={{ overflowX: "auto" }}>
-        <table
-          style={{
-            width: "100%",
-            borderCollapse: "collapse",
-            background: "#fff",
-          }}
-        >
+        <table style={{ width: "100%", borderCollapse: "collapse", background: "#fff" }}>
           <thead>
             <tr style={{ background: "#f1f5f9" }}>
               <th>Code</th>
@@ -196,7 +209,7 @@ export default function Warehouses() {
             </tr>
           </thead>
           <tbody>
-            {data.map((w) => (
+            {warehouses.map((w) => (
               <tr key={w._id} style={{ borderBottom: "1px solid #eee", textAlign: "center" }}>
                 <td>{w.code}</td>
                 <td>{w.name}</td>
@@ -221,20 +234,19 @@ export default function Warehouses() {
                   </button>
                 </td>
                 <td>
-                  <a href={"/admin/warehouses/edit/" + w._id}>
-                    <button
-                      style={{
-                        background: "#0a7cff",
-                        color: "#fff",
-                        padding: "6px 12px",
-                        borderRadius: 6,
-                        cursor: "pointer",
-                        border: "none",
-                      }}
-                    >
-                      Edit
-                    </button>
-                  </a>
+                  <button
+                    onClick={() => editWarehouse(w)}
+                    style={{
+                      background: "#0a7cff",
+                      color: "#fff",
+                      padding: "6px 12px",
+                      borderRadius: 6,
+                      cursor: "pointer",
+                      border: "none",
+                    }}
+                  >
+                    Edit
+                  </button>
                 </td>
                 <td>
                   <button
@@ -257,5 +269,5 @@ export default function Warehouses() {
         </table>
       </div>
     </div>
-  )
+  );
 }
