@@ -9,6 +9,10 @@ export default function AssignOrders() {
   const [loading, setLoading] = useState(true);
   const [assigning, setAssigning] = useState(false);
 
+  // Selected store & warehouse per order
+  const [selectedStore, setSelectedStore] = useState({});
+  const [selectedWarehouse, setSelectedWarehouse] = useState({});
+
   useEffect(() => {
     loadData();
   }, []);
@@ -36,10 +40,15 @@ export default function AssignOrders() {
     setLoading(false);
   }
 
-  async function handleAssign(orderId, storeId, warehouseId) {
-    if (!storeId || !warehouseId) return alert("Select both store and warehouse");
-    setAssigning(true);
+  async function handleAssign(orderId) {
+    const storeId = selectedStore[orderId];
+    const warehouseId = selectedWarehouse[orderId];
 
+    if (!storeId || !warehouseId) return alert("Please select both store and warehouse");
+
+    if (!confirm("Are you sure you want to assign this order?")) return;
+
+    setAssigning(true);
     try {
       const res = await fetch("/api/admin/order/assign", {
         method: "PUT",
@@ -88,16 +97,13 @@ export default function AssignOrders() {
 
           {/* Assignment Controls */}
           <div style={{ display: "flex", gap: 15, alignItems: "center" }}>
+            {/* Store Selection */}
             <select
-              defaultValue=""
+              value={selectedStore[order._id] || ""}
               disabled={assigning}
-              onChange={(e) => {
-                const storeId = e.target.value;
-                const warehouseId = document.getElementById(`wh-${order._id}`).value;
-                handleAssign(order._id, storeId, warehouseId);
-              }}
+              onChange={(e) => setSelectedStore({ ...selectedStore, [order._id]: e.target.value })}
             >
-              <option value="">-- Assign to Store --</option>
+              <option value="">-- Select Store --</option>
               {stores.map((s) => (
                 <option key={s._id} value={s._id}>
                   {s.name} {s.warehouseName ? `(${s.warehouseName})` : ""}
@@ -105,21 +111,38 @@ export default function AssignOrders() {
               ))}
             </select>
 
+            {/* Warehouse Selection */}
             <select
-              id={`wh-${order._id}`}
-              defaultValue=""
+              value={selectedWarehouse[order._id] || ""}
               disabled={assigning}
+              onChange={(e) => setSelectedWarehouse({ ...selectedWarehouse, [order._id]: e.target.value })}
             >
-              <option value="">-- Assign to Warehouse --</option>
+              <option value="">-- Select Warehouse --</option>
               {warehouses.map((w) => (
                 <option key={w._id} value={w._id}>
                   {w.name} ({w.code})
                 </option>
               ))}
             </select>
+
+            {/* Assign Button */}
+            <button
+              disabled={assigning}
+              onClick={() => handleAssign(order._id)}
+              style={{
+                padding: "6px 12px",
+                background: "#4CAF50",
+                color: "#fff",
+                border: "none",
+                borderRadius: 6,
+                cursor: "pointer",
+              }}
+            >
+              {assigning ? "Assigning..." : "Assign"}
+            </button>
           </div>
 
-          {/* Show assigned warehouse inventory */}
+          {/* Warehouse Inventory (if already assigned) */}
           {order.assignedStore && order.warehouseAssignments?.length > 0 && (
             <div style={{ marginTop: 10, background: "#fff", padding: 10, borderRadius: 6 }}>
               <h4>Warehouse Inventory</h4>
