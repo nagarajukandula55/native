@@ -126,18 +126,20 @@ export default function OrdersDashboard() {
               )}
 
               {/* Future: View details */}
-              <button
-                style={{
-                  padding: "8px 12px",
-                  background: "#0ea5e9",
-                  color: "#fff",
-                  borderRadius: 6,
-                  border: "none",
-                  cursor: "pointer",
-                }}
-              >
-                View Details
-              </button>
+              <a href={`/admin/orders/${order._id}`}>
+                <button
+                  style={{
+                    padding: "8px 12px",
+                    background: "#0ea5e9",
+                    color: "#fff",
+                    borderRadius: 6,
+                    border: "none",
+                    cursor: "pointer",
+                  }}
+                >
+                  View Details
+                </button>
+              </a>
             </div>
           </div>
         ))}
