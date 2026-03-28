@@ -1,11 +1,9 @@
 import { NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
-import jwt from "jsonwebtoken";
-
 import Order from "@/models/Order";
 import User from "@/models/User";
 import Warehouse from "@/models/Warehouse";
-import Inventory from "@/models/Inventory";
+import jwt from "jsonwebtoken";
 
 export const dynamic = "force-dynamic";
 
@@ -26,39 +24,27 @@ async function verifyStore(req) {
 export async function GET(req) {
   try {
     await connectDB();
-    const decoded = await verifyStore(req);
-
-    // ✅ Get store user (to get warehouseId)
-    const storeUser = await User.findById(decoded.id);
+    const user = await verifyStore(req);
 
     const orders = await Order.find({
-      assignedStore: decoded.id, // ✅ ONLY store orders
+      assignedStore: user.id, // ✅ STRICT ONLY STORE ORDERS
       isDeleted: false,
     })
       .sort({ createdAt: -1 })
-      .populate("assignedStore", "name email")
       .populate("warehouseAssignments.warehouseId", "name code")
       .lean();
 
     return NextResponse.json({
       success: true,
       orders,
-      storeWarehouse: storeUser?.warehouseId || null,
     });
 
   } catch (e) {
     console.error("STORE GET ORDERS ERROR:", e);
 
-    const status =
-      e.message === "Unauthorized"
-        ? 401
-        : e.message === "Forbidden"
-        ? 403
-        : 500;
-
     return NextResponse.json(
-      { success: false, msg: e.message || "Server error" },
-      { status }
+      { success: false, message: e.message || "Server error" },
+      { status: 500 }
     );
   }
 }
@@ -67,7 +53,7 @@ export async function GET(req) {
 export async function PUT(req) {
   try {
     await connectDB();
-    const decoded = await verifyStore(req);
+    const user = await verifyStore(req);
 
     const {
       id,
@@ -80,7 +66,7 @@ export async function PUT(req) {
 
     if (!id) {
       return NextResponse.json(
-        { success: false, msg: "Order ID required" },
+        { success: false, message: "Order ID required" },
         { status: 400 }
       );
     }
@@ -89,20 +75,21 @@ export async function PUT(req) {
 
     if (!order) {
       return NextResponse.json(
-        { success: false, msg: "Order not found" },
+        { success: false, message: "Order not found" },
         { status: 404 }
       );
     }
 
-    /* ================= ACCESS CONTROL ================= */
-    if (!order.assignedStore || order.assignedStore.toString() !== decoded.id) {
+    /* ✅ STRICT ACCESS CONTROL */
+    if (!order.assignedStore || order.assignedStore.toString() !== user.id) {
       return NextResponse.json(
-        { success: false, msg: "Not allowed for this order" },
+        { success: false, message: "Not allowed for this order" },
         { status: 403 }
       );
     }
 
     /* ================= STATUS FLOW ================= */
+
     const validFlow = {
       "Order Placed": "Packed",
       Packed: "Shipped",
@@ -113,52 +100,24 @@ export async function PUT(req) {
     if (status && status !== order.status) {
       if (validFlow[order.status] !== status) {
         return NextResponse.json(
-          { success: false, msg: "Invalid status transition" },
+          { success: false, message: "Invalid status transition" },
           { status: 400 }
         );
       }
 
-      /* ================= INVENTORY DEDUCTION (HOOK READY) ================= */
-      if (status === "Packed") {
-        const warehouseId = order.warehouseAssignments?.[0]?.warehouseId;
-
-        if (!warehouseId) {
-          return NextResponse.json(
-            { success: false, msg: "Warehouse not assigned" },
-            { status: 400 }
-          );
-        }
-
-        // 🔥 Loop items → reduce inventory
-        for (const item of order.items) {
-          const inv = await Inventory.findOne({
-            skuId: item.productId, // ⚠️ ensure this matches your SKU
-            warehouseId,
-          });
-
-          if (!inv || inv.qty < item.quantity) {
-            return NextResponse.json(
-              { success: false, msg: `Insufficient stock for ${item.name}` },
-              { status: 400 }
-            );
-          }
-
-          inv.qty -= item.quantity;
-          await inv.save();
-        }
-      }
-
-      /* ================= UPDATE STATUS ================= */
+      // ✅ Update status
       order.status = status;
 
+      // ✅ Timeline
       order.statusHistory.push({
         status,
         time: new Date(),
-        updatedBy: decoded.id,
+        updatedBy: user.id,
       });
     }
 
-    /* ================= OTHER UPDATES ================= */
+    /* ================= OPTIONAL FIELDS ================= */
+
     if (paymentStatus) order.paymentStatus = paymentStatus;
     if (awbNumber !== undefined) order.awbNumber = awbNumber;
     if (courierName !== undefined) order.courierName = courierName;
@@ -168,22 +127,16 @@ export async function PUT(req) {
 
     return NextResponse.json({
       success: true,
+      message: "Order updated successfully",
       order,
     });
 
   } catch (e) {
     console.error("STORE UPDATE ORDER ERROR:", e);
 
-    const status =
-      e.message === "Unauthorized"
-        ? 401
-        : e.message === "Forbidden"
-        ? 403
-        : 500;
-
     return NextResponse.json(
-      { success: false, msg: e.message || "Server error" },
-      { status }
+      { success: false, message: e.message || "Server error" },
+      { status: 500 }
     );
   }
 }
