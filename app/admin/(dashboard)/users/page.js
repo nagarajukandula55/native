@@ -1,143 +1,179 @@
-// app/admin/(dashboard)/users/page.js
 "use client";
 
 import { useEffect, useState } from "react";
 
-export default function UsersPage() {
+export default function Users() {
+  const emptyForm = { id: "", role: "", warehouseId: "", isActive: true };
   const [users, setUsers] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
+  const [roles, setRoles] = useState(["user", "admin", "store", "branding"]);
+  const [form, setForm] = useState(emptyForm);
   const [loading, setLoading] = useState(true);
-  const [savingId, setSavingId] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState("");
 
-  const roles = ["user", "admin", "store", "branding"];
-
-  // Fetch users and warehouses
   useEffect(() => {
-    async function fetchData() {
-      try {
-        const [usersRes, warehousesRes] = await Promise.all([
-          fetch("/api/admin/users").then((r) => r.json()),
-          fetch("/api/admin/warehouses").then((r) => r.json()),
-        ]);
-
-        setUsers(usersRes || []);
-        setWarehouses(warehousesRes || []);
-      } catch (err) {
-        console.error("Error fetching data:", err);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchData();
+    loadData();
   }, []);
 
-  // Handle changes in dropdowns or toggle
-  const handleChange = (id, field, value) => {
-    setUsers((prev) =>
-      prev.map((u) => (u._id === id ? { ...u, [field]: value } : u))
-    );
-  };
-
-  // Save user update
-  const handleSave = async (user) => {
+  async function loadData() {
+    setLoading(true);
     try {
-      setSavingId(user._id);
+      const [resUsers, resWarehouses] = await Promise.all([
+        fetch("/api/admin/users"),
+        fetch("/api/admin/warehouses")
+      ]);
+
+      const usersJson = await resUsers.json();
+      const whJson = await resWarehouses.json();
+
+      if (usersJson.success !== false) setUsers(usersJson);
+      if (whJson.success) setWarehouses(whJson.warehouses);
+
+    } catch (err) {
+      console.error(err);
+      alert("Failed to load data");
+    }
+    setLoading(false);
+  }
+
+  function editUser(u) {
+    setForm({
+      id: u._id,
+      role: u.role,
+      warehouseId: u.warehouseId || "",
+      isActive: u.isActive,
+    });
+  }
+
+  async function handleSave(e) {
+    e.preventDefault();
+    if (!form.id) return alert("Select a user to edit");
+    setSaving(true);
+    try {
       const res = await fetch("/api/admin/users", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: user._id,
-          role: user.role,
-          warehouseId: user.warehouseId,
-          isActive: user.isActive,
-        }),
+        body: JSON.stringify(form),
       });
-      const data = await res.json();
-      if (!data.success) {
-        alert(data.message || "Failed to update user");
+      const json = await res.json();
+      if (json.success) {
+        setMessage("✅ User updated successfully");
+        setForm(emptyForm);
+        loadData();
       } else {
-        // Update local user with returned warehouse info
-        setUsers((prev) =>
-          prev.map((u) =>
-            u._id === user._id ? { ...data.user } : u
-          )
-        );
+        alert(json.message || "Failed to update user");
       }
     } catch (err) {
-      console.error("Save error:", err);
-      alert("Error updating user");
-    } finally {
-      setSavingId(null);
+      console.error(err);
+      alert("Server error");
     }
-  };
+    setSaving(false);
+    setTimeout(() => setMessage(""), 2000);
+  }
 
-  if (loading) return <p className="p-4 text-gray-500">Loading users...</p>;
-  if (!users.length) return <p className="p-4 text-gray-500">No users found</p>;
+  if (loading) return <h2 style={{ padding: 40 }}>Loading Users...</h2>;
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-semibold mb-4">Admin - Users</h1>
-      <div className="overflow-x-auto">
-        <table className="min-w-full border border-gray-200">
-          <thead className="bg-gray-100">
-            <tr>
-              <th className="px-4 py-2 border">Name</th>
-              <th className="px-4 py-2 border">Email</th>
-              <th className="px-4 py-2 border">Role</th>
-              <th className="px-4 py-2 border">Warehouse</th>
-              <th className="px-4 py-2 border">Active</th>
-              <th className="px-4 py-2 border">Actions</th>
+    <div style={{ maxWidth: 1200, margin: "auto", padding: 30 }}>
+      <h1 style={{ fontSize: 28, fontWeight: "bold" }}>👤 Users Management</h1>
+      {message && <p style={{ color: "green", marginTop: 10 }}>{message}</p>}
+
+      {/* Edit User Form */}
+      <form
+        onSubmit={handleSave}
+        style={{
+          marginTop: 20,
+          marginBottom: 30,
+          padding: 20,
+          border: "1px solid #eee",
+          borderRadius: 10,
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+          gap: 10,
+          background: "#f9fafb",
+        }}
+      >
+        <select
+          value={form.role}
+          onChange={(e) => setForm({ ...form, role: e.target.value })}
+        >
+          <option value="">-- Select Role --</option>
+          {roles.map((r) => (
+            <option key={r} value={r}>{r}</option>
+          ))}
+        </select>
+
+        <select
+          value={form.warehouseId}
+          onChange={(e) => setForm({ ...form, warehouseId: e.target.value })}
+        >
+          <option value="">-- Select Warehouse --</option>
+          {warehouses.map((w) => (
+            <option key={w._id} value={w._id}>{w.name}</option>
+          ))}
+        </select>
+
+        <label>
+          <input
+            type="checkbox"
+            checked={form.isActive}
+            onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
+          /> Active
+        </label>
+
+        <button
+          disabled={saving}
+          style={{
+            padding: 12,
+            background: "#1e40af",
+            color: "#fff",
+            borderRadius: 6,
+            cursor: "pointer",
+            gridColumn: "span 2",
+          }}
+        >
+          {saving ? "Saving..." : "Save Changes"}
+        </button>
+      </form>
+
+      {/* Users Table */}
+      <div style={{ overflowX: "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", background: "#fff" }}>
+          <thead>
+            <tr style={{ background: "#f1f5f9", textAlign: "center" }}>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Role</th>
+              <th>Warehouse</th>
+              <th>Status</th>
+              <th>Edit</th>
             </tr>
           </thead>
           <tbody>
-            {users.map((user) => (
-              <tr key={user._id} className="hover:bg-gray-50">
-                <td className="px-4 py-2 border">{user.name}</td>
-                <td className="px-4 py-2 border">{user.email}</td>
-                <td className="px-4 py-2 border">
-                  <select
-                    value={user.role}
-                    onChange={(e) => handleChange(user._id, "role", e.target.value)}
-                    className="border px-2 py-1 rounded w-full"
-                  >
-                    {roles.map((r) => (
-                      <option key={r} value={r}>
-                        {r.charAt(0).toUpperCase() + r.slice(1)}
-                      </option>
-                    ))}
-                  </select>
-                </td>
-                <td className="px-4 py-2 border">
-                  <select
-                    value={user.warehouseId || ""}
-                    onChange={(e) => handleChange(user._id, "warehouseId", e.target.value)}
-                    className="border px-2 py-1 rounded w-full"
-                  >
-                    <option value="">-- None --</option>
-                    {warehouses.map((w) => (
-                      <option key={w._id} value={w._id}>
-                        {w.name} ({w.code})
-                      </option>
-                    ))}
-                  </select>
-                </td>
-                <td className="px-4 py-2 border text-center">
-                  <input
-                    type="checkbox"
-                    checked={user.isActive}
-                    onChange={(e) => handleChange(user._id, "isActive", e.target.checked)}
-                    className="w-5 h-5"
-                  />
-                </td>
-                <td className="px-4 py-2 border">
+            {users.length === 0 && (
+              <tr><td colSpan={6} style={{ textAlign: "center", padding: 20 }}>No Users found</td></tr>
+            )}
+            {users.map((u) => (
+              <tr key={u._id} style={{ borderBottom: "1px solid #eee", textAlign: "center" }}>
+                <td>{u.name}</td>
+                <td>{u.email}</td>
+                <td>{u.role}</td>
+                <td>{u.warehouseName || "-"}</td>
+                <td>{u.isActive ? "Active" : "Disabled"}</td>
+                <td>
                   <button
-                    onClick={() => handleSave(user)}
-                    disabled={savingId === user._id}
-                    className={`px-3 py-1 rounded text-white ${
-                      savingId === user._id ? "bg-gray-400" : "bg-blue-600 hover:bg-blue-700"
-                    }`}
+                    onClick={() => editUser(u)}
+                    style={{
+                      background: "#0a7cff",
+                      color: "#fff",
+                      padding: "6px 12px",
+                      borderRadius: 6,
+                      cursor: "pointer",
+                      border: "none",
+                    }}
                   >
-                    {savingId === user._id ? "Saving..." : "Save"}
+                    Edit
                   </button>
                 </td>
               </tr>
