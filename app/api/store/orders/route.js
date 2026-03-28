@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import Order from "@/models/Order";
-import Warehouse from "@/models/Warehouse"; // ✅ REQUIRED
+import Warehouse from "@/models/Warehouse";
 import jwt from "jsonwebtoken";
 
 export const dynamic = "force-dynamic";
@@ -69,9 +69,9 @@ export async function PUT(req) {
     }
 
     const body = await req.json();
-    console.log("BODY RECEIVED:", body); // ✅ DEBUG
+    console.log("BODY RECEIVED:", body);
 
-    const id = body.id || body.orderId; // ✅ SAFE FIX
+    const id = body.id || body.orderId;
 
     if (!id) {
       return NextResponse.json(
@@ -114,6 +114,24 @@ export async function PUT(req) {
     };
 
     if (newStatus && newStatus !== order.status) {
+
+      /* 🔒 REQUIRE AWB + COURIER BEFORE SHIPPING */
+      if (order.status === "Packed" && newStatus === "Shipped") {
+        const finalAWB = awbNumber || order.awbNumber;
+        const finalCourier = courierName || order.courierName;
+
+        if (!finalAWB || !finalCourier) {
+          return NextResponse.json(
+            {
+              success: false,
+              message: "AWB Number and Courier Name required before shipping",
+            },
+            { status: 400 }
+          );
+        }
+      }
+
+      /* ❌ INVALID FLOW BLOCK */
       if (validFlow[order.status] !== newStatus) {
         return NextResponse.json(
           {
@@ -124,6 +142,7 @@ export async function PUT(req) {
         );
       }
 
+      /* ✅ UPDATE STATUS */
       order.status = newStatus;
 
       order.statusHistory.push({
@@ -135,6 +154,7 @@ export async function PUT(req) {
 
     /* ================= OPTIONAL FIELDS ================= */
     if (paymentStatus) order.paymentStatus = paymentStatus;
+
     if (awbNumber !== undefined) order.awbNumber = awbNumber;
     if (courierName !== undefined) order.courierName = courierName;
     if (trackingUrl !== undefined) order.trackingUrl = trackingUrl;
