@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import connectDB from "@/lib/db";
 import jwt from "jsonwebtoken";
 import Order from "@/models/Order";
+import User from "@/models/User";
+import Warehouse from "@/models/Warehouse";
 
 async function verifyAdmin(req) {
   const token = req.cookies.get("token")?.value;
