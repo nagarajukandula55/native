@@ -9,6 +9,7 @@ export default function AssignOrders() {
   const [loading, setLoading] = useState(true);
   const [assigning, setAssigning] = useState(false);
 
+  // Load orders, stores, warehouses
   useEffect(() => {
     loadData();
   }, []);
@@ -36,10 +37,11 @@ export default function AssignOrders() {
     setLoading(false);
   }
 
+  // Assign store + warehouse
   async function handleAssign(orderId, storeId, warehouseId) {
-    if (!storeId || !warehouseId) return alert("Select both store and warehouse first");
-    setAssigning(true);
+    if (!storeId || !warehouseId) return alert("Select both store and warehouse");
 
+    setAssigning(true);
     try {
       const res = await fetch("/api/admin/order/assign", {
         method: "PUT",
@@ -50,7 +52,8 @@ export default function AssignOrders() {
       const json = await res.json();
       if (json.success) {
         alert("✅ Order assigned successfully");
-        loadData();
+        // Update order in UI with inventory
+        setOrders(prev => prev.map(o => o._id === orderId ? { ...o, assignedStore: storeId, inventory: json.inventory } : o));
       } else {
         alert(json.message || "Failed to assign order");
       }
@@ -58,25 +61,7 @@ export default function AssignOrders() {
       console.error(err);
       alert("Server error");
     }
-
     setAssigning(false);
-  }
-
-  async function loadInventory(order) {
-    if (!order.warehouseAssignments?.length) return [];
-    try {
-      const warehouseId = order.warehouseAssignments[0].warehouseId;
-      const res = await fetch("/api/admin/order/assign", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ warehouseId }),
-      });
-      const json = await res.json();
-      return Array.isArray(json.inventory) ? json.inventory : [];
-    } catch (err) {
-      console.error(err);
-      return [];
-    }
   }
 
   if (loading) return <h2 style={{ padding: 40 }}>Loading orders...</h2>;
@@ -107,7 +92,8 @@ export default function AssignOrders() {
 
           {/* Assignment Controls */}
           <div style={{ display: "flex", gap: 15, alignItems: "center" }}>
-            <select defaultValue="" onChange={(e) => handleAssign(order._id, e.target.value, order.selectedWarehouse || "")} disabled={assigning}>
+            {/* Store Selection */}
+            <select id={`store-${order._id}`} disabled={assigning}>
               <option value="">-- Assign to Store --</option>
               {stores.map((s) => (
                 <option key={s._id} value={s._id}>
@@ -116,7 +102,8 @@ export default function AssignOrders() {
               ))}
             </select>
 
-            <select defaultValue="" onChange={(e) => handleAssign(order._id, order.selectedStore || "", e.target.value)} disabled={assigning}>
+            {/* Warehouse Selection */}
+            <select id={`warehouse-${order._id}`} disabled={assigning}>
               <option value="">-- Assign to Warehouse --</option>
               {warehouses.map((w) => (
                 <option key={w._id} value={w._id}>
@@ -127,7 +114,11 @@ export default function AssignOrders() {
 
             <button
               disabled={assigning}
-              onClick={() => handleAssign(order._id, order.selectedStore, order.selectedWarehouse)}
+              onClick={() => {
+                const storeId = document.getElementById(`store-${order._id}`).value;
+                const warehouseId = document.getElementById(`warehouse-${order._id}`).value;
+                handleAssign(order._id, storeId, warehouseId);
+              }}
               style={{
                 padding: "8px 15px",
                 background: "#1e40af",
@@ -141,58 +132,30 @@ export default function AssignOrders() {
             </button>
           </div>
 
-          {/* Warehouse Inventory */}
-          {order.warehouseAssignments?.length > 0 && (
+          {/* Show Assigned Warehouse Inventory */}
+          {Array.isArray(order.inventory) && order.inventory.length > 0 && (
             <div style={{ marginTop: 10, background: "#fff", padding: 10, borderRadius: 6 }}>
               <h4>Warehouse Inventory</h4>
-              <InventoryTable warehouseId={order.warehouseAssignments[0].warehouseId} />
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr style={{ borderBottom: "1px solid #ccc" }}>
+                    <th>SKU</th>
+                    <th>Quantity</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {order.inventory.map((inv) => (
+                    <tr key={inv._id}>
+                      <td>{inv.skuId?.name || "N/A"}</td>
+                      <td>{inv.qty}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </div>
       ))}
     </div>
-  );
-}
-
-// Component to fetch and display inventory table
-function InventoryTable({ warehouseId }) {
-  const [inventory, setInventory] = useState([]);
-
-  useEffect(() => {
-    async function fetchInventory() {
-      try {
-        const res = await fetch("/api/admin/order/assign", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ warehouseId }),
-        });
-        const json = await res.json();
-        setInventory(Array.isArray(json.inventory) ? json.inventory : []);
-      } catch (err) {
-        console.error(err);
-      }
-    }
-    fetchInventory();
-  }, [warehouseId]);
-
-  if (!inventory.length) return <p>No inventory available for this warehouse.</p>;
-
-  return (
-    <table style={{ width: "100%", borderCollapse: "collapse" }}>
-      <thead>
-        <tr style={{ borderBottom: "1px solid #ccc" }}>
-          <th>SKU</th>
-          <th>Quantity</th>
-        </tr>
-      </thead>
-      <tbody>
-        {inventory.map((inv) => (
-          <tr key={inv._id}>
-            <td>{inv.skuId?.name || "N/A"}</td>
-            <td>{inv.qty}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
   );
 }
