@@ -4,17 +4,49 @@ import { useEffect, useState } from "react";
 
 export default function UsersPage() {
   const [users, setUsers] = useState([]);
+  const [warehouses, setWarehouses] = useState([]);
+  const [roles, setRoles] = useState([]);
   const [editingId, setEditingId] = useState(null);
 
+  // Fetch users
   useEffect(() => {
     fetch("/api/admin/users")
       .then((res) => res.json())
       .then((data) => setUsers(data.users || []));
   }, []);
 
+  // Fetch warehouses
+  useEffect(() => {
+    fetch("/api/admin/warehouses")
+      .then((res) => res.json())
+      .then((data) => setWarehouses(data.warehouses || []));
+  }, []);
+
+  // Fetch roles
+  useEffect(() => {
+    fetch("/api/admin/roles")
+      .then((res) => res.json())
+      .then((data) => setRoles(data.roles || []));
+  }, []);
+
   const handleChange = (id, field, value) => {
     setUsers((prev) =>
-      prev.map((u) => (u._id === id ? { ...u, [field]: value } : u))
+      prev.map((u) => {
+        if (u._id === id) {
+          // Warehouse selected: auto-fill name & code
+          if (field === "warehouseId") {
+            const selected = warehouses.find((w) => w._id === value);
+            return {
+              ...u,
+              warehouseId: value,
+              warehouseName: selected?.name || "",
+              warehouseCode: selected?.code || "",
+            };
+          }
+          return { ...u, [field]: value };
+        }
+        return u;
+      })
     );
   };
 
@@ -37,26 +69,27 @@ export default function UsersPage() {
     <div className="p-6">
       <h1 className="text-2xl font-bold mb-4">Admin: User Management</h1>
 
-      <table className="w-full border border-gray-300">
+      <table className="w-full border border-gray-300 rounded-md overflow-hidden">
         <thead className="bg-gray-100">
           <tr>
             <th className="p-2">Name</th>
             <th className="p-2">Email</th>
             <th className="p-2">Role</th>
-            <th className="p-2">Warehouse Name</th>
-            <th className="p-2">Warehouse Code</th>
+            <th className="p-2">Warehouse</th>
+            <th className="p-2">Code</th>
             <th className="p-2">Active</th>
             <th className="p-2">Actions</th>
           </tr>
         </thead>
         <tbody>
           {users.map((u) => (
-            <tr key={u._id} className="border-t">
+            <tr key={u._id} className="border-t hover:bg-gray-50">
               <td className="p-2">
                 {editingId === u._id ? (
                   <input
                     value={u.name}
                     onChange={(e) => handleChange(u._id, "name", e.target.value)}
+                    className="border p-1 rounded w-full"
                   />
                 ) : (
                   u.name
@@ -68,6 +101,7 @@ export default function UsersPage() {
                   <input
                     value={u.email}
                     onChange={(e) => handleChange(u._id, "email", e.target.value)}
+                    className="border p-1 rounded w-full"
                   />
                 ) : (
                   u.email
@@ -79,11 +113,14 @@ export default function UsersPage() {
                   <select
                     value={u.role}
                     onChange={(e) => handleChange(u._id, "role", e.target.value)}
+                    className="border p-1 rounded"
                   >
-                    <option value="user">User</option>
-                    <option value="store">Store</option>
-                    <option value="admin">Admin</option>
-                    <option value="branding">Branding</option>
+                    <option value="">Select role</option>
+                    {roles.map((role) => (
+                      <option key={role} value={role}>
+                        {role}
+                      </option>
+                    ))}
                   </select>
                 ) : (
                   u.role
@@ -92,38 +129,31 @@ export default function UsersPage() {
 
               <td className="p-2">
                 {editingId === u._id ? (
-                  <input
-                    value={u.warehouseName || ""}
-                    onChange={(e) =>
-                      handleChange(u._id, "warehouseName", e.target.value)
-                    }
-                  />
+                  <select
+                    value={u.warehouseId || ""}
+                    onChange={(e) => handleChange(u._id, "warehouseId", e.target.value)}
+                    className="border p-1 rounded w-full"
+                  >
+                    <option value="">Select warehouse</option>
+                    {warehouses.map((w) => (
+                      <option key={w._id} value={w._id}>
+                        {w.name}
+                      </option>
+                    ))}
+                  </select>
                 ) : (
                   u.warehouseName || "-"
                 )}
               </td>
 
-              <td className="p-2">
-                {editingId === u._id ? (
-                  <input
-                    value={u.warehouseCode || ""}
-                    onChange={(e) =>
-                      handleChange(u._id, "warehouseCode", e.target.value)
-                    }
-                  />
-                ) : (
-                  u.warehouseCode || "-"
-                )}
-              </td>
+              <td className="p-2">{u.warehouseCode || "-"}</td>
 
               <td className="p-2 text-center">
                 {editingId === u._id ? (
                   <input
                     type="checkbox"
                     checked={u.isActive}
-                    onChange={(e) =>
-                      handleChange(u._id, "isActive", e.target.checked)
-                    }
+                    onChange={(e) => handleChange(u._id, "isActive", e.target.checked)}
                   />
                 ) : u.isActive ? (
                   "✅"
@@ -136,13 +166,13 @@ export default function UsersPage() {
                 {editingId === u._id ? (
                   <>
                     <button
-                      className="bg-green-500 text-white px-2 py-1 mr-2"
+                      className="bg-green-500 text-white px-2 py-1 mr-2 rounded"
                       onClick={() => handleSave(u)}
                     >
                       Save
                     </button>
                     <button
-                      className="bg-gray-400 text-white px-2 py-1"
+                      className="bg-gray-400 text-white px-2 py-1 rounded"
                       onClick={() => setEditingId(null)}
                     >
                       Cancel
@@ -150,7 +180,7 @@ export default function UsersPage() {
                   </>
                 ) : (
                   <button
-                    className="bg-blue-500 text-white px-2 py-1"
+                    className="bg-blue-500 text-white px-2 py-1 rounded"
                     onClick={() => setEditingId(u._id)}
                   >
                     Edit
