@@ -4,11 +4,11 @@ import { useEffect, useState } from "react";
 
 export default function InventoryAdmin() {
   const [warehouses, setWarehouses] = useState([]);
-  const [skus, setSkus] = useState([]);
+  const [products, setProducts] = useState([]);
   const [inventory, setInventory] = useState([]);
 
   const [form, setForm] = useState({
-    skuId: "",
+    productId: "",
     warehouseId: "",
     qty: "",
   });
@@ -20,53 +20,27 @@ export default function InventoryAdmin() {
     loadData();
   }, []);
 
-  /* ================= LOAD DATA (SAFE) ================= */
+  /* ================= LOAD DATA ================= */
   async function loadData() {
     setLoading(true);
 
     try {
-      // Load Warehouses
-      try {
-        const res = await fetch("/api/admin/warehouses");
-        const json = await res.json();
-        if (json.success) {
-          setWarehouses(json.warehouses || []);
-        } else {
-          console.warn("Warehouse API failed");
-        }
-      } catch (err) {
-        console.error("Warehouse fetch error:", err);
-      }
+      const [wRes, pRes, iRes] = await Promise.all([
+        fetch("/api/admin/warehouses"),
+        fetch("/api/admin/products"), // ✅ PRODUCT API
+        fetch("/api/admin/inventory/list"),
+      ]);
 
-      // Load SKUs (SAFE - may not exist yet)
-      try {
-        const res = await fetch("/api/admin/sku");
-        const json = await res.json();
-        if (json.success) {
-          setSkus(json.skus || []);
-        } else {
-          console.warn("SKU API failed");
-        }
-      } catch (err) {
-        console.warn("⚠ SKU API missing");
-        setSkus([]); // prevent crash
-      }
+      const wJson = await wRes.json();
+      const pJson = await pRes.json();
+      const iJson = await iRes.json();
 
-      // Load Inventory
-      try {
-        const res = await fetch("/api/admin/inventory/list");
-        const json = await res.json();
-        if (json.success) {
-          setInventory(json.inventory || []);
-        } else {
-          console.warn("Inventory API failed");
-        }
-      } catch (err) {
-        console.error("Inventory fetch error:", err);
-      }
+      setWarehouses(wJson.warehouses || []);
+      setProducts(pJson.products || []); // ✅ FIXED
+      setInventory(iJson.inventory || []);
 
     } catch (err) {
-      console.error("GLOBAL LOAD ERROR:", err);
+      console.error(err);
       alert("❌ Failed to load data");
     }
 
@@ -75,7 +49,7 @@ export default function InventoryAdmin() {
 
   /* ================= ADD INVENTORY ================= */
   async function handleSubmit() {
-    if (!form.skuId || !form.warehouseId || !form.qty) {
+    if (!form.productId || !form.warehouseId || !form.qty) {
       alert("⚠ All fields required");
       return;
     }
@@ -89,7 +63,8 @@ export default function InventoryAdmin() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          ...form,
+          productId: form.productId,
+          warehouseId: form.warehouseId,
           qty: Number(form.qty),
         }),
       });
@@ -98,7 +73,7 @@ export default function InventoryAdmin() {
 
       if (json.success) {
         alert("✅ Inventory added successfully");
-        setForm({ skuId: "", warehouseId: "", qty: "" });
+        setForm({ productId: "", warehouseId: "", qty: "" });
         loadData();
       } else {
         alert(json.message || "Failed to add inventory");
@@ -124,31 +99,30 @@ export default function InventoryAdmin() {
       <div style={card}>
         <h3>Add Inventory</h3>
 
-        {/* ⚠ SHOW MESSAGE IF SKU MISSING */}
-        {skus.length === 0 && (
+        {products.length === 0 && (
           <p style={{ color: "red" }}>
-            ⚠ No SKU found. Create SKU first.
+            ⚠ No products found. Create products first.
           </p>
         )}
 
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           
-          {/* SKU */}
+          {/* PRODUCT */}
           <select
-            value={form.skuId}
+            value={form.productId}
             onChange={(e) =>
-              setForm({ ...form, skuId: e.target.value })
+              setForm({ ...form, productId: e.target.value })
             }
           >
-            <option value="">Select SKU</option>
-            {skus.map((s) => (
-              <option key={s._id} value={s._id}>
-                {s.name || s.code || "Unnamed SKU"}
+            <option value="">Select Product</option>
+            {products.map((p) => (
+              <option key={p._id} value={p._id}>
+                {p.name}
               </option>
             ))}
           </select>
 
-          {/* Warehouse */}
+          {/* WAREHOUSE */}
           <select
             value={form.warehouseId}
             onChange={(e) =>
@@ -163,7 +137,7 @@ export default function InventoryAdmin() {
             ))}
           </select>
 
-          {/* Quantity */}
+          {/* QTY */}
           <input
             type="number"
             placeholder="Quantity"
@@ -183,7 +157,7 @@ export default function InventoryAdmin() {
         </div>
       </div>
 
-      {/* ================= INVENTORY LIST ================= */}
+      {/* ================= INVENTORY TABLE ================= */}
       <div style={{ marginTop: 20 }}>
         <h3>📊 Inventory List</h3>
 
@@ -193,19 +167,25 @@ export default function InventoryAdmin() {
           <table style={table}>
             <thead>
               <tr>
-                <th>SKU</th>
+                <th>Product</th>
                 <th>Warehouse</th>
-                <th>Quantity</th>
+                <th>Available</th>
+                <th>Reserved</th>
+                <th>Shipped</th>
+                <th>Total</th>
               </tr>
             </thead>
             <tbody>
               {inventory.map((i) => (
                 <tr key={i._id}>
-                  <td>{i.skuId?.name || "N/A"}</td>
+                  <td>{i.productId?.name || "N/A"}</td>
                   <td>
                     {i.warehouseId?.name} ({i.warehouseId?.code})
                   </td>
-                  <td>{i.qty}</td>
+                  <td>{i.availableQty}</td>
+                  <td>{i.reservedQty}</td>
+                  <td>{i.shippedQty}</td>
+                  <td>{i.totalQty}</td>
                 </tr>
               ))}
             </tbody>
