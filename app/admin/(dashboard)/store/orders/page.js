@@ -11,6 +11,7 @@ export default function StoreOrders() {
     loadOrders();
   }, []);
 
+  /* ================= LOAD ORDERS ================= */
   async function loadOrders() {
     setLoading(true);
     try {
@@ -18,9 +19,9 @@ export default function StoreOrders() {
       const json = await res.json();
 
       if (json.success) {
-        setOrders(json.orders || []);
+        setOrders(Array.isArray(json.orders) ? json.orders : []);
       } else {
-        alert(json.message);
+        alert(json.message || "Failed to load orders");
       }
     } catch (err) {
       console.error(err);
@@ -31,22 +32,29 @@ export default function StoreOrders() {
 
   /* ================= UPDATE ================= */
   async function handleUpdate(orderId, payload) {
+    if (!orderId) {
+      alert("Order ID missing ❌");
+      return;
+    }
+
     setUpdatingId(orderId);
-  
+
     try {
+      console.log("Updating:", orderId, payload); // 🔍 debug
+
       const res = await fetch("/api/store/orders", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          id: orderId,   // ✅ IMPORTANT FIX
+          id: orderId, // ✅ FIXED
           ...payload,
         }),
       });
-  
+
       const json = await res.json();
-  
+
       if (json.success) {
-        loadOrders();
+        await loadOrders();
       } else {
         alert(json.message || "Update failed");
       }
@@ -54,7 +62,7 @@ export default function StoreOrders() {
       console.error(err);
       alert("Server error");
     }
-  
+
     setUpdatingId(null);
   }
 
@@ -65,10 +73,16 @@ export default function StoreOrders() {
     const btn = (label, nextStatus) => (
       <button
         onClick={() => {
+          if (!o._id) {
+            alert("Invalid order ❌");
+            return;
+          }
+
           if (!o.warehouseAssignments?.length) {
             alert("⚠ Warehouse not assigned");
             return;
           }
+
           handleUpdate(o._id, { status: nextStatus });
         }}
         disabled={disabled}
@@ -88,11 +102,12 @@ export default function StoreOrders() {
       case "Out For Delivery":
         return btn("✅ Delivered", "Delivered");
       default:
-        return null;
+        return <span style={{ color: "#888" }}>No actions</span>;
     }
   }
 
-  if (loading) return <h2 style={{ padding: 40 }}>Loading your orders...</h2>;
+  if (loading)
+    return <h2 style={{ padding: 40 }}>Loading your orders...</h2>;
 
   return (
     <div style={{ maxWidth: 1200, margin: "auto", padding: 20 }}>
@@ -100,24 +115,20 @@ export default function StoreOrders() {
         📦 Store Order Dashboard
       </h1>
 
-      {orders.length === 0 && <p>No orders assigned to you yet.</p>}
+      {orders.length === 0 && (
+        <p style={{ marginTop: 20 }}>No orders assigned to you yet.</p>
+      )}
 
       {orders.map((o) => (
         <div key={o._id} style={card}>
-          
           {/* ================= HEADER ================= */}
-          <div style={{ display: "flex", justifyContent: "space-between" }}>
+          <div style={header}>
             <div>
               <p><strong>Order ID:</strong> {o.orderId}</p>
-              <p><strong>Status:</strong> {o.status}</p>
               <p><strong>Customer:</strong> {o.customerName}</p>
             </div>
 
-            <div>
-              <span style={statusBadge(o.status)}>
-                {o.status}
-              </span>
-            </div>
+            <span style={statusBadge(o.status)}>{o.status}</span>
           </div>
 
           {/* ================= PAYMENT ================= */}
@@ -141,7 +152,7 @@ export default function StoreOrders() {
           {/* ================= ITEMS ================= */}
           <div style={box}>
             <strong>🧾 Items:</strong>
-            {o.items.map((i, idx) => (
+            {o.items?.map((i, idx) => (
               <div key={idx}>
                 {i.name} × {i.quantity}
               </div>
@@ -162,6 +173,7 @@ export default function StoreOrders() {
                 handleUpdate(o._id, { awbNumber: e.target.value })
               }
             />
+
             <input
               placeholder="Courier"
               defaultValue={o.courierName || ""}
@@ -205,6 +217,12 @@ const box = {
   padding: 10,
   borderRadius: 6,
   marginTop: 10,
+};
+
+const header = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
 };
 
 const buttonPrimary = {
