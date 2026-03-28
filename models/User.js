@@ -1,4 +1,6 @@
+// models/User.js
 import mongoose from "mongoose";
+import bcrypt from "bcryptjs";
 
 const UserSchema = new mongoose.Schema(
   {
@@ -21,11 +23,24 @@ const UserSchema = new mongoose.Schema(
     warehouseName: { type: String, default: null },
     warehouseCode: { type: String, default: null },
 
-    isActive: { type: Boolean, default: true }, // optional but useful for deactivating users
+    isActive: { type: Boolean, default: true }, // deactivate users if needed
   },
   { timestamps: true }
 );
 
-const User = mongoose.models.User || mongoose.model("User", UserSchema);
+// ====================== PASSWORD HASHING ======================
+UserSchema.pre("save", async function (next) {
+  if (!this.isModified("password")) return next();
+  const salt = await bcrypt.genSalt(10);
+  this.password = await bcrypt.hash(this.password, salt);
+  next();
+});
 
+// ====================== COMPARE PASSWORD ======================
+UserSchema.methods.comparePassword = async function (password) {
+  return bcrypt.compare(password, this.password);
+};
+
+// ====================== EXPORT MODEL ======================
+const User = mongoose.models.User || mongoose.model("User", UserSchema);
 export default User;
