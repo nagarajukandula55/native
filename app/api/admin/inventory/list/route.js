@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import Inventory from "@/models/Inventory";
+import Product from "@/models/Product";     // ✅ REQUIRED
+import Warehouse from "@/models/Warehouse"; // ✅ REQUIRED
 import jwt from "jsonwebtoken";
 
 export const dynamic = "force-dynamic";
@@ -35,13 +37,24 @@ export async function GET(req) {
     }
 
     const inventory = await Inventory.find({})
-      .populate("productId", "name sku") // ✅ IMPORTANT
-      .populate("warehouseId", "name code")
+      .populate({
+        path: "productId",
+        model: "Product",
+        select: "name sku",
+      })
+      .populate({
+        path: "warehouseId",
+        model: "Warehouse",
+        select: "name code",
+      })
       .sort({ createdAt: -1 })
       .lean();
 
+    console.log("INVENTORY DATA:", inventory); // 🔥 DEBUG
+
     return NextResponse.json({
       success: true,
+      count: inventory.length,
       inventory,
     });
 
