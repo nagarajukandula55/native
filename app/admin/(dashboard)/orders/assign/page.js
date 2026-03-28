@@ -9,7 +9,6 @@ export default function AssignOrders() {
   const [loading, setLoading] = useState(true);
   const [assigning, setAssigning] = useState(false);
 
-  // Load orders, stores, warehouses
   useEffect(() => {
     loadData();
   }, []);
@@ -29,7 +28,7 @@ export default function AssignOrders() {
 
       setOrders(Array.isArray(ordersJson.orders) ? ordersJson.orders : []);
       setStores(Array.isArray(storesJson) ? storesJson.filter(u => u.role === "store") : []);
-      setWarehouses(Array.isArray(warehousesJson) ? warehousesJson : []);
+      setWarehouses(Array.isArray(warehousesJson.warehouses) ? warehousesJson.warehouses : []);
     } catch (err) {
       console.error(err);
       alert("Failed to load data");
@@ -37,20 +36,20 @@ export default function AssignOrders() {
     setLoading(false);
   }
 
-  // Assign order to store
-  async function handleAssignStore(orderId, storeId) {
-    if (!storeId) return alert("Select a store first");
+  async function handleAssign(orderId, storeId, warehouseId) {
+    if (!storeId || !warehouseId) return alert("Select both store and warehouse first");
     setAssigning(true);
 
     try {
       const res = await fetch("/api/admin/order/assign", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderId, storeId }),
+        body: JSON.stringify({ orderId, storeId, warehouseId }),
       });
+
       const json = await res.json();
       if (json.success) {
-        alert("✅ Order assigned to store successfully");
+        alert("✅ Order assigned successfully");
         loadData();
       } else {
         alert(json.message || "Failed to assign order");
@@ -63,30 +62,21 @@ export default function AssignOrders() {
     setAssigning(false);
   }
 
-  // Assign order to warehouse
-  async function handleAssignWarehouse(orderId, warehouseId) {
-    if (!warehouseId) return alert("Select a warehouse first");
-    setAssigning(true);
-
+  async function loadInventory(order) {
+    if (!order.warehouseAssignments?.length) return [];
     try {
-      const res = await fetch("/api/admin/order/assignWarehouse", {
-        method: "PUT",
+      const warehouseId = order.warehouseAssignments[0].warehouseId;
+      const res = await fetch("/api/admin/order/assign", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderId, warehouseId }),
+        body: JSON.stringify({ warehouseId }),
       });
       const json = await res.json();
-      if (json.success) {
-        alert("✅ Order assigned to warehouse successfully");
-        loadData();
-      } else {
-        alert(json.message || "Failed to assign warehouse");
-      }
+      return Array.isArray(json.inventory) ? json.inventory : [];
     } catch (err) {
       console.error(err);
-      alert("Server error");
+      return [];
     }
-
-    setAssigning(false);
   }
 
   if (loading) return <h2 style={{ padding: 40 }}>Loading orders...</h2>;
@@ -97,7 +87,7 @@ export default function AssignOrders() {
 
       {orders.length === 0 && <p style={{ marginTop: 20 }}>No unassigned orders found.</p>}
 
-      {Array.isArray(orders) && orders.map((order) => (
+      {orders.map((order) => (
         <div
           key={order._id}
           style={{
@@ -117,63 +107,92 @@ export default function AssignOrders() {
 
           {/* Assignment Controls */}
           <div style={{ display: "flex", gap: 15, alignItems: "center" }}>
-            {/* Store Selection */}
-            <select
-              defaultValue=""
-              onChange={(e) => handleAssignStore(order._id, e.target.value)}
-              disabled={assigning}
-            >
+            <select defaultValue="" onChange={(e) => handleAssign(order._id, e.target.value, order.selectedWarehouse || "")} disabled={assigning}>
               <option value="">-- Assign to Store --</option>
-              {Array.isArray(stores) && stores.map((s) => (
+              {stores.map((s) => (
                 <option key={s._id} value={s._id}>
                   {s.name} {s.warehouseName ? `(${s.warehouseName})` : ""}
                 </option>
               ))}
             </select>
 
-            {/* Warehouse Selection */}
-            <select
-              defaultValue=""
-              onChange={(e) => handleAssignWarehouse(order._id, e.target.value)}
-              disabled={assigning}
-            >
+            <select defaultValue="" onChange={(e) => handleAssign(order._id, order.selectedStore || "", e.target.value)} disabled={assigning}>
               <option value="">-- Assign to Warehouse --</option>
-              {Array.isArray(warehouses) && warehouses.map((w) => (
+              {warehouses.map((w) => (
                 <option key={w._id} value={w._id}>
                   {w.name} ({w.code})
                 </option>
               ))}
             </select>
+
+            <button
+              disabled={assigning}
+              onClick={() => handleAssign(order._id, order.selectedStore, order.selectedWarehouse)}
+              style={{
+                padding: "8px 15px",
+                background: "#1e40af",
+                color: "#fff",
+                border: "none",
+                borderRadius: 6,
+                cursor: "pointer",
+              }}
+            >
+              Assign
+            </button>
           </div>
 
-          {/* Show Assigned Warehouse Inventory */}
-          {order.assignedStore && order.assignedStore.warehouseId && (
+          {/* Warehouse Inventory */}
+          {order.warehouseAssignments?.length > 0 && (
             <div style={{ marginTop: 10, background: "#fff", padding: 10, borderRadius: 6 }}>
               <h4>Warehouse Inventory</h4>
-              {Array.isArray(order.inventory) && order.inventory.length > 0 ? (
-                <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                  <thead>
-                    <tr style={{ borderBottom: "1px solid #ccc" }}>
-                      <th>SKU</th>
-                      <th>Quantity</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {order.inventory.map((inv) => (
-                      <tr key={inv._id}>
-                        <td>{inv.skuId?.name || "N/A"}</td>
-                        <td>{inv.qty}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : (
-                <p>No inventory available for this warehouse.</p>
-              )}
+              <InventoryTable warehouseId={order.warehouseAssignments[0].warehouseId} />
             </div>
           )}
         </div>
       ))}
     </div>
+  );
+}
+
+// Component to fetch and display inventory table
+function InventoryTable({ warehouseId }) {
+  const [inventory, setInventory] = useState([]);
+
+  useEffect(() => {
+    async function fetchInventory() {
+      try {
+        const res = await fetch("/api/admin/order/assign", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ warehouseId }),
+        });
+        const json = await res.json();
+        setInventory(Array.isArray(json.inventory) ? json.inventory : []);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    fetchInventory();
+  }, [warehouseId]);
+
+  if (!inventory.length) return <p>No inventory available for this warehouse.</p>;
+
+  return (
+    <table style={{ width: "100%", borderCollapse: "collapse" }}>
+      <thead>
+        <tr style={{ borderBottom: "1px solid #ccc" }}>
+          <th>SKU</th>
+          <th>Quantity</th>
+        </tr>
+      </thead>
+      <tbody>
+        {inventory.map((inv) => (
+          <tr key={inv._id}>
+            <td>{inv.skuId?.name || "N/A"}</td>
+            <td>{inv.qty}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
   );
 }
