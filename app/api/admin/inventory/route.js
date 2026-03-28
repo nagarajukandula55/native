@@ -1,89 +1,58 @@
-// app/api/admin/inventory/route.js
-export const dynamic = "force-dynamic";
-
 import { NextResponse } from "next/server";
-import mongoose from "mongoose";
+import connectDB from "@/lib/mongodb";
 import Inventory from "@/models/Inventory";
-import db from "@/lib/db";
+import jwt from "jsonwebtoken";
 
-async function connectDB() {
-  await db(); // connect using your centralized DB helper
+/* ================= VERIFY ADMIN ================= */
+async function verifyAdmin(req) {
+  const token = req.cookies.get("token")?.value;
+  if (!token) throw new Error("Unauthorized");
+
+  const decoded = jwt.verify(token, process.env.JWT_SECRET);
+  if (decoded.role !== "admin") throw new Error("Forbidden");
+
+  return decoded;
 }
 
-/* ================= GET INVENTORY ================= */
-export async function GET() {
-  try {
-    await connectDB();
-
-    const list = await Inventory.find()
-      .populate("product")
-      .populate("warehouse")
-      .sort({ createdAt: -1 });
-
-    return NextResponse.json({
-      success: true,
-      list,
-    });
-  } catch (error) {
-    console.error("GET INVENTORY ERROR:", error);
-    return NextResponse.json(
-      {
-        success: false,
-        message: error.message,
-      },
-      { status: 500 }
-    );
-  }
-}
-
-/* ================= ADD / UPDATE STOCK ================= */
+/* ================= ADD / UPDATE INVENTORY ================= */
 export async function POST(req) {
   try {
     await connectDB();
+    await verifyAdmin(req);
 
-    const body = await req.json();
-    const { product, warehouse, qty, costPrice } = body;
+    const { skuId, warehouseId, qty } = await req.json();
 
-    if (!product || !warehouse || !qty) {
+    if (!skuId || !warehouseId || qty == null) {
       return NextResponse.json(
-        {
-          success: false,
-          message: "Missing fields: product, warehouse, qty required",
-        },
+        { success: false, message: "skuId, warehouseId, qty required" },
         { status: 400 }
       );
     }
 
-    // Check if stock entry already exists
-    let stock = await Inventory.findOne({ product, warehouse });
+    let inventory = await Inventory.findOne({ skuId, warehouseId });
 
-    if (stock) {
-      // Update existing stock
-      stock.qty += Number(qty);
-      stock.costPrice = Number(costPrice) || stock.costPrice;
-      await stock.save();
+    if (inventory) {
+      inventory.qty += Number(qty);
+      await inventory.save();
     } else {
-      // Create new stock entry
-      await Inventory.create({
-        product,
-        warehouse,
+      inventory = await Inventory.create({
+        skuId,
+        warehouseId,
         qty: Number(qty),
-        costPrice: Number(costPrice) || 0,
-        reorderLevel: 5,
       });
     }
 
     return NextResponse.json({
       success: true,
-      message: "Stock added/updated successfully",
+      message: "Inventory updated",
+      inventory,
     });
-  } catch (error) {
-    console.error("INVENTORY CREATE/UPDATE ERROR:", error);
+
+  } catch (err) {
+    console.error("ADD INVENTORY ERROR:", err);
+
     return NextResponse.json(
-      {
-        success: false,
-        message: error.message,
-      },
+      { success: false, message: err.message || "Server error" },
       { status: 500 }
     );
   }
