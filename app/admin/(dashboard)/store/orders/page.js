@@ -32,16 +32,19 @@ export default function StoreOrders() {
   /* ================= UPDATE ================= */
   async function handleUpdate(orderId, payload) {
     setUpdatingId(orderId);
-
+  
     try {
       const res = await fetch("/api/store/orders", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: orderId, ...payload }),
+        body: JSON.stringify({
+          id: orderId,   // ✅ IMPORTANT FIX
+          ...payload,
+        }),
       });
-
+  
       const json = await res.json();
-
+  
       if (json.success) {
         loadOrders();
       } else {
@@ -51,7 +54,7 @@ export default function StoreOrders() {
       console.error(err);
       alert("Server error");
     }
-
+  
     setUpdatingId(null);
   }
 
