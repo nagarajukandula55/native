@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import Order from "@/models/Order";
 import Inventory from "@/models/Inventory";
+import Warehouse from "@/models/Warehouse";
 import jwt from "jsonwebtoken";
 
 export const dynamic = "force-dynamic";
