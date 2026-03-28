@@ -6,22 +6,20 @@ export default function AssignOrders() {
   const [orders, setOrders] = useState([]);
   const [stores, setStores] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
+  const [selected, setSelected] = useState({});
   const [loading, setLoading] = useState(true);
   const [assigning, setAssigning] = useState(false);
 
-  // Track selected store + warehouse per order
-  const [selected, setSelected] = useState({});
-
-  // Load orders, stores, warehouses
   useEffect(() => {
     loadData();
   }, []);
 
   async function loadData() {
-    setLoading(true);
     try {
+      setLoading(true);
+
       const [ordersRes, storesRes, warehousesRes] = await Promise.all([
-        fetch("/api/admin/order"),
+        fetch("/api/admin/order"),        // ✅ updated
         fetch("/api/admin/users"),
         fetch("/api/admin/warehouses"),
       ]);
@@ -30,50 +28,69 @@ export default function AssignOrders() {
       const storesJson = await storesRes.json();
       const warehousesJson = await warehousesRes.json();
 
-      setOrders(Array.isArray(ordersJson.orders) ? ordersJson.orders : []);
+      console.log("Orders API:", ordersJson);
+
+      // ✅ ONLY pending orders
+      setOrders(ordersJson.grouped?.pending || []);
+
+      // ✅ store users only
       setStores(Array.isArray(storesJson) ? storesJson.filter(u => u.role === "store") : []);
-      setWarehouses(Array.isArray(warehousesJson.warehouses) ? warehousesJson.warehouses : []);
+
+      // ✅ warehouses fix
+      setWarehouses(warehousesJson?.warehouses || []);
+
     } catch (err) {
       console.error(err);
       alert("Failed to load data");
     }
+
     setLoading(false);
   }
 
-  // Assign store + warehouse
   async function handleAssign(orderId) {
     const { storeId, warehouseId } = selected[orderId] || {};
-    if (!storeId && !warehouseId) return alert("Select store and/or warehouse first");
+
+    if (!storeId && !warehouseId) {
+      return alert("Select store and/or warehouse");
+    }
 
     setAssigning(true);
+
     try {
       const res = await fetch("/api/admin/order", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ orderId, storeId, warehouseId }),
       });
+
       const json = await res.json();
+
       if (json.success) {
-        alert("✅ Order assigned successfully");
-        setSelected(prev => ({ ...prev, [orderId]: {} })); // reset selection
+        alert("✅ Order Assigned Successfully");
+        setSelected(prev => ({ ...prev, [orderId]: {} }));
         loadData();
       } else {
-        alert(json.message || "Failed to assign order");
+        alert(json.message || "Failed");
       }
     } catch (err) {
       console.error(err);
       alert("Server error");
     }
+
     setAssigning(false);
   }
 
-  if (loading) return <h2 style={{ padding: 40 }}>Loading orders...</h2>;
+  if (loading) return <h2 style={{ padding: 40 }}>Loading Orders...</h2>;
 
   return (
     <div style={{ maxWidth: 1200, margin: "auto", padding: 20 }}>
-      <h1 style={{ fontSize: 28, fontWeight: "bold" }}>📝 Assign Orders</h1>
+      <h1 style={{ fontSize: 28, fontWeight: "bold" }}>
+        📝 Assign Orders
+      </h1>
 
-      {orders.length === 0 && <p style={{ marginTop: 20 }}>No unassigned orders found.</p>}
+      {orders.length === 0 && (
+        <p style={{ marginTop: 20 }}>No pending orders</p>
+      )}
 
       {orders.map(order => (
         <div
@@ -88,26 +105,31 @@ export default function AssignOrders() {
         >
           {/* Order Info */}
           <div style={{ marginBottom: 10 }}>
-            <p><strong>Order ID:</strong> {order.orderId || order._id}</p>
-            <p><strong>Status:</strong> {order.status || "Pending"}</p>
+            <p><strong>Order ID:</strong> {order.orderId}</p>
             <p><strong>Customer:</strong> {order.customerName}</p>
+            <p><strong>Status:</strong> {order.status}</p>
           </div>
 
-          {/* Assignment Controls */}
+          {/* Controls */}
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            
             {/* Store Dropdown */}
             <select
               value={selected[order._id]?.storeId || ""}
-              onChange={e => setSelected(prev => ({
-                ...prev,
-                [order._id]: { ...prev[order._id], storeId: e.target.value }
-              }))}
-              disabled={assigning}
+              onChange={(e) =>
+                setSelected(prev => ({
+                  ...prev,
+                  [order._id]: {
+                    ...prev[order._id],
+                    storeId: e.target.value
+                  }
+                }))
+              }
             >
-              <option value="">-- Assign to Store --</option>
-              {stores.map(store => (
-                <option key={store._id} value={store._id}>
-                  {store.name} {store.warehouseName ? `(${store.warehouseName})` : ""}
+              <option value="">-- Select Store --</option>
+              {stores.map(s => (
+                <option key={s._id} value={s._id}>
+                  {s.name} {s.warehouseName ? `(${s.warehouseName})` : ""}
                 </option>
               ))}
             </select>
@@ -115,15 +137,21 @@ export default function AssignOrders() {
             {/* Warehouse Dropdown */}
             <select
               value={selected[order._id]?.warehouseId || ""}
-              onChange={e => setSelected(prev => ({
-                ...prev,
-                [order._id]: { ...prev[order._id], warehouseId: e.target.value }
-              }))}
-              disabled={assigning}
+              onChange={(e) =>
+                setSelected(prev => ({
+                  ...prev,
+                  [order._id]: {
+                    ...prev[order._id],
+                    warehouseId: e.target.value
+                  }
+                }))
+              }
             >
-              <option value="">-- Assign to Warehouse --</option>
-              {warehouses.map(wh => (
-                <option key={wh._id} value={wh._id}>{wh.name} ({wh.code})</option>
+              <option value="">-- Select Warehouse --</option>
+              {warehouses.map(w => (
+                <option key={w._id} value={w._id}>
+                  {w.name} ({w.code})
+                </option>
               ))}
             </select>
 
@@ -132,7 +160,7 @@ export default function AssignOrders() {
               disabled={assigning}
               onClick={() => handleAssign(order._id)}
               style={{
-                padding: "8px 15px",
+                padding: "8px 14px",
                 background: "#1e40af",
                 color: "#fff",
                 border: "none",
