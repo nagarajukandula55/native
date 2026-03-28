@@ -88,7 +88,7 @@ const OrderSchema = new mongoose.Schema(
       },
     },
 
-    /* ===== STORE ASSIGNMENT (🔥 IMPORTANT) ===== */
+    /* ===== STORE ASSIGNMENT ===== */
     assignedStore: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -112,12 +112,24 @@ const OrderSchema = new mongoose.Schema(
     paymentId: { type: String, default: "" },
     razorpayOrderId: { type: String, default: "" },
 
+    /* 🔥 NEW: MANUAL PAYMENT VERIFICATION */
+    paymentVerifiedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+
+    paymentVerifiedAt: {
+      type: Date,
+      default: null,
+    },
+
     /* ===== COURIER INFO ===== */
     awbNumber: { type: String, default: "" },
     courierName: { type: String, default: "" },
     trackingUrl: { type: String, default: "" },
 
-    /* ===== WAREHOUSE SUPPORT (FUTURE READY) ===== */
+    /* ===== WAREHOUSE SUPPORT ===== */
     warehouseAssignments: [
       {
         warehouseId: {
@@ -125,6 +137,17 @@ const OrderSchema = new mongoose.Schema(
           ref: "Warehouse",
         },
         assignedAt: { type: Date, default: Date.now },
+      },
+    ],
+
+    /* 🔥 FUTURE READY: INVENTORY TRACKING */
+    inventoryConsumed: [
+      {
+        skuId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "SKU",
+        },
+        qty: Number,
       },
     ],
 
