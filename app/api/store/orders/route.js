@@ -28,9 +28,13 @@ export async function GET(req) {
       );
     }
 
-    /* 🔥 CORRECT QUERY (MATCHES YOUR SCHEMA) */
+    /* 🔥 HYBRID FILTER (STORE + FALLBACK WAREHOUSE) */
     const orders = await Order.find({
-      "warehouseAssignments.warehouseId": decoded.id,
+      $or: [
+        { assignedStore: decoded.id }, // ✅ primary
+        { "warehouseAssignments.warehouseId": decoded.id }, // fallback
+      ],
+      isDeleted: false,
     }).sort({ createdAt: -1 });
 
     return NextResponse.json({
@@ -96,28 +100,57 @@ export async function PUT(req) {
       );
     }
 
-    /* 🔥 ACCESS CONTROL (FIXED) */
-    const isAssigned = order.warehouseAssignments.some(
-      (w) => w.warehouseId.toString() === decoded.id
-    );
+    /* 🔥 ACCESS CONTROL (STORE + WAREHOUSE SAFE) */
+    const isAllowed =
+      (order.assignedStore &&
+        order.assignedStore.toString() === decoded.id) ||
+      order.warehouseAssignments.some(
+        (w) => w.warehouseId.toString() === decoded.id
+      );
 
-    if (!isAssigned) {
+    if (!isAllowed) {
       return NextResponse.json(
         { success: false, msg: "Not allowed for this order" },
         { status: 403 }
       );
     }
 
-    /* ================= UPDATE FIELDS ================= */
+    /* ================= STATUS FLOW CONTROL ================= */
 
-    if (status && status !== order.status) {
+    const validFlow = {
+      "Order Placed": "Packed",
+      Packed: "Shipped",
+      Shipped: "Out For Delivery",
+      "Out For Delivery": "Delivered",
+    };
+
+    if (status && status !== order.currentStatus) {
+      if (validFlow[order.currentStatus] !== status) {
+        return NextResponse.json(
+          { success: false, msg: "Invalid status transition" },
+          { status: 400 }
+        );
+      }
+
+      // ✅ Flags
+      if (status === "Packed") order.isPacked = true;
+      if (status === "Shipped") order.isShipped = true;
+
+      // ✅ Update status
       order.status = status;
+      order.currentStatus = status;
+      order.lastUpdatedAt = new Date();
 
+      // ✅ Timeline
       order.statusHistory.push({
         status,
         time: new Date(),
+        updatedBy: decoded.id,
+        updatedByModel: "Store",
       });
     }
+
+    /* ================= OTHER UPDATES ================= */
 
     if (paymentStatus) {
       order.paymentStatus = paymentStatus;
