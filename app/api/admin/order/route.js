@@ -1,5 +1,3 @@
-// app/api/admin/order/route.js
-
 import { NextResponse } from "next/server";
 import connectDB from "@/lib/db";
 import jwt from "jsonwebtoken";
@@ -32,7 +30,6 @@ export async function GET(req) {
       .populate("warehouseAssignments.warehouseId", "name code")
       .lean();
 
-    // 🔥 Grouping for tabs UI
     const grouped = {
       pending: [],
       assigned: [],
@@ -53,7 +50,7 @@ export async function GET(req) {
       } else if (order.status === "Delivered") {
         grouped.delivered.push(order);
       } else {
-        grouped.assigned.push(order); // fallback
+        grouped.assigned.push(order);
       }
     });
 
@@ -83,20 +80,22 @@ export async function PUT(req) {
 
     const { orderId, storeId, warehouseId } = await req.json();
 
-    if (!orderId)
+    if (!orderId) {
       return NextResponse.json(
         { success: false, message: "Order ID is required" },
         { status: 400 }
       );
+    }
 
     const order = await Order.findById(orderId);
-    if (!order)
+    if (!order) {
       return NextResponse.json(
         { success: false, message: "Order not found" },
         { status: 404 }
       );
+    }
 
-    /* ===== STORE ASSIGNMENT ===== */
+    /* ================= STORE ASSIGN ================= */
     if (storeId) {
       const store = await User.findById(storeId);
       if (!store || store.role !== "store") {
@@ -109,7 +108,7 @@ export async function PUT(req) {
       order.assignedStore = storeId;
     }
 
-    /* ===== WAREHOUSE ASSIGNMENT ===== */
+    /* ================= WAREHOUSE ASSIGN ================= */
     if (warehouseId) {
       const warehouse = await Warehouse.findById(warehouseId);
       if (!warehouse) {
@@ -117,6 +116,40 @@ export async function PUT(req) {
           { success: false, message: "Invalid warehouse" },
           { status: 400 }
         );
+      }
+
+      /* 🔥 INVENTORY RESERVATION */
+      for (const item of order.items) {
+        const inventory = await Inventory.findOne({
+          skuId: item.productId,
+          warehouseId,
+        });
+
+        if (!inventory) {
+          return NextResponse.json(
+            {
+              success: false,
+              message: `No inventory for ${item.name}`,
+            },
+            { status: 400 }
+          );
+        }
+
+        if (inventory.availableQty < item.quantity) {
+          return NextResponse.json(
+            {
+              success: false,
+              message: `Insufficient stock for ${item.name}`,
+            },
+            { status: 400 }
+          );
+        }
+
+        /* ✅ MOVE STOCK → AVAILABLE → RESERVED */
+        inventory.availableQty -= item.quantity;
+        inventory.reservedQty += item.quantity;
+
+        await inventory.save();
       }
 
       order.warehouseAssignments = [
@@ -159,11 +192,12 @@ export async function POST(req) {
 
     const { warehouseId } = await req.json();
 
-    if (!warehouseId)
+    if (!warehouseId) {
       return NextResponse.json(
         { success: false, message: "Warehouse ID required" },
         { status: 400 }
       );
+    }
 
     const inventory = await Inventory.find({ warehouseId })
       .populate("skuId", "name code")
