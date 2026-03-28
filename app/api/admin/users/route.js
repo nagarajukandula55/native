@@ -8,20 +8,13 @@ export async function GET(req) {
     await connectDB();
 
     const token = req.cookies.get("token")?.value;
-
-    if (!token) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+    if (!token) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-    if (decoded.role !== "admin") {
-      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
-    }
+    if (decoded.role !== "admin") return NextResponse.json({ message: "Forbidden" }, { status: 403 });
 
     const users = await User.find({}, "-password").sort({ createdAt: -1 });
-
-    return NextResponse.json(users);
+    return NextResponse.json({ success: true, users });
   } catch (error) {
     console.error(error);
     return NextResponse.json({ message: "Server error" }, { status: 500 });
