@@ -8,30 +8,23 @@ export async function PUT(req, { params }) {
     await connectDB();
 
     const token = req.cookies.get("token")?.value;
-
-    if (!token) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+    if (!token) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    if (decoded.role !== "admin") return NextResponse.json({ message: "Forbidden" }, { status: 403 });
 
-    if (decoded.role !== "admin") {
-      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
-    }
+    const { id } = params;
+    const { name, email, role, warehouseId, warehouseName, warehouseCode, isActive } = await req.json();
 
-    const { role } = await req.json();
-
-    if (!["user", "store", "admin"].includes(role)) {
-      return NextResponse.json({ message: "Invalid role" }, { status: 400 });
-    }
-
-    const user = await User.findByIdAndUpdate(
-      params.id,
-      { role },
-      { new: true }
+    const updatedUser = await User.findByIdAndUpdate(
+      id,
+      { name, email, role, warehouseId, warehouseName, warehouseCode, isActive },
+      { new: true, runValidators: true }
     ).select("-password");
 
-    return NextResponse.json(user);
+    if (!updatedUser) return NextResponse.json({ message: "User not found" }, { status: 404 });
+
+    return NextResponse.json({ success: true, user: updatedUser });
   } catch (error) {
     console.error(error);
     return NextResponse.json({ message: "Server error" }, { status: 500 });
