@@ -9,10 +9,10 @@ export default function AssignOrders() {
   const [loading, setLoading] = useState(true);
   const [assigning, setAssigning] = useState(false);
 
-  // Selected store & warehouse per order
-  const [selectedStore, setSelectedStore] = useState({});
-  const [selectedWarehouse, setSelectedWarehouse] = useState({});
+  // Track selected store + warehouse per order
+  const [selected, setSelected] = useState({});
 
+  // Load orders, stores, warehouses
   useEffect(() => {
     loadData();
   }, []);
@@ -21,7 +21,7 @@ export default function AssignOrders() {
     setLoading(true);
     try {
       const [ordersRes, storesRes, warehousesRes] = await Promise.all([
-        fetch("/api/admin/order/unassigned"),
+        fetch("/api/admin/order"),
         fetch("/api/admin/users"),
         fetch("/api/admin/warehouses"),
       ]);
@@ -40,17 +40,14 @@ export default function AssignOrders() {
     setLoading(false);
   }
 
+  // Assign store + warehouse
   async function handleAssign(orderId) {
-    const storeId = selectedStore[orderId];
-    const warehouseId = selectedWarehouse[orderId];
-
-    if (!storeId || !warehouseId) return alert("Please select both store and warehouse");
-
-    if (!confirm("Are you sure you want to assign this order?")) return;
+    const { storeId, warehouseId } = selected[orderId] || {};
+    if (!storeId && !warehouseId) return alert("Select store and/or warehouse first");
 
     setAssigning(true);
     try {
-      const res = await fetch("/api/admin/order/assign", {
+      const res = await fetch("/api/admin/order", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ orderId, storeId, warehouseId }),
@@ -58,6 +55,7 @@ export default function AssignOrders() {
       const json = await res.json();
       if (json.success) {
         alert("✅ Order assigned successfully");
+        setSelected(prev => ({ ...prev, [orderId]: {} })); // reset selection
         loadData();
       } else {
         alert(json.message || "Failed to assign order");
@@ -77,7 +75,7 @@ export default function AssignOrders() {
 
       {orders.length === 0 && <p style={{ marginTop: 20 }}>No unassigned orders found.</p>}
 
-      {orders.map((order) => (
+      {orders.map(order => (
         <div
           key={order._id}
           style={{
@@ -96,32 +94,36 @@ export default function AssignOrders() {
           </div>
 
           {/* Assignment Controls */}
-          <div style={{ display: "flex", gap: 15, alignItems: "center" }}>
-            {/* Store Selection */}
+          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            {/* Store Dropdown */}
             <select
-              value={selectedStore[order._id] || ""}
+              value={selected[order._id]?.storeId || ""}
+              onChange={e => setSelected(prev => ({
+                ...prev,
+                [order._id]: { ...prev[order._id], storeId: e.target.value }
+              }))}
               disabled={assigning}
-              onChange={(e) => setSelectedStore({ ...selectedStore, [order._id]: e.target.value })}
             >
-              <option value="">-- Select Store --</option>
-              {stores.map((s) => (
-                <option key={s._id} value={s._id}>
-                  {s.name} {s.warehouseName ? `(${s.warehouseName})` : ""}
+              <option value="">-- Assign to Store --</option>
+              {stores.map(store => (
+                <option key={store._id} value={store._id}>
+                  {store.name} {store.warehouseName ? `(${store.warehouseName})` : ""}
                 </option>
               ))}
             </select>
 
-            {/* Warehouse Selection */}
+            {/* Warehouse Dropdown */}
             <select
-              value={selectedWarehouse[order._id] || ""}
+              value={selected[order._id]?.warehouseId || ""}
+              onChange={e => setSelected(prev => ({
+                ...prev,
+                [order._id]: { ...prev[order._id], warehouseId: e.target.value }
+              }))}
               disabled={assigning}
-              onChange={(e) => setSelectedWarehouse({ ...selectedWarehouse, [order._id]: e.target.value })}
             >
-              <option value="">-- Select Warehouse --</option>
-              {warehouses.map((w) => (
-                <option key={w._id} value={w._id}>
-                  {w.name} ({w.code})
-                </option>
+              <option value="">-- Assign to Warehouse --</option>
+              {warehouses.map(wh => (
+                <option key={wh._id} value={wh._id}>{wh.name} ({wh.code})</option>
               ))}
             </select>
 
@@ -130,44 +132,17 @@ export default function AssignOrders() {
               disabled={assigning}
               onClick={() => handleAssign(order._id)}
               style={{
-                padding: "6px 12px",
-                background: "#4CAF50",
+                padding: "8px 15px",
+                background: "#1e40af",
                 color: "#fff",
                 border: "none",
                 borderRadius: 6,
                 cursor: "pointer",
               }}
             >
-              {assigning ? "Assigning..." : "Assign"}
+              Assign
             </button>
           </div>
-
-          {/* Warehouse Inventory (if already assigned) */}
-          {order.assignedStore && order.warehouseAssignments?.length > 0 && (
-            <div style={{ marginTop: 10, background: "#fff", padding: 10, borderRadius: 6 }}>
-              <h4>Warehouse Inventory</h4>
-              {Array.isArray(order.inventory) && order.inventory.length > 0 ? (
-                <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                  <thead>
-                    <tr style={{ borderBottom: "1px solid #ccc" }}>
-                      <th>SKU</th>
-                      <th>Qty</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {order.inventory.map(inv => (
-                      <tr key={inv._id}>
-                        <td>{inv.skuId?.name || "N/A"}</td>
-                        <td>{inv.qty}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : (
-                <p>No inventory available.</p>
-              )}
-            </div>
-          )}
         </div>
       ))}
     </div>
