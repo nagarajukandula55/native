@@ -19,7 +19,7 @@ export async function GET(req) {
     await verifyAdmin(req);
 
     const inventory = await Inventory.find({})
-      .populate("skuId", "name")
+      .populate("productId", "name")
       .populate("warehouseId", "name code")
       .sort({ createdAt: -1 });
 
