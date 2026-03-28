@@ -2,124 +2,190 @@
 
 import { useEffect, useState } from "react";
 
-export default function InventoryDashboard() {
-  const [data, setData] = useState(null);
+export default function InventoryAdmin() {
+  const [warehouses, setWarehouses] = useState([]);
+  const [skus, setSkus] = useState([]);
+  const [inventory, setInventory] = useState([]);
+
+  const [form, setForm] = useState({
+    skuId: "",
+    warehouseId: "",
+    qty: "",
+  });
+
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
 
   useEffect(() => {
-    const loadDashboard = async () => {
-      try {
-        const res = await fetch("/api/admin/inventory-dashboard");
-
-        if (!res.ok) {
-          throw new Error("API failed");
-        }
-
-        const result = await res.json();
-
-        if (result.success) {
-          setData(result.data);
-        } else {
-          setError(result.message || "Failed to load data");
-        }
-
-      } catch (err) {
-        console.error("Dashboard Error:", err);
-        setError("Something went wrong");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadDashboard();
+    loadData();
   }, []);
 
-  /* ================= STATES ================= */
+  async function loadData() {
+    try {
+      setLoading(true);
 
-  if (loading) return <p className="p-4">Loading Dashboard...</p>;
+      const [wRes, sRes, iRes] = await Promise.all([
+        fetch("/api/admin/warehouses"),
+        fetch("/api/admin/sku"), // make sure this exists
+        fetch("/api/admin/inventory/list"), // we'll create this next
+      ]);
 
-  if (error)
-    return <p className="p-4 text-red-600">{error}</p>;
+      const wJson = await wRes.json();
+      const sJson = await sRes.json();
+      const iJson = await iRes.json();
 
-  if (!data)
-    return <p className="p-4">No Data Available</p>;
+      setWarehouses(wJson.warehouses || []);
+      setSkus(sJson.skus || []);
+      setInventory(iJson.inventory || []);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to load data");
+    }
+
+    setLoading(false);
+  }
+
+  async function handleSubmit() {
+    if (!form.skuId || !form.warehouseId || !form.qty) {
+      alert("All fields required");
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/admin/inventory", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ...form,
+          qty: Number(form.qty),
+        }),
+      });
+
+      const json = await res.json();
+
+      if (json.success) {
+        alert("✅ Inventory added");
+        setForm({ skuId: "", warehouseId: "", qty: "" });
+        loadData();
+      } else {
+        alert(json.message);
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Server error");
+    }
+  }
+
+  if (loading) return <h2 style={{ padding: 40 }}>Loading...</h2>;
 
   return (
-    <div className="p-4 space-y-6">
+    <div style={{ maxWidth: 1200, margin: "auto", padding: 20 }}>
+      <h1 style={{ fontSize: 28, fontWeight: "bold" }}>
+        📦 Inventory Management
+      </h1>
 
-      <h1 className="text-2xl font-bold">Inventory Dashboard</h1>
+      {/* ================= ADD INVENTORY ================= */}
+      <div style={card}>
+        <h3>Add Inventory</h3>
 
-      {/* STATS */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          
+          {/* SKU */}
+          <select
+            value={form.skuId}
+            onChange={(e) =>
+              setForm({ ...form, skuId: e.target.value })
+            }
+          >
+            <option value="">Select SKU</option>
+            {skus.map((s) => (
+              <option key={s._id} value={s._id}>
+                {s.name}
+              </option>
+            ))}
+          </select>
 
-        <div className="p-4 bg-white shadow rounded">
-          <p>Total Products</p>
-          <h2 className="text-xl font-bold">{data.totalProducts || 0}</h2>
+          {/* Warehouse */}
+          <select
+            value={form.warehouseId}
+            onChange={(e) =>
+              setForm({ ...form, warehouseId: e.target.value })
+            }
+          >
+            <option value="">Select Warehouse</option>
+            {warehouses.map((w) => (
+              <option key={w._id} value={w._id}>
+                {w.name} ({w.code})
+              </option>
+            ))}
+          </select>
+
+          {/* Qty */}
+          <input
+            type="number"
+            placeholder="Quantity"
+            value={form.qty}
+            onChange={(e) =>
+              setForm({ ...form, qty: e.target.value })
+            }
+          />
+
+          <button onClick={handleSubmit} style={btn}>
+            ➕ Add Stock
+          </button>
         </div>
-
-        <div className="p-4 bg-white shadow rounded">
-          <p>Total Warehouses</p>
-          <h2 className="text-xl font-bold">{data.totalWarehouses || 0}</h2>
-        </div>
-
-        <div className="p-4 bg-white shadow rounded">
-          <p>Total Stock</p>
-          <h2 className="text-xl font-bold">{data.totalStock || 0}</h2>
-        </div>
-
-        <div className="p-4 bg-red-100 shadow rounded">
-          <p>Low Stock</p>
-          <h2 className="text-xl font-bold">{data.lowStock || 0}</h2>
-        </div>
-
       </div>
 
-      {/* RECENT MOVEMENTS */}
-      <div className="bg-white p-4 shadow rounded">
-        <h2 className="font-bold mb-3">Recent Stock Movement</h2>
+      {/* ================= INVENTORY LIST ================= */}
+      <div style={{ marginTop: 20 }}>
+        <h3>📊 Inventory List</h3>
 
-        <table className="w-full text-sm border">
+        {inventory.length === 0 && <p>No inventory found</p>}
+
+        <table style={table}>
           <thead>
-            <tr className="bg-gray-100">
-              <th className="p-2 border">Product</th>
-              <th className="p-2 border">Type</th>
-              <th className="p-2 border">Qty</th>
-              <th className="p-2 border">Date</th>
+            <tr>
+              <th>SKU</th>
+              <th>Warehouse</th>
+              <th>Qty</th>
             </tr>
           </thead>
-
           <tbody>
-            {(data.recentMoves || []).length === 0 && (
-              <tr>
-                <td colSpan="4" className="text-center p-3">
-                  No Movement Found
-                </td>
-              </tr>
-            )}
-
-            {(data.recentMoves || []).map((m, i) => (
-              <tr key={i}>
-                <td className="border p-2">
-                  {m.productName || m.productId || "-"}
-                </td>
-
-                <td className="border p-2">{m.type || "-"}</td>
-
-                <td className="border p-2">{m.quantity || 0}</td>
-
-                <td className="border p-2">
-                  {m.createdAt
-                    ? new Date(m.createdAt).toLocaleString()
-                    : "-"}
-                </td>
+            {inventory.map((i) => (
+              <tr key={i._id}>
+                <td>{i.skuId?.name || "N/A"}</td>
+                <td>{i.warehouseId?.name || "N/A"}</td>
+                <td>{i.qty}</td>
               </tr>
             ))}
           </tbody>
-
         </table>
       </div>
-
     </div>
   );
 }
+
+/* ================= STYLES ================= */
+
+const card = {
+  background: "#f9fafb",
+  padding: 15,
+  borderRadius: 10,
+  marginTop: 20,
+};
+
+const btn = {
+  padding: "8px 12px",
+  background: "#16a34a",
+  color: "#fff",
+  border: "none",
+  borderRadius: 6,
+  cursor: "pointer",
+};
+
+const table = {
+  width: "100%",
+  borderCollapse: "collapse",
+  marginTop: 10,
+};
