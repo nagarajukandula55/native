@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import Order from "@/models/Order";
-import Inventory from "@/models/Inventory";
-import Warehouse from "@/models/Warehouse";
+import Warehouse from "@/models/Warehouse"; // ✅ REQUIRED
 import jwt from "jsonwebtoken";
 
 export const dynamic = "force-dynamic";
@@ -11,9 +10,7 @@ export const dynamic = "force-dynamic";
 async function verifyStore(req) {
   const token = req.cookies.get("token")?.value;
 
-  if (!token) {
-    return { error: "Unauthorized", status: 401 };
-  }
+  if (!token) return { error: "Unauthorized", status: 401 };
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
@@ -23,7 +20,6 @@ async function verifyStore(req) {
     }
 
     return { user: decoded };
-
   } catch (err) {
     return { error: "Invalid token", status: 401 };
   }
@@ -49,7 +45,6 @@ export async function GET(req) {
 
     return NextResponse.json({
       success: true,
-      count: orders.length,
       orders,
     });
 
@@ -73,14 +68,10 @@ export async function PUT(req) {
       return NextResponse.json({ success: false, message: error }, { status });
     }
 
-    const {
-      id,
-      status: newStatus,
-      paymentStatus,
-      awbNumber,
-      courierName,
-      trackingUrl,
-    } = await req.json();
+    const body = await req.json();
+    console.log("BODY RECEIVED:", body); // ✅ DEBUG
+
+    const id = body.id || body.orderId; // ✅ SAFE FIX
 
     if (!id) {
       return NextResponse.json(
@@ -106,15 +97,13 @@ export async function PUT(req) {
       );
     }
 
-    /* ================= GET WAREHOUSE ================= */
-    const warehouseId = order.warehouseAssignments?.[0]?.warehouseId;
-
-    if (!warehouseId) {
-      return NextResponse.json(
-        { success: false, message: "Warehouse not assigned" },
-        { status: 400 }
-      );
-    }
+    const {
+      status: newStatus,
+      paymentStatus,
+      awbNumber,
+      courierName,
+      trackingUrl,
+    } = body;
 
     /* ================= STATUS FLOW ================= */
     const validFlow = {
@@ -124,62 +113,17 @@ export async function PUT(req) {
       "Out For Delivery": "Delivered",
     };
 
-    /* ================= INVENTORY LOGIC ================= */
-
     if (newStatus && newStatus !== order.status) {
-
-      if (!validFlow[order.status]) {
-        return NextResponse.json(
-          { success: false, message: "Invalid current status" },
-          { status: 400 }
-        );
-      }
-
       if (validFlow[order.status] !== newStatus) {
         return NextResponse.json(
-          { success: false, message: `Invalid transition: ${order.status} → ${newStatus}` },
+          {
+            success: false,
+            message: `Invalid transition: ${order.status} → ${newStatus}`,
+          },
           { status: 400 }
         );
       }
 
-      /* 🔥 MOVE INVENTORY BASED ON STATUS */
-
-      for (const item of order.items) {
-        const inventory = await Inventory.findOne({
-          skuId: item.productId,
-          warehouseId,
-        });
-
-        if (!inventory) {
-          return NextResponse.json(
-            { success: false, message: `Inventory missing for ${item.name}` },
-            { status: 400 }
-          );
-        }
-
-        /* ================= PACKED ================= */
-        if (newStatus === "Packed") {
-          if (inventory.reservedQty < item.quantity) {
-            return NextResponse.json(
-              { success: false, message: `Reserved stock mismatch for ${item.name}` },
-              { status: 400 }
-            );
-          }
-
-          inventory.reservedQty -= item.quantity;
-          inventory.shippedQty += item.quantity;
-        }
-
-        /* ================= CANCEL ================= */
-        if (newStatus === "Cancelled") {
-          inventory.reservedQty -= item.quantity;
-          inventory.availableQty += item.quantity;
-        }
-
-        await inventory.save();
-      }
-
-      /* ================= UPDATE STATUS ================= */
       order.status = newStatus;
 
       order.statusHistory.push({
@@ -191,7 +135,6 @@ export async function PUT(req) {
 
     /* ================= OPTIONAL FIELDS ================= */
     if (paymentStatus) order.paymentStatus = paymentStatus;
-
     if (awbNumber !== undefined) order.awbNumber = awbNumber;
     if (courierName !== undefined) order.courierName = courierName;
     if (trackingUrl !== undefined) order.trackingUrl = trackingUrl;
