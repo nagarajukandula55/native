@@ -3,44 +3,69 @@ import connectDB from "@/lib/mongodb";
 import Inventory from "@/models/Inventory";
 import jwt from "jsonwebtoken";
 
+export const dynamic = "force-dynamic";
+
 /* ================= VERIFY ADMIN ================= */
 async function verifyAdmin(req) {
-  const token = req.cookies.get("token")?.value;
-  if (!token) throw new Error("Unauthorized");
+  try {
+    const token = req.cookies.get("token")?.value;
 
-  const decoded = jwt.verify(token, process.env.JWT_SECRET);
-  if (decoded.role !== "admin") throw new Error("Forbidden");
+    if (!token) return { error: "Unauthorized", status: 401 };
 
-  return decoded;
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    if (decoded.role !== "admin") {
+      return { error: "Forbidden", status: 403 };
+    }
+
+    return { user: decoded };
+  } catch (err) {
+    return { error: "Invalid token", status: 401 };
+  }
 }
 
-/* ================= ADD / UPDATE INVENTORY ================= */
+/* ================= ADD INVENTORY ================= */
 export async function POST(req) {
   try {
     await connectDB();
-    await verifyAdmin(req);
 
-    const { skuId, warehouseId, qty } = await req.json();
+    const { error, status } = await verifyAdmin(req);
+    if (error) {
+      return NextResponse.json({ success: false, message: error }, { status });
+    }
 
-    if (!skuId || !warehouseId || qty == null) {
+    const { productId, warehouseId, qty } = await req.json();
+
+    /* 🔥 VALIDATION FIX */
+    if (!productId || !warehouseId || qty === undefined) {
       return NextResponse.json(
-        { success: false, message: "skuId, warehouseId, qty required" },
+        {
+          success: false,
+          message: "productId, warehouseId, qty required",
+        },
         { status: 400 }
       );
     }
 
-    let inventory = await Inventory.findOne({ skuId, warehouseId });
+    /* 🔥 FIND EXISTING INVENTORY */
+    let inventory = await Inventory.findOne({
+      productId,
+      warehouseId,
+    });
 
     if (inventory) {
-      inventory.qty += Number(qty);
-      await inventory.save();
+      // ✅ UPDATE EXISTING
+      inventory.availableQty += qty;
     } else {
+      // ✅ CREATE NEW
       inventory = await Inventory.create({
-        skuId,
+        productId,
         warehouseId,
-        qty: Number(qty),
+        availableQty: qty,
       });
     }
+
+    await inventory.save();
 
     return NextResponse.json({
       success: true,
@@ -49,7 +74,7 @@ export async function POST(req) {
     });
 
   } catch (err) {
-    console.error("ADD INVENTORY ERROR:", err);
+    console.error("INVENTORY ADD ERROR:", err);
 
     return NextResponse.json(
       { success: false, message: err.message || "Server error" },
