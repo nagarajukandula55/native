@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import Order from "@/models/Order";
-import User from "@/models/User";
-import Warehouse from "@/models/Warehouse";
+import Inventory from "@/models/Inventory";
 import jwt from "jsonwebtoken";
 
 export const dynamic = "force-dynamic";
@@ -106,14 +105,25 @@ export async function PUT(req) {
       );
     }
 
-    /* ================= STATUS FLOW ================= */
+    /* ================= GET WAREHOUSE ================= */
+    const warehouseId = order.warehouseAssignments?.[0]?.warehouseId;
 
+    if (!warehouseId) {
+      return NextResponse.json(
+        { success: false, message: "Warehouse not assigned" },
+        { status: 400 }
+      );
+    }
+
+    /* ================= STATUS FLOW ================= */
     const validFlow = {
       "Order Placed": "Packed",
       Packed: "Shipped",
       Shipped: "Out For Delivery",
       "Out For Delivery": "Delivered",
     };
+
+    /* ================= INVENTORY LOGIC ================= */
 
     if (newStatus && newStatus !== order.status) {
 
@@ -131,10 +141,46 @@ export async function PUT(req) {
         );
       }
 
-      // ✅ Update status
+      /* 🔥 MOVE INVENTORY BASED ON STATUS */
+
+      for (const item of order.items) {
+        const inventory = await Inventory.findOne({
+          skuId: item.productId,
+          warehouseId,
+        });
+
+        if (!inventory) {
+          return NextResponse.json(
+            { success: false, message: `Inventory missing for ${item.name}` },
+            { status: 400 }
+          );
+        }
+
+        /* ================= PACKED ================= */
+        if (newStatus === "Packed") {
+          if (inventory.reservedQty < item.quantity) {
+            return NextResponse.json(
+              { success: false, message: `Reserved stock mismatch for ${item.name}` },
+              { status: 400 }
+            );
+          }
+
+          inventory.reservedQty -= item.quantity;
+          inventory.shippedQty += item.quantity;
+        }
+
+        /* ================= CANCEL ================= */
+        if (newStatus === "Cancelled") {
+          inventory.reservedQty -= item.quantity;
+          inventory.availableQty += item.quantity;
+        }
+
+        await inventory.save();
+      }
+
+      /* ================= UPDATE STATUS ================= */
       order.status = newStatus;
 
-      // ✅ Push timeline
       order.statusHistory.push({
         status: newStatus,
         time: new Date(),
@@ -143,7 +189,6 @@ export async function PUT(req) {
     }
 
     /* ================= OPTIONAL FIELDS ================= */
-
     if (paymentStatus) order.paymentStatus = paymentStatus;
 
     if (awbNumber !== undefined) order.awbNumber = awbNumber;
