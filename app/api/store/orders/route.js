@@ -4,198 +4,59 @@ import Order from "@/models/Order";
 import jwt from "jsonwebtoken";
 import { shipStock, deliverStock } from "@/lib/inventory";
 
-export const dynamic = "force-dynamic";
-
-/* ================= VERIFY STORE ================= */
+/* VERIFY STORE */
 async function verifyStore(req) {
   const token = req.cookies.get("token")?.value;
-
   if (!token) return { error: "Unauthorized", status: 401 };
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-    if (decoded.role !== "store") {
-      return { error: "Forbidden", status: 403 };
-    }
-
     return { user: decoded };
-  } catch (err) {
+  } catch {
     return { error: "Invalid token", status: 401 };
   }
 }
 
-/* ================= GET STORE ORDERS ================= */
-export async function GET(req) {
-  try {
-    await connectDB();
-
-    const { user, error, status } = await verifyStore(req);
-    if (error) {
-      return NextResponse.json(
-        { success: false, message: error },
-        { status }
-      );
-    }
-
-    const orders = await Order.find({
-      assignedStore: user.id,
-      isDeleted: false,
-    })
-      .sort({ createdAt: -1 })
-      .populate("warehouseAssignments.warehouseId", "name code")
-      .lean();
-
-    return NextResponse.json({
-      success: true,
-      orders,
-    });
-  } catch (e) {
-    console.error("STORE GET ORDERS ERROR:", e);
-
-    return NextResponse.json(
-      { success: false, message: e.message || "Server error" },
-      { status: 500 }
-    );
-  }
-}
-
-/* ================= UPDATE ORDER ================= */
+/* UPDATE ORDER */
 export async function PUT(req) {
-  try {
-    await connectDB();
+  await connectDB();
 
-    const { user, error, status } = await verifyStore(req);
-    if (error) {
-      return NextResponse.json(
-        { success: false, message: error },
-        { status }
-      );
-    }
+  const { user, error, status } = await verifyStore(req);
+  if (error) {
+    return NextResponse.json({ success: false, message: error }, { status });
+  }
 
-    const body = await req.json();
-    const id = body.id || body.orderId;
+  const body = await req.json();
+  const order = await Order.findById(body.id);
 
-    if (!id) {
-      return NextResponse.json(
-        { success: false, message: "Order ID required" },
-        { status: 400 }
-      );
-    }
+  if (!order) {
+    return NextResponse.json({ success: false, message: "Not found" });
+  }
 
-    const order = await Order.findById(id);
+  const warehouseId = order.warehouseAssignments?.[0]?.warehouseId;
 
-    if (!order) {
-      return NextResponse.json(
-        { success: false, message: "Order not found" },
-        { status: 404 }
-      );
-    }
-
-    /* ================= ACCESS CONTROL ================= */
-    if (!order.assignedStore || order.assignedStore.toString() !== user.id) {
-      return NextResponse.json(
-        { success: false, message: "Not allowed for this order" },
-        { status: 403 }
-      );
-    }
-
-    const {
-      status: newStatus,
-      paymentStatus,
-      awbNumber,
-      courierName,
-      trackingUrl,
-    } = body;
-
-    /* ================= STATUS FLOW ================= */
-    const validFlow = {
-      "Order Placed": "Packed",
-      Packed: "Shipped",
-      Shipped: "Out For Delivery",
-      "Out For Delivery": "Delivered",
-    };
-
-    const warehouseId = order.warehouseAssignments?.[0]?.warehouseId;
-
-    if (!warehouseId) {
-      return NextResponse.json(
-        { success: false, message: "Warehouse not assigned" },
-        { status: 400 }
-      );
-    }
-
-    /* ================= STATUS CHANGE ================= */
-    if (newStatus && newStatus !== order.status) {
-
-      /* ❌ INVALID FLOW */
-      if (validFlow[order.status] !== newStatus) {
-        return NextResponse.json(
-          {
-            success: false,
-            message: `Invalid transition: ${order.status} → ${newStatus}`,
-          },
-          { status: 400 }
-        );
-      }
-
-      /* ================= SHIPPED ================= */
-      if (order.status === "Packed" && newStatus === "Shipped") {
-
-        const finalAWB = awbNumber || order.awbNumber;
-        const finalCourier = courierName || order.courierName;
-
-        if (!finalAWB || !finalCourier) {
-          return NextResponse.json(
-            {
-              success: false,
-              message: "AWB Number and Courier Name required before shipping",
-            },
-            { status: 400 }
-          );
-        }
-
-        // ✅ MOVE STOCK: RESERVED → SHIPPED
-        await shipStock(order.items, warehouseId);
-      }
-
-      /* ================= DELIVERED ================= */
-      if (order.status === "Out For Delivery" && newStatus === "Delivered") {
-
-        // ✅ MOVE STOCK: SHIPPED → OUT
-        await deliverStock(order.items, warehouseId);
-      }
-
-      /* ✅ UPDATE STATUS */
-      order.status = newStatus;
-
-      order.statusHistory.push({
-        status: newStatus,
-        time: new Date(),
-        updatedBy: user.id,
+  /* 🚚 SHIPPING */
+  if (order.status === "Packed" && body.status === "Shipped") {
+    if (!body.awbNumber || !body.courierName) {
+      return NextResponse.json({
+        success: false,
+        message: "AWB + Courier required",
       });
     }
 
-    /* ================= OPTIONAL FIELDS ================= */
-    if (paymentStatus) order.paymentStatus = paymentStatus;
-    if (awbNumber !== undefined) order.awbNumber = awbNumber;
-    if (courierName !== undefined) order.courierName = courierName;
-    if (trackingUrl !== undefined) order.trackingUrl = trackingUrl;
-
-    await order.save();
-
-    return NextResponse.json({
-      success: true,
-      message: "Order updated successfully",
-      order,
-    });
-
-  } catch (e) {
-    console.error("STORE UPDATE ORDER ERROR:", e);
-
-    return NextResponse.json(
-      { success: false, message: e.message || "Server error" },
-      { status: 500 }
-    );
+    await shipStock(order.items, warehouseId);
   }
+
+  /* ✅ DELIVERY */
+  if (order.status === "Out For Delivery" && body.status === "Delivered") {
+    await deliverStock(order.items, warehouseId);
+  }
+
+  order.status = body.status;
+  if (body.awbNumber) order.awbNumber = body.awbNumber;
+  if (body.courierName) order.courierName = body.courierName;
+
+  await order.save();
+
+  return NextResponse.json({ success: true });
 }
