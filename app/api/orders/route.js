@@ -13,29 +13,51 @@ export async function POST(req) {
 
     const body = await req.json();
 
-    if (!body?.items || body.items.length === 0) {
-      return NextResponse.json({ success: false, msg: "No items" });
+    if (
+      !body.customerName ||
+      !body.phone ||
+      !body.address ||
+      !body.pincode ||
+      !body.items ||
+      body.items.length === 0
+    ) {
+      return NextResponse.json(
+        { success: false, message: "Missing required fields" },
+        { status: 400 }
+      );
     }
 
+    /* ================= FIND WAREHOUSE ================= */
     const warehouse = await Warehouse.findOne();
 
     if (!warehouse) {
-      return NextResponse.json({
-        success: false,
-        msg: "No warehouse found",
-      });
+      return NextResponse.json(
+        { success: false, message: "No warehouse configured" },
+        { status: 500 }
+      );
     }
 
-    // 🔥 RESERVE INVENTORY FIRST
-    await reserveStock(body.items, warehouse._id);
+    /* ================= RESERVE STOCK ================= */
+    try {
+      await reserveStock(body.items, warehouse._id);
+    } catch (err) {
+      return NextResponse.json(
+        { success: false, message: err.message },
+        { status: 400 }
+      );
+    }
 
+    /* ================= TOTAL ================= */
     const totalAmount = body.items.reduce(
-      (sum, item) => sum + item.price * item.quantity,
+      (sum, i) => sum + i.price * i.quantity,
       0
     );
 
+    const orderId = `NAT-${Date.now()}`;
+
+    /* ================= CREATE ================= */
     const order = await Order.create({
-      orderId: "ORD-" + Date.now(),
+      orderId,
       customerName: body.customerName,
       phone: body.phone,
       address: body.address,
@@ -43,21 +65,24 @@ export async function POST(req) {
       items: body.items,
       totalAmount,
       status: "Order Placed",
+      paymentMethod: body.paymentMethod || "COD",
+      paymentStatus: "Pending",
       warehouseAssignments: [{ warehouseId: warehouse._id }],
       statusHistory: [{ status: "Order Placed", time: new Date() }],
     });
 
     return NextResponse.json({
       success: true,
-      order,
+      orderId: order.orderId,
     });
-  } catch (e) {
-    console.error("ORDER CREATE ERROR:", e);
 
-    return NextResponse.json({
-      success: false,
-      msg: e.message || "Order failed",
-    });
+  } catch (err) {
+    console.error("ORDER CREATE ERROR:", err);
+
+    return NextResponse.json(
+      { success: false, message: err.message || "Server error" },
+      { status: 500 }
+    );
   }
 }
 
@@ -69,7 +94,11 @@ export async function GET() {
     const orders = await Order.find().sort({ createdAt: -1 });
 
     return NextResponse.json({ success: true, orders });
-  } catch (e) {
-    return NextResponse.json({ success: false });
+
+  } catch (err) {
+    return NextResponse.json(
+      { success: false, message: err.message },
+      { status: 500 }
+    );
   }
 }
