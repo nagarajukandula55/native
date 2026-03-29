@@ -7,14 +7,9 @@ export default function StoreOrders() {
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState(null);
 
-  // Modal state
-  const [modalOpen, setModalOpen] = useState(false);
-  const [modalData, setModalData] = useState({
-    orderId: null,
-    awbNumber: "",
-    courierName: "",
-    trackingLink: "",
-  });
+  // AWB Modal state
+  const [awbModal, setAwbModal] = useState(null); // orderId
+  const [awbInput, setAwbInput] = useState({ number: "", courier: "", link: "" });
 
   useEffect(() => {
     loadOrders();
@@ -25,7 +20,6 @@ export default function StoreOrders() {
     try {
       const res = await fetch("/api/store/orders");
       const json = await res.json();
-
       if (json.success) {
         setOrders(json.orders || []);
       } else {
@@ -38,204 +32,187 @@ export default function StoreOrders() {
     setLoading(false);
   }
 
-  async function handleUpdate(orderId, payload) {
+  async function updateStatus(orderId, status, awbDetails = null) {
     setUpdatingId(orderId);
-
     try {
-      const body = { id: orderId, ...payload };
-
       const res = await fetch("/api/store/orders", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ orderId, status, ...awbDetails }),
       });
-
       const json = await res.json();
-
       if (json.success) {
         await loadOrders();
+        closeAwbModal();
       } else {
         alert(json.message);
       }
     } catch (err) {
       console.error(err);
-      alert("Server error");
+      alert("Error updating status");
     }
-
     setUpdatingId(null);
   }
 
-  // ================= MODAL HANDLERS =================
-  function openShipModal(order) {
-    setModalData({
-      orderId: order._id,
-      awbNumber: order.awbNumber || "",
-      courierName: order.courierName || "",
-      trackingLink: order.trackingLink || "",
+  function openAwbModal(order) {
+    setAwbModal(order._id);
+    setAwbInput({
+      number: order.awbNumber || "",
+      courier: order.courierName || "",
+      link: order.trackingLink || "",
     });
-    setModalOpen(true);
   }
 
-  function closeModal() {
-    setModalOpen(false);
-    setModalData({ orderId: null, awbNumber: "", courierName: "", trackingLink: "" });
-  }
-
-  function confirmShipped() {
-    const { orderId, awbNumber, courierName, trackingLink } = modalData;
-
-    if (!awbNumber.trim() || !courierName.trim()) {
-      alert("❌ Please enter both AWB Number and Courier Name");
-      return;
-    }
-
-    handleUpdate(orderId, { status: "Shipped", awbNumber, courierName, trackingLink });
-    closeModal();
-  }
-
-  // ================= ACTION BUTTONS =================
-  function renderActions(o) {
-    const disabled = updatingId === o._id;
-
-    // 📦 PACK
-    if (o.status === "Order Placed") {
-      return (
-        <button
-          onClick={() => handleUpdate(o._id, { status: "Packed" })}
-          disabled={disabled}
-          style={btnPrimary}
-        >
-          {disabled ? "Updating..." : "📦 Mark Packed"}
-        </button>
-      );
-    }
-
-    // 🚚 SHIP → opens modal
-    if (o.status === "Packed") {
-      return (
-        <button
-          onClick={() => openShipModal(o)}
-          disabled={disabled}
-          style={btnPurple}
-        >
-          {disabled ? "Updating..." : "🚚 Mark Shipped"}
-        </button>
-      );
-    }
-
-    // 🚛 OUT FOR DELIVERY
-    if (o.status === "Shipped") {
-      return (
-        <button
-          onClick={() => handleUpdate(o._id, { status: "Out For Delivery" })}
-          disabled={disabled}
-          style={btnOrange}
-        >
-          🚛 Out For Delivery
-        </button>
-      );
-    }
-
-    // ✅ DELIVERED
-    if (o.status === "Out For Delivery") {
-      return (
-        <button
-          onClick={() => handleUpdate(o._id, { status: "Delivered" })}
-          disabled={disabled}
-          style={btnGreen}
-        >
-          ✅ Delivered
-        </button>
-      );
-    }
-
-    return null;
+  function closeAwbModal() {
+    setAwbModal(null);
+    setAwbInput({ number: "", courier: "", link: "" });
   }
 
   if (loading) return <h2 style={{ padding: 40 }}>Loading Orders...</h2>;
 
   return (
-    <div style={{ padding: 20, maxWidth: 1200, margin: "auto" }}>
-      <h1 style={{ fontSize: 28, fontWeight: "bold" }}>📦 Store Orders Dashboard</h1>
+    <div style={{ maxWidth: 1300, margin: "auto", padding: 20 }}>
+      <h1 style={{ fontSize: 28, fontWeight: "bold" }}>🏪 Store Orders</h1>
 
-      {orders.length === 0 && <p>No orders assigned.</p>}
+      {orders.length === 0 && <p>No orders assigned</p>}
 
-      {orders.map((o) => (
-        <div key={o._id} style={card}>
-          {/* HEADER */}
-          <div style={header}>
+      {orders.map(order => (
+        <div
+          key={order._id}
+          style={{
+            border: "1px solid #eee",
+            borderRadius: 12,
+            padding: 15,
+            marginTop: 15,
+            background:
+              order.status === "Packed"
+                ? "#fef3c7"
+                : order.status === "Shipped"
+                ? "#e0f2fe"
+                : order.status === "Delivered"
+                ? "#d1fae5"
+                : "#f9fafb",
+          }}
+        >
+          {/* Header */}
+          <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap" }}>
             <div>
-              <p><strong>Order ID:</strong> {o.orderId}</p>
-              <p><strong>Status:</strong> {o.status}</p>
-              <p><strong>Customer:</strong> {o.customerName}</p>
+              <p><strong>Order:</strong> {order.orderId}</p>
+              <p><strong>Customer:</strong> {order.customerName}</p>
             </div>
-            <div style={badge(o.status)}>{o.status}</div>
+            <div>
+              <span
+                style={{
+                  padding: "5px 10px",
+                  borderRadius: 6,
+                  fontWeight: 600,
+                  background:
+                    order.status === "Packed"
+                      ? "#f59e0b33"
+                      : order.status === "Shipped"
+                      ? "#6366f133"
+                      : order.status === "Delivered"
+                      ? "#16a34a33"
+                      : "#e0f2fe",
+                }}
+              >
+                {order.status}
+              </span>
+            </div>
           </div>
 
-          {/* ITEMS */}
-          <div style={box}>
+          {/* Items */}
+          <div style={{ marginTop: 10 }}>
             <strong>🧾 Items:</strong>
-            {o.items.map((i, idx) => (
-              <div key={idx}>{i.name} × {i.quantity}</div>
+            {order.items.map((item, i) => (
+              <div key={i} style={{ fontSize: 14 }}>
+                {item.name} × {item.quantity}
+              </div>
             ))}
           </div>
 
-          {/* WAREHOUSE */}
-          {o.warehouseAssignments?.length > 0 && (
-            <div style={box}>
-              <strong>🏬 Warehouse:</strong>{" "}
-              {o.warehouseAssignments[0]?.warehouseId?.name || "N/A"}
-            </div>
-          )}
+          {/* Warehouse */}
+          <div style={{ marginTop: 10 }}>
+            <strong>🏬 Warehouse:</strong> {order.warehouseAssignments?.[0]?.warehouseId?.name || "N/A"}
+          </div>
 
-          {/* ACTIONS */}
-          <div style={{ marginTop: 15 }}>{renderActions(o)}</div>
+          {/* Actions */}
+          <div style={{ marginTop: 15, display: "flex", gap: 10, flexWrap: "wrap" }}>
+            {order.status === "Order Placed" && (
+              <button
+                disabled={updatingId === order._id}
+                onClick={() => updateStatus(order._id, "Packed")}
+                style={btn("#f59e0b")}
+              >
+                📦 Mark Packed
+              </button>
+            )}
 
-          {/* TIMELINE */}
-          {o.statusHistory?.length > 0 && (
-            <div style={{ marginTop: 15 }}>
-              <strong>Timeline:</strong>
-              <ul>
-                {o.statusHistory.map((s, i) => (
-                  <li key={i}>
-                    {new Date(s.time).toLocaleString()} → {s.status}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+            {order.status === "Packed" && (
+              <button
+                disabled={updatingId === order._id}
+                onClick={() => openAwbModal(order)}
+                style={btn("#6366f1")}
+              >
+                🚚 Mark Shipped
+              </button>
+            )}
+
+            {order.status === "Shipped" && (
+              <button
+                disabled={updatingId === order._id}
+                onClick={() => updateStatus(order._id, "Delivered")}
+                style={btn("#16a34a")}
+              >
+                ✅ Mark Delivered
+              </button>
+            )}
+          </div>
         </div>
       ))}
 
-      {/* ================= MODAL ================= */}
-      {modalOpen && (
+      {/* AWB Modal */}
+      {awbModal && (
         <div style={modalOverlay}>
-          <div style={modalBox}>
-            <h3>Enter Courier Details</h3>
+          <div style={modalContent}>
+            <h2>Enter Courier Details</h2>
             <input
+              type="text"
               placeholder="AWB Number"
-              value={modalData.awbNumber}
-              onChange={(e) => setModalData({ ...modalData, awbNumber: e.target.value })}
-              style={modalInput}
+              value={awbInput.number}
+              onChange={e => setAwbInput(prev => ({ ...prev, number: e.target.value }))}
+              style={inputStyle}
             />
             <input
+              type="text"
               placeholder="Courier Name"
-              value={modalData.courierName}
-              onChange={(e) => setModalData({ ...modalData, courierName: e.target.value })}
-              style={modalInput}
+              value={awbInput.courier}
+              onChange={e => setAwbInput(prev => ({ ...prev, courier: e.target.value }))}
+              style={inputStyle}
             />
             <input
+              type="text"
               placeholder="Tracking Link (optional)"
-              value={modalData.trackingLink}
-              onChange={(e) => setModalData({ ...modalData, trackingLink: e.target.value })}
-              style={modalInput}
+              value={awbInput.link}
+              onChange={e => setAwbInput(prev => ({ ...prev, link: e.target.value }))}
+              style={inputStyle}
             />
 
-            <div style={{ marginTop: 15, display: "flex", gap: 10 }}>
-              <button onClick={confirmShipped} style={btnPurple}>
-                ✅ Confirm Shipped
+            <div style={{ display: "flex", gap: 10, marginTop: 15, flexWrap: "wrap" }}>
+              <button
+                disabled={!awbInput.number || !awbInput.courier || updatingId === awbModal}
+                onClick={() =>
+                  updateStatus(awbModal, "Shipped", {
+                    awbNumber: awbInput.number,
+                    courierName: awbInput.courier,
+                    trackingLink: awbInput.link,
+                  })
+                }
+                style={btn("#6366f1")}
+              >
+                🚚 Confirm Shipped
               </button>
-              <button onClick={closeModal} style={btnGray}>
+              <button onClick={closeAwbModal} style={btn("#f87171")}>
                 ❌ Cancel
               </button>
             </div>
@@ -246,103 +223,48 @@ export default function StoreOrders() {
   );
 }
 
-/* ================= STYLES ================= */
-const card = {
-  border: "1px solid #eee",
-  borderRadius: 12,
-  padding: 15,
-  marginTop: 15,
-  background: "#f9fafb",
-};
+/* Button Style */
+function btn(color) {
+  return {
+    padding: "8px 12px",
+    background: color,
+    color: "#fff",
+    border: "none",
+    borderRadius: 6,
+    cursor: "pointer",
+  };
+}
 
-const header = {
-  display: "flex",
-  justifyContent: "space-between",
-};
-
-const box = {
-  background: "#fff",
-  padding: 10,
+/* Input Style */
+const inputStyle = {
+  padding: "6px 10px",
   borderRadius: 6,
+  border: "1px solid #ccc",
+  minWidth: 200,
   marginTop: 10,
 };
 
-const btnPrimary = {
-  padding: "8px 12px",
-  background: "#1e40af",
-  color: "#fff",
-  border: "none",
-  borderRadius: 6,
-};
-
-const btnPurple = {
-  padding: "8px 12px",
-  background: "#7c3aed",
-  color: "#fff",
-  border: "none",
-  borderRadius: 6,
-};
-
-const btnOrange = {
-  padding: "8px 12px",
-  background: "#f59e0b",
-  color: "#fff",
-  border: "none",
-  borderRadius: 6,
-};
-
-const btnGreen = {
-  padding: "8px 12px",
-  background: "#16a34a",
-  color: "#fff",
-  border: "none",
-  borderRadius: 6,
-};
-
-const btnGray = {
-  padding: "8px 12px",
-  background: "#6b7280",
-  color: "#fff",
-  border: "none",
-  borderRadius: 6,
-};
-
-const badge = (status) => ({
-  padding: "6px 12px",
-  borderRadius: 20,
-  color: "#fff",
-  background:
-    status === "Delivered"
-      ? "#16a34a"
-      : status === "Shipped"
-      ? "#9333ea"
-      : status === "Packed"
-      ? "#f59e0b"
-      : "#6b7280",
-});
-
-// ================= MODAL =================
+/* Modal Styles */
 const modalOverlay = {
   position: "fixed",
-  top: 0, left: 0,
-  width: "100%", height: "100%",
-  backgroundColor: "rgba(0,0,0,0.5)",
-  display: "flex", justifyContent: "center", alignItems: "center",
-  zIndex: 999,
+  top: 0,
+  left: 0,
+  width: "100vw",
+  height: "100vh",
+  background: "rgba(0,0,0,0.4)",
+  display: "flex",
+  justifyContent: "center",
+  alignItems: "center",
+  zIndex: 1000,
 };
 
-const modalBox = {
+const modalContent = {
   background: "#fff",
-  padding: 20,
-  borderRadius: 8,
-  minWidth: 300,
+  padding: 30,
+  borderRadius: 12,
+  maxWidth: 400,
+  width: "90%",
+  boxShadow: "0 5px 20px rgba(0,0,0,0.2)",
   display: "flex",
   flexDirection: "column",
-  gap: 10,
-};
-
-const modalInput = {
-  padding: 8,
-  borderRadius: 6,
-  border: "1px solid #ccc",
 };
