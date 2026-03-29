@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import Order from "@/models/Order";
-import Inventory from "@/models/Inventory";
 import Warehouse from "@/models/Warehouse";
+import { reserveStock } from "@/lib/inventory";
 
 /* ================= TELEGRAM ================= */
 async function sendTelegramMessage(text) {
@@ -37,14 +37,42 @@ export async function POST(req) {
     await connectDB();
     const body = await req.json();
 
-    if (!body.customerName || !body.phone || !body.address || !body.pincode || !body.items || body.items.length === 0) {
+    if (
+      !body.customerName ||
+      !body.phone ||
+      !body.address ||
+      !body.pincode ||
+      !body.items ||
+      body.items.length === 0
+    ) {
       return NextResponse.json({ success: false, msg: "Missing fields" });
     }
 
-    const totalAmount = body.items.reduce((sum, item) => sum + Number(item.price) * Number(item.quantity), 0);
-    let orderId = generateOrderId();
-    if (await Order.findOne({ orderId })) orderId = generateOrderId();
+    /* ================= CALCULATE TOTAL ================= */
+    const totalAmount = body.items.reduce(
+      (sum, item) => sum + Number(item.price) * Number(item.quantity),
+      0
+    );
 
+    let orderId = generateOrderId();
+    if (await Order.findOne({ orderId })) {
+      orderId = generateOrderId();
+    }
+
+    /* ================= AUTO ASSIGN WAREHOUSE ================= */
+    const warehouse = await Warehouse.findOne();
+
+    if (!warehouse) {
+      return NextResponse.json({
+        success: false,
+        msg: "No warehouse configured",
+      });
+    }
+
+    /* ================= 🔥 RESERVE STOCK FIRST ================= */
+    await reserveStock(body.items, warehouse._id);
+
+    /* ================= CREATE ORDER ================= */
     const order = await Order.create({
       orderId,
       customerName: body.customerName,
@@ -57,22 +85,11 @@ export async function POST(req) {
       status: "Order Placed",
       paymentMethod: body.paymentMethod || "COD",
       paymentStatus: "Pending",
+      warehouseAssignments: [{ warehouseId: warehouse._id }],
       statusHistory: [{ status: "Order Placed", time: new Date() }],
     });
 
-    // Assign warehouse automatically
-    const warehouse = await Warehouse.findOne();
-    if (warehouse) {
-      order.warehouseAssignments = [{ warehouseId: warehouse._id }];
-      await order.save();
-    }
-
-    // Reduce inventory
-    for (const item of order.items) {
-      await Inventory.findOneAndUpdate({ productId: item.productId }, { $inc: { quantity: -item.quantity } });
-    }
-
-    // Telegram notification
+    /* ================= TELEGRAM ================= */
     await sendTelegramMessage(
 `🛒 NEW ORDER RECEIVED
 Order ID: ${order.orderId}
@@ -83,10 +100,19 @@ Payment: ${order.paymentMethod}
 Status: ${order.status}`
     );
 
-    return NextResponse.json({ success: true, orderId: order.orderId, _id: order._id });
+    return NextResponse.json({
+      success: true,
+      orderId: order.orderId,
+      _id: order._id,
+    });
+
   } catch (e) {
     console.log("CREATE ORDER ERROR:", e);
-    return NextResponse.json({ success: false, msg: "Server error" });
+
+    return NextResponse.json({
+      success: false,
+      msg: e.message || "Server error",
+    });
   }
 }
 
@@ -95,6 +121,7 @@ export async function GET() {
   try {
     await connectDB();
     const orders = await Order.find().sort({ createdAt: -1 });
+
     return NextResponse.json({ success: true, orders });
   } catch (e) {
     console.log("FETCH ORDERS ERROR:", e);
@@ -102,22 +129,29 @@ export async function GET() {
   }
 }
 
-/* ================= UPDATE ORDER / PAYMENT ================= */
+/* ================= UPDATE ORDER ================= */
 export async function PUT(req) {
   try {
     await connectDB();
-    const { id, status, paymentStatus, awbNumber, courierName, trackingUrl } = await req.json();
 
-    if (!id || (!status && !paymentStatus && !awbNumber && !courierName && !trackingUrl)) {
-      return NextResponse.json({ success: false, msg: "Missing update fields" });
-    }
+    const {
+      id,
+      status,
+      paymentStatus,
+      awbNumber,
+      courierName,
+      trackingUrl,
+    } = await req.json();
 
     const order = await Order.findById(id);
-    if (!order) return NextResponse.json({ success: false, msg: "Order not found" });
+    if (!order) {
+      return NextResponse.json({ success: false, msg: "Order not found" });
+    }
 
     if (status) {
       order.status = status;
       order.statusHistory.push({ status, time: new Date() });
+
       await sendTelegramMessage(
 `📦 ORDER STATUS UPDATED
 Order ID: ${order.orderId}
@@ -128,12 +162,6 @@ New Status: ${order.status}`
 
     if (paymentStatus) {
       order.paymentStatus = paymentStatus;
-      await sendTelegramMessage(
-`💰 PAYMENT STATUS UPDATED
-Order ID: ${order.orderId}
-Customer: ${order.customerName}
-Payment Status: ${order.paymentStatus}`
-      );
     }
 
     if (awbNumber) order.awbNumber = awbNumber;
@@ -142,14 +170,8 @@ Payment Status: ${order.paymentStatus}`
 
     await order.save();
 
-    return NextResponse.json({
-      success: true,
-      status: order.status,
-      paymentStatus: order.paymentStatus,
-      awbNumber: order.awbNumber,
-      courierName: order.courierName,
-      trackingUrl: order.trackingUrl,
-    });
+    return NextResponse.json({ success: true });
+
   } catch (e) {
     console.log("UPDATE ORDER ERROR:", e);
     return NextResponse.json({ success: false });
