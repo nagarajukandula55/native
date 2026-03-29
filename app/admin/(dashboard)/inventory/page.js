@@ -15,49 +15,36 @@ export default function InventoryAdmin() {
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [unauthorized, setUnauthorized] = useState(false);
 
   useEffect(() => {
     loadData();
   }, []);
 
-  /* ================= LOAD DATA ================= */
+  /* ===================== LOAD DATA ===================== */
   async function loadData() {
     setLoading(true);
-    setUnauthorized(false);
-
     try {
-      // Fetch Warehouses
-      const wRes = await fetch("/api/admin/warehouses");
-      if (wRes.status === 401) throw new Error("Unauthorized");
+      const [wRes, pRes, iRes] = await Promise.all([
+        fetch("/api/admin/warehouses"),
+        fetch("/api/admin/products"),
+        fetch("/api/admin/inventory"),
+      ]);
+
       const wJson = await wRes.json();
-      setWarehouses(Array.isArray(wJson.warehouses) ? wJson.warehouses : []);
-
-      // Fetch Products
-      const pRes = await fetch("/api/admin/products");
-      if (pRes.status === 401) throw new Error("Unauthorized");
       const pJson = await pRes.json();
-      setProducts(Array.isArray(pJson.products) ? pJson.products : []);
-
-      // Fetch Inventory
-      const iRes = await fetch("/api/admin/inventory/list");
-      if (iRes.status === 401) throw new Error("Unauthorized");
       const iJson = await iRes.json();
-      setInventory(Array.isArray(iJson.inventory) ? iJson.inventory : []);
 
+      setWarehouses(wJson.warehouses || []);
+      setProducts(pJson.products || []);
+      setInventory(iJson.inventory || []);
     } catch (err) {
-      console.error("Load Data Error:", err);
-      if (err.message.includes("Unauthorized")) {
-        setUnauthorized(true);
-      } else {
-        alert("❌ Failed to load inventory data");
-      }
+      console.error("LOAD DATA ERROR:", err);
+      alert("❌ Failed to load inventory data");
     }
-
     setLoading(false);
   }
 
-  /* ================= ADD INVENTORY ================= */
+  /* ===================== ADD / UPDATE INVENTORY ===================== */
   async function handleSubmit() {
     if (!form.productId || !form.warehouseId || !form.qty) {
       alert("⚠ All fields required");
@@ -77,18 +64,23 @@ export default function InventoryAdmin() {
         }),
       });
 
-      if (res.status === 401) {
-        setUnauthorized(true);
-        return;
-      }
-
       const json = await res.json();
+
       if (json.success) {
-        alert("✅ Inventory added successfully");
+        alert("✅ Stock added successfully");
         setForm({ productId: "", warehouseId: "", qty: "" });
-        loadData();
+
+        // Update frontend instantly
+        const updatedInventory = inventory.filter(
+          (i) =>
+            !(
+              i.productId._id === json.inventory.productId._id &&
+              i.warehouseId._id === json.inventory.warehouseId._id
+            )
+        );
+        setInventory([json.inventory, ...updatedInventory]);
       } else {
-        alert(json.message || "❌ Failed to add inventory");
+        alert(json.message || "❌ Failed to add stock");
       }
     } catch (err) {
       console.error(err);
@@ -98,49 +90,49 @@ export default function InventoryAdmin() {
     setSubmitting(false);
   }
 
-  /* ================= RENDER ================= */
-  if (loading) return <h2 style={{ padding: 40 }}>Loading Inventory...</h2>;
-
-  if (unauthorized) return (
-    <div style={{ padding: 40, textAlign: "center", color: "red" }}>
-      ⚠ You are not authorized to view this page. Please log in as Admin.
-    </div>
-  );
+  if (loading)
+    return (
+      <h2 style={{ padding: 40, textAlign: "center" }}>Loading Inventory...</h2>
+    );
 
   return (
-    <div style={{ maxWidth: 1200, margin: "auto", padding: 20 }}>
-      <h1 style={{ fontSize: 28, fontWeight: "bold" }}>
-        📦 Inventory Management
-      </h1>
+    <div style={{ maxWidth: 1300, margin: "auto", padding: 20 }}>
+      <h1 style={title}>📦 Inventory Management</h1>
 
       {/* ================= ADD INVENTORY ================= */}
       <div style={card}>
-        <h3>Add Inventory</h3>
+        <h3>Add / Update Stock</h3>
 
         {products.length === 0 && (
           <p style={{ color: "red" }}>
-            ⚠ No products found. Create products first.
+            ⚠ No products found. Please create products first.
           </p>
         )}
 
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-          {/* PRODUCT */}
+        <div style={formRow}>
+          {/* Product */}
           <select
             value={form.productId}
-            onChange={(e) => setForm({ ...form, productId: e.target.value })}
+            onChange={(e) =>
+              setForm({ ...form, productId: e.target.value })
+            }
+            style={selectInput}
           >
             <option value="">Select Product</option>
             {products.map((p) => (
               <option key={p._id} value={p._id}>
-                {p.name || p.sku || "Unnamed Product"}
+                {p.name} ({p.sku})
               </option>
             ))}
           </select>
 
-          {/* WAREHOUSE */}
+          {/* Warehouse */}
           <select
             value={form.warehouseId}
-            onChange={(e) => setForm({ ...form, warehouseId: e.target.value })}
+            onChange={(e) =>
+              setForm({ ...form, warehouseId: e.target.value })
+            }
+            style={selectInput}
           >
             <option value="">Select Warehouse</option>
             {warehouses.map((w) => (
@@ -150,23 +142,28 @@ export default function InventoryAdmin() {
             ))}
           </select>
 
-          {/* QTY */}
+          {/* Qty */}
           <input
             type="number"
             placeholder="Quantity"
             value={form.qty}
             onChange={(e) => setForm({ ...form, qty: e.target.value })}
+            style={inputField}
           />
 
-          <button onClick={handleSubmit} style={btn} disabled={submitting}>
-            {submitting ? "Adding..." : "➕ Add Stock"}
+          <button
+            onClick={handleSubmit}
+            disabled={submitting}
+            style={btn}
+          >
+            {submitting ? "Adding..." : "➕ Add / Update Stock"}
           </button>
         </div>
       </div>
 
       {/* ================= INVENTORY TABLE ================= */}
-      <div style={{ marginTop: 20 }}>
-        <h3>📊 Inventory List</h3>
+      <div style={{ marginTop: 30 }}>
+        <h3>📊 Current Inventory</h3>
         {inventory.length === 0 ? (
           <p>No inventory found</p>
         ) : (
@@ -174,6 +171,7 @@ export default function InventoryAdmin() {
             <thead>
               <tr>
                 <th>Product</th>
+                <th>SKU</th>
                 <th>Warehouse</th>
                 <th>Available</th>
                 <th>Reserved</th>
@@ -183,8 +181,9 @@ export default function InventoryAdmin() {
             </thead>
             <tbody>
               {inventory.map((i) => (
-                <tr key={i._id}>
+                <tr key={`${i.productId._id}-${i.warehouseId._id}`}>
                   <td>{i.productId?.name || "N/A"}</td>
+                  <td>{i.productId?.sku || "N/A"}</td>
                   <td>
                     {i.warehouseId?.name} ({i.warehouseId?.code})
                   </td>
@@ -204,16 +203,44 @@ export default function InventoryAdmin() {
 
 /* ================= STYLES ================= */
 
+const title = {
+  fontSize: 28,
+  fontWeight: "bold",
+  marginBottom: 20,
+};
+
 const card = {
-  background: "#f9fafb",
-  padding: 15,
-  borderRadius: 10,
-  marginTop: 20,
+  background: "#fefefe",
+  padding: 20,
+  borderRadius: 12,
+  boxShadow: "0 4px 12px rgba(0,0,0,0.05)",
+};
+
+const formRow = {
+  display: "flex",
+  gap: 12,
+  flexWrap: "wrap",
+  alignItems: "center",
+  marginTop: 10,
+};
+
+const selectInput = {
+  padding: "8px 10px",
+  borderRadius: 6,
+  border: "1px solid #ccc",
+  minWidth: 200,
+};
+
+const inputField = {
+  padding: "8px 10px",
+  borderRadius: 6,
+  border: "1px solid #ccc",
+  width: 120,
 };
 
 const btn = {
-  padding: "8px 12px",
-  background: "#16a34a",
+  padding: "10px 16px",
+  background: "#1e40af",
   color: "#fff",
   border: "none",
   borderRadius: 6,
@@ -223,5 +250,17 @@ const btn = {
 const table = {
   width: "100%",
   borderCollapse: "collapse",
-  marginTop: 10,
+  marginTop: 15,
+  boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
+};
+
+table.th = {
+  background: "#f3f4f6",
+  padding: "10px",
+  textAlign: "left",
+};
+
+table.td = {
+  padding: "10px",
+  borderBottom: "1px solid #e5e7eb",
 };
