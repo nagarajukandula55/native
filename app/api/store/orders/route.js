@@ -7,21 +7,16 @@ import { shipStock, deliverStock } from "@/lib/inventory";
 export const dynamic = "force-dynamic";
 
 /* ================= VERIFY ================= */
-async function verifyStore(req) {
+function verifyStore(req) {
   const token = req.cookies.get("token")?.value;
 
-  if (!token) return { error: "Unauthorized", status: 401 };
+  if (!token) return null;
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-    if (decoded.role !== "store") {
-      return { error: "Forbidden", status: 403 };
-    }
-
-    return { user: decoded };
+    return decoded.role === "store" ? decoded : null;
   } catch {
-    return { error: "Invalid token", status: 401 };
+    return null;
   }
 }
 
@@ -29,13 +24,14 @@ async function verifyStore(req) {
 export async function GET(req) {
   await connectDB();
 
-  const { user, error, status } = await verifyStore(req);
-  if (error) {
-    return NextResponse.json({ success: false, message: error }, { status });
+  const user = verifyStore(req);
+  if (!user) {
+    return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
   }
 
   const orders = await Order.find({
     assignedStore: user.id,
+    isDeleted: false,
   }).sort({ createdAt: -1 });
 
   return NextResponse.json({ success: true, orders });
@@ -46,42 +42,38 @@ export async function PUT(req) {
   try {
     await connectDB();
 
-    const { user, error, status } = await verifyStore(req);
-    if (error) {
-      return NextResponse.json({ success: false, message: error }, { status });
+    const user = verifyStore(req);
+    if (!user) {
+      return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
     }
 
     const body = await req.json();
-    const id = body.id;
 
-    const order = await Order.findById(id);
-
+    const order = await Order.findById(body.id);
     if (!order) {
-      return NextResponse.json({ success: false, message: "Not found" });
+      return NextResponse.json({ success: false, message: "Order not found" });
     }
 
-    const { status: newStatus, awbNumber, courierName } = body;
+    const newStatus = body.status;
 
-    const warehouseId = order.warehouseAssignments?.[0]?.warehouseId;
-
-    /* ================= SHIPPED ================= */
+    /* ================= SHIP ================= */
     if (order.status === "Packed" && newStatus === "Shipped") {
-      if (!awbNumber || !courierName) {
+      if (!body.awbNumber || !body.courierName) {
         return NextResponse.json({
           success: false,
           message: "AWB & Courier required",
         });
       }
 
-      await shipStock(order.items, warehouseId);
+      await shipStock(order.items, order.warehouseAssignments[0].warehouseId);
 
-      order.awbNumber = awbNumber;
-      order.courierName = courierName;
+      order.awbNumber = body.awbNumber;
+      order.courierName = body.courierName;
     }
 
-    /* ================= DELIVERED ================= */
+    /* ================= DELIVER ================= */
     if (order.status === "Out For Delivery" && newStatus === "Delivered") {
-      await deliverStock(order.items, warehouseId);
+      await deliverStock(order.items, order.warehouseAssignments[0].warehouseId);
     }
 
     order.status = newStatus;
@@ -94,12 +86,8 @@ export async function PUT(req) {
     await order.save();
 
     return NextResponse.json({ success: true });
-  } catch (e) {
-    console.error(e);
 
-    return NextResponse.json({
-      success: false,
-      message: e.message,
-    });
+  } catch (err) {
+    return NextResponse.json({ success: false, message: err.message });
   }
 }
