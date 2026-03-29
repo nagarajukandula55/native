@@ -11,7 +11,7 @@ export default function Home() {
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const res = await fetch("/api/products"); // ✅ PUBLIC API
+        const res = await fetch("/api/products"); // ✅ PUBLIC API accessible to all
         const data = await res.json();
 
         if (Array.isArray(data)) {
@@ -21,7 +21,8 @@ export default function Home() {
           setProducts([]);
         }
       } catch (err) {
-        console.error(err);
+        console.error("Error fetching products:", err);
+        setProducts([]);
       } finally {
         setLoading(false);
       }
@@ -45,6 +46,7 @@ export default function Home() {
           overflow: "hidden",
         }}
       >
+        {/* DARK OVERLAY */}
         <div
           style={{
             position: "absolute",
@@ -57,10 +59,17 @@ export default function Home() {
           }}
         />
         <div style={{ maxWidth: "800px", position: "relative", zIndex: 2, color: "#fff" }}>
-          <h1 style={{ fontSize: "clamp(48px,7vw,80px)", fontFamily: "Cinzel, serif", fontWeight: 600 }}>
+          <h1
+            style={{
+              fontSize: "clamp(48px,7vw,80px)",
+              fontFamily: "Cinzel, serif",
+              fontWeight: 600,
+              marginBottom: "15px",
+            }}
+          >
             Welcome to Native
           </h1>
-          <p style={{ fontSize: 22 }}>Eat Healthy, Stay Healthy</p>
+          <p style={{ fontSize: 22, marginBottom: 25 }}>Eat Healthy, Stay Healthy</p>
           <button
             onClick={() => document.getElementById("products").scrollIntoView({ behavior: "smooth" })}
             style={{
@@ -71,7 +80,10 @@ export default function Home() {
               color: "#fff",
               fontSize: 16,
               cursor: "pointer",
+              transition: "background 0.2s",
             }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "#a67030")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "#c28b45")}
           >
             Explore Products
           </button>
@@ -100,35 +112,48 @@ export default function Home() {
                 style={{
                   border: "1px solid #eee",
                   borderRadius: "12px",
-                  padding: "20px",
-                  textAlign: "center",
+                  overflow: "hidden",
                   background: "#fff",
                   boxShadow: "0 5px 15px rgba(0,0,0,0.05)",
+                  transition: "transform 0.2s, box-shadow 0.2s",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = "scale(1.03)";
+                  e.currentTarget.style.boxShadow = "0 10px 25px rgba(0,0,0,0.1)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = "scale(1)";
+                  e.currentTarget.style.boxShadow = "0 5px 15px rgba(0,0,0,0.05)";
                 }}
               >
                 <img
-                  src={product.image}
+                  src={product.image || "/placeholder.png"}
                   alt={product.name}
-                  style={{ width: "100%", height: 220, objectFit: "cover", borderRadius: 8 }}
+                  style={{ width: "100%", height: 220, objectFit: "cover" }}
                 />
-                <h3 style={{ marginTop: 15 }}>{product.name}</h3>
-                <p style={{ color: "#c28b45", fontSize: 18, margin: "10px 0" }}>₹{product.price}</p>
-                <button
-                  onClick={() => {
-                    addToCart(product);
-                    window.dispatchEvent(new Event("cart-open"));
-                  }}
-                  style={{
-                    padding: "10px 20px",
-                    borderRadius: "25px",
-                    border: "none",
-                    background: "#c28b45",
-                    color: "#fff",
-                    cursor: "pointer",
-                  }}
-                >
-                  Add to Cart
-                </button>
+                <div style={{ padding: "20px", textAlign: "center" }}>
+                  <h3 style={{ marginBottom: "10px", color: "#333" }}>{product.name}</h3>
+                  <p style={{ color: "#c28b45", fontSize: 18, marginBottom: 15 }}>₹{product.price}</p>
+                  <button
+                    onClick={() => {
+                      addToCart(product);
+                      window.dispatchEvent(new Event("cart-open"));
+                    }}
+                    style={{
+                      padding: "10px 20px",
+                      border: "none",
+                      borderRadius: "25px",
+                      background: "#c28b45",
+                      color: "#fff",
+                      cursor: "pointer",
+                      transition: "background 0.2s",
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = "#a67030")}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = "#c28b45")}
+                  >
+                    Add to Cart
+                  </button>
+                </div>
               </div>
             ))}
           </div>
