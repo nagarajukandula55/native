@@ -4,21 +4,29 @@ import Order from "@/models/Order";
 import jwt from "jsonwebtoken";
 import { shipStock, deliverStock } from "@/lib/inventory";
 
-/* VERIFY STORE */
+export const dynamic = "force-dynamic";
+
+/* ================= VERIFY ================= */
 async function verifyStore(req) {
   const token = req.cookies.get("token")?.value;
+
   if (!token) return { error: "Unauthorized", status: 401 };
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    if (decoded.role !== "store") {
+      return { error: "Forbidden", status: 403 };
+    }
+
     return { user: decoded };
   } catch {
     return { error: "Invalid token", status: 401 };
   }
 }
 
-/* UPDATE ORDER */
-export async function PUT(req) {
+/* ================= GET ================= */
+export async function GET(req) {
   await connectDB();
 
   const { user, error, status } = await verifyStore(req);
@@ -26,37 +34,72 @@ export async function PUT(req) {
     return NextResponse.json({ success: false, message: error }, { status });
   }
 
-  const body = await req.json();
-  const order = await Order.findById(body.id);
+  const orders = await Order.find({
+    assignedStore: user.id,
+  }).sort({ createdAt: -1 });
 
-  if (!order) {
-    return NextResponse.json({ success: false, message: "Not found" });
-  }
+  return NextResponse.json({ success: true, orders });
+}
 
-  const warehouseId = order.warehouseAssignments?.[0]?.warehouseId;
+/* ================= UPDATE ================= */
+export async function PUT(req) {
+  try {
+    await connectDB();
 
-  /* 🚚 SHIPPING */
-  if (order.status === "Packed" && body.status === "Shipped") {
-    if (!body.awbNumber || !body.courierName) {
-      return NextResponse.json({
-        success: false,
-        message: "AWB + Courier required",
-      });
+    const { user, error, status } = await verifyStore(req);
+    if (error) {
+      return NextResponse.json({ success: false, message: error }, { status });
     }
 
-    await shipStock(order.items, warehouseId);
+    const body = await req.json();
+    const id = body.id;
+
+    const order = await Order.findById(id);
+
+    if (!order) {
+      return NextResponse.json({ success: false, message: "Not found" });
+    }
+
+    const { status: newStatus, awbNumber, courierName } = body;
+
+    const warehouseId = order.warehouseAssignments?.[0]?.warehouseId;
+
+    /* ================= SHIPPED ================= */
+    if (order.status === "Packed" && newStatus === "Shipped") {
+      if (!awbNumber || !courierName) {
+        return NextResponse.json({
+          success: false,
+          message: "AWB & Courier required",
+        });
+      }
+
+      await shipStock(order.items, warehouseId);
+
+      order.awbNumber = awbNumber;
+      order.courierName = courierName;
+    }
+
+    /* ================= DELIVERED ================= */
+    if (order.status === "Out For Delivery" && newStatus === "Delivered") {
+      await deliverStock(order.items, warehouseId);
+    }
+
+    order.status = newStatus;
+
+    order.statusHistory.push({
+      status: newStatus,
+      time: new Date(),
+    });
+
+    await order.save();
+
+    return NextResponse.json({ success: true });
+  } catch (e) {
+    console.error(e);
+
+    return NextResponse.json({
+      success: false,
+      message: e.message,
+    });
   }
-
-  /* ✅ DELIVERY */
-  if (order.status === "Out For Delivery" && body.status === "Delivered") {
-    await deliverStock(order.items, warehouseId);
-  }
-
-  order.status = body.status;
-  if (body.awbNumber) order.awbNumber = body.awbNumber;
-  if (body.courierName) order.courierName = body.courierName;
-
-  await order.save();
-
-  return NextResponse.json({ success: true });
 }
