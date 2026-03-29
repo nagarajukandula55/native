@@ -16,11 +16,20 @@ function ProductsContent() {
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const res = await fetch("/api/admin/products")
+        // ✅ PUBLIC API FOR ALL USERS
+        const res = await fetch("/api/products")
         const data = await res.json()
-        setProducts(data)
+
+        // Ensure we only set array
+        if (Array.isArray(data)) {
+          setProducts(data)
+        } else {
+          console.warn("Products API returned unexpected data:", data)
+          setProducts([])
+        }
       } catch (err) {
         console.log("Product fetch error:", err)
+        setProducts([])
       } finally {
         setLoading(false)
       }
@@ -84,12 +93,15 @@ function ProductsContent() {
                 overflow: "hidden",
                 background: "#fff",
                 boxShadow: "0 5px 20px rgba(0,0,0,0.05)",
+                transition: "transform 0.2s",
               }}
+              onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.02)")}
+              onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
             >
               {/* IMAGE LINK */}
               <Link href={`/products/${product.slug}`}>
                 <img
-                  src={product.image}
+                  src={product.image || "/placeholder.png"}
                   alt={product.name}
                   style={{
                     width: "100%",
@@ -119,6 +131,7 @@ function ProductsContent() {
                     color: "#777",
                     fontSize: "14px",
                     marginBottom: "12px",
+                    minHeight: "38px",
                   }}
                 >
                   {product.description?.slice(0, 60) || "Natural healthy product"}
@@ -151,7 +164,10 @@ function ProductsContent() {
                       background: "#c28b45",
                       color: "#fff",
                       cursor: "pointer",
+                      transition: "background 0.2s",
                     }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = "#a67030")}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = "#c28b45")}
                   >
                     Add
                   </button>
