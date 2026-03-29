@@ -37,6 +37,7 @@ export async function POST(req) {
     await connectDB();
     const body = await req.json();
 
+    /* ================= VALIDATION ================= */
     if (
       !body.customerName ||
       !body.phone ||
@@ -45,7 +46,10 @@ export async function POST(req) {
       !body.items ||
       body.items.length === 0
     ) {
-      return NextResponse.json({ success: false, msg: "Missing fields" });
+      return NextResponse.json({
+        success: false,
+        msg: "Missing required fields",
+      });
     }
 
     /* ================= CALCULATE TOTAL ================= */
@@ -54,12 +58,13 @@ export async function POST(req) {
       0
     );
 
+    /* ================= GENERATE ORDER ID ================= */
     let orderId = generateOrderId();
     if (await Order.findOne({ orderId })) {
       orderId = generateOrderId();
     }
 
-    /* ================= AUTO ASSIGN WAREHOUSE ================= */
+    /* ================= GET WAREHOUSE ================= */
     const warehouse = await Warehouse.findOne();
 
     if (!warehouse) {
@@ -69,8 +74,17 @@ export async function POST(req) {
       });
     }
 
-    /* ================= 🔥 RESERVE STOCK FIRST ================= */
-    await reserveStock(body.items, warehouse._id);
+    /* ================= 🔥 RESERVE STOCK (SAFE) ================= */
+    try {
+      await reserveStock(body.items, warehouse._id);
+    } catch (stockError) {
+      console.log("❌ STOCK ERROR:", stockError.message);
+
+      return NextResponse.json({
+        success: false,
+        msg: stockError.message,
+      });
+    }
 
     /* ================= CREATE ORDER ================= */
     const order = await Order.create({
@@ -80,7 +94,10 @@ export async function POST(req) {
       email: body.email || "",
       address: body.address,
       pincode: body.pincode,
-      items: body.items,
+      items: body.items.map(item => ({
+        ...item,
+        productId: item.productId || item.product, // ✅ FIX
+      })),
       totalAmount,
       status: "Order Placed",
       paymentMethod: body.paymentMethod || "COD",
@@ -107,7 +124,7 @@ Status: ${order.status}`
     });
 
   } catch (e) {
-    console.log("CREATE ORDER ERROR:", e);
+    console.log("❌ CREATE ORDER ERROR FULL:", e);
 
     return NextResponse.json({
       success: false,
@@ -120,12 +137,21 @@ Status: ${order.status}`
 export async function GET() {
   try {
     await connectDB();
+
     const orders = await Order.find().sort({ createdAt: -1 });
 
-    return NextResponse.json({ success: true, orders });
+    return NextResponse.json({
+      success: true,
+      orders,
+    });
+
   } catch (e) {
     console.log("FETCH ORDERS ERROR:", e);
-    return NextResponse.json({ success: false });
+
+    return NextResponse.json({
+      success: false,
+      msg: e.message,
+    });
   }
 }
 
@@ -144,29 +170,27 @@ export async function PUT(req) {
     } = await req.json();
 
     const order = await Order.findById(id);
+
     if (!order) {
-      return NextResponse.json({ success: false, msg: "Order not found" });
+      return NextResponse.json({
+        success: false,
+        msg: "Order not found",
+      });
     }
 
     if (status) {
       order.status = status;
-      order.statusHistory.push({ status, time: new Date() });
 
-      await sendTelegramMessage(
-`📦 ORDER STATUS UPDATED
-Order ID: ${order.orderId}
-Customer: ${order.customerName}
-New Status: ${order.status}`
-      );
+      order.statusHistory.push({
+        status,
+        time: new Date(),
+      });
     }
 
-    if (paymentStatus) {
-      order.paymentStatus = paymentStatus;
-    }
-
-    if (awbNumber) order.awbNumber = awbNumber;
-    if (courierName) order.courierName = courierName;
-    if (trackingUrl) order.trackingUrl = trackingUrl;
+    if (paymentStatus) order.paymentStatus = paymentStatus;
+    if (awbNumber !== undefined) order.awbNumber = awbNumber;
+    if (courierName !== undefined) order.courierName = courierName;
+    if (trackingUrl !== undefined) order.trackingUrl = trackingUrl;
 
     await order.save();
 
@@ -174,6 +198,10 @@ New Status: ${order.status}`
 
   } catch (e) {
     console.log("UPDATE ORDER ERROR:", e);
-    return NextResponse.json({ success: false });
+
+    return NextResponse.json({
+      success: false,
+      msg: e.message,
+    });
   }
 }
