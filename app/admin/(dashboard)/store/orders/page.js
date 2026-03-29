@@ -6,8 +6,15 @@ export default function StoreOrders() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState(null);
-  const [awbModal, setAwbModal] = useState(null);
-  const [awbInput, setAwbInput] = useState({ number: "", courier: "", link: "" });
+
+  // Modal state
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalData, setModalData] = useState({
+    orderId: null,
+    awbNumber: "",
+    courierName: "",
+    trackingLink: "",
+  });
 
   useEffect(() => {
     loadOrders();
@@ -33,16 +40,20 @@ export default function StoreOrders() {
 
   async function handleUpdate(orderId, payload) {
     setUpdatingId(orderId);
+
     try {
+      const body = { id: orderId, ...payload };
+
       const res = await fetch("/api/store/orders", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: orderId, ...payload }),
+        body: JSON.stringify(body),
       });
+
       const json = await res.json();
+
       if (json.success) {
         await loadOrders();
-        closeAwbModal();
       } else {
         alert(json.message);
       }
@@ -50,70 +61,90 @@ export default function StoreOrders() {
       console.error(err);
       alert("Server error");
     }
+
     setUpdatingId(null);
   }
 
-  function openAwbModal(order) {
-    setAwbModal(order._id);
-    setAwbInput({
-      number: order.awbNumber || "",
-      courier: order.courierName || "",
-      link: order.trackingLink || "",
+  // ================= MODAL HANDLERS =================
+  function openShipModal(order) {
+    setModalData({
+      orderId: order._id,
+      awbNumber: order.awbNumber || "",
+      courierName: order.courierName || "",
+      trackingLink: order.trackingLink || "",
     });
+    setModalOpen(true);
   }
 
-  function closeAwbModal() {
-    setAwbModal(null);
-    setAwbInput({ number: "", courier: "", link: "" });
+  function closeModal() {
+    setModalOpen(false);
+    setModalData({ orderId: null, awbNumber: "", courierName: "", trackingLink: "" });
   }
 
+  function confirmShipped() {
+    const { orderId, awbNumber, courierName, trackingLink } = modalData;
+
+    if (!awbNumber.trim() || !courierName.trim()) {
+      alert("❌ Please enter both AWB Number and Courier Name");
+      return;
+    }
+
+    handleUpdate(orderId, { status: "Shipped", awbNumber, courierName, trackingLink });
+    closeModal();
+  }
+
+  // ================= ACTION BUTTONS =================
   function renderActions(o) {
     const disabled = updatingId === o._id;
 
+    // 📦 PACK
     if (o.status === "Order Placed") {
       return (
         <button
           onClick={() => handleUpdate(o._id, { status: "Packed" })}
           disabled={disabled}
-          style={btn("#1e40af")}
+          style={btnPrimary}
         >
           {disabled ? "Updating..." : "📦 Mark Packed"}
         </button>
       );
     }
 
+    // 🚚 SHIP → opens modal
     if (o.status === "Packed") {
       return (
         <button
-          onClick={() => openAwbModal(o)}
+          onClick={() => openShipModal(o)}
           disabled={disabled}
-          style={btn("#7c3aed")}
+          style={btnPurple}
         >
           {disabled ? "Updating..." : "🚚 Mark Shipped"}
         </button>
       );
     }
 
+    // 🚛 OUT FOR DELIVERY
     if (o.status === "Shipped") {
       return (
         <button
           onClick={() => handleUpdate(o._id, { status: "Out For Delivery" })}
           disabled={disabled}
-          style={btn("#f59e0b")}
+          style={btnOrange}
         >
-          {disabled ? "Updating..." : "🚛 Out For Delivery"}
+          🚛 Out For Delivery
         </button>
       );
     }
 
+    // ✅ DELIVERED
     if (o.status === "Out For Delivery") {
       return (
         <button
           onClick={() => handleUpdate(o._id, { status: "Delivered" })}
           disabled={disabled}
-          style={btn("#16a34a")}
+          style={btnGreen}
         >
-          {disabled ? "Updating..." : "✅ Delivered"}
+          ✅ Delivered
         </button>
       );
     }
@@ -135,6 +166,7 @@ export default function StoreOrders() {
           <div style={header}>
             <div>
               <p><strong>Order ID:</strong> {o.orderId}</p>
+              <p><strong>Status:</strong> {o.status}</p>
               <p><strong>Customer:</strong> {o.customerName}</p>
             </div>
             <div style={badge(o.status)}>{o.status}</div>
@@ -144,9 +176,7 @@ export default function StoreOrders() {
           <div style={box}>
             <strong>🧾 Items:</strong>
             {o.items.map((i, idx) => (
-              <div key={idx}>
-                {i.name} × {i.quantity}
-              </div>
+              <div key={idx}>{i.name} × {i.quantity}</div>
             ))}
           </div>
 
@@ -177,51 +207,35 @@ export default function StoreOrders() {
         </div>
       ))}
 
-      {/* AWB Modal */}
-      {awbModal && (
+      {/* ================= MODAL ================= */}
+      {modalOpen && (
         <div style={modalOverlay}>
-          <div style={modalContent}>
-            <h2>Enter AWB & Courier Info</h2>
-            <input
-              placeholder="Courier Name"
-              value={awbInput.courier}
-              onChange={(e) =>
-                setAwbInput((prev) => ({ ...prev, courier: e.target.value }))
-              }
-              style={inputStyle}
-            />
+          <div style={modalBox}>
+            <h3>Enter Courier Details</h3>
             <input
               placeholder="AWB Number"
-              value={awbInput.number}
-              onChange={(e) =>
-                setAwbInput((prev) => ({ ...prev, number: e.target.value }))
-              }
-              style={inputStyle}
+              value={modalData.awbNumber}
+              onChange={(e) => setModalData({ ...modalData, awbNumber: e.target.value })}
+              style={modalInput}
+            />
+            <input
+              placeholder="Courier Name"
+              value={modalData.courierName}
+              onChange={(e) => setModalData({ ...modalData, courierName: e.target.value })}
+              style={modalInput}
             />
             <input
               placeholder="Tracking Link (optional)"
-              value={awbInput.link}
-              onChange={(e) =>
-                setAwbInput((prev) => ({ ...prev, link: e.target.value }))
-              }
-              style={inputStyle}
+              value={modalData.trackingLink}
+              onChange={(e) => setModalData({ ...modalData, trackingLink: e.target.value })}
+              style={modalInput}
             />
-            <div style={{ display: "flex", gap: 10, marginTop: 15 }}>
-              <button
-                disabled={!awbInput.number || !awbInput.courier || updatingId === awbModal}
-                onClick={() =>
-                  handleUpdate(awbModal, {
-                    status: "Shipped",
-                    awbNumber: awbInput.number,
-                    courierName: awbInput.courier,
-                    trackingLink: awbInput.link,
-                  })
-                }
-                style={btn("#7c3aed")}
-              >
-                🚚 Confirm Shipped
+
+            <div style={{ marginTop: 15, display: "flex", gap: 10 }}>
+              <button onClick={confirmShipped} style={btnPurple}>
+                ✅ Confirm Shipped
               </button>
-              <button onClick={closeAwbModal} style={btn("#f87171")}>
+              <button onClick={closeModal} style={btnGray}>
                 ❌ Cancel
               </button>
             </div>
@@ -233,7 +247,6 @@ export default function StoreOrders() {
 }
 
 /* ================= STYLES ================= */
-
 const card = {
   border: "1px solid #eee",
   borderRadius: 12,
@@ -245,7 +258,6 @@ const card = {
 const header = {
   display: "flex",
   justifyContent: "space-between",
-  flexWrap: "wrap",
 };
 
 const box = {
@@ -255,14 +267,45 @@ const box = {
   marginTop: 10,
 };
 
-const btn = (color) => ({
+const btnPrimary = {
   padding: "8px 12px",
-  background: color,
+  background: "#1e40af",
   color: "#fff",
   border: "none",
   borderRadius: 6,
-  cursor: "pointer",
-});
+};
+
+const btnPurple = {
+  padding: "8px 12px",
+  background: "#7c3aed",
+  color: "#fff",
+  border: "none",
+  borderRadius: 6,
+};
+
+const btnOrange = {
+  padding: "8px 12px",
+  background: "#f59e0b",
+  color: "#fff",
+  border: "none",
+  borderRadius: 6,
+};
+
+const btnGreen = {
+  padding: "8px 12px",
+  background: "#16a34a",
+  color: "#fff",
+  border: "none",
+  borderRadius: 6,
+};
+
+const btnGray = {
+  padding: "8px 12px",
+  background: "#6b7280",
+  color: "#fff",
+  border: "none",
+  borderRadius: 6,
+};
 
 const badge = (status) => ({
   padding: "6px 12px",
@@ -278,34 +321,28 @@ const badge = (status) => ({
       : "#6b7280",
 });
 
-const inputStyle = {
-  padding: "6px 10px",
-  borderRadius: 6,
-  border: "1px solid #ccc",
-  minWidth: 200,
-  marginTop: 10,
-};
-
+// ================= MODAL =================
 const modalOverlay = {
   position: "fixed",
-  top: 0,
-  left: 0,
-  width: "100vw",
-  height: "100vh",
-  background: "rgba(0,0,0,0.4)",
-  display: "flex",
-  justifyContent: "center",
-  alignItems: "center",
-  zIndex: 1000,
+  top: 0, left: 0,
+  width: "100%", height: "100%",
+  backgroundColor: "rgba(0,0,0,0.5)",
+  display: "flex", justifyContent: "center", alignItems: "center",
+  zIndex: 999,
 };
 
-const modalContent = {
+const modalBox = {
   background: "#fff",
-  padding: 30,
-  borderRadius: 12,
-  maxWidth: 400,
-  width: "90%",
-  boxShadow: "0 5px 20px rgba(0,0,0,0.2)",
+  padding: 20,
+  borderRadius: 8,
+  minWidth: 300,
   display: "flex",
   flexDirection: "column",
+  gap: 10,
+};
+
+const modalInput = {
+  padding: 8,
+  borderRadius: 6,
+  border: "1px solid #ccc",
 };
