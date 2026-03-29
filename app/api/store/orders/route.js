@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import Order from "@/models/Order";
-import Inventory from "@/models/Inventory";
 import jwt from "jsonwebtoken";
-import mongoose from "mongoose";
+import { shipStock, deliverStock } from "@/lib/inventory";
 
 export const dynamic = "force-dynamic";
 
@@ -33,7 +32,10 @@ export async function GET(req) {
 
     const { user, error, status } = await verifyStore(req);
     if (error) {
-      return NextResponse.json({ success: false, message: error }, { status });
+      return NextResponse.json(
+        { success: false, message: error },
+        { status }
+      );
     }
 
     const orders = await Order.find({
@@ -65,7 +67,10 @@ export async function PUT(req) {
 
     const { user, error, status } = await verifyStore(req);
     if (error) {
-      return NextResponse.json({ success: false, message: error }, { status });
+      return NextResponse.json(
+        { success: false, message: error },
+        { status }
+      );
     }
 
     const body = await req.json();
@@ -103,6 +108,7 @@ export async function PUT(req) {
       trackingUrl,
     } = body;
 
+    /* ================= STATUS FLOW ================= */
     const validFlow = {
       "Order Placed": "Packed",
       Packed: "Shipped",
@@ -118,8 +124,6 @@ export async function PUT(req) {
         { status: 400 }
       );
     }
-
-    const warehouseObjectId = new mongoose.Types.ObjectId(warehouseId);
 
     /* ================= STATUS CHANGE ================= */
     if (newStatus && newStatus !== order.status) {
@@ -137,6 +141,7 @@ export async function PUT(req) {
 
       /* ================= SHIPPED ================= */
       if (order.status === "Packed" && newStatus === "Shipped") {
+
         const finalAWB = awbNumber || order.awbNumber;
         const finalCourier = courierName || order.courierName;
 
@@ -150,65 +155,15 @@ export async function PUT(req) {
           );
         }
 
-        for (const item of order.items) {
-          const productId = item.productId || item.product;
-
-          console.log("Updating Inventory:", {
-            productId,
-            warehouseObjectId,
-          });
-
-          let inventory = await Inventory.findOne({
-            productId,
-            warehouseId: warehouseObjectId,
-          });
-
-          /* 🔥 AUTO CREATE IF NOT EXISTS */
-          if (!inventory) {
-            console.log("⚠ Inventory not found → creating");
-
-            inventory = await Inventory.create({
-              productId,
-              warehouseId: warehouseObjectId,
-              availableQty: 0,
-              reservedQty: 0,
-              shippedQty: 0,
-            });
-          }
-
-          /* 🔥 MOVE STOCK */
-          await Inventory.updateOne(
-            {
-              productId,
-              warehouseId: warehouseObjectId,
-            },
-            {
-              $inc: {
-                reservedQty: -item.quantity,
-                shippedQty: item.quantity,
-              },
-            }
-          );
-        }
+        // ✅ MOVE STOCK: RESERVED → SHIPPED
+        await shipStock(order.items, warehouseId);
       }
 
       /* ================= DELIVERED ================= */
       if (order.status === "Out For Delivery" && newStatus === "Delivered") {
-        for (const item of order.items) {
-          const productId = item.productId || item.product;
 
-          await Inventory.updateOne(
-            {
-              productId,
-              warehouseId: warehouseObjectId,
-            },
-            {
-              $inc: {
-                shippedQty: -item.quantity,
-              },
-            }
-          );
-        }
+        // ✅ MOVE STOCK: SHIPPED → OUT
+        await deliverStock(order.items, warehouseId);
       }
 
       /* ✅ UPDATE STATUS */
