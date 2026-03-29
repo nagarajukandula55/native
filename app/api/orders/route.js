@@ -1,111 +1,75 @@
-import mongoose from "mongoose";
-import Inventory from "@/models/Inventory";
+import { NextResponse } from "next/server";
+import connectDB from "@/lib/mongodb";
+import Order from "@/models/Order";
+import Warehouse from "@/models/Warehouse";
+import { reserveStock } from "@/lib/inventory";
 
-/* ================= HELPER ================= */
-function toObjectId(id) {
-  if (!id) throw new Error("Invalid ID");
+export const dynamic = "force-dynamic";
 
-  return typeof id === "string"
-    ? new mongoose.Types.ObjectId(id)
-    : id;
-}
+/* ================= CREATE ORDER ================= */
+export async function POST(req) {
+  try {
+    await connectDB();
 
-/* ================= RESERVE STOCK ================= */
-export async function reserveStock(items, warehouseId) {
-  const warehouseObjectId = toObjectId(warehouseId);
+    const body = await req.json();
 
-  for (const item of items) {
-    const productId = toObjectId(item.productId || item.product);
-    const qty = Number(item.quantity);
+    if (!body?.items || body.items.length === 0) {
+      return NextResponse.json({ success: false, msg: "No items" });
+    }
 
-    let inventory = await Inventory.findOne({
-      productId,
-      warehouseId: warehouseObjectId,
-    });
+    const warehouse = await Warehouse.findOne();
 
-    /* 🔥 AUTO CREATE INVENTORY */
-    if (!inventory) {
-      inventory = await Inventory.create({
-        productId,
-        warehouseId: warehouseObjectId,
-        availableQty: 0,
-        reservedQty: 0,
-        shippedQty: 0,
+    if (!warehouse) {
+      return NextResponse.json({
+        success: false,
+        msg: "No warehouse found",
       });
     }
 
-    if (inventory.availableQty < qty) {
-      throw new Error(
-        `Insufficient stock. Available: ${inventory.availableQty}`
-      );
-    }
+    // 🔥 RESERVE INVENTORY FIRST
+    await reserveStock(body.items, warehouse._id);
 
-    const result = await Inventory.updateOne(
-      {
-        productId,
-        warehouseId: warehouseObjectId,
-        availableQty: { $gte: qty },
-      },
-      {
-        $inc: {
-          availableQty: -qty,
-          reservedQty: qty,
-        },
-      }
+    const totalAmount = body.items.reduce(
+      (sum, item) => sum + item.price * item.quantity,
+      0
     );
 
-    if (result.modifiedCount === 0) {
-      throw new Error("Stock conflict. Try again.");
-    }
+    const order = await Order.create({
+      orderId: "ORD-" + Date.now(),
+      customerName: body.customerName,
+      phone: body.phone,
+      address: body.address,
+      pincode: body.pincode,
+      items: body.items,
+      totalAmount,
+      status: "Order Placed",
+      warehouseAssignments: [{ warehouseId: warehouse._id }],
+      statusHistory: [{ status: "Order Placed", time: new Date() }],
+    });
+
+    return NextResponse.json({
+      success: true,
+      order,
+    });
+  } catch (e) {
+    console.error("ORDER CREATE ERROR:", e);
+
+    return NextResponse.json({
+      success: false,
+      msg: e.message || "Order failed",
+    });
   }
 }
 
-/* ================= SHIP STOCK ================= */
-export async function shipStock(items, warehouseId) {
-  const warehouseObjectId = toObjectId(warehouseId);
+/* ================= FETCH ================= */
+export async function GET() {
+  try {
+    await connectDB();
 
-  for (const item of items) {
-    const productId = toObjectId(item.productId || item.product);
-    const qty = Number(item.quantity);
+    const orders = await Order.find().sort({ createdAt: -1 });
 
-    const result = await Inventory.updateOne(
-      {
-        productId,
-        warehouseId: warehouseObjectId,
-        reservedQty: { $gte: qty },
-      },
-      {
-        $inc: {
-          reservedQty: -qty,
-          shippedQty: qty,
-        },
-      }
-    );
-
-    if (result.modifiedCount === 0) {
-      throw new Error("Not enough reserved stock");
-    }
-  }
-}
-
-/* ================= DELIVER STOCK ================= */
-export async function deliverStock(items, warehouseId) {
-  const warehouseObjectId = toObjectId(warehouseId);
-
-  for (const item of items) {
-    const productId = toObjectId(item.productId || item.product);
-    const qty = Number(item.quantity);
-
-    await Inventory.updateOne(
-      {
-        productId,
-        warehouseId: warehouseObjectId,
-      },
-      {
-        $inc: {
-          shippedQty: -qty,
-        },
-      }
-    );
+    return NextResponse.json({ success: true, orders });
+  } catch (e) {
+    return NextResponse.json({ success: false });
   }
 }
