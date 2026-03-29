@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import Order from "@/models/Order";
-import Warehouse from "@/models/Warehouse";
+import Inventory from "@/models/Inventory";
 import jwt from "jsonwebtoken";
+import mongoose from "mongoose";
 
 export const dynamic = "force-dynamic";
 
@@ -47,7 +48,6 @@ export async function GET(req) {
       success: true,
       orders,
     });
-
   } catch (e) {
     console.error("STORE GET ORDERS ERROR:", e);
 
@@ -69,8 +69,6 @@ export async function PUT(req) {
     }
 
     const body = await req.json();
-    console.log("BODY RECEIVED:", body);
-
     const id = body.id || body.orderId;
 
     if (!id) {
@@ -105,7 +103,6 @@ export async function PUT(req) {
       trackingUrl,
     } = body;
 
-    /* ================= STATUS FLOW ================= */
     const validFlow = {
       "Order Placed": "Packed",
       Packed: "Shipped",
@@ -113,9 +110,32 @@ export async function PUT(req) {
       "Out For Delivery": "Delivered",
     };
 
+    const warehouseId = order.warehouseAssignments?.[0]?.warehouseId;
+
+    if (!warehouseId) {
+      return NextResponse.json(
+        { success: false, message: "Warehouse not assigned" },
+        { status: 400 }
+      );
+    }
+
+    const warehouseObjectId = new mongoose.Types.ObjectId(warehouseId);
+
+    /* ================= STATUS CHANGE ================= */
     if (newStatus && newStatus !== order.status) {
 
-      /* 🔒 REQUIRE AWB + COURIER BEFORE SHIPPING */
+      /* ❌ INVALID FLOW */
+      if (validFlow[order.status] !== newStatus) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: `Invalid transition: ${order.status} → ${newStatus}`,
+          },
+          { status: 400 }
+        );
+      }
+
+      /* ================= SHIPPED ================= */
       if (order.status === "Packed" && newStatus === "Shipped") {
         const finalAWB = awbNumber || order.awbNumber;
         const finalCourier = courierName || order.courierName;
@@ -129,17 +149,66 @@ export async function PUT(req) {
             { status: 400 }
           );
         }
+
+        for (const item of order.items) {
+          const productId = item.productId || item.product;
+
+          console.log("Updating Inventory:", {
+            productId,
+            warehouseObjectId,
+          });
+
+          let inventory = await Inventory.findOne({
+            productId,
+            warehouseId: warehouseObjectId,
+          });
+
+          /* 🔥 AUTO CREATE IF NOT EXISTS */
+          if (!inventory) {
+            console.log("⚠ Inventory not found → creating");
+
+            inventory = await Inventory.create({
+              productId,
+              warehouseId: warehouseObjectId,
+              availableQty: 0,
+              reservedQty: 0,
+              shippedQty: 0,
+            });
+          }
+
+          /* 🔥 MOVE STOCK */
+          await Inventory.updateOne(
+            {
+              productId,
+              warehouseId: warehouseObjectId,
+            },
+            {
+              $inc: {
+                reservedQty: -item.quantity,
+                shippedQty: item.quantity,
+              },
+            }
+          );
+        }
       }
 
-      /* ❌ INVALID FLOW BLOCK */
-      if (validFlow[order.status] !== newStatus) {
-        return NextResponse.json(
-          {
-            success: false,
-            message: `Invalid transition: ${order.status} → ${newStatus}`,
-          },
-          { status: 400 }
-        );
+      /* ================= DELIVERED ================= */
+      if (order.status === "Out For Delivery" && newStatus === "Delivered") {
+        for (const item of order.items) {
+          const productId = item.productId || item.product;
+
+          await Inventory.updateOne(
+            {
+              productId,
+              warehouseId: warehouseObjectId,
+            },
+            {
+              $inc: {
+                shippedQty: -item.quantity,
+              },
+            }
+          );
+        }
       }
 
       /* ✅ UPDATE STATUS */
@@ -154,7 +223,6 @@ export async function PUT(req) {
 
     /* ================= OPTIONAL FIELDS ================= */
     if (paymentStatus) order.paymentStatus = paymentStatus;
-
     if (awbNumber !== undefined) order.awbNumber = awbNumber;
     if (courierName !== undefined) order.courierName = courierName;
     if (trackingUrl !== undefined) order.trackingUrl = trackingUrl;
