@@ -20,14 +20,15 @@ export default function InventoryAdmin() {
     loadData();
   }, []);
 
-  /* ===================== LOAD DATA ===================== */
+  /* ================= LOAD DATA ================= */
   async function loadData() {
     setLoading(true);
+
     try {
       const [wRes, pRes, iRes] = await Promise.all([
-        fetch("/api/admin/warehouses"),
-        fetch("/api/admin/products"),
-        fetch("/api/admin/inventory"),
+        fetch("/api/admin/warehouses", { credentials: "include" }),
+        fetch("/api/admin/products", { credentials: "include" }),
+        fetch("/api/admin/inventory/list", { credentials: "include" }),
       ]);
 
       const wJson = await wRes.json();
@@ -37,14 +38,16 @@ export default function InventoryAdmin() {
       setWarehouses(wJson.warehouses || []);
       setProducts(pJson.products || []);
       setInventory(iJson.inventory || []);
+
     } catch (err) {
-      console.error("LOAD DATA ERROR:", err);
-      alert("❌ Failed to load inventory data");
+      console.error(err);
+      alert("❌ Failed to load data. Make sure you are logged in as admin.");
     }
+
     setLoading(false);
   }
 
-  /* ===================== ADD / UPDATE INVENTORY ===================== */
+  /* ================= ADD INVENTORY ================= */
   async function handleSubmit() {
     if (!form.productId || !form.warehouseId || !form.qty) {
       alert("⚠ All fields required");
@@ -56,7 +59,10 @@ export default function InventoryAdmin() {
     try {
       const res = await fetch("/api/admin/inventory", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
         body: JSON.stringify({
           productId: form.productId,
           warehouseId: form.warehouseId,
@@ -67,20 +73,11 @@ export default function InventoryAdmin() {
       const json = await res.json();
 
       if (json.success) {
-        alert("✅ Stock added successfully");
+        alert("✅ Inventory added successfully");
         setForm({ productId: "", warehouseId: "", qty: "" });
-
-        // Update frontend instantly
-        const updatedInventory = inventory.filter(
-          (i) =>
-            !(
-              i.productId._id === json.inventory.productId._id &&
-              i.warehouseId._id === json.inventory.warehouseId._id
-            )
-        );
-        setInventory([json.inventory, ...updatedInventory]);
+        loadData();
       } else {
-        alert(json.message || "❌ Failed to add stock");
+        alert(json.message || "❌ Failed to add inventory");
       }
     } catch (err) {
       console.error(err);
@@ -90,33 +87,37 @@ export default function InventoryAdmin() {
     setSubmitting(false);
   }
 
-  if (loading)
-    return (
-      <h2 style={{ padding: 40, textAlign: "center" }}>Loading Inventory...</h2>
-    );
+  if (loading) return <h2 style={{ padding: 40 }}>Loading Inventory...</h2>;
 
   return (
-    <div style={{ maxWidth: 1300, margin: "auto", padding: 20 }}>
-      <h1 style={title}>📦 Inventory Management</h1>
+    <div style={{ maxWidth: 1200, margin: "auto", padding: 20 }}>
+      <h1 style={{ fontSize: 28, fontWeight: "bold" }}>
+        📦 Inventory Management
+      </h1>
 
       {/* ================= ADD INVENTORY ================= */}
       <div style={card}>
-        <h3>Add / Update Stock</h3>
+        <h3>Add Inventory</h3>
 
         {products.length === 0 && (
           <p style={{ color: "red" }}>
-            ⚠ No products found. Please create products first.
+            ⚠ No products found. Create products first.
           </p>
         )}
 
-        <div style={formRow}>
-          {/* Product */}
+        {warehouses.length === 0 && (
+          <p style={{ color: "red" }}>
+            ⚠ No warehouses found. Create warehouses first.
+          </p>
+        )}
+
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 10 }}>
+          {/* PRODUCT */}
           <select
             value={form.productId}
             onChange={(e) =>
               setForm({ ...form, productId: e.target.value })
             }
-            style={selectInput}
           >
             <option value="">Select Product</option>
             {products.map((p) => (
@@ -126,13 +127,12 @@ export default function InventoryAdmin() {
             ))}
           </select>
 
-          {/* Warehouse */}
+          {/* WAREHOUSE */}
           <select
             value={form.warehouseId}
             onChange={(e) =>
               setForm({ ...form, warehouseId: e.target.value })
             }
-            style={selectInput}
           >
             <option value="">Select Warehouse</option>
             {warehouses.map((w) => (
@@ -142,28 +142,30 @@ export default function InventoryAdmin() {
             ))}
           </select>
 
-          {/* Qty */}
+          {/* QTY */}
           <input
             type="number"
             placeholder="Quantity"
             value={form.qty}
-            onChange={(e) => setForm({ ...form, qty: e.target.value })}
-            style={inputField}
+            onChange={(e) =>
+              setForm({ ...form, qty: e.target.value })
+            }
           />
 
           <button
             onClick={handleSubmit}
-            disabled={submitting}
             style={btn}
+            disabled={submitting}
           >
-            {submitting ? "Adding..." : "➕ Add / Update Stock"}
+            {submitting ? "Adding..." : "➕ Add Stock"}
           </button>
         </div>
       </div>
 
       {/* ================= INVENTORY TABLE ================= */}
       <div style={{ marginTop: 30 }}>
-        <h3>📊 Current Inventory</h3>
+        <h3>📊 Inventory List</h3>
+
         {inventory.length === 0 ? (
           <p>No inventory found</p>
         ) : (
@@ -171,7 +173,6 @@ export default function InventoryAdmin() {
             <thead>
               <tr>
                 <th>Product</th>
-                <th>SKU</th>
                 <th>Warehouse</th>
                 <th>Available</th>
                 <th>Reserved</th>
@@ -181,9 +182,8 @@ export default function InventoryAdmin() {
             </thead>
             <tbody>
               {inventory.map((i) => (
-                <tr key={`${i.productId._id}-${i.warehouseId._id}`}>
-                  <td>{i.productId?.name || "N/A"}</td>
-                  <td>{i.productId?.sku || "N/A"}</td>
+                <tr key={i._id}>
+                  <td>{i.productId?.name || "N/A"} ({i.productId?.sku})</td>
                   <td>
                     {i.warehouseId?.name} ({i.warehouseId?.code})
                   </td>
@@ -203,44 +203,17 @@ export default function InventoryAdmin() {
 
 /* ================= STYLES ================= */
 
-const title = {
-  fontSize: 28,
-  fontWeight: "bold",
-  marginBottom: 20,
-};
-
 const card = {
-  background: "#fefefe",
+  background: "#f9fafb",
   padding: 20,
   borderRadius: 12,
-  boxShadow: "0 4px 12px rgba(0,0,0,0.05)",
-};
-
-const formRow = {
-  display: "flex",
-  gap: 12,
-  flexWrap: "wrap",
-  alignItems: "center",
-  marginTop: 10,
-};
-
-const selectInput = {
-  padding: "8px 10px",
-  borderRadius: 6,
-  border: "1px solid #ccc",
-  minWidth: 200,
-};
-
-const inputField = {
-  padding: "8px 10px",
-  borderRadius: 6,
-  border: "1px solid #ccc",
-  width: 120,
+  marginTop: 20,
+  boxShadow: "0 2px 8px rgba(0,0,0,0.1)"
 };
 
 const btn = {
-  padding: "10px 16px",
-  background: "#1e40af",
+  padding: "8px 16px",
+  background: "#16a34a",
   color: "#fff",
   border: "none",
   borderRadius: 6,
@@ -250,17 +223,6 @@ const btn = {
 const table = {
   width: "100%",
   borderCollapse: "collapse",
-  marginTop: 15,
-  boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
-};
-
-table.th = {
-  background: "#f3f4f6",
-  padding: "10px",
-  textAlign: "left",
-};
-
-table.td = {
-  padding: "10px",
-  borderBottom: "1px solid #e5e7eb",
+  marginTop: 10,
+  boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
 };
