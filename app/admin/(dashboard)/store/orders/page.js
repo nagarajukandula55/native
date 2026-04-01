@@ -18,7 +18,9 @@ export default function StoreOrders() {
   async function loadOrders() {
     setLoading(true);
     try {
-      const res = await fetch("/api/store/orders");
+      const res = await fetch("/api/store/orders", {
+        credentials: "include",
+      });
       const json = await res.json();
       if (json.success) {
         setOrders(json.orders || []);
