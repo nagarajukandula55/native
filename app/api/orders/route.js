@@ -57,6 +57,8 @@ export async function POST(req) {
       statusHistory: [{ status: "Order Placed", time: new Date() }],
     });
 
+    console.log("✅ ORDER CREATED:", order.orderId);
+
     return NextResponse.json({
       success: true,
       orderId: order.orderId,
@@ -64,7 +66,7 @@ export async function POST(req) {
     });
 
   } catch (e) {
-    console.error("ORDER ERROR:", e);
+    console.error("❌ ORDER ERROR:", e);
 
     return NextResponse.json(
       { success: false, msg: e.message },
