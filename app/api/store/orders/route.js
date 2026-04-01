@@ -4,19 +4,22 @@ import Order from "@/models/Order";
 import jwt from "jsonwebtoken";
 import { shipStock, deliverStock } from "@/lib/inventory";
 
-export const dynamic = "force-dynamic";
-
-/* ================= VERIFY ================= */
-function verifyStore(req) {
+/* ================= VERIFY STORE ================= */
+async function verifyStore(req) {
   const token = req.cookies.get("token")?.value;
 
-  if (!token) return null;
+  if (!token) return { error: "Unauthorized", status: 401 };
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    return decoded.role === "store" ? decoded : null;
+
+    if (decoded.role !== "store") {
+      return { error: "Forbidden", status: 403 };
+    }
+
+    return { user: decoded };
   } catch {
-    return null;
+    return { error: "Invalid token", status: 401 };
   }
 }
 
@@ -24,9 +27,9 @@ function verifyStore(req) {
 export async function GET(req) {
   await connectDB();
 
-  const user = verifyStore(req);
-  if (!user) {
-    return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
+  const { user, error, status } = await verifyStore(req);
+  if (error) {
+    return NextResponse.json({ success: false, message: error }, { status });
   }
 
   const orders = await Order.find({
@@ -39,55 +42,58 @@ export async function GET(req) {
 
 /* ================= UPDATE ================= */
 export async function PUT(req) {
-  try {
-    await connectDB();
+  await connectDB();
 
-    const user = verifyStore(req);
-    if (!user) {
-      return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
-    }
-
-    const body = await req.json();
-
-    const order = await Order.findById(body.id);
-    if (!order) {
-      return NextResponse.json({ success: false, message: "Order not found" });
-    }
-
-    const newStatus = body.status;
-
-    /* ================= SHIP ================= */
-    if (order.status === "Packed" && newStatus === "Shipped") {
-      if (!body.awbNumber || !body.courierName) {
-        return NextResponse.json({
-          success: false,
-          message: "AWB & Courier required",
-        });
-      }
-
-      await shipStock(order.items, order.warehouseAssignments[0].warehouseId);
-
-      order.awbNumber = body.awbNumber;
-      order.courierName = body.courierName;
-    }
-
-    /* ================= DELIVER ================= */
-    if (order.status === "Out For Delivery" && newStatus === "Delivered") {
-      await deliverStock(order.items, order.warehouseAssignments[0].warehouseId);
-    }
-
-    order.status = newStatus;
-
-    order.statusHistory.push({
-      status: newStatus,
-      time: new Date(),
-    });
-
-    await order.save();
-
-    return NextResponse.json({ success: true });
-
-  } catch (err) {
-    return NextResponse.json({ success: false, message: err.message });
+  const { user, error, status } = await verifyStore(req);
+  if (error) {
+    return NextResponse.json({ success: false, message: error }, { status });
   }
+
+  const body = await req.json();
+  const id = body.id;
+
+  const order = await Order.findById(id);
+
+  if (!order) {
+    return NextResponse.json(
+      { success: false, message: "Order not found" },
+      { status: 404 }
+    );
+  }
+
+  const newStatus = body.status;
+  const warehouseId = order.warehouseAssignments?.[0]?.warehouseId;
+
+  /* ================= SHIPPING ================= */
+  if (order.status === "Packed" && newStatus === "Shipped") {
+    if (!body.awbNumber || !body.courierName) {
+      return NextResponse.json(
+        { success: false, message: "AWB & Courier required" },
+        { status: 400 }
+      );
+    }
+
+    await shipStock(order.items, warehouseId);
+  }
+
+  /* ================= DELIVERY ================= */
+  if (order.status === "Out For Delivery" && newStatus === "Delivered") {
+    await deliverStock(order.items, warehouseId);
+  }
+
+  /* ================= UPDATE ================= */
+  order.status = newStatus;
+  order.awbNumber = body.awbNumber || order.awbNumber;
+  order.courierName = body.courierName || order.courierName;
+  order.trackingUrl = body.trackingUrl || order.trackingUrl;
+
+  order.statusHistory.push({
+    status: newStatus,
+    time: new Date(),
+    updatedBy: user.id,
+  });
+
+  await order.save();
+
+  return NextResponse.json({ success: true });
 }
