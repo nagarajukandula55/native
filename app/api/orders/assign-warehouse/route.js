@@ -1,9 +1,9 @@
+export const dynamic = "force-dynamic";
+
 import { NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import Order from "@/models/Order";
 import Inventory from "@/models/Inventory";
-
-export const dynamic = "force-dynamic";
 
 export async function POST(req) {
   try {
@@ -27,51 +27,53 @@ export async function POST(req) {
       );
     }
 
-    /* 🚫 IF ALREADY ASSIGNED */
-    if (order.warehouseAssignments?.length > 0) {
-      return NextResponse.json({
-        success: true,
-        message: "Already assigned",
-        assignments: order.warehouseAssignments,
-      });
-    }
-
     const assignments = [];
 
-    /* ================= ASSIGN BASED ON RESERVED STOCK ================= */
     for (const item of order.items) {
-
       const inventories = await Inventory.find({
         productId: item.productId,
-        reservedQty: { $gte: item.quantity }, // 🔥 KEY FIX
-      }).sort({ reservedQty: -1 });
+        availableQty: { $gt: 0 },
+      }).sort({ availableQty: -1 });
 
-      if (!inventories.length) {
+      let remaining = item.quantity;
+
+      for (const inv of inventories) {
+        const allocate = Math.min(remaining, inv.availableQty);
+
+        if (allocate <= 0) continue;
+
+        // 🔥 reserve stock
+        inv.availableQty -= allocate;
+        inv.reservedQty += allocate;
+        await inv.save();
+
+        assignments.push({
+          warehouseId: inv.warehouseId,
+          productId: item.productId,
+          quantity: allocate,
+        });
+
+        remaining -= allocate;
+        if (remaining <= 0) break;
+      }
+
+      if (remaining > 0) {
         return NextResponse.json(
           {
             success: false,
-            message: `No reserved stock for product ${item.name}`,
+            message: `Insufficient stock for product ${item.productId}`,
           },
           { status: 400 }
         );
       }
-
-      const inv = inventories[0];
-
-      assignments.push({
-        productId: item.productId,
-        warehouseId: inv.warehouseId,
-        quantity: item.quantity,
-      });
     }
 
-    /* ================= SAVE ================= */
     order.warehouseAssignments = assignments;
     await order.save();
 
     return NextResponse.json({
       success: true,
-      message: "Warehouse assigned successfully",
+      message: "Warehouse assigned",
       assignments,
     });
 
