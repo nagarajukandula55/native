@@ -9,11 +9,9 @@ import { reserveStock } from "@/lib/inventory";
 /* ================= ORDER ID ================= */
 function generateOrderId() {
   const now = new Date();
-
   const yy = now.getFullYear().toString().slice(-2);
   const mm = String(now.getMonth() + 1).padStart(2, "0");
   const dd = String(now.getDate()).padStart(2, "0");
-
   const rand = Math.random().toString(36).substring(2, 6).toUpperCase();
 
   return `NAT-${yy}${mm}${dd}-${rand}`;
@@ -26,7 +24,6 @@ export async function POST(req) {
 
     const body = await req.json();
 
-    /* ✅ VALIDATION */
     if (
       !body.customerName ||
       !body.phone ||
@@ -39,7 +36,7 @@ export async function POST(req) {
       );
     }
 
-    /* ✅ WAREHOUSE */
+    /* ================= GET WAREHOUSE ================= */
     const warehouse = await Warehouse.findOne();
 
     if (!warehouse) {
@@ -49,10 +46,10 @@ export async function POST(req) {
       );
     }
 
-    /* ✅ RESERVE STOCK */
+    /* ================= RESERVE STOCK ================= */
     await reserveStock(body.items, warehouse._id);
 
-    /* ✅ CREATE ORDER */
+    /* ================= CREATE ORDER ================= */
     const order = await Order.create({
       orderId: generateOrderId(),
 
@@ -66,39 +63,40 @@ export async function POST(req) {
       items: body.items,
 
       totalAmount: body.items.reduce(
-        (sum, i) => sum + i.price * i.quantity,
+        (sum, i) => sum + Number(i.price) * Number(i.quantity),
         0
       ),
+
+      status: "Order Placed",
 
       paymentMethod: body.paymentMethod || "COD",
       paymentStatus: "Pending",
 
-      status: "Order Placed",
-
-      warehouseAssignments: [{ warehouseId: warehouse._id }],
+      warehouseAssignments: [
+        {
+          warehouseId: warehouse._id,
+        },
+      ],
 
       statusHistory: [
-        { status: "Order Placed", time: new Date() },
+        {
+          status: "Order Placed",
+          time: new Date(),
+        },
       ],
     });
 
-    /* ✅ RESPONSE FIX (IMPORTANT) */
     return NextResponse.json({
       success: true,
-      order: {
-        _id: order._id,
-        orderId: order.orderId,
-      },
+      orderId: order.orderId,
+      _id: order._id,
     });
 
   } catch (e) {
     console.error("ORDER ERROR:", e);
 
     return NextResponse.json(
-      {
-        success: false,
-        msg: e.message || "Server error",
-      },
+      { success: false, msg: e.message || "Server error" },
       { status: 500 }
     );
   }
