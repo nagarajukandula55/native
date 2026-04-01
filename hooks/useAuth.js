@@ -7,26 +7,27 @@ export default function useAuth() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchUser = async () => {
+    async function fetchUser() {
       try {
         const res = await fetch("/api/user/me", {
-          credentials: "include", // 🔥 IMPORTANT
+          credentials: "include", // 🔥 VERY IMPORTANT
         });
 
-        if (!res.ok) {
+        const data = await res.json();
+
+        if (data.success) {
+          setUser(data.user);
+        } else {
           setUser(null);
-          return;
         }
 
-        const data = await res.json();
-        setUser(data.user);
       } catch (err) {
-        console.error("Auth fetch error:", err);
+        console.error("Auth error:", err);
         setUser(null);
-      } finally {
-        setLoading(false);
       }
-    };
+
+      setLoading(false);
+    }
 
     fetchUser();
   }, []);
