@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import Order from "@/models/Order";
 import Warehouse from "@/models/Warehouse";
-import { reserveStock } from "@/lib/inventory";
+import { reserveStock } from "@/lib/Inventory";
 
 export const dynamic = "force-dynamic";
 
