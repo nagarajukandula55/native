@@ -1,77 +1,91 @@
-// app/api/orders/assign-warehouse/route.js
-import dbConnect from "@/lib/db";
+import { NextResponse } from "next/server";
+import connectDB from "@/lib/mongodb";
 import Order from "@/models/Order";
-import Warehouse from "@/models/Warehouse";
+import Inventory from "@/models/inventory";
 
+/* ================= ASSIGN WAREHOUSE ================= */
 export async function POST(req) {
   try {
-    await dbConnect();
+    await connectDB();
 
     const { orderId } = await req.json();
-    if (!orderId)
-      return new Response(
-        JSON.stringify({ error: "Order ID required" }),
+
+    if (!orderId) {
+      return NextResponse.json(
+        { success: false, message: "Order ID required" },
         { status: 400 }
       );
+    }
 
     const order = await Order.findById(orderId);
-    if (!order)
-      return new Response(
-        JSON.stringify({ error: "Order not found" }),
+
+    if (!order) {
+      return NextResponse.json(
+        { success: false, message: "Order not found" },
         { status: 404 }
       );
+    }
 
-    order.warehouseAssignments = [];
-    const assignments = [];
+    /* ================= CHECK WAREHOUSE ================= */
+    const warehouseId = order.warehouseAssignments?.[0]?.warehouseId;
 
+    if (!warehouseId) {
+      return NextResponse.json(
+        { success: false, message: "Warehouse not assigned to order" },
+        { status: 400 }
+      );
+    }
+
+    /* ================= VALIDATE RESERVED STOCK ================= */
     for (const item of order.items) {
-      // Find warehouses with stock > 0 for this product
-      const warehouses = await Warehouse.find({
-        "stock.productId": item.productId,
-        "stock.quantity": { $gt: 0 },
-      }).sort({ "stock.quantity": -1 });
+      const inventory = await Inventory.findOne({
+        productId: item.productId,
+        warehouseId,
+      });
 
-      let remainingQty = item.quantity;
-
-      for (const wh of warehouses) {
-        const stockEntry = wh.stock.find(
-          (s) => s.productId.toString() === item.productId.toString()
+      if (!inventory) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: `Inventory missing for product ${item.productId}`,
+          },
+          { status: 400 }
         );
-        if (!stockEntry) continue;
-
-        const allocatedQty = Math.min(remainingQty, stockEntry.quantity);
-        stockEntry.quantity -= allocatedQty;
-        await wh.save();
-
-        assignments.push({
-          productId: item.productId,
-          warehouseId: wh._id,
-          quantity: allocatedQty,
-        });
-
-        remainingQty -= allocatedQty;
-        if (remainingQty <= 0) break;
       }
 
-      if (remainingQty > 0) {
-        return new Response(
-          JSON.stringify({
-            error: `Insufficient stock for product ${item.productId}`,
-          }),
+      if (inventory.reservedQty < item.quantity) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: `Reserved stock not available for product ${item.productId}`,
+          },
           { status: 400 }
         );
       }
     }
 
-    order.warehouseAssignments = assignments;
+    /* ================= ASSIGN STORE FLAG ================= */
+    // NOTE: Warehouse already assigned during order creation
+    // So here we just confirm assignment
+
+    order.isAssigned = true;
+
     await order.save();
 
-    return new Response(
-      JSON.stringify({ message: "Warehouses assigned", assignments }),
-      { status: 200 }
-    );
+    return NextResponse.json({
+      success: true,
+      message: "Warehouse assignment validated successfully",
+    });
+
   } catch (err) {
-    console.error(err);
-    return new Response(JSON.stringify({ error: err.message }), { status: 500 });
+    console.error("ASSIGN WAREHOUSE ERROR:", err);
+
+    return NextResponse.json(
+      {
+        success: false,
+        message: err.message || "Server error",
+      },
+      { status: 500 }
+    );
   }
 }
