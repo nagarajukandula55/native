@@ -23,12 +23,7 @@ export async function POST(req) {
 
     const body = await req.json();
 
-    if (
-      !body.customerName ||
-      !body.phone ||
-      !body.address ||
-      !body.items?.length
-    ) {
+    if (!body.customerName || !body.phone || !body.address || !body.items?.length) {
       return NextResponse.json(
         { success: false, msg: "Missing fields" },
         { status: 400 }
@@ -44,7 +39,7 @@ export async function POST(req) {
       );
     }
 
-    /* ✅ RESERVE STOCK */
+    /* 🔥 RESERVE STOCK */
     await reserveStock(body.items, warehouse._id);
 
     const order = await Order.create({
@@ -55,13 +50,10 @@ export async function POST(req) {
       address: body.address,
       pincode: body.pincode,
       items: body.items,
-      totalAmount: body.items.reduce(
-        (s, i) => s + i.price * i.quantity,
-        0
-      ),
+      totalAmount: body.items.reduce((s, i) => s + i.price * i.quantity, 0),
       paymentMethod: body.paymentMethod,
-      warehouseAssignments: [{ warehouseId: warehouse._id }],
       status: "Order Placed",
+      warehouseAssignments: [{ warehouseId: warehouse._id }],
       statusHistory: [{ status: "Order Placed", time: new Date() }],
     });
 
@@ -72,7 +64,7 @@ export async function POST(req) {
     });
 
   } catch (e) {
-    console.error("ORDER CREATE ERROR:", e);
+    console.error("ORDER ERROR:", e);
 
     return NextResponse.json(
       { success: false, msg: e.message },
