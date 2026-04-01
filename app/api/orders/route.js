@@ -4,8 +4,6 @@ import Order from "@/models/Order";
 import Warehouse from "@/models/Warehouse";
 import { reserveStock } from "@/lib/inventory";
 
-export const dynamic = "force-dynamic";
-
 /* ================= CREATE ORDER ================= */
 export async function POST(req) {
   try {
@@ -22,48 +20,34 @@ export async function POST(req) {
       body.items.length === 0
     ) {
       return NextResponse.json(
-        { success: false, message: "Missing required fields" },
+        { success: false, msg: "Missing required fields" },
         { status: 400 }
       );
     }
 
-    /* ================= FIND WAREHOUSE ================= */
     const warehouse = await Warehouse.findOne();
 
     if (!warehouse) {
       return NextResponse.json(
-        { success: false, message: "No warehouse configured" },
-        { status: 500 }
-      );
-    }
-
-    /* ================= RESERVE STOCK ================= */
-    try {
-      await reserveStock(body.items, warehouse._id);
-    } catch (err) {
-      return NextResponse.json(
-        { success: false, message: err.message },
+        { success: false, msg: "No warehouse configured" },
         { status: 400 }
       );
     }
 
-    /* ================= TOTAL ================= */
-    const totalAmount = body.items.reduce(
-      (sum, i) => sum + i.price * i.quantity,
-      0
-    );
+    /* ✅ RESERVE STOCK */
+    await reserveStock(body.items, warehouse._id);
 
-    const orderId = `NAT-${Date.now()}`;
-
-    /* ================= CREATE ================= */
+    /* ✅ CREATE ORDER */
     const order = await Order.create({
-      orderId,
       customerName: body.customerName,
       phone: body.phone,
       address: body.address,
       pincode: body.pincode,
       items: body.items,
-      totalAmount,
+      totalAmount: body.items.reduce(
+        (sum, i) => sum + i.price * i.quantity,
+        0
+      ),
       status: "Order Placed",
       paymentMethod: body.paymentMethod || "COD",
       paymentStatus: "Pending",
@@ -71,22 +55,18 @@ export async function POST(req) {
       statusHistory: [{ status: "Order Placed", time: new Date() }],
     });
 
-    return NextResponse.json({
-      success: true,
-      orderId: order.orderId,
-    });
+    return NextResponse.json({ success: true, order });
 
-  } catch (err) {
-    console.error("ORDER CREATE ERROR:", err);
-
+  } catch (e) {
+    console.error("ORDER ERROR:", e);
     return NextResponse.json(
-      { success: false, message: err.message || "Server error" },
-      { status: 500 }
+      { success: false, msg: e.message },
+      { status: 400 }
     );
   }
 }
 
-/* ================= FETCH ================= */
+/* ================= FETCH ORDERS ================= */
 export async function GET() {
   try {
     await connectDB();
@@ -95,10 +75,7 @@ export async function GET() {
 
     return NextResponse.json({ success: true, orders });
 
-  } catch (err) {
-    return NextResponse.json(
-      { success: false, message: err.message },
-      { status: 500 }
-    );
+  } catch (e) {
+    return NextResponse.json({ success: false });
   }
 }
