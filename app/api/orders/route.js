@@ -9,10 +9,13 @@ import { reserveStock } from "@/lib/inventory";
 /* ================= ORDER ID ================= */
 function generateOrderId() {
   const now = new Date();
+
   const yy = now.getFullYear().toString().slice(-2);
   const mm = String(now.getMonth() + 1).padStart(2, "0");
   const dd = String(now.getDate()).padStart(2, "0");
+
   const rand = Math.random().toString(36).substring(2, 6).toUpperCase();
+
   return `NAT-${yy}${mm}${dd}-${rand}`;
 }
 
@@ -23,13 +26,20 @@ export async function POST(req) {
 
     const body = await req.json();
 
-    if (!body.customerName || !body.phone || !body.address || !body.items?.length) {
+    /* ✅ VALIDATION */
+    if (
+      !body.customerName ||
+      !body.phone ||
+      !body.address ||
+      !body.items?.length
+    ) {
       return NextResponse.json(
         { success: false, msg: "Missing fields" },
         { status: 400 }
       );
     }
 
+    /* ✅ WAREHOUSE */
     const warehouse = await Warehouse.findOne();
 
     if (!warehouse) {
@@ -39,37 +49,56 @@ export async function POST(req) {
       );
     }
 
-    /* 🔥 RESERVE STOCK */
+    /* ✅ RESERVE STOCK */
     await reserveStock(body.items, warehouse._id);
 
+    /* ✅ CREATE ORDER */
     const order = await Order.create({
       orderId: generateOrderId(),
+
       customerName: body.customerName,
       phone: body.phone,
-      email: body.email,
+      email: body.email || "",
+
       address: body.address,
       pincode: body.pincode,
+
       items: body.items,
-      totalAmount: body.items.reduce((s, i) => s + i.price * i.quantity, 0),
-      paymentMethod: body.paymentMethod,
+
+      totalAmount: body.items.reduce(
+        (sum, i) => sum + i.price * i.quantity,
+        0
+      ),
+
+      paymentMethod: body.paymentMethod || "COD",
+      paymentStatus: "Pending",
+
       status: "Order Placed",
+
       warehouseAssignments: [{ warehouseId: warehouse._id }],
-      statusHistory: [{ status: "Order Placed", time: new Date() }],
+
+      statusHistory: [
+        { status: "Order Placed", time: new Date() },
+      ],
     });
 
-    console.log("✅ ORDER CREATED:", order.orderId);
-
+    /* ✅ RESPONSE FIX (IMPORTANT) */
     return NextResponse.json({
       success: true,
-      orderId: order.orderId,
-      _id: order._id,
+      order: {
+        _id: order._id,
+        orderId: order.orderId,
+      },
     });
 
   } catch (e) {
-    console.error("❌ ORDER ERROR:", e);
+    console.error("ORDER ERROR:", e);
 
     return NextResponse.json(
-      { success: false, msg: e.message },
+      {
+        success: false,
+        msg: e.message || "Server error",
+      },
       { status: 500 }
     );
   }
