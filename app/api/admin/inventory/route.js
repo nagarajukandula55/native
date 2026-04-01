@@ -1,9 +1,8 @@
-// app/api/admin/inventory/route.js
+export const dynamic = "force-dynamic"; // ✅ VERY IMPORTANT
+
 import { NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import Inventory from "@/models/Inventory";
-import Product from "@/models/Product";
-import Warehouse from "@/models/Warehouse";
 import jwt from "jsonwebtoken";
 
 /* ===================== ADMIN AUTH ===================== */
@@ -28,12 +27,11 @@ export async function GET(req) {
       .populate("warehouseId", "name code")
       .sort({ createdAt: -1 });
 
-    return NextResponse.json({
-      success: true,
-      inventory,
-    });
+    return NextResponse.json({ success: true, inventory });
+
   } catch (err) {
     console.error("GET INVENTORY ERROR:", err);
+
     return NextResponse.json(
       { success: false, message: err.message },
       { status: err.message.includes("Unauthorized") ? 401 : 500 }
@@ -41,45 +39,44 @@ export async function GET(req) {
   }
 }
 
-/* ===================== ADD / UPDATE INVENTORY ===================== */
+/* ===================== ADD STOCK ===================== */
 export async function POST(req) {
   try {
     await connectDB();
     await verifyAdmin(req);
 
-    const body = await req.json();
-    const { productId, warehouseId, qty } = body;
+    const { productId, warehouseId, qty } = await req.json();
 
-    if (!productId || !warehouseId || qty === undefined)
+    if (!productId || !warehouseId || qty === undefined) {
       return NextResponse.json(
         { success: false, message: "productId, warehouseId, qty required" },
         { status: 400 }
       );
+    }
 
-    // Check if inventory record exists
     let inventory = await Inventory.findOne({ productId, warehouseId });
-    if (inventory) {
-      // Update availableQty & total
-      inventory.availableQty += Number(qty);
-      await inventory.save();
-    } else {
+
+    if (!inventory) {
       inventory = await Inventory.create({
         productId,
         warehouseId,
         availableQty: Number(qty),
+        reservedQty: 0,
+        shippedQty: 0,
       });
+    } else {
+      inventory.availableQty += Number(qty);
+      await inventory.save();
     }
 
-    // Populate names for frontend
-    await inventory.populate("productId", "name sku");
-    await inventory.populate("warehouseId", "name code");
-
     return NextResponse.json({ success: true, inventory });
+
   } catch (err) {
     console.error("POST INVENTORY ERROR:", err);
+
     return NextResponse.json(
       { success: false, message: err.message },
-      { status: err.message.includes("Unauthorized") ? 401 : 500 }
+      { status: 500 }
     );
   }
 }
