@@ -70,8 +70,16 @@ export default function CheckoutPage() {
         email,
         address,
         pincode,
-        items: formattedItems, // ✅ FIXED
-        paymentMethod: method,
+      
+        // ✅ FIXED ITEMS STRUCTURE
+        items: cart.map(item => ({
+          productId: item._id,   // 🔥 VERY IMPORTANT
+          name: item.name,
+          quantity: item.quantity,
+          price: item.price
+        })),
+      
+        paymentMethod: method
       };
 
       const res = await fetch("/api/orders", {
