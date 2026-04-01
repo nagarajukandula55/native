@@ -18,74 +18,99 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(false);
   const [paymentSettings, setPaymentSettings] = useState(null);
   const [method, setMethod] = useState("COD");
-  const [upiPlaced, setUpiPlaced] = useState(false); // ✅ track if UPI order is placed
+  const [upiPlaced, setUpiPlaced] = useState(false);
 
   const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
   useEffect(() => {
     fetch("/api/admin/payment-settings")
       .then(res => res.json())
-      .then(data => { if (data.success) setPaymentSettings(data.settings); });
+      .then(data => {
+        if (data.success) setPaymentSettings(data.settings);
+      });
   }, []);
 
+  /* ================= VALIDATION ================= */
   const validate = () => {
-    if (cart.length === 0) { alert("Cart is empty"); return false; }
-    if (!name || !phone || !address || !pincode) { alert("Please fill all fields"); return false; }
+    if (cart.length === 0) {
+      alert("Cart is empty");
+      return false;
+    }
+    if (!name || !phone || !address || !pincode) {
+      alert("Please fill all required fields");
+      return false;
+    }
     return true;
   };
 
+  /* ================= CLEAR CART ================= */
   const clearCart = () => {
     cart.forEach(item => removeFromCart(item._id));
     closeCart();
   };
 
-  /* ================== HANDLE CHECKOUT ================== */
+  /* ================= CHECKOUT ================= */
   async function handleCheckout() {
     if (!validate()) return;
 
     setLoading(true);
 
     try {
+      /* ✅ FIX: CLEAN ITEMS STRUCTURE */
+      const formattedItems = cart.map(item => ({
+        productId: item._id,   // 🔥 CRITICAL FIX
+        name: item.name,
+        price: item.price,
+        quantity: item.quantity,
+      }));
+
       const body = {
         customerName: name,
         phone,
         email,
         address,
         pincode,
-        items: cart,
-        paymentMethod: method
+        items: formattedItems, // ✅ FIXED
+        paymentMethod: method,
       };
 
-      /* ================== CREATE ORDER ================== */
       const res = await fetch("/api/orders", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify(body),
       });
-      const data = await res.json();
 
-      if (!data.success) {
-        alert("Order creation failed");
+      /* 🔥 HANDLE EMPTY RESPONSE SAFELY */
+      let data = {};
+      try {
+        data = await res.json();
+      } catch {
+        throw new Error("Invalid server response");
+      }
+
+      if (!res.ok || !data.success) {
+        alert(data.msg || "Order creation failed");
         setLoading(false);
         return;
       }
 
-      /* ================== COD & WhatsApp ================== */
+      /* ================= COD / WHATSAPP ================= */
       if (method === "COD" || method === "WHATSAPP") {
         clearCart();
-        router.push(`/order-success?orderId=${data.orderId}`);
+        router.push(`/order-success?orderId=${data.order?.orderId}`);
       }
 
-      /* ================== UPI ================== */
+      /* ================= UPI ================= */
       if (method === "UPI" && paymentSettings?.upiId) {
-        // UPI: user sees QR and message
         setUpiPlaced(true);
-        clearCart(); // cart cleared
+        clearCart();
       }
 
     } catch (err) {
-      console.error(err);
-      alert("Server error");
+      console.error("Checkout Error:", err);
+      alert(err.message || "Server error");
     }
 
     setLoading(false);
@@ -107,30 +132,49 @@ export default function CheckoutPage() {
       {paymentSettings && !upiPlaced && (
         <div style={{ margin: "20px 0" }}>
           <h3>Select Payment Method</h3>
-          {paymentSettings.cod && <label><input type="radio" checked={method === "COD"} onChange={() => setMethod("COD")} /> COD</label>}
-          {paymentSettings.whatsapp && <label><input type="radio" checked={method === "WHATSAPP"} onChange={() => setMethod("WHATSAPP")} /> WhatsApp</label>}
-          {paymentSettings.upi && <label><input type="radio" checked={method === "UPI"} onChange={() => setMethod("UPI")} /> UPI QR</label>}
+
+          {paymentSettings.cod && (
+            <label>
+              <input type="radio" checked={method === "COD"} onChange={() => setMethod("COD")} />
+              COD
+            </label>
+          )}
+
+          {paymentSettings.whatsapp && (
+            <label>
+              <input type="radio" checked={method === "WHATSAPP"} onChange={() => setMethod("WHATSAPP")} />
+              WhatsApp
+            </label>
+          )}
+
+          {paymentSettings.upi && (
+            <label>
+              <input type="radio" checked={method === "UPI"} onChange={() => setMethod("UPI")} />
+              UPI QR
+            </label>
+          )}
         </div>
       )}
 
       {/* ================= UPI QR ================= */}
       {method === "UPI" && paymentSettings?.upiId && !upiPlaced && (
         <div style={{ textAlign: "center", margin: "20px 0" }}>
-          <QRCode value={`upi://pay?pa=${paymentSettings.upiId}&pn=Store&am=${total}&cu=INR`} />
+          <QRCode
+            value={`upi://pay?pa=${paymentSettings.upiId}&pn=Store&am=${total}&cu=INR`}
+          />
           <p>Scan & Pay. Admin will confirm your payment.</p>
         </div>
       )}
 
-      {/* ================= UPI SUCCESS MESSAGE ================= */}
+      {/* ================= UPI SUCCESS ================= */}
       {upiPlaced && (
         <div style={{ textAlign: "center", marginTop: 20, background: "#fef3c7", padding: 20, borderRadius: 6 }}>
           <h3>✅ Order Placed Successfully!</h3>
-          <p>Your UPI payment is pending admin confirmation.</p>
-          <p>Once admin confirms the payment, the status will be updated to "Paid".</p>
+          <p>UPI payment pending confirmation.</p>
         </div>
       )}
 
-      {/* ================= CONTINUE BUTTON ================= */}
+      {/* ================= BUTTON ================= */}
       {!upiPlaced && (
         <button onClick={handleCheckout} disabled={loading} style={btnStyle}>
           {loading ? "Processing..." : "Continue"}
@@ -140,5 +184,17 @@ export default function CheckoutPage() {
   );
 }
 
-const inputStyle = { width: "100%", padding: 10, margin: "10px 0", border: "1px solid #ccc" };
-const btnStyle = { padding: 12, background: "#16a34a", color: "#fff", width: "100%", border: "none" };
+const inputStyle = {
+  width: "100%",
+  padding: 10,
+  margin: "10px 0",
+  border: "1px solid #ccc",
+};
+
+const btnStyle = {
+  padding: 12,
+  background: "#16a34a",
+  color: "#fff",
+  width: "100%",
+  border: "none",
+};
