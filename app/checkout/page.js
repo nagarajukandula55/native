@@ -20,14 +20,19 @@ export default function CheckoutPage() {
   const [method, setMethod] = useState("COD");
   const [upiPlaced, setUpiPlaced] = useState(false);
 
-  const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const total = cart.reduce(
+    (sum, item) => sum + item.price * item.quantity,
+    0
+  );
 
+  /* ================= FETCH PAYMENT SETTINGS ================= */
   useEffect(() => {
     fetch("/api/admin/payment-settings")
-      .then(res => res.json())
-      .then(data => {
+      .then((res) => res.json())
+      .then((data) => {
         if (data.success) setPaymentSettings(data.settings);
-      });
+      })
+      .catch(() => {});
   }, []);
 
   /* ================= VALIDATION ================= */
@@ -45,7 +50,7 @@ export default function CheckoutPage() {
 
   /* ================= CLEAR CART ================= */
   const clearCart = () => {
-    cart.forEach(item => removeFromCart(item._id));
+    cart.forEach((item) => removeFromCart(item._id));
     closeCart();
   };
 
@@ -56,12 +61,12 @@ export default function CheckoutPage() {
     setLoading(true);
 
     try {
-      /* ✅ FIX: CLEAN ITEMS STRUCTURE */
-      const formattedItems = cart.map(item => ({
-        productId: item._id,   // 🔥 CRITICAL FIX
+      /* ✅ CORRECT ITEMS STRUCTURE */
+      const items = cart.map((item) => ({
+        productId: item._id,
         name: item.name,
-        price: item.price,
-        quantity: item.quantity,
+        quantity: Number(item.quantity),
+        price: Number(item.price),
       }));
 
       const body = {
@@ -70,16 +75,8 @@ export default function CheckoutPage() {
         email,
         address,
         pincode,
-      
-        // ✅ FIXED ITEMS STRUCTURE
-        items: cart.map(item => ({
-          productId: item._id,   // 🔥 VERY IMPORTANT
-          name: item.name,
-          quantity: item.quantity,
-          price: item.price
-        })),
-      
-        paymentMethod: method
+        items,
+        paymentMethod: method,
       };
 
       const res = await fetch("/api/orders", {
@@ -90,7 +87,6 @@ export default function CheckoutPage() {
         body: JSON.stringify(body),
       });
 
-      /* 🔥 HANDLE EMPTY RESPONSE SAFELY */
       let data = {};
       try {
         data = await res.json();
@@ -98,22 +94,32 @@ export default function CheckoutPage() {
         throw new Error("Invalid server response");
       }
 
+      /* ❌ HANDLE FAILURE */
       if (!res.ok || !data.success) {
         alert(data.msg || "Order creation failed");
         setLoading(false);
         return;
       }
 
+      /* ================= SUCCESS ================= */
+      clearCart();
+
+      /* ✅ FIXED ORDER ID */
+      const orderId = data.orderId || data?.order?.orderId;
+
+      if (!orderId) {
+        alert("Order created but ID missing");
+        return;
+      }
+
       /* ================= COD / WHATSAPP ================= */
       if (method === "COD" || method === "WHATSAPP") {
-        clearCart();
-        router.push(`/order-success?orderId=${data.order?.orderId}`);
+        router.push(`/order-success?orderId=${orderId}`);
       }
 
       /* ================= UPI ================= */
       if (method === "UPI" && paymentSettings?.upiId) {
         setUpiPlaced(true);
-        clearCart();
       }
 
     } catch (err) {
@@ -128,11 +134,41 @@ export default function CheckoutPage() {
     <div style={{ maxWidth: 600, margin: "40px auto", padding: 20 }}>
       <h1>Checkout</h1>
 
-      <input placeholder="Full Name" value={name} onChange={e => setName(e.target.value)} style={inputStyle} />
-      <input placeholder="Phone" value={phone} onChange={e => setPhone(e.target.value)} style={inputStyle} />
-      <input placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} style={inputStyle} />
-      <textarea placeholder="Address" value={address} onChange={e => setAddress(e.target.value)} style={{ ...inputStyle, height: 80 }} />
-      <input placeholder="Pincode" value={pincode} onChange={e => setPincode(e.target.value)} style={inputStyle} />
+      {/* ================= FORM ================= */}
+      <input
+        placeholder="Full Name"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        style={inputStyle}
+      />
+
+      <input
+        placeholder="Phone"
+        value={phone}
+        onChange={(e) => setPhone(e.target.value)}
+        style={inputStyle}
+      />
+
+      <input
+        placeholder="Email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        style={inputStyle}
+      />
+
+      <textarea
+        placeholder="Address"
+        value={address}
+        onChange={(e) => setAddress(e.target.value)}
+        style={{ ...inputStyle, height: 80 }}
+      />
+
+      <input
+        placeholder="Pincode"
+        value={pincode}
+        onChange={(e) => setPincode(e.target.value)}
+        style={inputStyle}
+      />
 
       <h2>Total ₹ {total}</h2>
 
@@ -143,21 +179,33 @@ export default function CheckoutPage() {
 
           {paymentSettings.cod && (
             <label>
-              <input type="radio" checked={method === "COD"} onChange={() => setMethod("COD")} />
+              <input
+                type="radio"
+                checked={method === "COD"}
+                onChange={() => setMethod("COD")}
+              />
               COD
             </label>
           )}
 
           {paymentSettings.whatsapp && (
             <label>
-              <input type="radio" checked={method === "WHATSAPP"} onChange={() => setMethod("WHATSAPP")} />
+              <input
+                type="radio"
+                checked={method === "WHATSAPP"}
+                onChange={() => setMethod("WHATSAPP")}
+              />
               WhatsApp
             </label>
           )}
 
           {paymentSettings.upi && (
             <label>
-              <input type="radio" checked={method === "UPI"} onChange={() => setMethod("UPI")} />
+              <input
+                type="radio"
+                checked={method === "UPI"}
+                onChange={() => setMethod("UPI")}
+              />
               UPI QR
             </label>
           )}
@@ -176,7 +224,15 @@ export default function CheckoutPage() {
 
       {/* ================= UPI SUCCESS ================= */}
       {upiPlaced && (
-        <div style={{ textAlign: "center", marginTop: 20, background: "#fef3c7", padding: 20, borderRadius: 6 }}>
+        <div
+          style={{
+            textAlign: "center",
+            marginTop: 20,
+            background: "#fef3c7",
+            padding: 20,
+            borderRadius: 6,
+          }}
+        >
           <h3>✅ Order Placed Successfully!</h3>
           <p>UPI payment pending confirmation.</p>
         </div>
@@ -184,7 +240,11 @@ export default function CheckoutPage() {
 
       {/* ================= BUTTON ================= */}
       {!upiPlaced && (
-        <button onClick={handleCheckout} disabled={loading} style={btnStyle}>
+        <button
+          onClick={handleCheckout}
+          disabled={loading}
+          style={btnStyle}
+        >
           {loading ? "Processing..." : "Continue"}
         </button>
       )}
@@ -192,6 +252,7 @@ export default function CheckoutPage() {
   );
 }
 
+/* ================= STYLES ================= */
 const inputStyle = {
   width: "100%",
   padding: 10,
