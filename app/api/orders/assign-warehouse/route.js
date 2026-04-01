@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import Order from "@/models/Order";
-import Inventory from "@/models/inventory";
+import Inventory from "@/models/Inventory";
 
 /* ================= ASSIGN WAREHOUSE ================= */
 export async function POST(req) {
