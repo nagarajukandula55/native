@@ -9,14 +9,14 @@ export async function GET(req) {
       return NextResponse.json({ success: false });
     }
 
-    const user = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     return NextResponse.json({
       success: true,
-      user,
+      user: decoded, // must contain name + role
     });
 
-  } catch {
+  } catch (err) {
     return NextResponse.json({ success: false });
   }
 }
