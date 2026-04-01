@@ -4,6 +4,8 @@ import Order from "@/models/Order";
 import jwt from "jsonwebtoken";
 import { shipStock, deliverStock } from "@/lib/inventory";
 
+export const dynamic = "force-dynamic";
+
 /* ================= VERIFY ================= */
 function verify(req) {
   const token = req.cookies.get("token")?.value;
@@ -21,91 +23,68 @@ export async function GET(req) {
   await connectDB();
 
   const user = verify(req);
-
-  if (!user || user.role !== "store") {
-    return NextResponse.json(
-      { success: false, message: "Unauthorized" },
-      { status: 401 }
-    );
+  if (!user) {
+    return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
   }
 
   const orders = await Order.find({
     assignedStore: user.id,
-    isDeleted: false,
-  })
-    .sort({ createdAt: -1 })
-    .populate("warehouseAssignments.warehouseId", "name");
+  }).sort({ createdAt: -1 });
 
   return NextResponse.json({ success: true, orders });
 }
 
-/* ================= PUT ================= */
+/* ================= UPDATE ================= */
 export async function PUT(req) {
-  await connectDB();
+  try {
+    await connectDB();
 
-  const user = verify(req);
-
-  if (!user || user.role !== "store") {
-    return NextResponse.json(
-      { success: false, message: "Unauthorized" },
-      { status: 401 }
-    );
-  }
-
-  const body = await req.json();
-  const { id, status, awbNumber, courierName, trackingUrl } = body;
-
-  const order = await Order.findById(id);
-
-  if (!order) {
-    return NextResponse.json({ success: false, message: "Order not found" });
-  }
-
-  const warehouseId = order.warehouseAssignments?.[0]?.warehouseId;
-
-  /* ================= FLOW ================= */
-  const flow = {
-    "Order Placed": "Packed",
-    Packed: "Shipped",
-    Shipped: "Out For Delivery",
-    "Out For Delivery": "Delivered",
-  };
-
-  if (status && status !== order.status) {
-
-    if (flow[order.status] !== status) {
-      return NextResponse.json({
-        success: false,
-        message: "Invalid status flow",
-      });
+    const user = verify(req);
+    if (!user) {
+      return NextResponse.json({ success: false }, { status: 401 });
     }
 
-    /* 🚚 SHIPPING */
-    if (order.status === "Packed" && status === "Shipped") {
-      if (!awbNumber || !courierName) {
-        return NextResponse.json({
-          success: false,
-          message: "AWB & Courier required",
-        });
+    const { id, status, awbNumber, courierName } = await req.json();
+
+    const order = await Order.findById(id);
+    if (!order) {
+      return NextResponse.json({ success: false, message: "Order not found" });
+    }
+
+    const warehouseId = order.warehouseAssignments?.[0]?.warehouseId;
+
+    /* ================= STATUS FLOW ================= */
+    if (status && status !== order.status) {
+
+      if (order.status === "Packed" && status === "Shipped") {
+
+        if (!awbNumber || !courierName) {
+          return NextResponse.json({
+            success: false,
+            message: "AWB & Courier required",
+          });
+        }
+
+        await shipStock(order.items, warehouseId);
       }
 
-      await shipStock(order.items, warehouseId);
+      if (order.status === "Out For Delivery" && status === "Delivered") {
+        await deliverStock(order.items, warehouseId);
+      }
+
+      order.status = status;
+      order.statusHistory.push({ status, time: new Date() });
     }
 
-    /* ✅ DELIVERY */
-    if (order.status === "Out For Delivery" && status === "Delivered") {
-      await deliverStock(order.items, warehouseId);
-    }
+    if (awbNumber) order.awbNumber = awbNumber;
+    if (courierName) order.courierName = courierName;
 
-    order.status = status;
-    order.statusHistory.push({ status, time: new Date() });
+    await order.save();
+
+    return NextResponse.json({ success: true });
+
+  } catch (e) {
+    console.error(e);
+    return NextResponse.json({ success: false, message: e.message });
   }
-
-  if (awbNumber) order.awbNumber = awbNumber;
-  if (courierName) order.courierName = courierName;
-  if (trackingUrl) order.trackingUrl = trackingUrl;
-
-  await order.save();
-
-  return NextResponse.json({ success: true });
 }
