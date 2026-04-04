@@ -25,6 +25,18 @@ export default function CheckoutPage() {
     0
   );
 
+  /* ================= LOAD USER ================= */
+  useEffect(() => {
+    fetch("/api/user/me")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success) {
+          setName(data.data.name || "");
+          setEmail(data.data.email || "");
+        }
+      });
+  }, []);
+
   /* ================= FETCH PAYMENT SETTINGS ================= */
   useEffect(() => {
     fetch("/api/admin/payment-settings")
@@ -61,7 +73,6 @@ export default function CheckoutPage() {
     setLoading(true);
 
     try {
-      /* ✅ CORRECT ITEMS STRUCTURE */
       const items = cart.map((item) => ({
         productId: item._id,
         name: item.name,
@@ -87,16 +98,11 @@ export default function CheckoutPage() {
         body: JSON.stringify(body),
       });
 
-      let data = {};
-      try {
-        data = await res.json();
-      } catch {
-        throw new Error("Invalid server response");
-      }
+      const data = await res.json();
 
       /* ❌ HANDLE FAILURE */
       if (!res.ok || !data.success) {
-        alert(data.msg || "Order creation failed");
+        alert(data.message || "Order creation failed");
         setLoading(false);
         return;
       }
@@ -105,7 +111,7 @@ export default function CheckoutPage() {
       clearCart();
 
       /* ✅ FIXED ORDER ID */
-      const orderId = data.orderId || data?.order?.orderId;
+      const orderId = data?.data?.orderId;
 
       if (!orderId) {
         alert("Order created but ID missing");
@@ -134,27 +140,9 @@ export default function CheckoutPage() {
     <div style={{ maxWidth: 600, margin: "40px auto", padding: 20 }}>
       <h1>Checkout</h1>
 
-      {/* ================= FORM ================= */}
-      <input
-        placeholder="Full Name"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        style={inputStyle}
-      />
-
-      <input
-        placeholder="Phone"
-        value={phone}
-        onChange={(e) => setPhone(e.target.value)}
-        style={inputStyle}
-      />
-
-      <input
-        placeholder="Email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        style={inputStyle}
-      />
+      <input placeholder="Full Name" value={name} onChange={(e) => setName(e.target.value)} style={inputStyle} />
+      <input placeholder="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} style={inputStyle} />
+      <input placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} style={inputStyle} />
 
       <textarea
         placeholder="Address"
@@ -163,88 +151,53 @@ export default function CheckoutPage() {
         style={{ ...inputStyle, height: 80 }}
       />
 
-      <input
-        placeholder="Pincode"
-        value={pincode}
-        onChange={(e) => setPincode(e.target.value)}
-        style={inputStyle}
-      />
+      <input placeholder="Pincode" value={pincode} onChange={(e) => setPincode(e.target.value)} style={inputStyle} />
 
       <h2>Total ₹ {total}</h2>
 
-      {/* ================= PAYMENT OPTIONS ================= */}
       {paymentSettings && !upiPlaced && (
         <div style={{ margin: "20px 0" }}>
           <h3>Select Payment Method</h3>
 
           {paymentSettings.cod && (
             <label>
-              <input
-                type="radio"
-                checked={method === "COD"}
-                onChange={() => setMethod("COD")}
-              />
+              <input type="radio" checked={method === "COD"} onChange={() => setMethod("COD")} />
               COD
             </label>
           )}
 
           {paymentSettings.whatsapp && (
             <label>
-              <input
-                type="radio"
-                checked={method === "WHATSAPP"}
-                onChange={() => setMethod("WHATSAPP")}
-              />
+              <input type="radio" checked={method === "WHATSAPP"} onChange={() => setMethod("WHATSAPP")} />
               WhatsApp
             </label>
           )}
 
           {paymentSettings.upi && (
             <label>
-              <input
-                type="radio"
-                checked={method === "UPI"}
-                onChange={() => setMethod("UPI")}
-              />
+              <input type="radio" checked={method === "UPI"} onChange={() => setMethod("UPI")} />
               UPI QR
             </label>
           )}
         </div>
       )}
 
-      {/* ================= UPI QR ================= */}
       {method === "UPI" && paymentSettings?.upiId && !upiPlaced && (
         <div style={{ textAlign: "center", margin: "20px 0" }}>
-          <QRCode
-            value={`upi://pay?pa=${paymentSettings.upiId}&pn=Store&am=${total}&cu=INR`}
-          />
+          <QRCode value={`upi://pay?pa=${paymentSettings.upiId}&pn=Store&am=${total}&cu=INR`} />
           <p>Scan & Pay. Admin will confirm your payment.</p>
         </div>
       )}
 
-      {/* ================= UPI SUCCESS ================= */}
       {upiPlaced && (
-        <div
-          style={{
-            textAlign: "center",
-            marginTop: 20,
-            background: "#fef3c7",
-            padding: 20,
-            borderRadius: 6,
-          }}
-        >
+        <div style={{ textAlign: "center", marginTop: 20, background: "#fef3c7", padding: 20 }}>
           <h3>✅ Order Placed Successfully!</h3>
           <p>UPI payment pending confirmation.</p>
         </div>
       )}
 
-      {/* ================= BUTTON ================= */}
       {!upiPlaced && (
-        <button
-          onClick={handleCheckout}
-          disabled={loading}
-          style={btnStyle}
-        >
+        <button onClick={handleCheckout} disabled={loading} style={btnStyle}>
           {loading ? "Processing..." : "Continue"}
         </button>
       )}
@@ -252,7 +205,6 @@ export default function CheckoutPage() {
   );
 }
 
-/* ================= STYLES ================= */
 const inputStyle = {
   width: "100%",
   padding: 10,
