@@ -1,4 +1,35 @@
-import mongoose from "mongoose";
+import mongoose from "mongoose"
+
+/* =========================
+   📦 ORDER ITEM SCHEMA
+========================= */
+
+const OrderItemSchema = new mongoose.Schema(
+  {
+    product: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Product",
+      required: true,
+    },
+
+    name: String,
+    quantity: {
+      type: Number,
+      required: true,
+      min: 1,
+    },
+
+    price: {
+      type: Number,
+      required: true,
+    },
+  },
+  { _id: false }
+)
+
+/* =========================
+   🧾 ORDER SCHEMA
+========================= */
 
 const OrderSchema = new mongoose.Schema(
   {
@@ -6,8 +37,10 @@ const OrderSchema = new mongoose.Schema(
       type: String,
       required: true,
       unique: true,
+      index: true,
     },
 
+    // 👤 CUSTOMER
     customerName: String,
     phone: String,
     email: String,
@@ -15,51 +48,66 @@ const OrderSchema = new mongoose.Schema(
     address: String,
     pincode: String,
 
-    items: [
-      {
-        productId: mongoose.Schema.Types.ObjectId,
-        name: String,
-        quantity: Number,
-        price: Number,
-      },
-    ],
+    // 🛒 ITEMS
+    items: [OrderItemSchema],
 
-    totalAmount: Number,
+    totalAmount: {
+      type: Number,
+      required: true,
+    },
 
+    // 🏭 WAREHOUSE (STORE)
+    warehouse: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Warehouse",
+      required: true,
+      index: true,
+    },
+
+    // 📦 ORDER STATUS
     status: {
       type: String,
-      default: "Order Placed",
+      enum: [
+        "PLACED",
+        "CONFIRMED",
+        "PACKED",
+        "SHIPPED",
+        "DELIVERED",
+        "CANCELLED",
+      ],
+      default: "PLACED",
+      index: true,
     },
 
-    paymentMethod: String,
+    // 💳 PAYMENT
+    paymentMethod: {
+      type: String,
+      default: "COD",
+    },
+
     paymentStatus: {
       type: String,
-      default: "Pending",
+      enum: ["PENDING", "PAID", "FAILED"],
+      default: "PENDING",
     },
 
-    assignedStore: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-    },
-
-    warehouseAssignments: [
-      {
-        warehouseId: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "Warehouse",
-        },
-      },
-    ],
-
+    // 🚚 SHIPPING
     awbNumber: String,
     courierName: String,
     trackingUrl: String,
 
+    // 📜 STATUS HISTORY
     statusHistory: [
       {
         status: String,
-        time: Date,
-        updatedBy: mongoose.Schema.Types.ObjectId,
+        updatedAt: {
+          type: Date,
+          default: Date.now,
+        },
+        updatedBy: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+        },
       },
     ],
 
@@ -69,7 +117,15 @@ const OrderSchema = new mongoose.Schema(
     },
   },
   { timestamps: true }
-);
+)
 
-/* ✅ FIX: PROPER EXPORT */
-export default mongoose.models.Order || mongoose.model("Order", OrderSchema);
+/* =========================
+   ⚡ INDEXES
+========================= */
+
+OrderSchema.index({ orderId: 1 })
+OrderSchema.index({ warehouse: 1, status: 1 })
+OrderSchema.index({ createdAt: -1 })
+
+export default mongoose.models.Order ||
+  mongoose.model("Order", OrderSchema)
