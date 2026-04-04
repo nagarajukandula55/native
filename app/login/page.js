@@ -1,9 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
+import useAuth from "@/hooks/useAuth";
 
 export default function LoginPage() {
+  const router = useRouter();
+  const { refreshUser } = useAuth();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -35,10 +39,8 @@ export default function LoginPage() {
 
       const data = await res.json();
 
-      console.log("LOGIN RESPONSE:", data);
-
       if (!res.ok || !data.success) {
-        setError(data.msg || "Login failed");
+        setError(data.message || "Login failed"); // ✅ FIXED
         setLoading(false);
         return;
       }
@@ -51,22 +53,24 @@ export default function LoginPage() {
         return;
       }
 
-      // ✅ Show success UI
+      /* ✅ REFRESH AUTH STATE */
+      await refreshUser();
+
+      /* ✅ SHOW SUCCESS UI */
       setSuccess(true);
 
-      // ✅ Redirect after animation
-      // After successful login in handleLogin
-        setTimeout(() => {
-          if (role === "admin") {
-            window.location.href = "/admin";
-          } else if (role === "store") {
-            window.location.href = "/admin/store/dashboard";
-          } else if (role === "branding") {
-            window.location.href = "/branding"; // NEW
-          } else {
-            window.location.href = "/account";
-          }
-        }, 1200);
+      /* ✅ CLEAN REDIRECT */
+      setTimeout(() => {
+        if (role === "admin") {
+          router.push("/admin");
+        } else if (role === "store") {
+          router.push("/store"); // ✅ FIXED ROUTE
+        } else if (role === "branding") {
+          router.push("/branding");
+        } else {
+          router.push("/account");
+        }
+      }, 1000);
 
     } catch (err) {
       console.error(err);
@@ -91,20 +95,16 @@ export default function LoginPage() {
         />
       </div>
 
-      {/* ✅ SUCCESS SCREEN */}
       {success ? (
         <div style={successBox}>
           <h2 style={successTitle}>Login Successful ✅</h2>
-          <p style={{ marginTop: 10 }}>Redirecting to dashboard...</p>
-
+          <p style={{ marginTop: 10 }}>Redirecting...</p>
           <div style={loader}></div>
         </div>
       ) : (
-        /* LOGIN FORM */
         <form style={card} onSubmit={handleLogin}>
           <h2 style={title}>Welcome Back</h2>
 
-          {/* EMAIL */}
           <input
             type="email"
             placeholder="Email address"
@@ -113,7 +113,6 @@ export default function LoginPage() {
             style={input}
           />
 
-          {/* PASSWORD */}
           <div style={{ position: "relative" }}>
             <input
               type={showPass ? "text" : "password"}
@@ -128,10 +127,8 @@ export default function LoginPage() {
             </span>
           </div>
 
-          {/* ERROR */}
           {error && <p style={errorText}>{error}</p>}
 
-          {/* BUTTON */}
           <button
             type="submit"
             disabled={loading}
@@ -140,24 +137,22 @@ export default function LoginPage() {
             {loading ? "Signing in..." : "Sign in"}
           </button>
 
-          {/* LINKS */}
           <div style={linksBox}>
-            <p onClick={() => (window.location.href = "/forgot-password")} style={link}>
+            <p onClick={() => router.push("/forgot-password")} style={link}>
               Forgot password?
             </p>
 
-            <p onClick={() => (window.location.href = "/signup")} style={link}>
+            <p onClick={() => router.push("/signup")} style={link}>
               Create account
             </p>
           </div>
-
         </form>
       )}
     </div>
   );
 }
 
-/* ===== STYLES ===== */
+/* ===== STYLES (UNCHANGED) ===== */
 
 const container = {
   minHeight: "100vh",
@@ -229,7 +224,6 @@ const link = {
   marginTop: 5,
 };
 
-/* 🔥 SUCCESS UI */
 const successBox = {
   width: 360,
   background: "#fff",
@@ -245,7 +239,6 @@ const successTitle = {
   fontWeight: 600,
 };
 
-/* 🔥 LOADER */
 const loader = {
   margin: "20px auto 0",
   width: 30,
