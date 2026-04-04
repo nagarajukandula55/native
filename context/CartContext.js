@@ -8,7 +8,7 @@ export function CartProvider({ children }) {
   const [cart, setCart] = useState([]);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  // Load cart from localStorage on first render
+  /* ================= LOAD CART ================= */
   useEffect(() => {
     const storedCart = localStorage.getItem("native_cart");
     if (storedCart) {
@@ -20,68 +20,93 @@ export function CartProvider({ children }) {
     }
   }, []);
 
-  // Save cart to localStorage whenever it changes
+  /* ================= SAVE CART ================= */
   useEffect(() => {
     localStorage.setItem("native_cart", JSON.stringify(cart));
   }, [cart]);
 
-  // Open/close drawer
+  /* ================= DRAWER ================= */
   const openCart = () => setDrawerOpen(true);
   const closeCart = () => setDrawerOpen(false);
 
-  // Add item to cart
+  /* ================= ADD TO CART ================= */
   const addToCart = (product) => {
     setCart((prev) => {
-      const exists = prev.find((item) => item._id === product._id);
+      const exists = prev.find(
+        (item) => item.productId === product._id
+      );
+
       if (exists) {
         return prev.map((item) =>
-          item._id === product._id ? { ...item, quantity: item.quantity + 1 } : item
+          item.productId === product._id
+            ? { ...item, quantity: item.quantity + 1 }
+            : item
         );
       }
-      return [...prev, { ...product, quantity: 1 }];
+
+      return [
+        ...prev,
+        {
+          productId: product._id,
+          name: product.name,
+          price: Number(product.price),
+          image: product.image || "",
+          quantity: 1,
+        },
+      ];
     });
-    setDrawerOpen(true); // auto open drawer
+
+    setDrawerOpen(true);
   };
 
-  // Increase quantity
-  const increaseQty = (id) => {
+  /* ================= INCREASE ================= */
+  const increaseQty = (productId) => {
     setCart((prev) =>
       prev.map((item) =>
-        item._id === id ? { ...item, quantity: item.quantity + 1 } : item
+        item.productId === productId
+          ? { ...item, quantity: item.quantity + 1 }
+          : item
       )
     );
   };
 
-  // Decrease quantity
-  const decreaseQty = (id) => {
+  /* ================= DECREASE ================= */
+  const decreaseQty = (productId) => {
     setCart((prev) =>
       prev
         .map((item) =>
-          item._id === id ? { ...item, quantity: item.quantity - 1 } : item
+          item.productId === productId
+            ? { ...item, quantity: item.quantity - 1 }
+            : item
         )
         .filter((item) => item.quantity > 0)
     );
   };
 
-  // Remove item completely
-  const removeFromCart = (id) => {
-    setCart((prev) => prev.filter((item) => item._id !== id));
+  /* ================= REMOVE ================= */
+  const removeFromCart = (productId) => {
+    setCart((prev) =>
+      prev.filter((item) => item.productId !== productId)
+    );
   };
 
-  // Clear cart
+  /* ================= CLEAR ================= */
   const clearCart = () => {
     setCart([]);
     setDrawerOpen(false);
   };
 
-  // Total items
+  /* ================= COUNT ================= */
   const cartCount = useMemo(() => {
     return cart.reduce((sum, item) => sum + item.quantity, 0);
   }, [cart]);
 
-  // Total price
+  /* ================= TOTAL ================= */
   const cartTotal = useMemo(() => {
-    return cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    return cart.reduce(
+      (sum, item) => sum + item.price * item.quantity,
+      0
+    );
   }, [cart]);
 
   return (
