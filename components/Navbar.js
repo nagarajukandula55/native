@@ -8,16 +8,16 @@ import CartDrawer from "./CartDrawer";
 import useAuth from "@/hooks/useAuth";
 
 export default function Navbar() {
-  const { cart, drawerOpen, openCart, closeCart } = useCart();
+  const { cartCount, drawerOpen, openCart, closeCart } = useCart();
   const router = useRouter();
   const pathname = usePathname();
 
-  const { user, loading } = useAuth();
+  const { user, loading, refreshUser } = useAuth();
 
   const [search, setSearch] = useState("");
-  const [menuOpen, setMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
+  /* ================= RESPONSIVE ================= */
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth <= 900);
     handleResize();
@@ -25,6 +25,7 @@ export default function Navbar() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  /* ================= SEARCH ================= */
   function handleSearch(e) {
     e.preventDefault();
     if (!search.trim()) return;
@@ -33,13 +34,15 @@ export default function Navbar() {
     setSearch("");
   }
 
+  /* ================= LOGOUT ================= */
   async function handleLogout() {
     await fetch("/api/auth/logout", {
       method: "POST",
       credentials: "include",
     });
 
-    window.location.reload(); // 🔥 IMPORTANT
+    await refreshUser(); // 🔥 update state instantly
+    router.push("/");    // redirect cleanly
   }
 
   const isAdminArea = pathname.startsWith("/admin");
@@ -77,7 +80,7 @@ export default function Navbar() {
               <Link href="/track">Track Order</Link>
 
               <div onClick={openCart} style={cartBox}>
-                🛒 {cart.length}
+                🛒 {cartCount}
               </div>
             </>
           )}
@@ -89,10 +92,11 @@ export default function Navbar() {
             </Link>
           ) : (
             <div style={userBox}>
-              <span>{user.name}</span>
+              <span>Hi, {user.name}</span>
 
+              {/* ROLE BASED LINKS */}
               {user.role === "admin" && <Link href="/admin">Admin</Link>}
-              {user.role === "store" && <Link href="/admin/store">Store</Link>}
+              {user.role === "store" && <Link href="/store">Store</Link>}
               {user.role === "user" && <Link href="/account">My Orders</Link>}
 
               <button onClick={handleLogout} style={logoutBtn}>
