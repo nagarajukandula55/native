@@ -1,67 +1,42 @@
-export const dynamic = "force-dynamic"
+export const dynamic = "force-dynamic";
 
-import { NextResponse } from "next/server"
-import connectDB from "@/lib/mongodb"
-import Order from "@/models/Order"
-import Warehouse from "@/models/Warehouse"
-import { reserveStock, releaseStock } from "@/lib/inventory"
+import { NextResponse } from "next/server";
+import connectDB from "@/lib/mongodb";
+import Order from "@/models/Order";
+import { allocateAndReserveStock } from "@/lib/inventory";
 
 /* ================= ORDER ID ================= */
 function generateOrderId() {
-  const now = new Date()
-  const yy = now.getFullYear().toString().slice(-2)
-  const mm = String(now.getMonth() + 1).padStart(2, "0")
-  const dd = String(now.getDate()).padStart(2, "0")
-  const rand = Math.random().toString(36).substring(2, 6).toUpperCase()
+  const now = new Date();
+  const yy = now.getFullYear().toString().slice(-2);
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  const dd = String(now.getDate()).padStart(2, "0");
+  const rand = Math.random().toString(36).substring(2, 6).toUpperCase();
 
-  return `NAT-${yy}${mm}${dd}-${rand}`
+  return `NAT-${yy}${mm}${dd}-${rand}`;
 }
 
 /* ================= CREATE ORDER ================= */
 export async function POST(req) {
-  await connectDB()
-
-  let reserved = false
-  let warehouse = null
-
   try {
-    const body = await req.json()
+    await connectDB();
 
-    /* ================= VALIDATION ================= */
+    const body = await req.json();
+
     if (
       !body.customerName ||
       !body.phone ||
       !body.address ||
-      !Array.isArray(body.items) ||
-      body.items.length === 0
+      !body.items?.length
     ) {
       return NextResponse.json(
-        { success: false, message: "Missing required fields" },
+        { success: false, message: "Missing fields" },
         { status: 400 }
-      )
+      );
     }
 
-    /* ================= GET WAREHOUSE ================= */
-    warehouse = await Warehouse.findOne({ status: "ACTIVE" }).sort({ priority: 1 })
-
-    if (!warehouse) {
-      return NextResponse.json(
-        { success: false, message: "No active warehouse available" },
-        { status: 400 }
-      )
-    }
-
-    /* ================= PREPARE ITEMS ================= */
-    const items = body.items.map(i => ({
-      productId: i.productId,
-      quantity: Number(i.quantity),
-      price: Number(i.price),
-      name: i.name,
-    }))
-
-    /* ================= RESERVE STOCK ================= */
-    await reserveStock(items, warehouse._id)
-    reserved = true
+    /* ================= ALLOCATE STOCK ================= */
+    const allocations = await allocateAndReserveStock(body.items);
 
     /* ================= CREATE ORDER ================= */
     const order = await Order.create({
@@ -74,60 +49,38 @@ export async function POST(req) {
       address: body.address,
       pincode: body.pincode,
 
-      items: items.map(i => ({
-        product: i.productId,
-        name: i.name,
-        quantity: i.quantity,
-        price: i.price,
-      })),
+      items: body.items,
+      allocations,
 
-      totalAmount: items.reduce(
-        (sum, i) => sum + i.price * i.quantity,
+      totalAmount: body.items.reduce(
+        (sum, i) => sum + Number(i.price) * Number(i.quantity),
         0
       ),
 
-      warehouse: warehouse._id,
-
-      status: "PLACED",
+      status: "Order Placed",
 
       paymentMethod: body.paymentMethod || "COD",
-      paymentStatus: "PENDING",
+      paymentStatus: "Pending",
 
       statusHistory: [
         {
-          status: "PLACED",
-          updatedAt: new Date(),
+          status: "Order Placed",
+          time: new Date(),
         },
       ],
-    })
+    });
 
     return NextResponse.json({
       success: true,
-      data: {
-        orderId: order.orderId,
-        _id: order._id,
-      },
-    })
+      order,
+    });
 
-  } catch (error) {
-    console.error("ORDER ERROR:", error)
-
-    /* ================= ROLLBACK ================= */
-    if (reserved && warehouse) {
-      try {
-        const body = await req.json()
-        await releaseStock(body.items, warehouse._id)
-      } catch (e) {
-        console.error("Rollback failed:", e)
-      }
-    }
+  } catch (e) {
+    console.error("ORDER ERROR:", e);
 
     return NextResponse.json(
-      {
-        success: false,
-        message: error.message || "Server error",
-      },
+      { success: false, message: e.message },
       { status: 500 }
-    )
+    );
   }
 }
