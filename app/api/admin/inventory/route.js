@@ -1,67 +1,54 @@
-export const dynamic = "force-dynamic";
-
 import { NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import Inventory from "@/models/Inventory";
-import jwt from "jsonwebtoken";
+import mongoose from "mongoose";
 
-/* ================= VERIFY ADMIN ================= */
-function verifyAdmin(req) {
-  const token = req.cookies.get("token")?.value;
-  if (!token) throw new Error("Unauthorized");
-
-  const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-  if (decoded.role !== "admin") {
-    throw new Error("Forbidden");
-  }
-
-  return decoded;
-}
-
-/* ================= GET INVENTORY ================= */
-export async function GET(req) {
+export async function PUT(req) {
   try {
     await connectDB();
-    verifyAdmin(req);
 
-    const { searchParams } = new URL(req.url);
-    const warehouseId = searchParams.get("warehouseId");
+    const { productId, warehouseId, quantity, type } =
+      await req.json();
 
-    let filter = {};
+    const pid = new mongoose.Types.ObjectId(productId);
+    const wid = new mongoose.Types.ObjectId(warehouseId);
 
-    if (warehouseId) {
-      filter.warehouseId = warehouseId;
-    }
-
-    const inventory = await Inventory.find(filter)
-      .populate("productId", "name sku price")
-      .populate("warehouseId", "name code")
-      .sort({ updatedAt: -1 })
-      .lean();
-
-    return NextResponse.json({
-      success: true,
-      count: inventory.length,
-      data: inventory,
+    let inventory = await Inventory.findOne({
+      productId: pid,
+      warehouseId: wid,
     });
 
-  } catch (e) {
-    console.error("INVENTORY ERROR:", e);
+    if (!inventory) {
+      inventory = await Inventory.create({
+        productId: pid,
+        warehouseId: wid,
+        availableQty: 0,
+      });
+    }
 
-    return NextResponse.json(
-      {
-        success: false,
-        message: e.message || "Server error",
-      },
-      {
-        status:
-          e.message === "Unauthorized"
-            ? 401
-            : e.message === "Forbidden"
-            ? 403
-            : 500,
+    if (type === "ADD") {
+      inventory.availableQty += quantity;
+    }
+
+    if (type === "REMOVE") {
+      if (inventory.availableQty < quantity) {
+        return NextResponse.json({
+          success: false,
+          message: "Not enough stock",
+        });
       }
-    );
+      inventory.availableQty -= quantity;
+    }
+
+    await inventory.save();
+
+    return NextResponse.json({ success: true });
+
+  } catch (err) {
+    console.error(err);
+    return NextResponse.json({
+      success: false,
+      message: err.message,
+    });
   }
 }
