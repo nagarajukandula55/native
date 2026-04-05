@@ -1,371 +1,258 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 
 export default function AdminProductsPage() {
   const [products, setProducts] = useState([]);
   const [websiteCategories, setWebsiteCategories] = useState([]);
   const [gstCategories, setGstCategories] = useState([]);
+
   const [form, setForm] = useState({
-    id: null,
+    _id: null,
     name: "",
     description: "",
-    shortDescription: "",
-    websiteCategory: "",
+    category: "",
     gstCategory: "",
+    hsnCode: "",
+    gstPercent: 0,
     costPrice: "",
     mrp: "",
     sellingPrice: "",
-    discount: "",
-    active: true,
+    status: "active",
     images: [],
   });
+
   const [newWebsiteCategory, setNewWebsiteCategory] = useState("");
   const [newGstCategory, setNewGstCategory] = useState({ name: "", hsn: "", gst: "" });
-  const [loading, setLoading] = useState(false);
-  const [editing, setEditing] = useState(false);
 
-  /* ================= FETCH DATA ================= */
+  const [editing, setEditing] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  /* ================= FETCH ================= */
   useEffect(() => {
     fetchProducts();
-    fetchWebsiteCategories();
-    fetchGstCategories();
+    fetchCategories();
   }, []);
 
-  const fetchProducts = async () => {
+  async function fetchProducts() {
     const res = await fetch("/api/admin/products");
     const data = await res.json();
     if (data.success) setProducts(data.products);
-  };
+  }
 
-  const fetchWebsiteCategories = async () => {
-    const res = await fetch("/api/admin/website-categories");
+  async function fetchCategories() {
+    const res = await fetch("/api/admin/categories");
     const data = await res.json();
-    if (data.success) setWebsiteCategories(data.categories);
-  };
 
-  const fetchGstCategories = async () => {
-    const res = await fetch("/api/admin/gst-categories");
-    const data = await res.json();
-    if (data.success) setGstCategories(data.categories);
-  };
+    if (data.success) {
+      const all = data.categories;
+      setWebsiteCategories(all.filter((c) => c.type === "website"));
+      setGstCategories(all.filter((c) => c.type === "gst"));
+    }
+  }
 
-  /* ================= FORM HANDLERS ================= */
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setForm({ ...form, [name]: type === "checkbox" ? checked : value });
-  };
+  /* ================= GST AUTO-FILL ================= */
+  function handleGstChange(e) {
+    const selected = gstCategories.find((c) => c.name === e.target.value);
 
-  const handleFileChange = (e) => {
-    setForm({ ...form, images: e.target.files });
-  };
+    setForm((prev) => ({
+      ...prev,
+      gstCategory: selected?.name || "",
+      hsnCode: selected?.hsn || "",
+      gstPercent: selected?.gst || 0,
+    }));
+  }
 
-  /* ================= ADD / EDIT PRODUCT ================= */
-  const handleSubmit = async (e) => {
+  /* ================= FORM CHANGE ================= */
+  function handleChange(e) {
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
+  }
+
+  function handleFileChange(e) {
+    setForm((prev) => ({ ...prev, images: e.target.files }));
+  }
+
+  /* ================= SUBMIT ================= */
+  async function handleSubmit(e) {
     e.preventDefault();
     setLoading(true);
 
     const formData = new FormData();
-    for (const key in form) {
+
+    Object.keys(form).forEach((key) => {
       if (key === "images") {
-        for (let i = 0; i < form.images.length; i++) {
-          formData.append("images", form.images[i]);
+        for (let file of form.images) {
+          formData.append("images", file);
         }
-      } else {
+      } else if (form[key] !== null) {
         formData.append(key, form[key]);
       }
-    }
+    });
 
-    const url = editing ? `/api/admin/products/${form.id}` : "/api/admin/products";
-    const method = editing ? "PUT" : "POST";
-
-    const res = await fetch(url, {
-      method,
+    const res = await fetch("/api/admin/products", {
+      method: editing ? "PUT" : "POST",
       body: formData,
     });
 
     const data = await res.json();
+
     if (data.success) {
-      alert("Product saved successfully!");
-      setForm({
-        id: null,
-        name: "",
-        description: "",
-        shortDescription: "",
-        websiteCategory: "",
-        gstCategory: "",
-        costPrice: "",
-        mrp: "",
-        sellingPrice: "",
-        discount: "",
-        active: true,
-        images: [],
-      });
-      setEditing(false);
+      resetForm();
       fetchProducts();
     } else {
-      alert(data.message || "Error saving product");
+      alert(data.message);
     }
-    setLoading(false);
-  };
 
-  /* ================= EDIT EXISTING PRODUCT ================= */
-  const handleEdit = (product) => {
+    setLoading(false);
+  }
+
+  /* ================= EDIT ================= */
+  function handleEdit(p) {
     setForm({
-      id: product._id,
-      name: product.name,
-      description: product.description,
-      shortDescription: product.shortDescription,
-      websiteCategory: product.websiteCategory,
-      gstCategory: product.gstCategory,
-      costPrice: product.costPrice,
-      mrp: product.mrp,
-      sellingPrice: product.sellingPrice,
-      discount: product.discount,
-      active: product.active,
-      images: [], // new upload only, existing images shown in table
+      _id: p._id,
+      name: p.name,
+      description: p.description,
+      category: p.category,
+      gstCategory: p.gstCategory,
+      hsnCode: p.hsnCode,
+      gstPercent: p.gstPercent,
+      costPrice: p.costPrice,
+      mrp: p.mrp,
+      sellingPrice: p.sellingPrice,
+      status: p.status,
+      images: [],
     });
+
     setEditing(true);
     window.scrollTo({ top: 0, behavior: "smooth" });
-  };
+  }
 
-  /* ================= ADD WEBSITE CATEGORY ================= */
-  const addWebsiteCategory = async () => {
+  function resetForm() {
+    setForm({
+      _id: null,
+      name: "",
+      description: "",
+      category: "",
+      gstCategory: "",
+      hsnCode: "",
+      gstPercent: 0,
+      costPrice: "",
+      mrp: "",
+      sellingPrice: "",
+      status: "active",
+      images: [],
+    });
+    setEditing(false);
+  }
+
+  /* ================= ADD CATEGORY ================= */
+  async function addWebsiteCategory() {
     if (!newWebsiteCategory) return;
-    const res = await fetch("/api/admin/website-categories", {
+
+    const res = await fetch("/api/admin/categories", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: newWebsiteCategory }),
+      body: JSON.stringify({ name: newWebsiteCategory, type: "website" }),
     });
+
     const data = await res.json();
     if (data.success) {
-      setWebsiteCategories([...websiteCategories, data.category]);
+      fetchCategories();
       setNewWebsiteCategory("");
-    } else alert(data.message || "Failed to add category");
-  };
+    }
+  }
 
-  /* ================= ADD GST CATEGORY ================= */
-  const addGstCategory = async () => {
+  async function addGstCategory() {
     const { name, hsn, gst } = newGstCategory;
     if (!name || !hsn || !gst) return;
-    const res = await fetch("/api/admin/gst-categories", {
+
+    const res = await fetch("/api/admin/categories", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, hsn, gst }),
+      body: JSON.stringify({ name, type: "gst", hsn, gst }),
     });
+
     const data = await res.json();
     if (data.success) {
-      setGstCategories([...gstCategories, data.category]);
+      fetchCategories();
       setNewGstCategory({ name: "", hsn: "", gst: "" });
-    } else alert(data.message || "Failed to add GST category");
-  };
+    }
+  }
 
   return (
-    <div style={{ padding: "30px", maxWidth: "1200px", margin: "auto" }}>
-      <h1 style={{ marginBottom: 20 }}>Admin Products</h1>
+    <div style={{ padding: 30, maxWidth: 1200, margin: "auto" }}>
+      <h1>Products</h1>
 
-      {/* ================= PRODUCT FORM ================= */}
-      <form
-        onSubmit={handleSubmit}
-        style={{
-          background: "#fff",
-          padding: 20,
-          borderRadius: 10,
-          boxShadow: "0 5px 15px rgba(0,0,0,0.1)",
-          marginBottom: 40,
-        }}
-      >
-        <h2>{editing ? "Edit Product" : "Add Product"}</h2>
+      {/* ===== FORM ===== */}
+      <form onSubmit={handleSubmit} style={{ marginBottom: 40 }}>
+        <input name="name" placeholder="Name" value={form.name} onChange={handleChange} required />
 
-        <input
-          type="text"
-          name="name"
-          placeholder="Product Name"
-          value={form.name}
-          onChange={handleChange}
-          style={inputStyle}
-          required
-        />
-        <textarea
-          name="description"
-          placeholder="Full Description"
-          value={form.description}
-          onChange={handleChange}
-          style={{ ...inputStyle, height: 80 }}
-        />
-        <textarea
-          name="shortDescription"
-          placeholder="Short Description"
-          value={form.shortDescription}
-          onChange={handleChange}
-          style={inputStyle}
-        />
+        <textarea name="description" placeholder="Description" value={form.description} onChange={handleChange} />
 
-        {/* Website Category */}
-        <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 10 }}>
-          <select
-            name="websiteCategory"
-            value={form.websiteCategory}
-            onChange={handleChange}
-            style={{ flex: 1, padding: 8 }}
-          >
-            <option value="">Select Website Category</option>
-            {websiteCategories.map((c) => (
-              <option key={c._id} value={c.name}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-          <input
-            type="text"
-            placeholder="Add Website Category"
-            value={newWebsiteCategory}
-            onChange={(e) => setNewWebsiteCategory(e.target.value)}
-          />
-          <button type="button" onClick={addWebsiteCategory}>
-            Add
-          </button>
-        </div>
+        {/* WEBSITE CATEGORY */}
+        <select name="category" value={form.category} onChange={handleChange}>
+          <option value="">Website Category</option>
+          {websiteCategories.map((c) => (
+            <option key={c._id} value={c.name}>{c.name}</option>
+          ))}
+        </select>
 
-        {/* GST Category */}
-        <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 10 }}>
-          <select
-            name="gstCategory"
-            value={form.gstCategory}
-            onChange={handleChange}
-            style={{ flex: 1, padding: 8 }}
-          >
-            <option value="">Select GST Category</option>
-            {gstCategories.map((c) => (
-              <option key={c._id} value={c.name}>
-                {c.name} (HSN: {c.hsn}, GST: {c.gst}%)
-              </option>
-            ))}
-          </select>
-          <input
-            type="text"
-            placeholder="GST Name"
-            value={newGstCategory.name}
-            onChange={(e) => setNewGstCategory({ ...newGstCategory, name: e.target.value })}
-          />
-          <input
-            type="text"
-            placeholder="HSN"
-            value={newGstCategory.hsn}
-            onChange={(e) => setNewGstCategory({ ...newGstCategory, hsn: e.target.value })}
-          />
-          <input
-            type="number"
-            placeholder="GST %"
-            value={newGstCategory.gst}
-            onChange={(e) => setNewGstCategory({ ...newGstCategory, gst: e.target.value })}
-          />
-          <button type="button" onClick={addGstCategory}>
-            Add
-          </button>
-        </div>
+        {/* GST CATEGORY */}
+        <select name="gstCategory" value={form.gstCategory} onChange={handleGstChange}>
+          <option value="">GST Category</option>
+          {gstCategories.map((c) => (
+            <option key={c._id} value={c.name}>
+              {c.name} (HSN: {c.hsn}, GST: {c.gst}%)
+            </option>
+          ))}
+        </select>
 
-        {/* Prices */}
-        <input
-          type="number"
-          name="costPrice"
-          placeholder="Cost Price"
-          value={form.costPrice}
-          onChange={handleChange}
-          style={inputStyle}
-          required
-        />
-        <input
-          type="number"
-          name="mrp"
-          placeholder="MRP"
-          value={form.mrp}
-          onChange={handleChange}
-          style={inputStyle}
-          required
-        />
-        <input
-          type="number"
-          name="sellingPrice"
-          placeholder="Selling Price"
-          value={form.sellingPrice}
-          onChange={handleChange}
-          style={inputStyle}
-          required
-        />
-        <input
-          type="number"
-          name="discount"
-          placeholder="Discount %"
-          value={form.discount}
-          onChange={handleChange}
-          style={inputStyle}
-        />
+        <input value={form.hsnCode} readOnly placeholder="HSN" />
+        <input value={form.gstPercent} readOnly placeholder="GST %" />
 
-        {/* Active */}
-        <label style={{ display: "block", marginTop: 10 }}>
-          <input
-            type="checkbox"
-            name="active"
-            checked={form.active}
-            onChange={handleChange}
-          />{" "}
-          Active
-        </label>
+        <input name="costPrice" type="number" placeholder="Cost Price" value={form.costPrice} onChange={handleChange} />
+        <input name="mrp" type="number" placeholder="MRP" value={form.mrp} onChange={handleChange} />
+        <input name="sellingPrice" type="number" placeholder="Selling Price" value={form.sellingPrice} onChange={handleChange} />
 
-        {/* Images */}
-        <input
-          type="file"
-          multiple
-          accept="image/*"
-          onChange={handleFileChange}
-          style={{ marginTop: 10 }}
-        />
+        <select name="status" value={form.status} onChange={handleChange}>
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+        </select>
 
-        <button type="submit" disabled={loading} style={submitButton}>
-          {loading ? "Saving..." : editing ? "Update Product" : "Add Product"}
-        </button>
+        <input type="file" multiple onChange={handleFileChange} />
+
+        <button type="submit">{loading ? "Saving..." : editing ? "Update" : "Create"}</button>
       </form>
 
-      {/* ================= PRODUCTS TABLE ================= */}
-      <table style={{ width: "100%", borderCollapse: "collapse" }}>
+      {/* ===== TABLE ===== */}
+      <table width="100%">
         <thead>
           <tr>
             <th>Image</th>
             <th>Name</th>
-            <th>Website Category</th>
-            <th>GST Category</th>
-            <th>Cost</th>
-            <th>MRP</th>
-            <th>Selling</th>
-            <th>Discount</th>
-            <th>Active</th>
+            <th>Category</th>
+            <th>GST</th>
+            <th>Price</th>
+            <th>Status</th>
             <th>Edit</th>
           </tr>
         </thead>
+
         <tbody>
           {products.map((p) => (
-            <tr key={p._id} style={{ borderBottom: "1px solid #ddd" }}>
+            <tr key={p._id}>
               <td>
-                {p.images && p.images.length > 0 && (
-                  <Image
-                    src={p.images[0]}
-                    alt={p.name}
-                    width={60}
-                    height={60}
-                    style={{ objectFit: "cover" }}
-                  />
+                {p.images?.[0] && (
+                  <Image src={p.images[0]} width={60} height={60} alt={p.name} />
                 )}
               </td>
               <td>{p.name}</td>
-              <td>{p.websiteCategory}</td>
+              <td>{p.category}</td>
               <td>{p.gstCategory}</td>
-              <td>{p.costPrice}</td>
-              <td>{p.mrp}</td>
-              <td>{p.sellingPrice}</td>
-              <td>{p.discount}</td>
-              <td>{p.active ? "Yes" : "No"}</td>
+              <td>₹{p.sellingPrice}</td>
+              <td>{p.status}</td>
               <td>
                 <button onClick={() => handleEdit(p)}>Edit</button>
               </td>
@@ -376,23 +263,3 @@ export default function AdminProductsPage() {
     </div>
   );
 }
-
-/* ===== STYLES ===== */
-const inputStyle = {
-  display: "block",
-  width: "100%",
-  padding: 8,
-  marginTop: 10,
-  borderRadius: 5,
-  border: "1px solid #ccc",
-};
-
-const submitButton = {
-  marginTop: 15,
-  padding: 12,
-  background: "#111",
-  color: "#fff",
-  border: "none",
-  borderRadius: 6,
-  cursor: "pointer",
-};
