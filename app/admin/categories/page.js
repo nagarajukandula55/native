@@ -1,141 +1,73 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import axios from "axios";
 
 export default function AdminCategoriesPage() {
   const [categories, setCategories] = useState([]);
-  const [form, setForm] = useState({
-    name: "",
-    type: "website", // website or gst
-    hsn: "",
-    gst: "",
-  });
-  const [editing, setEditing] = useState(null);
+  const [formOpen, setFormOpen] = useState(false);
+  const [form, setForm] = useState({ _id: "", name: "", type: "website" });
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    fetchCategories();
-  }, []);
-
   const fetchCategories = async () => {
-    try {
-      const res = await axios.get("/api/admin/categories");
-      setCategories(res.data.categories || []);
-    } catch (err) {
-      console.error("Fetch categories error:", err);
-    }
+    const res = await fetch("/api/admin/categories");
+    const data = await res.json();
+    if (data.success) setCategories(data.categories);
   };
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
-  };
+  useEffect(() => { fetchCategories(); }, []);
+
+  const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-
-    try {
-      if (editing) {
-        await axios.put(`/api/admin/categories/${editing._id}`, form);
-      } else {
-        await axios.post("/api/admin/categories", form);
-      }
-
-      setForm({ name: "", type: "website", hsn: "", gst: "" });
-      setEditing(null);
+    const res = await fetch("/api/admin/categories", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(form),
+    });
+    const data = await res.json();
+    if (data.success) {
+      setForm({ _id: "", name: "", type: "website" });
+      setFormOpen(false);
       fetchCategories();
-    } catch (err) {
-      console.error("Save category error:", err);
     }
-
     setLoading(false);
   };
 
-  const handleEdit = (category) => {
-    setForm(category);
-    setEditing(category);
-  };
+  const handleEdit = (c) => { setForm(c); setFormOpen(true); };
 
   return (
-    <div style={container}>
-      <h1>Admin Categories</h1>
+    <div style={{ padding: 20 }}>
+      <h1>Categories</h1>
+      <button onClick={() => setFormOpen(true)}>Add Category</button>
 
-      {/* Add/Edit Category Form */}
-      <form style={formCard} onSubmit={handleSubmit}>
-        <h2>{editing ? "Edit Category" : "Add Category"}</h2>
+      {formOpen && (
+        <form onSubmit={handleSubmit} style={{ margin: "20px 0", border: "1px solid #ccc", padding: 20 }}>
+          <input placeholder="Category Name" name="name" value={form.name} onChange={handleChange} required />
+          <select name="type" value={form.type} onChange={handleChange}>
+            <option value="website">Website (for products dropdown)</option>
+            <option value="gst">GST Category (food/hsn mapping)</option>
+          </select>
+          <button type="submit" disabled={loading}>{loading ? "Saving..." : "Save"}</button>
+          <button type="button" onClick={() => setFormOpen(false)}>Cancel</button>
+        </form>
+      )}
 
-        <input
-          name="name"
-          placeholder="Category Name"
-          value={form.name}
-          onChange={handleChange}
-          required
-          style={input}
-        />
-
-        <select
-          name="type"
-          value={form.type}
-          onChange={handleChange}
-          required
-          style={input}
-        >
-          <option value="website">Website Category</option>
-          <option value="gst">GST Category</option>
-        </select>
-
-        {form.type === "gst" && (
-          <>
-            <input
-              name="hsn"
-              placeholder="HSN Code"
-              value={form.hsn}
-              onChange={handleChange}
-              required
-              style={input}
-            />
-            <input
-              name="gst"
-              placeholder="GST %"
-              type="number"
-              value={form.gst}
-              onChange={handleChange}
-              required
-              style={input}
-            />
-          </>
-        )}
-
-        <button type="submit" disabled={loading} style={button}>
-          {loading ? "Saving..." : editing ? "Update Category" : "Add Category"}
-        </button>
-      </form>
-
-      {/* Categories Table */}
-      <table style={table}>
+      <table border="1" cellPadding="5" cellSpacing="0" style={{ width: "100%", marginTop: 20 }}>
         <thead>
           <tr>
             <th>Name</th>
             <th>Type</th>
-            <th>HSN</th>
-            <th>GST %</th>
             <th>Actions</th>
           </tr>
         </thead>
         <tbody>
-          {categories.map((c) => (
+          {categories.map(c => (
             <tr key={c._id}>
               <td>{c.name}</td>
               <td>{c.type}</td>
-              <td>{c.hsn || "-"}</td>
-              <td>{c.gst || "-"}</td>
-              <td>
-                <button onClick={() => handleEdit(c)} style={buttonSmall}>
-                  Edit
-                </button>
-              </td>
+              <td><button onClick={() => handleEdit(c)}>Edit</button></td>
             </tr>
           ))}
         </tbody>
@@ -143,17 +75,3 @@ export default function AdminCategoriesPage() {
     </div>
   );
 }
-
-/* ===== STYLES ===== */
-const container = { padding: 20 };
-const formCard = {
-  padding: 20,
-  marginBottom: 40,
-  borderRadius: 10,
-  background: "#fff",
-  boxShadow: "0 5px 15px rgba(0,0,0,0.1)",
-};
-const input = { width: "100%", padding: 10, marginBottom: 10, borderRadius: 5 };
-const button = { padding: 10, background: "#111", color: "#fff", border: "none" };
-const buttonSmall = { padding: 5, background: "#333", color: "#fff", border: "none" };
-const table = { width: "100%", borderCollapse: "collapse", marginTop: 20 };
