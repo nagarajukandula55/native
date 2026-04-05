@@ -3,149 +3,145 @@ import connectDB from "@/lib/mongodb";
 import Product from "@/models/Product";
 import Category from "@/models/Category";
 import slugify from "slugify";
+import jwt from "jsonwebtoken";
+import { v2 as cloudinary } from "cloudinary";
 
-export const dynamic = "force-dynamic";
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
-/* ================= CONNECT DB ================= */
-async function dbConnect() {
-  await connectDB();
+// Auth middleware
+async function verifyAdmin(req) {
+  const token = req.cookies.get("token")?.value;
+  if (!token) throw new Error("Unauthorized");
+
+  const decoded = jwt.verify(token, process.env.JWT_SECRET);
+  if (decoded.role !== "admin") throw new Error("Forbidden");
+  return decoded;
 }
 
-/* ================= AUTO GST / HSN ================= */
-function autoGSTandHSN(category) {
-  // Example mapping: extend as per your food category standards
-  const mapping = {
-    "Batter Mix": { hsn: "19019099", gst: 5 },
-    "Spices": { hsn: "090999", gst: 5 },
-    "Chutney Mix": { hsn: "210390", gst: 5 },
-    "Honey": { hsn: "040900", gst: 12 },
-    "Masala": { hsn: "210330", gst: 5 },
-    "Cold Pressed Oil": { hsn: "150890", gst: 18 },
-  };
-
-  return mapping[category] || { hsn: "", gst: 0 };
-}
-
-/* ================= SEO & TAGS ================= */
-function generateSEO(product) {
-  const seoTitle = `${product.name} | Best Price | Buy Online`;
-  const seoDesc = `Buy ${product.name} online at best prices. ${
-    product.subCategory ? product.subCategory + " " : ""
-  }Available with discount upto ${product.discount}%. GST applicable.`;
-
-  const tags = product.name
+// Auto generate SEO and tags
+function generateSEOAndTags(name, description) {
+  const seoTitle = `${name} | Buy Online at Our Store`;
+  const seoDescription = description
+    ? `${description.substring(0, 150)}...`
+    : `Buy ${name} at best price online.`;
+  const tags = name
     .split(" ")
     .map((t) => t.toLowerCase())
     .slice(0, 10);
-
-  return { seoTitle, seoDesc, tags };
+  return { seoTitle, seoDescription, tags };
 }
 
-/* ================= GET PRODUCTS ================= */
+// Auto GST based on GST category
+function getGSTAndHSN(gstCategory) {
+  const gstData = {
+    "Food - Batter Mix": { hsn: "1901", gst: 5 },
+    "Food - Spices": { hsn: "0904", gst: 5 },
+    "Food - Honey": { hsn: "0409", gst: 12 },
+    "Food - Chutney Mix": { hsn: "2103", gst: 18 },
+    "Food - Masala": { hsn: "0909", gst: 12 },
+    "Food - Cold Pressed Oil": { hsn: "1515", gst: 5 },
+  };
+  return gstData[gstCategory] || { hsn: "", gst: 0 };
+}
+
+// GET products
 export async function GET() {
   try {
-    await dbConnect();
-    const products = await Product.find({})
-      .populate("category", "name type")
-      .lean();
-
+    await connectDB();
+    const products = await Product.find().populate("category").lean();
     return NextResponse.json({ success: true, products });
   } catch (err) {
-    console.error(err);
-    return NextResponse.json({ success: false, message: "Failed to fetch products" }, { status: 500 });
+    return NextResponse.json({ success: false, message: err.message }, { status: 500 });
   }
 }
 
-/* ================= CREATE PRODUCT ================= */
+// POST create or edit product
 export async function POST(req) {
   try {
-    await dbConnect();
-    const body = await req.json();
+    await connectDB();
+    await verifyAdmin(req);
 
-    if (!body.name || !body.category) {
-      return NextResponse.json({ success: false, message: "Name and category required" }, { status: 400 });
+    const body = await req.json();
+    const {
+      _id,
+      name,
+      description,
+      categoryId,
+      gstCategory,
+      mrp,
+      costPrice,
+      discount,
+      images, // array of base64 or URL
+      status,
+    } = body;
+
+    if (!name || !categoryId || !mrp) {
+      return NextResponse.json(
+        { success: false, message: "Name, category, and MRP are required" },
+        { status: 400 }
+      );
     }
 
-    // SLUG
-    const slug = slugify(body.name, { lower: true, strict: true });
+    // Upload images to Cloudinary
+    const uploadedImages = [];
+    if (images && images.length > 0) {
+      for (const img of images) {
+        if (!img.startsWith("http")) {
+          const uploaded = await cloudinary.uploader.upload(img, {
+            folder: "products",
+          });
+          uploadedImages.push(uploaded.secure_url);
+        } else {
+          uploadedImages.push(img);
+        }
+      }
+    }
 
-    // CHECK EXISTING
-    const exists = await Product.findOne({ slug });
-    if (exists) return NextResponse.json({ success: false, message: "Product already exists" }, { status: 400 });
+    // Auto SEO and tags
+    const { seoTitle, seoDescription, tags } = generateSEOAndTags(name, description);
 
-    // GST / HSN
-    const catObj = await Category.findById(body.category);
-    const { hsn, gst } = catObj?.type === "gst" ? autoGSTandHSN(catObj.name) : { hsn: "", gst: 0 };
+    // GST and HSN
+    const { gst, hsn } = getGSTAndHSN(gstCategory);
 
-    // SEO
-    const { seoTitle, seoDesc, tags } = generateSEO(body);
-
-    // CALCULATE FINAL PRICE WITH DISCOUNT
-    const finalPrice = body.price - (body.price * (body.discount || 0)) / 100;
-
-    const product = await Product.create({
-      ...body,
-      slug,
+    const productData = {
+      name,
+      description,
+      category: categoryId,
+      gstCategory,
       hsn,
       gst,
+      mrp,
+      costPrice,
+      discount: discount || 0,
+      sellingPrice: mrp - (discount || 0) * (mrp / 100),
+      images: uploadedImages,
       seoTitle,
-      seoDesc,
+      seoDescription,
       tags,
-      finalPrice,
-    });
+      status: status || "active",
+      slug: slugify(name, { lower: true }),
+    };
 
-    return NextResponse.json({ success: true, product });
-  } catch (err) {
-    console.error(err);
-    return NextResponse.json({ success: false, message: "Failed to create product" }, { status: 500 });
-  }
-}
-
-/* ================= UPDATE PRODUCT ================= */
-export async function PUT(req) {
-  try {
-    await dbConnect();
-    const body = await req.json();
-
-    if (!body._id) return NextResponse.json({ success: false, message: "Product ID required" }, { status: 400 });
-
-    const product = await Product.findById(body._id);
-    if (!product) return NextResponse.json({ success: false, message: "Product not found" }, { status: 404 });
-
-    // UPDATE FIELDS
-    product.name = body.name || product.name;
-    product.category = body.category || product.category;
-    product.subCategory = body.subCategory || product.subCategory;
-    product.price = body.price ?? product.price;
-    product.mrp = body.mrp ?? product.mrp;
-    product.costPrice = body.costPrice ?? product.costPrice;
-    product.discount = body.discount ?? product.discount;
-    product.images = body.images || product.images;
-    product.description = body.description || product.description;
-    product.active = body.active ?? product.active;
-
-    // REGENERATE SEO & TAGS
-    const { seoTitle, seoDesc, tags } = generateSEO(product);
-    product.seoTitle = seoTitle;
-    product.seoDesc = seoDesc;
-    product.tags = tags;
-
-    // GST / HSN
-    const catObj = await Category.findById(product.category);
-    if (catObj?.type === "gst") {
-      const { hsn, gst } = autoGSTandHSN(catObj.name);
-      product.hsn = hsn;
-      product.gst = gst;
+    let product;
+    if (_id) {
+      product = await Product.findByIdAndUpdate(_id, productData, { new: true });
+    } else {
+      product = await Product.create(productData);
     }
 
-    // FINAL PRICE
-    product.finalPrice = product.price - (product.price * (product.discount || 0)) / 100;
-
-    await product.save();
-
     return NextResponse.json({ success: true, product });
   } catch (err) {
     console.error(err);
-    return NextResponse.json({ success: false, message: "Failed to update product" }, { status: 500 });
+    const status =
+      err.message === "Unauthorized"
+        ? 401
+        : err.message === "Forbidden"
+        ? 403
+        : 500;
+    return NextResponse.json({ success: false, message: err.message }, { status });
   }
 }
