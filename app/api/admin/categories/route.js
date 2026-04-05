@@ -3,7 +3,6 @@ import connectDB from "@/lib/mongodb";
 import Category from "@/models/Category";
 import jwt from "jsonwebtoken";
 
-/* ================= AUTH ================= */
 function verifyAdmin(req) {
   const token = req.cookies.get("token")?.value;
   if (!token) throw new Error("Unauthorized");
@@ -14,7 +13,7 @@ function verifyAdmin(req) {
   return decoded;
 }
 
-/* ================= GET ================= */
+/* GET */
 export async function GET(req) {
   await connectDB();
   verifyAdmin(req);
@@ -24,7 +23,7 @@ export async function GET(req) {
   return NextResponse.json({ success: true, categories });
 }
 
-/* ================= POST ================= */
+/* POST */
 export async function POST(req) {
   await connectDB();
   verifyAdmin(req);
