@@ -4,144 +4,244 @@ import Product from "@/models/Product";
 import Category from "@/models/Category";
 import slugify from "slugify";
 import jwt from "jsonwebtoken";
-import { v2 as cloudinary } from "cloudinary";
 
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
+export const dynamic = "force-dynamic";
 
-// Auth middleware
+/* ================= AUTH ================= */
 async function verifyAdmin(req) {
   const token = req.cookies.get("token")?.value;
   if (!token) throw new Error("Unauthorized");
 
   const decoded = jwt.verify(token, process.env.JWT_SECRET);
-  if (decoded.role !== "admin") throw new Error("Forbidden");
+  if (!decoded.role || decoded.role !== "admin") throw new Error("Forbidden");
+
   return decoded;
 }
 
-// Auto generate SEO and tags
-function generateSEOAndTags(name, description) {
-  const seoTitle = `${name} | Buy Online at Our Store`;
-  const seoDescription = description
-    ? `${description.substring(0, 150)}...`
-    : `Buy ${name} at best price online.`;
+/* ================= DB CONNECT ================= */
+async function dbConnect() {
+  await connectDB();
+}
+
+/* ================= AUTO GENERATE SEO ================= */
+function generateSEO(name, description) {
+  const title = `${name} - Best Quality Online`;
+  const desc =
+    description ||
+    `Buy ${name} online at best prices. Top quality products available for fast delivery.`;
   const tags = name
+    .toLowerCase()
     .split(" ")
-    .map((t) => t.toLowerCase())
-    .slice(0, 10);
-  return { seoTitle, seoDescription, tags };
+    .concat(["buy online", "top quality", "best price"]);
+  return { title, description: desc, tags };
 }
 
-// Auto GST based on GST category
-function getGSTAndHSN(gstCategory) {
-  const gstData = {
-    "Food - Batter Mix": { hsn: "1901", gst: 5 },
-    "Food - Spices": { hsn: "0904", gst: 5 },
-    "Food - Honey": { hsn: "0409", gst: 12 },
-    "Food - Chutney Mix": { hsn: "2103", gst: 18 },
-    "Food - Masala": { hsn: "0909", gst: 12 },
-    "Food - Cold Pressed Oil": { hsn: "1515", gst: 5 },
-  };
-  return gstData[gstCategory] || { hsn: "", gst: 0 };
-}
-
-// GET products
-export async function GET() {
-  try {
-    await connectDB();
-    const products = await Product.find().populate("category").lean();
-    return NextResponse.json({ success: true, products });
-  } catch (err) {
-    return NextResponse.json({ success: false, message: err.message }, { status: 500 });
-  }
-}
-
-// POST create or edit product
+/* ================= CREATE PRODUCT ================= */
 export async function POST(req) {
   try {
-    await connectDB();
+    await dbConnect();
     await verifyAdmin(req);
 
     const body = await req.json();
     const {
-      _id,
       name,
       description,
+      images,
       categoryId,
-      gstCategory,
+      subCategory,
       mrp,
       costPrice,
-      discount,
-      images, // array of base64 or URL
-      status,
+      discountPercent,
+      isActive = true,
     } = body;
 
-    if (!name || !categoryId || !mrp) {
+    if (!name || !categoryId || !images || images.length === 0 || !mrp) {
       return NextResponse.json(
-        { success: false, message: "Name, category, and MRP are required" },
+        { success: false, message: "Missing required fields" },
         { status: 400 }
       );
     }
 
-    // Upload images to Cloudinary
-    const uploadedImages = [];
-    if (images && images.length > 0) {
-      for (const img of images) {
-        if (!img.startsWith("http")) {
-          const uploaded = await cloudinary.uploader.upload(img, {
-            folder: "products",
-          });
-          uploadedImages.push(uploaded.secure_url);
-        } else {
-          uploadedImages.push(img);
-        }
+    const slug = slugify(name, { lower: true, strict: true });
+
+    const existing = await Product.findOne({ slug });
+    if (existing) {
+      return NextResponse.json(
+        { success: false, message: "Product already exists" },
+        { status: 400 }
+      );
+    }
+
+    // Fetch Category to get HSN/GST for Food
+    const category = await Category.findById(categoryId);
+    let hsn = null;
+    let gstPercent = null;
+
+    if (category?.slug === "food") {
+      // Example HSN/GST mapping based on subCategory
+      const mapping = {
+        "batter mix": { hsn: "1901", gst: 5 },
+        "spices": { hsn: "0910", gst: 5 },
+        "chutney mix": { hsn: "2103", gst: 5 },
+        honey: { hsn: "0409", gst: 12 },
+        "masala": { hsn: "0910", gst: 5 },
+        "cold pressed oil": { hsn: "1515", gst: 5 },
+      };
+      if (subCategory && mapping[subCategory.toLowerCase()]) {
+        hsn = mapping[subCategory.toLowerCase()].hsn;
+        gstPercent = mapping[subCategory.toLowerCase()].gst;
       }
     }
 
-    // Auto SEO and tags
-    const { seoTitle, seoDescription, tags } = generateSEOAndTags(name, description);
+    const sellingPrice = mrp - (mrp * (discountPercent || 0)) / 100;
 
-    // GST and HSN
-    const { gst, hsn } = getGSTAndHSN(gstCategory);
+    const seo = generateSEO(name, description);
 
-    const productData = {
+    const product = await Product.create({
       name,
+      slug,
       description,
+      images, // array of cloudinary URLs
       category: categoryId,
-      gstCategory,
-      hsn,
-      gst,
+      subCategory,
       mrp,
       costPrice,
-      discount: discount || 0,
-      sellingPrice: mrp - (discount || 0) * (mrp / 100),
-      images: uploadedImages,
-      seoTitle,
-      seoDescription,
-      tags,
-      status: status || "active",
-      slug: slugify(name, { lower: true }),
-    };
-
-    let product;
-    if (_id) {
-      product = await Product.findByIdAndUpdate(_id, productData, { new: true });
-    } else {
-      product = await Product.create(productData);
-    }
+      discountPercent,
+      sellingPrice,
+      hsn,
+      gstPercent,
+      seoTitle: seo.title,
+      seoDescription: seo.description,
+      seoTags: seo.tags,
+      isActive,
+    });
 
     return NextResponse.json({ success: true, product });
   } catch (err) {
-    console.error(err);
+    console.error("CREATE PRODUCT ERROR:", err);
     const status =
       err.message === "Unauthorized"
         ? 401
         : err.message === "Forbidden"
         ? 403
         : 500;
-    return NextResponse.json({ success: false, message: err.message }, { status });
+    return NextResponse.json(
+      { success: false, message: err.message || "Server error" },
+      { status }
+    );
+  }
+}
+
+/* ================= UPDATE PRODUCT ================= */
+export async function PUT(req) {
+  try {
+    await dbConnect();
+    await verifyAdmin(req);
+
+    const body = await req.json();
+    const {
+      productId,
+      name,
+      description,
+      images,
+      categoryId,
+      subCategory,
+      mrp,
+      costPrice,
+      discountPercent,
+      isActive,
+    } = body;
+
+    if (!productId) {
+      return NextResponse.json(
+        { success: false, message: "Product ID required" },
+        { status: 400 }
+      );
+    }
+
+    const product = await Product.findById(productId);
+    if (!product) {
+      return NextResponse.json(
+        { success: false, message: "Product not found" },
+        { status: 404 }
+      );
+    }
+
+    if (name) product.name = name;
+    if (description) product.description = description;
+    if (images) product.images = images;
+    if (categoryId) product.category = categoryId;
+    if (subCategory) product.subCategory = subCategory;
+    if (mrp) product.mrp = mrp;
+    if (costPrice) product.costPrice = costPrice;
+    if (discountPercent !== undefined) product.discountPercent = discountPercent;
+    if (mrp || discountPercent !== undefined)
+      product.sellingPrice = product.mrp - (product.mrp * (product.discountPercent || 0)) / 100;
+    if (isActive !== undefined) product.isActive = isActive;
+
+    // Recalculate HSN/GST if category is food
+    const category = await Category.findById(product.category);
+    if (category?.slug === "food") {
+      const mapping = {
+        "batter mix": { hsn: "1901", gst: 5 },
+        "spices": { hsn: "0910", gst: 5 },
+        "chutney mix": { hsn: "2103", gst: 5 },
+        honey: { hsn: "0409", gst: 12 },
+        "masala": { hsn: "0910", gst: 5 },
+        "cold pressed oil": { hsn: "1515", gst: 5 },
+      };
+      if (subCategory && mapping[subCategory.toLowerCase()]) {
+        product.hsn = mapping[subCategory.toLowerCase()].hsn;
+        product.gstPercent = mapping[subCategory.toLowerCase()].gst;
+      }
+    }
+
+    const seo = generateSEO(product.name, product.description);
+    product.seoTitle = seo.title;
+    product.seoDescription = seo.description;
+    product.seoTags = seo.tags;
+
+    await product.save();
+
+    return NextResponse.json({ success: true, product });
+  } catch (err) {
+    console.error("UPDATE PRODUCT ERROR:", err);
+    const status =
+      err.message === "Unauthorized"
+        ? 401
+        : err.message === "Forbidden"
+        ? 403
+        : 500;
+    return NextResponse.json(
+      { success: false, message: err.message || "Server error" },
+      { status }
+    );
+  }
+}
+
+/* ================= FETCH PRODUCTS ================= */
+export async function GET(req) {
+  try {
+    await dbConnect();
+    await verifyAdmin(req);
+
+    const products = await Product.find()
+      .populate("category", "name slug")
+      .sort({ createdAt: -1 })
+      .lean();
+
+    return NextResponse.json({ success: true, count: products.length, products });
+  } catch (err) {
+    console.error("FETCH PRODUCTS ERROR:", err);
+    const status =
+      err.message === "Unauthorized"
+        ? 401
+        : err.message === "Forbidden"
+        ? 403
+        : 500;
+    return NextResponse.json(
+      { success: false, message: err.message || "Server error" },
+      { status }
+    );
   }
 }
