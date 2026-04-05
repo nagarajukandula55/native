@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 /* ================= HELPERS ================= */
 
@@ -9,40 +9,6 @@ function generateSlug(name) {
     .toLowerCase()
     .replace(/[^a-z0-9 ]/g, "")
     .replace(/\s+/g, "-");
-}
-
-function extractCoreWord(name) {
-  if (!name) return "";
-
-  const words = name.trim().split(/\s+/);
-
-  if (words[0].toLowerCase() === "native" && words.length > 1) {
-    return words[1];
-  }
-
-  return words[0];
-}
-
-function generateSKU(name, products) {
-  if (!name) return "";
-
-  const core = extractCoreWord(name)
-    .toUpperCase()
-    .replace(/[^A-Z0-9]/g, "");
-
-  if (!core) return "";
-
-  const base = `NA${core}`;
-
-  const same = products.filter((p) => p.sku?.startsWith(base));
-
-  const next = same.length + 1;
-
-  return `${base}${String(next).padStart(3, "0")}`;
-}
-
-function generateTags(name, desc) {
-  return [...new Set((name + " " + desc).toLowerCase().split(" "))].slice(0, 10);
 }
 
 /* ================= COMPONENT ================= */
@@ -67,8 +33,6 @@ export default function ProductsPage() {
     costPrice: "",
     mrp: "",
     sellingPrice: "",
-    sku: "",
-    tags: [],
     images: [],
     status: "active",
   });
@@ -76,6 +40,26 @@ export default function ProductsPage() {
   const [newCategory, setNewCategory] = useState("");
   const [newSubcategory, setNewSubcategory] = useState("");
   const [newGst, setNewGst] = useState({ name: "", hsn: "", gst: "" });
+
+  /* ================= LOAD DATA ================= */
+
+  useEffect(() => {
+    fetchAll();
+  }, []);
+
+  async function fetchAll() {
+    const [p, c, s, g] = await Promise.all([
+      fetch("/api/admin/products").then((r) => r.json()),
+      fetch("/api/admin/categories").then((r) => r.json()),
+      fetch("/api/admin/subcategories").then((r) => r.json()),
+      fetch("/api/admin/gst").then((r) => r.json()),
+    ]);
+
+    setProducts(p.products || p);
+    setCategories(c);
+    setSubcategories(s);
+    setGstCategories(g);
+  }
 
   /* ================= HANDLERS ================= */
 
@@ -86,19 +70,17 @@ export default function ProductsPage() {
 
     if (name === "name" || name === "description") {
       updated.slug = generateSlug(updated.name);
-      updated.tags = generateTags(updated.name, updated.description);
-      updated.sku = generateSKU(updated.name, products);
     }
 
     setForm(updated);
   }
 
   function handleGstChange(e) {
-    const selected = gstCategories.find((c) => c.name === e.target.value);
+    const selected = gstCategories.find((c) => c._id === e.target.value);
 
     setForm((p) => ({
       ...p,
-      gstCategory: selected?.name || "",
+      gstCategory: selected?._id || "",
       hsnCode: selected?.hsn || "",
       gstPercent: selected?.gst || 0,
     }));
@@ -109,216 +91,191 @@ export default function ProductsPage() {
     setForm((p) => ({ ...p, images: files }));
   }
 
-  function removeImage(i) {
-    setForm((p) => ({
-      ...p,
-      images: p.images.filter((_, idx) => idx !== i),
-    }));
-  }
+  /* ================= ADD CATEGORY ================= */
 
-  /* ================= ADD FUNCTIONS ================= */
-
-  function addCategory() {
+  async function addCategory() {
     if (!newCategory.trim()) return;
 
-    const obj = { _id: Date.now(), name: newCategory.trim() };
-    setCategories((p) => [...p, obj]);
+    const res = await fetch("/api/admin/categories", {
+      method: "POST",
+      body: JSON.stringify({ name: newCategory }),
+    });
 
-    setForm((f) => ({ ...f, category: obj.name }));
+    const data = await res.json();
+    setCategories((p) => [...p, data]);
+
+    setForm((f) => ({ ...f, category: data._id }));
     setNewCategory("");
   }
 
-  function addSubcategory() {
-    if (!newSubcategory.trim()) return;
+  async function addSubcategory() {
+    if (!newSubcategory.trim() || !form.category) return;
 
-    const obj = { _id: Date.now(), name: newSubcategory.trim() };
-    setSubcategories((p) => [...p, obj]);
+    const res = await fetch("/api/admin/subcategories", {
+      method: "POST",
+      body: JSON.stringify({
+        name: newSubcategory,
+        categoryId: form.category,
+      }),
+    });
 
-    setForm((f) => ({ ...f, subcategory: obj.name }));
+    const data = await res.json();
+    setSubcategories((p) => [...p, data]);
+
+    setForm((f) => ({ ...f, subcategory: data._id }));
     setNewSubcategory("");
   }
 
-  function addGstCategory() {
+  async function addGstCategory() {
     const { name, hsn, gst } = newGst;
+    if (!name || !hsn || !gst) return;
 
-    if (!name.trim() || !hsn.trim() || !gst) return;
+    const res = await fetch("/api/admin/gst", {
+      method: "POST",
+      body: JSON.stringify({ name, hsn, gst }),
+    });
 
-    const obj = {
-      _id: Date.now(),
-      name: name.trim(),
-      hsn: hsn.trim(),
-      gst: Number(gst),
-    };
-
-    setGstCategories((p) => [...p, obj]);
+    const data = await res.json();
+    setGstCategories((p) => [...p, data]);
 
     setForm((f) => ({
       ...f,
-      gstCategory: obj.name,
-      hsnCode: obj.hsn,
-      gstPercent: obj.gst,
+      gstCategory: data._id,
+      hsnCode: data.hsn,
+      gstPercent: data.gst,
     }));
 
     setNewGst({ name: "", hsn: "", gst: "" });
   }
 
+  /* ================= SAVE PRODUCT ================= */
+
+  async function saveProduct() {
+    const fd = new FormData();
+
+    Object.keys(form).forEach((key) => {
+      if (key !== "images") fd.append(key, form[key]);
+    });
+
+    form.images.forEach((img) => fd.append("images", img));
+
+    const res = await fetch("/api/admin/products", {
+      method: "POST",
+      body: fd,
+    });
+
+    const data = await res.json();
+
+    if (res.ok) {
+      alert("Product saved");
+      fetchAll();
+    } else {
+      alert(data.error || "Error");
+    }
+  }
+
   /* ================= UI ================= */
 
   return (
-    <div style={container}>
-      <h1 style={{ marginBottom: 20 }}>Product Management</h1>
+    <div style={{ padding: 30 }}>
+      <h1>Product Management</h1>
 
-      <div style={layout}>
-        <div style={card}>
-          <h2>Add Product</h2>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <input name="name" placeholder="Name" onChange={handleChange} />
+        <input value={form.slug} readOnly placeholder="Slug" />
 
-          <div style={grid}>
-            <input name="name" placeholder="Product Name" onChange={handleChange} />
-            <input value={form.slug} readOnly placeholder="Slug" />
-            <input value={form.sku} readOnly placeholder="SKU (auto)" />
-            <input name="brand" placeholder="Brand" onChange={handleChange} />
+        <input name="brand" placeholder="Brand" onChange={handleChange} />
 
-            {/* CATEGORY */}
-            <select name="category" value={form.category} onChange={handleChange}>
-              <option value="">Category</option>
-              {categories.map((c) => (
-                <option key={c._id}>{c.name}</option>
-              ))}
-            </select>
+        {/* CATEGORY */}
+        <select name="category" value={form.category} onChange={handleChange}>
+          <option value="">Category</option>
+          {categories.map((c) => (
+            <option key={c._id} value={c._id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
 
-            <div style={inline}>
-              <input
-                value={newCategory}
-                onChange={(e) => setNewCategory(e.target.value)}
-                placeholder="Add Category"
-              />
-              <button type="button" onClick={addCategory}>+</button>
-            </div>
+        <input
+          placeholder="Add Category"
+          value={newCategory}
+          onChange={(e) => setNewCategory(e.target.value)}
+        />
+        <button onClick={addCategory}>Add</button>
 
-            {/* SUBCATEGORY */}
-            <select name="subcategory" value={form.subcategory} onChange={handleChange}>
-              <option value="">Subcategory</option>
-              {subcategories.map((c) => (
-                <option key={c._id}>{c.name}</option>
-              ))}
-            </select>
-
-            <div style={inline}>
-              <input
-                value={newSubcategory}
-                onChange={(e) => setNewSubcategory(e.target.value)}
-                placeholder="Add Subcategory"
-              />
-              <button type="button" onClick={addSubcategory}>+</button>
-            </div>
-
-            {/* GST */}
-            <select value={form.gstCategory} onChange={handleGstChange}>
-              <option value="">GST Category</option>
-              {gstCategories.map((c) => (
-                <option key={c._id}>{c.name}</option>
-              ))}
-            </select>
-
-            <input value={form.hsnCode} readOnly placeholder="HSN Code" />
-            <input value={form.gstPercent} readOnly placeholder="GST %" />
-
-            {/* ADD GST */}
-            <div style={inline}>
-              <input
-                placeholder="GST Name"
-                value={newGst.name}
-                onChange={(e) => setNewGst({ ...newGst, name: e.target.value })}
-              />
-              <input
-                placeholder="HSN"
-                value={newGst.hsn}
-                onChange={(e) => setNewGst({ ...newGst, hsn: e.target.value })}
-              />
-              <input
-                placeholder="GST %"
-                type="number"
-                value={newGst.gst}
-                onChange={(e) => setNewGst({ ...newGst, gst: e.target.value })}
-              />
-              <button type="button" onClick={addGstCategory}>+</button>
-            </div>
-
-            <input name="costPrice" placeholder="Cost Price" onChange={handleChange} />
-            <input name="mrp" placeholder="MRP" onChange={handleChange} />
-            <input name="sellingPrice" placeholder="Selling Price" onChange={handleChange} />
-
-            <select name="status" onChange={handleChange}>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-              <option value="draft">Draft</option>
-              <option value="out_of_stock">Out of Stock</option>
-            </select>
-          </div>
-
-          <textarea
-            placeholder="Description"
-            onChange={(e) =>
-              handleChange({ target: { name: "description", value: e.target.value } })
-            }
-          />
-
-          <input type="file" multiple onChange={handleImage} />
-
-          <div style={{ display: "flex", gap: 10 }}>
-            {form.images.map((file, i) => (
-              <div key={i}>
-                <img src={URL.createObjectURL(file)} width={70} />
-                <button onClick={() => removeImage(i)}>X</button>
-              </div>
+        {/* SUBCATEGORY */}
+        <select name="subcategory" value={form.subcategory} onChange={handleChange}>
+          <option value="">Subcategory</option>
+          {subcategories
+            .filter((s) => s.category?._id === form.category)
+            .map((s) => (
+              <option key={s._id} value={s._id}>
+                {s.name}
+              </option>
             ))}
-          </div>
+        </select>
 
-          <button style={btn}>Save Product</button>
-        </div>
+        <input
+          placeholder="Add Subcategory"
+          value={newSubcategory}
+          onChange={(e) => setNewSubcategory(e.target.value)}
+        />
+        <button onClick={addSubcategory}>Add</button>
+
+        {/* GST */}
+        <select value={form.gstCategory} onChange={handleGstChange}>
+          <option value="">GST</option>
+          {gstCategories.map((g) => (
+            <option key={g._id} value={g._id}>
+              {g.name}
+            </option>
+          ))}
+        </select>
+
+        <input value={form.hsnCode} readOnly placeholder="HSN" />
+        <input value={form.gstPercent} readOnly placeholder="GST %" />
+
+        <input
+          placeholder="GST Name"
+          value={newGst.name}
+          onChange={(e) => setNewGst({ ...newGst, name: e.target.value })}
+        />
+        <input
+          placeholder="HSN"
+          value={newGst.hsn}
+          onChange={(e) => setNewGst({ ...newGst, hsn: e.target.value })}
+        />
+        <input
+          placeholder="GST %"
+          value={newGst.gst}
+          onChange={(e) => setNewGst({ ...newGst, gst: e.target.value })}
+        />
+        <button onClick={addGstCategory}>Add</button>
+
+        <input name="costPrice" placeholder="Cost Price" onChange={handleChange} />
+        <input name="mrp" placeholder="MRP" onChange={handleChange} />
+        <input name="sellingPrice" placeholder="Selling Price" onChange={handleChange} />
+
+        <select name="status" onChange={handleChange}>
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+          <option value="draft">Draft</option>
+          <option value="out_of_stock">Out of Stock</option>
+        </select>
       </div>
+
+      <textarea
+        placeholder="Description"
+        onChange={(e) =>
+          handleChange({ target: { name: "description", value: e.target.value } })
+        }
+      />
+
+      <input type="file" multiple onChange={handleImage} />
+
+      <button onClick={saveProduct} style={{ marginTop: 20 }}>
+        Save Product
+      </button>
     </div>
   );
 }
-
-/* ================= STYLES ================= */
-
-const container = {
-  padding: 30,
-  maxWidth: 1200,
-  margin: "auto",
-};
-
-const layout = {
-  display: "flex",
-  gap: 20,
-};
-
-const card = {
-  flex: 1,
-  background: "#fff",
-  padding: 20,
-  borderRadius: 12,
-  boxShadow: "0 5px 15px rgba(0,0,0,0.1)",
-};
-
-const grid = {
-  display: "grid",
-  gridTemplateColumns: "1fr 1fr",
-  gap: 12,
-  marginBottom: 10,
-};
-
-const inline = {
-  display: "flex",
-  gap: 5,
-};
-
-const btn = {
-  marginTop: 15,
-  padding: 12,
-  background: "#111",
-  color: "#fff",
-  border: "none",
-  borderRadius: 8,
-};
