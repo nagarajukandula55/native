@@ -2,175 +2,309 @@
 
 import { useState, useEffect } from "react";
 import axios from "axios";
-import { toast } from "react-hot-toast";
+import Image from "next/image";
 
-export default function ProductsAdmin() {
+export default function AdminProductsPage() {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
-
   const [form, setForm] = useState({
     name: "",
     category: "",
-    subCategory: "",
-    price: 0,
-    mrp: 0,
-    costPrice: 0,
+    gstCategory: "",
+    price: "",
+    mrp: "",
+    costPrice: "",
     discount: 0,
-    images: [],
     description: "",
+    images: [],
     active: true,
   });
-
+  const [editing, setEditing] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [editId, setEditId] = useState(null);
-  const [newCatName, setNewCatName] = useState("");
-  const [newCatType, setNewCatType] = useState("website");
 
+  // Fetch products & categories
   useEffect(() => {
     fetchProducts();
     fetchCategories();
   }, []);
 
-  async function fetchProducts() {
+  const fetchProducts = async () => {
     try {
-      const { data } = await axios.get("/api/admin/products");
-      setProducts(data.products || []);
+      const res = await axios.get("/api/admin/products");
+      setProducts(res.data.products || []);
     } catch (err) {
-      console.error(err);
-      toast.error("Failed to fetch products");
+      console.error("Fetch products error:", err);
     }
-  }
+  };
 
-  async function fetchCategories() {
+  const fetchCategories = async () => {
     try {
-      const { data } = await axios.get("/api/admin/categories");
-      setCategories(data.categories.filter(c => c.active));
+      const res = await axios.get("/api/admin/categories");
+      setCategories(res.data.categories || []);
     } catch (err) {
-      console.error(err);
-      toast.error("Failed to fetch categories");
+      console.error("Fetch categories error:", err);
     }
-  }
+  };
 
-  async function handleSubmit(e) {
+  // Handle input change
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  // Handle image upload
+  const handleImageUpload = async (e) => {
+    const files = e.target.files;
+    const uploaded = [];
+    for (let i = 0; i < files.length; i++) {
+      const formData = new FormData();
+      formData.append("file", files[i]);
+      formData.append("upload_preset", "native_upload"); // Cloudinary preset
+
+      const res = await axios.post(
+        `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUD_NAME}/upload`,
+        formData
+      );
+      uploaded.push(res.data.secure_url);
+    }
+    setForm((prev) => ({ ...prev, images: [...prev.images, ...uploaded] }));
+  };
+
+  // Auto-generate SEO tags
+  const generateSEO = (name, description) => {
+    const title = `${name} | Native Foods`;
+    const metaDesc = description || `${name} - Buy online from Native Foods`;
+    const keywords = name
+      .split(" ")
+      .map((w) => w.toLowerCase())
+      .join(", ");
+    return { title, metaDesc, keywords };
+  };
+
+  // Handle add/edit product
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.name || !form.category) return toast.error("Name and category required");
-
     setLoading(true);
+
     try {
-      if (editId) {
-        await axios.put(`/api/admin/products/${editId}`, form);
-        toast.success("Product updated");
+      const payload = {
+        ...form,
+        seo: generateSEO(form.name, form.description),
+      };
+
+      if (editing) {
+        await axios.put(`/api/admin/products/${editing._id}`, payload);
       } else {
-        await axios.post("/api/admin/products", form);
-        toast.success("Product added");
+        await axios.post("/api/admin/products", payload);
       }
+
       setForm({
         name: "",
         category: "",
-        subCategory: "",
-        price: 0,
-        mrp: 0,
-        costPrice: 0,
+        gstCategory: "",
+        price: "",
+        mrp: "",
+        costPrice: "",
         discount: 0,
-        images: [],
         description: "",
+        images: [],
         active: true,
       });
-      setEditId(null);
+      setEditing(null);
       fetchProducts();
     } catch (err) {
-      console.error(err);
-      toast.error(err.response?.data?.message || "Failed to save product");
+      console.error("Save product error:", err);
     }
+
     setLoading(false);
-  }
+  };
 
-  function handleEdit(product) {
-    setForm(product);
-    setEditId(product._id);
-  }
+  // Edit product
+  const handleEdit = (product) => {
+    setForm({ ...product });
+    setEditing(product);
+  };
 
-  async function addCategory() {
-    if (!newCatName.trim()) return toast.error("Category name required");
+  // Toggle active status
+  const toggleActive = async (productId, active) => {
     try {
-      await axios.post("/api/admin/categories", { name: newCatName, type: newCatType });
-      toast.success("Category added");
-      setNewCatName("");
-      fetchCategories();
+      await axios.put(`/api/admin/products/${productId}`, { active: !active });
+      fetchProducts();
     } catch (err) {
-      console.error(err);
-      toast.error(err.response?.data?.message || "Failed to add category");
+      console.error("Toggle active error:", err);
     }
-  }
+  };
 
   return (
-    <div style={{ padding: 20, maxWidth: 1200, margin: "0 auto" }}>
-      <h1 style={{ fontSize: 28, fontWeight: 600, marginBottom: 20 }}>Products Admin</h1>
+    <div style={container}>
+      <h1>Admin Products</h1>
 
-      {/* ADD CATEGORY INLINE */}
-      <div style={{ marginBottom: 20, display: "flex", gap: 10, flexWrap: "wrap" }}>
+      {/* Add/Edit Form */}
+      <form style={formCard} onSubmit={handleSubmit}>
+        <h2>{editing ? "Edit Product" : "Add Product"}</h2>
+
         <input
-          placeholder="New Category Name"
-          value={newCatName}
-          onChange={e => setNewCatName(e.target.value)}
-          style={{ padding: 10, borderRadius: 6, border: "1px solid #ccc", flex: "1 1 200px" }}
+          name="name"
+          placeholder="Product Name"
+          value={form.name}
+          onChange={handleChange}
+          required
+          style={input}
         />
-        <select value={newCatType} onChange={e => setNewCatType(e.target.value)} style={{ padding: 10, borderRadius: 6, border: "1px solid #ccc" }}>
-          <option value="website">Website Category</option>
-          <option value="gst">GST / Food Category</option>
-        </select>
-        <button onClick={addCategory} style={{ padding: "10px 20px", borderRadius: 6, background: "#111", color: "#fff", border: "none" }}>Add Category</button>
-      </div>
 
-      {/* PRODUCT FORM */}
-      <form onSubmit={handleSubmit} style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(250px,1fr))", gap: 10, marginBottom: 30 }}>
-        <input placeholder="Product Name" value={form.name} onChange={e => setForm({...form, name: e.target.value})} style={{ padding: 10, borderRadius: 6, border: "1px solid #ccc" }} />
-        <select value={form.category} onChange={e => setForm({...form, category: e.target.value})} style={{ padding: 10, borderRadius: 6, border: "1px solid #ccc" }}>
-          <option value="">Select Category</option>
-          {categories.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
+        <select
+          name="category"
+          value={form.category}
+          onChange={handleChange}
+          required
+          style={input}
+        >
+          <option value="">Select Website Category</option>
+          {categories
+            .filter((c) => c.type === "website")
+            .map((c) => (
+              <option key={c._id} value={c.name}>
+                {c.name}
+              </option>
+            ))}
         </select>
-        <input placeholder="Subcategory (optional)" value={form.subCategory} onChange={e => setForm({...form, subCategory: e.target.value})} style={{ padding: 10, borderRadius: 6, border: "1px solid #ccc" }} />
-        <input type="number" placeholder="MRP" value={form.mrp} onChange={e => setForm({...form, mrp: Number(e.target.value)})} style={{ padding: 10, borderRadius: 6, border: "1px solid #ccc" }} />
-        <input type="number" placeholder="Selling Price" value={form.price} onChange={e => setForm({...form, price: Number(e.target.value)})} style={{ padding: 10, borderRadius: 6, border: "1px solid #ccc" }} />
-        <input type="number" placeholder="Cost Price" value={form.costPrice} onChange={e => setForm({...form, costPrice: Number(e.target.value)})} style={{ padding: 10, borderRadius: 6, border: "1px solid #ccc" }} />
-        <input type="number" placeholder="Discount %" value={form.discount} onChange={e => setForm({...form, discount: Number(e.target.value)})} style={{ padding: 10, borderRadius: 6, border: "1px solid #ccc" }} />
-        <input placeholder="Description" value={form.description} onChange={e => setForm({...form, description: e.target.value})} style={{ padding: 10, borderRadius: 6, border: "1px solid #ccc", gridColumn: "1/-1" }} />
-        <input placeholder="Image URLs (comma separated)" value={form.images.join(",")} onChange={e => setForm({...form, images: e.target.value.split(",")})} style={{ padding: 10, borderRadius: 6, border: "1px solid #ccc", gridColumn: "1/-1" }} />
-        <div style={{ gridColumn: "1/-1" }}>
-          <button type="submit" style={{ padding: "10px 20px", borderRadius: 6, background: "#111", color: "#fff", border: "none" }}>{editId ? "Update Product" : "Add Product"}</button>
+
+        <select
+          name="gstCategory"
+          value={form.gstCategory}
+          onChange={handleChange}
+          required
+          style={input}
+        >
+          <option value="">Select GST Category</option>
+          {categories
+            .filter((c) => c.type === "gst")
+            .map((c) => (
+              <option key={c._id} value={c.name}>
+                {c.name} | HSN:{c.hsn} | GST:{c.gst}%
+              </option>
+            ))}
+        </select>
+
+        <input
+          name="price"
+          placeholder="Selling Price"
+          type="number"
+          value={form.price}
+          onChange={handleChange}
+          required
+          style={input}
+        />
+
+        <input
+          name="mrp"
+          placeholder="MRP"
+          type="number"
+          value={form.mrp}
+          onChange={handleChange}
+          required
+          style={input}
+        />
+
+        <input
+          name="costPrice"
+          placeholder="Cost Price"
+          type="number"
+          value={form.costPrice}
+          onChange={handleChange}
+          required
+          style={input}
+        />
+
+        <input
+          name="discount"
+          placeholder="Discount %"
+          type="number"
+          value={form.discount}
+          onChange={handleChange}
+          style={input}
+        />
+
+        <textarea
+          name="description"
+          placeholder="Product Description"
+          value={form.description}
+          onChange={handleChange}
+          style={textarea}
+        />
+
+        <input
+          type="file"
+          multiple
+          accept="image/*"
+          onChange={handleImageUpload}
+          style={input}
+        />
+
+        <div style={imagesPreview}>
+          {form.images.map((img, idx) => (
+            <Image key={idx} src={img} width={80} height={80} alt="Product" />
+          ))}
         </div>
+
+        <label>
+          <input
+            type="checkbox"
+            checked={form.active}
+            onChange={() =>
+              setForm((prev) => ({ ...prev, active: !prev.active }))
+            }
+          />{" "}
+          Active
+        </label>
+
+        <button type="submit" disabled={loading} style={button}>
+          {loading ? "Saving..." : editing ? "Update Product" : "Add Product"}
+        </button>
       </form>
 
-      {/* PRODUCTS TABLE */}
-      <table style={{ width: "100%", borderCollapse: "collapse" }}>
+      {/* Products Table */}
+      <table style={table}>
         <thead>
           <tr>
+            <th>Image</th>
             <th>Name</th>
-            <th>Category</th>
+            <th>Website Cat</th>
+            <th>GST Cat</th>
             <th>Price</th>
             <th>MRP</th>
-            <th>Cost</th>
-            <th>Discount %</th>
-            <th>Status</th>
-            <th>Image</th>
+            <th>Discount</th>
+            <th>Active</th>
             <th>Actions</th>
           </tr>
         </thead>
         <tbody>
-          {products.map(p => (
+          {products.map((p) => (
             <tr key={p._id}>
+              <td>
+                {p.images && p.images[0] ? (
+                  <Image src={p.images[0]} width={50} height={50} alt={p.name} />
+                ) : (
+                  "No Image"
+                )}
+              </td>
               <td>{p.name}</td>
-              <td>{categories.find(c => c._id === p.category)?.name || "-"}</td>
+              <td>{p.category}</td>
+              <td>{p.gstCategory}</td>
               <td>{p.price}</td>
               <td>{p.mrp}</td>
-              <td>{p.costPrice}</td>
-              <td>{p.discount}</td>
-              <td>{p.active ? "Active" : "Inactive"}</td>
+              <td>{p.discount}%</td>
               <td>
-                {p.images[0] && <img src={p.images[0]} alt={p.name} style={{ width: 50, height: 50, objectFit: "cover" }} />}
+                <input
+                  type="checkbox"
+                  checked={p.active}
+                  onChange={() => toggleActive(p._id, p.active)}
+                />
               </td>
               <td>
-                <button onClick={() => handleEdit(p)} style={{ padding: "5px 10px", borderRadius: 6, background: "#2563eb", color: "#fff", border: "none" }}>Edit</button>
+                <button onClick={() => handleEdit(p)} style={buttonSmall}>
+                  Edit
+                </button>
               </td>
             </tr>
           ))}
@@ -179,3 +313,19 @@ export default function ProductsAdmin() {
     </div>
   );
 }
+
+/* ===== STYLES ===== */
+const container = { padding: 20 };
+const formCard = {
+  padding: 20,
+  marginBottom: 40,
+  borderRadius: 10,
+  background: "#fff",
+  boxShadow: "0 5px 15px rgba(0,0,0,0.1)",
+};
+const input = { width: "100%", padding: 10, marginBottom: 10, borderRadius: 5 };
+const textarea = { width: "100%", padding: 10, marginBottom: 10, borderRadius: 5 };
+const imagesPreview = { display: "flex", gap: 10, marginBottom: 10 };
+const button = { padding: 10, background: "#111", color: "#fff", border: "none" };
+const buttonSmall = { padding: 5, background: "#333", color: "#fff", border: "none" };
+const table = { width: "100%", borderCollapse: "collapse" };
