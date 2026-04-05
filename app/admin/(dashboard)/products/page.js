@@ -1,60 +1,48 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
-import { toast } from "react-hot-toast";
 import Image from "next/image";
+import toast from "react-hot-toast";
 
-// Cloudinary upload helper
-const uploadImageToCloudinary = async (file) => {
-  const formData = new FormData();
-  formData.append("file", file);
-  formData.append("upload_preset", process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET);
-
-  const res = await fetch(`https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD}/upload`, {
-    method: "POST",
-    body: formData,
-  });
-
-  const data = await res.json();
-  return data.secure_url;
-};
-
-export default function AdminProductsPage() {
+export default function ProductsPage() {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
-
   const [formData, setFormData] = useState({
-    _id: "",
     name: "",
-    categoryId: "",
     gstCategoryId: "",
-    price: "",
-    mrp: "",
-    costPrice: "",
+    websiteCategoryId: "",
+    price: 0,
+    mrp: 0,
+    costPrice: 0,
     discount: 0,
-    status: "active",
-    description: "",
     images: [],
+    isActive: true,
   });
 
-  const [loading, setLoading] = useState(false);
+  const [editingProductId, setEditingProductId] = useState(null);
+  const [showAddCategoryModal, setShowAddCategoryModal] = useState(null);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [newHSN, setNewHSN] = useState("");
+  const [newGST, setNewGST] = useState("");
 
+  /* ================= FETCH PRODUCTS ================= */
   const fetchProducts = async () => {
     try {
-      const { data } = await axios.get("/api/admin/products");
-      setProducts(data.products || []);
+      const res = await axios.get("/api/admin/products");
+      if (res.data.success) setProducts(res.data.products);
     } catch (err) {
-      console.error("Fetch products error:", err);
+      console.error(err);
     }
   };
 
+  /* ================= FETCH CATEGORIES ================= */
   const fetchCategories = async () => {
     try {
-      const { data } = await axios.get("/api/admin/categories");
-      setCategories(data.categories || []);
+      const res = await axios.get("/api/admin/categories");
+      if (res.data.success) setCategories(res.data.categories);
     } catch (err) {
-      console.error("Fetch categories error:", err);
+      console.error(err);
     }
   };
 
@@ -63,115 +51,137 @@ export default function AdminProductsPage() {
     fetchCategories();
   }, []);
 
+  /* ================= HANDLE INPUT ================= */
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleImageUpload = async (e) => {
-    const files = Array.from(e.target.files);
-    setLoading(true);
-    try {
-      const urls = [];
-      for (const file of files) {
-        const url = await uploadImageToCloudinary(file);
-        urls.push(url);
-      }
-      setFormData((prev) => ({ ...prev, images: [...prev.images, ...urls] }));
-    } catch (err) {
-      console.error(err);
-      toast.error("Image upload failed");
-    }
-    setLoading(false);
+  const handleFileChange = (e) => {
+    setFormData((prev) => ({ ...prev, images: Array.from(e.target.files) }));
   };
 
+  /* ================= ADD / EDIT PRODUCT ================= */
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
+
+    if (!formData.name || !formData.gstCategoryId || !formData.websiteCategoryId) {
+      return toast.error("Name and categories are required");
+    }
+
+    const payload = new FormData();
+    Object.entries(formData).forEach(([key, value]) => {
+      if (key === "images") {
+        value.forEach((file) => payload.append("images", file));
+      } else {
+        payload.append(key, value);
+      }
+    });
 
     try {
-      const payload = { ...formData };
-
       let res;
-      if (formData._id) {
-        // Edit product
-        res = await axios.put(`/api/admin/products/${formData._id}`, payload);
+      if (editingProductId) {
+        res = await axios.put(`/api/admin/products/${editingProductId}`, payload);
       } else {
-        // Add product
         res = await axios.post("/api/admin/products", payload);
       }
 
       if (res.data.success) {
-        toast.success("Product saved successfully");
-        fetchProducts();
+        toast.success(editingProductId ? "Product updated" : "Product added");
         setFormData({
-          _id: "",
           name: "",
-          categoryId: "",
           gstCategoryId: "",
-          price: "",
-          mrp: "",
-          costPrice: "",
+          websiteCategoryId: "",
+          price: 0,
+          mrp: 0,
+          costPrice: 0,
           discount: 0,
-          status: "active",
-          description: "",
           images: [],
+          isActive: true,
         });
+        setEditingProductId(null);
+        fetchProducts();
       } else {
-        toast.error(res.data.message || "Failed to save product");
+        toast.error(res.data.message);
       }
     } catch (err) {
       console.error(err);
-      toast.error("Server error");
+      toast.error("Failed to save product");
     }
-
-    setLoading(false);
   };
 
+  /* ================= EDIT PRODUCT ================= */
   const handleEdit = (product) => {
+    setEditingProductId(product._id);
     setFormData({
-      _id: product._id,
       name: product.name,
-      categoryId: product.categoryId?._id || "",
-      gstCategoryId: product.gstCategoryId?._id || "",
+      gstCategoryId: product.gstCategory?._id || "",
+      websiteCategoryId: product.websiteCategory?._id || "",
       price: product.price,
       mrp: product.mrp,
       costPrice: product.costPrice,
-      discount: product.discount || 0,
-      status: product.status,
-      description: product.description,
-      images: product.images || [],
+      discount: product.discount,
+      images: [], // Images will be replaced only if admin uploads new
+      isActive: product.isActive,
     });
-    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  /* ================= TOGGLE ACTIVE ================= */
+  const toggleActive = async (productId) => {
+    try {
+      const res = await axios.put(`/api/admin/products/${productId}/toggle`);
+      if (res.data.success) fetchProducts();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  /* ================= ADD CATEGORY ================= */
+  const handleAddCategory = async () => {
+    if (!newCategoryName) return toast.error("Category name required");
+
+    try {
+      const payload = {
+        name: newCategoryName,
+        type: showAddCategoryModal.type,
+        hsnCode: newHSN,
+        gst: newGST,
+      };
+
+      const res = await axios.post("/api/admin/categories", payload);
+      if (res.data.success) {
+        toast.success("Category added");
+        fetchCategories(); // Refresh dropdown
+        setShowAddCategoryModal(null);
+        setNewCategoryName("");
+        setNewHSN("");
+        setNewGST("");
+      } else {
+        toast.error(res.data.message);
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to add category");
+    }
   };
 
   return (
-    <div style={{ padding: 20 }}>
-      <h1 style={{ fontSize: 28, marginBottom: 20 }}>Admin Products</h1>
+    <div style={{ padding: 30 }}>
+      <h2>Products</h2>
 
-      {/* ===== Product Form ===== */}
-      <form
-        onSubmit={handleSubmit}
-        style={{
-          background: "#fff",
-          padding: 20,
-          borderRadius: 12,
-          boxShadow: "0 5px 20px rgba(0,0,0,0.05)",
-          marginBottom: 40,
-        }}
-      >
-        <h2>{formData._id ? "Edit Product" : "Add Product"}</h2>
+      {/* ================= ADD / EDIT FORM ================= */}
+      <form onSubmit={handleSubmit} style={{ marginBottom: 40 }}>
+        <input
+          type="text"
+          name="name"
+          placeholder="Product Name"
+          value={formData.name}
+          onChange={handleInputChange}
+          required
+        />
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 15, marginTop: 15 }}>
-          <input
-            type="text"
-            name="name"
-            value={formData.name}
-            placeholder="Product Name"
-            onChange={handleInputChange}
-            required
-          />
-
+        {/* GST Category Dropdown */}
+        <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 10 }}>
           <select
             name="gstCategoryId"
             value={formData.gstCategoryId}
@@ -187,10 +197,16 @@ export default function AdminProductsPage() {
                 </option>
               ))}
           </select>
+          <button type="button" onClick={() => setShowAddCategoryModal({ type: "gst" })}>
+            + Add Category
+          </button>
+        </div>
 
+        {/* Website Category Dropdown */}
+        <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 10 }}>
           <select
-            name="categoryId"
-            value={formData.categoryId}
+            name="websiteCategoryId"
+            value={formData.websiteCategoryId}
             onChange={handleInputChange}
             required
           >
@@ -203,106 +219,97 @@ export default function AdminProductsPage() {
                 </option>
               ))}
           </select>
-
-          <input
-            type="number"
-            name="price"
-            value={formData.price}
-            placeholder="Selling Price"
-            onChange={handleInputChange}
-            required
-          />
-
-          <input
-            type="number"
-            name="mrp"
-            value={formData.mrp}
-            placeholder="MRP"
-            onChange={handleInputChange}
-            required
-          />
-
-          <input
-            type="number"
-            name="costPrice"
-            value={formData.costPrice}
-            placeholder="Cost Price"
-            onChange={handleInputChange}
-            required
-          />
-
-          <input
-            type="number"
-            name="discount"
-            value={formData.discount}
-            placeholder="Discount %"
-            onChange={handleInputChange}
-          />
-
-          <select name="status" value={formData.status} onChange={handleInputChange}>
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-          </select>
+          <button type="button" onClick={() => setShowAddCategoryModal({ type: "website" })}>
+            + Add Category
+          </button>
         </div>
 
-        <textarea
-          name="description"
-          value={formData.description}
-          placeholder="Description"
+        <input
+          type="number"
+          name="price"
+          placeholder="Selling Price"
+          value={formData.price}
           onChange={handleInputChange}
-          style={{ marginTop: 15, width: "100%", height: 100 }}
+        />
+        <input
+          type="number"
+          name="mrp"
+          placeholder="MRP"
+          value={formData.mrp}
+          onChange={handleInputChange}
+        />
+        <input
+          type="number"
+          name="costPrice"
+          placeholder="Cost Price"
+          value={formData.costPrice}
+          onChange={handleInputChange}
+        />
+        <input
+          type="number"
+          name="discount"
+          placeholder="Discount %"
+          value={formData.discount}
+          onChange={handleInputChange}
         />
 
-        <div style={{ marginTop: 15 }}>
-          <label>
-            Upload Images (multiple):
-            <input type="file" multiple accept="image/*" onChange={handleImageUpload} />
-          </label>
+        <input type="file" multiple onChange={handleFileChange} />
 
-          <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
-            {formData.images.map((url, idx) => (
-              <Image key={idx} src={url} alt={`img-${idx}`} width={80} height={80} />
-            ))}
-          </div>
-        </div>
+        <label>
+          Active:
+          <input
+            type="checkbox"
+            checked={formData.isActive}
+            name="isActive"
+            onChange={(e) =>
+              setFormData((prev) => ({ ...prev, isActive: e.target.checked }))
+            }
+          />
+        </label>
 
-        <button type="submit" disabled={loading} style={{ marginTop: 20 }}>
-          {loading ? "Saving..." : formData._id ? "Update Product" : "Add Product"}
-        </button>
+        <button type="submit">{editingProductId ? "Update Product" : "Add Product"}</button>
       </form>
 
-      {/* ===== Products Table ===== */}
-      <table style={{ width: "100%", borderCollapse: "collapse", background: "#fff" }}>
+      {/* ================= PRODUCTS TABLE ================= */}
+      <table border="1" cellPadding={10} style={{ width: "100%", textAlign: "left" }}>
         <thead>
-          <tr style={{ borderBottom: "1px solid #ddd" }}>
-            <th>#</th>
+          <tr>
             <th>Image</th>
             <th>Name</th>
-            <th>Website Category</th>
             <th>GST Category</th>
+            <th>Website Category</th>
             <th>Price</th>
             <th>MRP</th>
+            <th>Cost Price</th>
             <th>Discount</th>
-            <th>Status</th>
-            <th>Action</th>
+            <th>Active</th>
+            <th>Actions</th>
           </tr>
         </thead>
         <tbody>
-          {products.map((p, idx) => (
-            <tr key={p._id} style={{ borderBottom: "1px solid #eee" }}>
-              <td>{idx + 1}</td>
+          {products.map((p) => (
+            <tr key={p._id}>
               <td>
-                {p.images?.[0] ? <Image src={p.images[0]} alt={p.name} width={50} height={50} /> : "No Image"}
+                {p.images?.[0] ? (
+                  <Image src={p.images[0]} alt={p.name} width={50} height={50} />
+                ) : (
+                  "No Image"
+                )}
               </td>
               <td>{p.name}</td>
-              <td>{p.categoryId?.name || "-"}</td>
-              <td>
-                {p.gstCategoryId ? `${p.gstCategoryId.name} (${p.gstCategoryId.gst}%)` : "-"}
-              </td>
+              <td>{p.gstCategory?.name}</td>
+              <td>{p.websiteCategory?.name}</td>
               <td>{p.price}</td>
               <td>{p.mrp}</td>
-              <td>{p.discount || 0}%</td>
-              <td>{p.status}</td>
+              <td>{p.costPrice}</td>
+              <td>{p.discount}</td>
+              <td>
+                <input
+                  type="checkbox"
+                  checked={p.isActive}
+                  onChange={() => toggleActive(p._id)}
+                />
+              </td>
               <td>
                 <button onClick={() => handleEdit(p)}>Edit</button>
               </td>
@@ -310,6 +317,44 @@ export default function AdminProductsPage() {
           ))}
         </tbody>
       </table>
+
+      {/* ================= ADD CATEGORY MODAL ================= */}
+      {showAddCategoryModal && (
+        <div style={{
+          position: "fixed", top: 0, left: 0, width: "100%", height: "100%",
+          background: "rgba(0,0,0,0.5)", display: "flex", justifyContent: "center", alignItems: "center"
+        }}>
+          <div style={{ background: "#fff", padding: 20, borderRadius: 12, minWidth: 300 }}>
+            <h3>Add {showAddCategoryModal.type === "gst" ? "GST" : "Website"} Category</h3>
+            <input
+              type="text"
+              placeholder="Category Name"
+              value={newCategoryName}
+              onChange={(e) => setNewCategoryName(e.target.value)}
+            />
+            {showAddCategoryModal.type === "gst" && (
+              <>
+                <input
+                  type="text"
+                  placeholder="HSN Code"
+                  value={newHSN}
+                  onChange={(e) => setNewHSN(e.target.value)}
+                />
+                <input
+                  type="number"
+                  placeholder="GST %"
+                  value={newGST}
+                  onChange={(e) => setNewGST(e.target.value)}
+                />
+              </>
+            )}
+            <div style={{ marginTop: 10 }}>
+              <button onClick={handleAddCategory}>Add</button>
+              <button onClick={() => setShowAddCategoryModal(null)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
