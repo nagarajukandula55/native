@@ -1,54 +1,62 @@
 import { NextResponse } from "next/server";
-import connectDB from "@/lib/mongodb";
+import mongoose from "mongoose";
 import Category from "@/models/Category";
 import slugify from "slugify";
 
-export const dynamic = "force-dynamic";
-
-/* ================= DB CONNECT ================= */
-async function dbConnect() {
-  await connectDB();
+// Connect DB
+async function connectDB() {
+  if (mongoose.connection.readyState === 1) return;
+  await mongoose.connect(process.env.MONGODB_URI);
 }
 
-/* ================= GET CATEGORIES ================= */
+// Admin auth
+async function verifyAdmin(req) {
+  const token = req.cookies.get("token")?.value;
+  if (!token) throw new Error("Unauthorized");
+  const jwt = require("jsonwebtoken");
+  const decoded = jwt.verify(token, process.env.JWT_SECRET);
+  if (!decoded.role || decoded.role !== "admin") throw new Error("Forbidden");
+  return decoded;
+}
+
+// GET categories
 export async function GET() {
   try {
-    await dbConnect();
-
+    await connectDB();
     const categories = await Category.find().sort({ createdAt: -1 }).lean();
-
     return NextResponse.json({ success: true, categories });
   } catch (err) {
-    console.error("GET CATEGORIES ERROR:", err);
+    console.error(err);
     return NextResponse.json({ success: false, message: "Failed to fetch categories" }, { status: 500 });
   }
 }
 
-/* ================= ADD CATEGORY ================= */
+// POST create or edit category
 export async function POST(req) {
   try {
-    await dbConnect();
+    await connectDB();
+    await verifyAdmin(req);
 
     const body = await req.json();
-    if (!body.name) {
-      return NextResponse.json({ success: false, message: "Category name is required" }, { status: 400 });
+    const { _id, name, type } = body;
+
+    if (!name || !type) return NextResponse.json({ success: false, message: "Missing required fields" }, { status: 400 });
+
+    const slug = slugify(name, { lower: true, strict: true });
+
+    let category;
+    if (_id) {
+      category = await Category.findByIdAndUpdate(_id, { name, slug, type }, { new: true });
+    } else {
+      const exists = await Category.findOne({ slug });
+      if (exists) return NextResponse.json({ success: false, message: "Category already exists" }, { status: 400 });
+      category = await Category.create({ name, slug, type });
     }
-
-    const slug = slugify(body.name, { lower: true, strict: true });
-
-    const existing = await Category.findOne({ slug });
-    if (existing) {
-      return NextResponse.json({ success: false, message: "Category already exists" }, { status: 400 });
-    }
-
-    const category = await Category.create({
-      name: body.name,
-      slug,
-    });
 
     return NextResponse.json({ success: true, category });
   } catch (err) {
-    console.error("ADD CATEGORY ERROR:", err);
-    return NextResponse.json({ success: false, message: "Failed to add category" }, { status: 500 });
+    console.error(err);
+    const status = err.message.includes("Unauthorized") ? 401 : err.message.includes("Forbidden") ? 403 : 500;
+    return NextResponse.json({ success: false, message: err.message || "Server error" }, { status });
   }
 }
