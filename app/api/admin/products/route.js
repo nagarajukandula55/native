@@ -1,28 +1,23 @@
 import { NextResponse } from "next/server";
-import connectDB from "@/lib/mongodb";
+import connectDB from "@/lib/db";
 import Product from "@/models/Product";
 import GstCategory from "@/models/GstCategory";
 import slugify from "slugify";
-import cloudinary from "@/lib/cloudinary";
+import { v2 as cloudinary } from "cloudinary";
 
-/* ================= SKU GENERATOR ================= */
-async function generateSKU(name) {
-  const words = name.trim().split(/\s+/);
+/* ================= CLOUDINARY ================= */
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_NAME,
+  api_key: process.env.CLOUDINARY_KEY,
+  api_secret: process.env.CLOUDINARY_SECRET,
+});
 
-  let core =
-    words[0].toLowerCase() === "native" && words[1]
-      ? words[1]
-      : words[0];
-
-  core = core.toUpperCase().replace(/[^A-Z0-9]/g, "");
-
-  const base = `NA${core}`;
-
-  const count = await Product.countDocuments({
-    sku: new RegExp(`^${base}`),
-  });
-
-  return `${base}${String(count + 1).padStart(3, "0")}`;
+/* ================= SKU ================= */
+async function generateSKU(categoryId) {
+  const count = await Product.countDocuments({ category: categoryId });
+  return `SKU-${categoryId.toString().slice(-3)}-${(count + 1)
+    .toString()
+    .padStart(4, "0")}`;
 }
 
 /* ================= GET ================= */
@@ -33,7 +28,7 @@ export async function GET() {
     .populate("category subcategory gstCategory")
     .sort({ createdAt: -1 });
 
-  return NextResponse.json(products);
+  return NextResponse.json({ products });
 }
 
 /* ================= CREATE ================= */
@@ -44,48 +39,44 @@ export async function POST(req) {
     const formData = await req.formData();
 
     const name = formData.get("name");
-    const description = formData.get("description");
-
     const slug = slugify(name, { lower: true });
 
-    const exists = await Product.findOne({ slug });
-    if (exists) {
-      return NextResponse.json({ error: "Product exists" }, { status: 400 });
-    }
-
-    const sku = await generateSKU(name);
-
-    /* ==== GST AUTO ==== */
+    const category = formData.get("category");
+    const subcategory = formData.get("subcategory");
     const gstId = formData.get("gstCategory");
+
     const gstData = await GstCategory.findById(gstId);
 
-    /* ==== IMAGE UPLOAD ==== */
+    /* ===== Upload Images ===== */
     const files = formData.getAll("images");
-    const uploaded = [];
+    let images = [];
 
     for (const file of files) {
       const bytes = await file.arrayBuffer();
       const buffer = Buffer.from(bytes);
 
-      const res = await cloudinary.uploader.upload_stream(
-        { folder: "products" },
-        (err, result) => {
-          if (result) uploaded.push(result.secure_url);
-        }
-      );
+      const res = await new Promise((resolve, reject) => {
+        cloudinary.uploader
+          .upload_stream({ folder: "products" }, (err, result) => {
+            if (err) reject(err);
+            else resolve(result);
+          })
+          .end(buffer);
+      });
 
-      res.end(buffer);
+      images.push(res.secure_url);
     }
+
+    const sku = await generateSKU(category);
 
     const product = await Product.create({
       name,
       slug,
-      sku,
-      description,
+      description: formData.get("description"),
       brand: formData.get("brand"),
 
-      category: formData.get("category"),
-      subcategory: formData.get("subcategory"),
+      category,
+      subcategory,
 
       gstCategory: gstId,
       hsnCode: gstData?.hsn,
@@ -95,16 +86,96 @@ export async function POST(req) {
       mrp: formData.get("mrp"),
       sellingPrice: formData.get("sellingPrice"),
 
-      images: uploaded,
-
-      tags: name.toLowerCase().split(" "),
-
+      images,
+      sku,
       status: formData.get("status"),
     });
 
     return NextResponse.json(product);
   } catch (err) {
-    console.error(err);
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
+
+/* ================= UPDATE ================= */
+export async function PUT(req) {
+  try {
+    await connectDB();
+
+    const formData = await req.formData();
+    const id = formData.get("_id");
+
+    const product = await Product.findById(id);
+    if (!product)
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+    const name = formData.get("name");
+
+    product.name = name;
+    product.slug = slugify(name, { lower: true });
+
+    product.description = formData.get("description");
+    product.brand = formData.get("brand");
+
+    product.category = formData.get("category");
+    product.subcategory = formData.get("subcategory");
+
+    const gstId = formData.get("gstCategory");
+    const gstData = await GstCategory.findById(gstId);
+
+    product.gstCategory = gstId;
+    product.hsnCode = gstData?.hsn;
+    product.gstPercent = gstData?.gst;
+
+    product.costPrice = formData.get("costPrice");
+    product.mrp = formData.get("mrp");
+    product.sellingPrice = formData.get("sellingPrice");
+
+    product.status = formData.get("status");
+
+    /* Optional: replace images if new ones added */
+    const files = formData.getAll("images");
+    if (files.length > 0 && files[0].size > 0) {
+      let images = [];
+
+      for (const file of files) {
+        const buffer = Buffer.from(await file.arrayBuffer());
+
+        const res = await new Promise((resolve, reject) => {
+          cloudinary.uploader
+            .upload_stream({ folder: "products" }, (err, result) => {
+              if (err) reject(err);
+              else resolve(result);
+            })
+            .end(buffer);
+        });
+
+        images.push(res.secure_url);
+      }
+
+      product.images = images;
+    }
+
+    await product.save();
+
+    return NextResponse.json(product);
+  } catch (err) {
+    return NextResponse.json({ error: "Update failed" }, { status: 500 });
+  }
+}
+
+/* ================= DELETE ================= */
+export async function DELETE(req) {
+  try {
+    await connectDB();
+
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get("id");
+
+    await Product.findByIdAndDelete(id);
+
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    return NextResponse.json({ error: "Delete failed" }, { status: 500 });
   }
 }
