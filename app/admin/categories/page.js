@@ -134,59 +134,11 @@ export default function CategoriesAdmin() {
 }
 
 /* ===== STYLES ===== */
-const container = {
-  padding: 20,
-  maxWidth: 900,
-  margin: "0 auto",
-};
-
-const title = {
-  fontSize: 28,
-  fontWeight: 600,
-  marginBottom: 20,
-};
-
-const form = {
-  display: "flex",
-  gap: 10,
-  marginBottom: 20,
-  flexWrap: "wrap",
-};
-
-const input = {
-  padding: 10,
-  borderRadius: 6,
-  border: "1px solid #ccc",
-  flex: "1 1 200px",
-};
-
-const button = {
-  padding: "10px 20px",
-  borderRadius: 6,
-  background: "#111",
-  color: "#fff",
-  border: "none",
-  cursor: "pointer",
-};
-
-const table = {
-  width: "100%",
-  borderCollapse: "collapse",
-};
-
-const statusBtn = {
-  padding: "5px 10px",
-  borderRadius: 6,
-  color: "#fff",
-  border: "none",
-  cursor: "pointer",
-};
-
-const editBtn = {
-  padding: "5px 10px",
-  borderRadius: 6,
-  background: "#2563eb",
-  color: "#fff",
-  border: "none",
-  cursor: "pointer",
-};
+const container = { padding: 20, maxWidth: 900, margin: "0 auto" };
+const title = { fontSize: 28, fontWeight: 600, marginBottom: 20 };
+const form = { display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap" };
+const input = { padding: 10, borderRadius: 6, border: "1px solid #ccc", flex: "1 1 200px" };
+const button = { padding: "10px 20px", borderRadius: 6, background: "#111", color: "#fff", border: "none", cursor: "pointer" };
+const table = { width: "100%", borderCollapse: "collapse" };
+const statusBtn = { padding: "5px 10px", borderRadius: 6, color: "#fff", border: "none", cursor: "pointer" };
+const editBtn = { padding: "5px 10px", borderRadius: 6, background: "#2563eb", color: "#fff", border: "none", cursor: "pointer" };
