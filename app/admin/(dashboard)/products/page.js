@@ -11,34 +11,34 @@ function generateSlug(name) {
     .replace(/\s+/g, "-");
 }
 
-// Extract word after "Native"
 function extractCoreWord(name) {
   if (!name) return "";
 
   const words = name.trim().split(/\s+/);
 
   if (words[0].toLowerCase() === "native" && words.length > 1) {
-    return words[1]; // take only next word
+    return words[1];
   }
 
-  return words[0]; // fallback
+  return words[0];
 }
 
 function generateSKU(name, products) {
   if (!name) return "";
 
-  const coreWord = extractCoreWord(name).toUpperCase().replace(/[^A-Z0-9]/g, "");
+  const core = extractCoreWord(name)
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
 
-  if (!coreWord) return "";
+  if (!core) return "";
 
-  const base = `NA${coreWord}`;
+  const base = `NA${core}`;
 
-  // Find existing SKUs
   const same = products.filter((p) => p.sku?.startsWith(base));
 
-  const nextNumber = same.length + 1;
+  const next = same.length + 1;
 
-  return `${base}${String(nextNumber).padStart(3, "0")}`;
+  return `${base}${String(next).padStart(3, "0")}`;
 }
 
 function generateTags(name, desc) {
@@ -87,7 +87,7 @@ export default function ProductsPage() {
     if (name === "name" || name === "description") {
       updated.slug = generateSlug(updated.name);
       updated.tags = generateTags(updated.name, updated.description);
-      updated.sku = generateSKU(updated.name, products); // ✅ UPDATED SKU
+      updated.sku = generateSKU(updated.name, products);
     }
 
     setForm(updated);
@@ -116,7 +116,7 @@ export default function ProductsPage() {
     }));
   }
 
-  /* ================= CATEGORY ADD ================= */
+  /* ================= ADD FUNCTIONS ================= */
 
   function addCategory() {
     if (!newCategory.trim()) return;
@@ -140,12 +140,13 @@ export default function ProductsPage() {
 
   function addGstCategory() {
     const { name, hsn, gst } = newGst;
-    if (!name || !hsn || !gst) return;
+
+    if (!name.trim() || !hsn.trim() || !gst) return;
 
     const obj = {
       _id: Date.now(),
-      name,
-      hsn,
+      name: name.trim(),
+      hsn: hsn.trim(),
       gst: Number(gst),
     };
 
@@ -153,9 +154,9 @@ export default function ProductsPage() {
 
     setForm((f) => ({
       ...f,
-      gstCategory: name,
-      hsnCode: hsn,
-      gstPercent: gst,
+      gstCategory: obj.name,
+      hsnCode: obj.hsn,
+      gstPercent: obj.gst,
     }));
 
     setNewGst({ name: "", hsn: "", gst: "" });
@@ -173,11 +174,8 @@ export default function ProductsPage() {
 
           <div style={grid}>
             <input name="name" placeholder="Product Name" onChange={handleChange} />
-
             <input value={form.slug} readOnly placeholder="Slug" />
-
             <input value={form.sku} readOnly placeholder="SKU (auto)" />
-
             <input name="brand" placeholder="Brand" onChange={handleChange} />
 
             {/* CATEGORY */}
@@ -189,7 +187,11 @@ export default function ProductsPage() {
             </select>
 
             <div style={inline}>
-              <input value={newCategory} onChange={(e) => setNewCategory(e.target.value)} placeholder="Add Category" />
+              <input
+                value={newCategory}
+                onChange={(e) => setNewCategory(e.target.value)}
+                placeholder="Add Category"
+              />
               <button type="button" onClick={addCategory}>+</button>
             </div>
 
@@ -202,7 +204,11 @@ export default function ProductsPage() {
             </select>
 
             <div style={inline}>
-              <input value={newSubcategory} onChange={(e) => setNewSubcategory(e.target.value)} placeholder="Add Subcategory" />
+              <input
+                value={newSubcategory}
+                onChange={(e) => setNewSubcategory(e.target.value)}
+                placeholder="Add Subcategory"
+              />
               <button type="button" onClick={addSubcategory}>+</button>
             </div>
 
@@ -214,8 +220,29 @@ export default function ProductsPage() {
               ))}
             </select>
 
-            <input value={form.hsnCode} readOnly placeholder="HSN" />
+            <input value={form.hsnCode} readOnly placeholder="HSN Code" />
             <input value={form.gstPercent} readOnly placeholder="GST %" />
+
+            {/* ADD GST */}
+            <div style={inline}>
+              <input
+                placeholder="GST Name"
+                value={newGst.name}
+                onChange={(e) => setNewGst({ ...newGst, name: e.target.value })}
+              />
+              <input
+                placeholder="HSN"
+                value={newGst.hsn}
+                onChange={(e) => setNewGst({ ...newGst, hsn: e.target.value })}
+              />
+              <input
+                placeholder="GST %"
+                type="number"
+                value={newGst.gst}
+                onChange={(e) => setNewGst({ ...newGst, gst: e.target.value })}
+              />
+              <button type="button" onClick={addGstCategory}>+</button>
+            </div>
 
             <input name="costPrice" placeholder="Cost Price" onChange={handleChange} />
             <input name="mrp" placeholder="MRP" onChange={handleChange} />
