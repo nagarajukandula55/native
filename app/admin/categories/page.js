@@ -3,60 +3,93 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 
-export default function CategoriesPage() {
+export default function AdminCategoriesPage() {
   const [categories, setCategories] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [name, setName] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [newCategory, setNewCategory] = useState("");
+  const [editingCategory, setEditingCategory] = useState(null);
+
+  /* ================= FETCH CATEGORIES ================= */
+  const fetchCategories = async () => {
+    setLoading(true);
+    try {
+      const res = await axios.get("/api/admin/categories");
+      if (res.data.success) setCategories(res.data.categories);
+    } catch (err) {
+      console.error("FETCH CATEGORIES ERROR:", err);
+    }
+    setLoading(false);
+  };
 
   useEffect(() => {
     fetchCategories();
   }, []);
 
-  async function fetchCategories() {
-    setLoading(true);
-    const { data } = await axios.get("/api/admin/categories");
-    if (data.success) setCategories(data.categories);
-    setLoading(false);
-  }
+  /* ================= ADD / UPDATE CATEGORY ================= */
+  const handleSubmit = async () => {
+    if (!newCategory.trim()) return;
 
-  async function handleAdd(e) {
-    e.preventDefault();
-    if (!name) return;
-    const { data } = await axios.post("/api/admin/categories", { name });
-    if (data.success) {
-      setName("");
+    try {
+      if (editingCategory) {
+        await axios.put(`/api/admin/categories/${editingCategory._id}`, {
+          name: newCategory,
+        });
+      } else {
+        await axios.post("/api/admin/categories", { name: newCategory });
+      }
+      setNewCategory("");
+      setEditingCategory(null);
       fetchCategories();
+    } catch (err) {
+      console.error("CATEGORY SUBMIT ERROR:", err);
     }
-  }
+  };
+
+  /* ================= EDIT CATEGORY ================= */
+  const handleEdit = (cat) => {
+    setEditingCategory(cat);
+    setNewCategory(cat.name);
+  };
 
   return (
     <div style={{ padding: 20 }}>
-      <h1>Categories</h1>
-      <form onSubmit={handleAdd} style={{ marginBottom: 20 }}>
-        <input placeholder="Add new category" value={name} onChange={e => setName(e.target.value)} required />
-        <button type="submit">Add</button>
-      </form>
+      <h1>Categories Management</h1>
 
-      <table style={{ width: "100%", borderCollapse: "collapse" }}>
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Slug</th>
-          </tr>
-        </thead>
-        <tbody>
-          {loading ? (
-            <tr><td colSpan={2}>Loading...</td></tr>
-          ) : categories.length === 0 ? (
-            <tr><td colSpan={2}>No categories</td></tr>
-          ) : categories.map(cat => (
-            <tr key={cat._id}>
-              <td>{cat.name}</td>
-              <td>{cat.slug}</td>
+      <div style={{ marginBottom: 20 }}>
+        <input
+          type="text"
+          value={newCategory}
+          onChange={(e) => setNewCategory(e.target.value)}
+          placeholder="Category Name"
+          style={{ padding: 8, marginRight: 10 }}
+        />
+        <button onClick={handleSubmit}>
+          {editingCategory ? "Update Category" : "Add Category"}
+        </button>
+      </div>
+
+      {loading ? (
+        <p>Loading categories...</p>
+      ) : (
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Actions</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {categories.map((cat) => (
+              <tr key={cat._id} style={{ borderBottom: "1px solid #ccc" }}>
+                <td>{cat.name}</td>
+                <td>
+                  <button onClick={() => handleEdit(cat)}>Edit</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </div>
   );
 }
