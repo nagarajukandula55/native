@@ -1,41 +1,29 @@
 import mongoose from "mongoose";
 
-const variantSchema = new mongoose.Schema({
-  name: String,        // e.g., Size, Flavor
-  options: [String],   // e.g., ["Small", "Medium", "Large"]
-});
-
 const productSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
     slug: { type: String, required: true, unique: true },
     sku: { type: String, required: true, unique: true },
     description: { type: String, required: true },
+    category: { type: String, required: true }, // Website category
+    gstCategory: { type: String, required: true }, // Food/GST category
+    hsnCode: { type: String, required: true },
+    gstPercent: { type: Number, required: true },
     costPrice: { type: Number, required: true },
-    sellingPrice: { type: Number, required: true },
     mrp: { type: Number, required: true },
-    profit: { type: Number },
-    images: [{ type: String }], // Cloudinary URLs
-    variants: [variantSchema],
-    gstCategory: {
-      type: String,
-      enum: ["Food", "Electronics", "Other"], // Add more as needed
-    },
-    hsn: String,
-    gstPercent: Number,
-    websiteCategory: String, // Admin-customizable
-    status: { type: String, enum: ["Active", "Inactive"], default: "Active" },
-    seoTitle: String,
-    seoDescription: String,
-    tags: [String],
+    sellingPrice: { type: Number, required: true },
+    discountPercent: { type: Number, default: 0 },
+    tags: [{ type: String }],
+    images: [{ type: String }], // cloudinary urls
+    featuredImage: { type: String },
+    seoTitle: { type: String },
+    seoDescription: { type: String },
+    status: { type: String, enum: ["active", "inactive"], default: "active" },
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date },
   },
   { timestamps: true }
 );
 
-// Auto calculate profit before save
-productSchema.pre("save", function () {
-  this.profit = this.sellingPrice - this.costPrice;
-});
-
-const Product = mongoose.models.Product || mongoose.model("Product", productSchema);
-export default Product;
+export default mongoose.models.Product || mongoose.model("Product", productSchema);
