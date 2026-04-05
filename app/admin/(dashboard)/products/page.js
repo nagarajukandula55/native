@@ -1,8 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { HSN_LIST } from "@/lib/hsn";
-import { CATEGORIES } from "@/lib/category";
+import { useState, useEffect } from "react";
 
 export default function AdminProducts() {
 
@@ -14,221 +12,138 @@ export default function AdminProducts() {
     costPrice: "",
     category: "",
     brand: "",
-    hsn: "",
-    gst: "",
-    weight: "",
-    length: "",
-    breadth: "",
-    height: "",
+    images: [],
     featured: false,
     status: "ACTIVE",
-    image: "",
   };
 
   const [form, setForm] = useState(emptyForm);
   const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [editing, setEditing] = useState(false);
+  const [categories, setCategories] = useState([]);
 
-  /* ================= LOAD PRODUCTS ================= */
   useEffect(() => {
     loadProducts();
+    loadCategories();
   }, []);
 
+  /* ================= LOAD PRODUCTS ================= */
   async function loadProducts() {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/admin/products");
-      const data = await res.json();
+    const res = await fetch("/api/admin/products");
+    const data = await res.json();
 
-      if (data.success) {
-        setProducts(data.products || []);
-      } else {
-        setProducts([]);
-      }
-
-    } catch (err) {
-      console.error(err);
-      alert("Failed to load products");
+    if (data.success) {
+      setProducts(data.products); // ✅ FIXED
     }
-    setLoading(false);
   }
 
-  /* ================= FORM CHANGE ================= */
+  /* ================= LOAD CATEGORIES ================= */
+  async function loadCategories() {
+    const res = await fetch("/api/admin/categories");
+    const data = await res.json();
+
+    if (data.success) {
+      setCategories(data.categories);
+    }
+  }
+
+  /* ================= HANDLE CHANGE ================= */
   function handleChange(e) {
     const { name, value, type, checked } = e.target;
 
-    let updated = {
+    setForm({
       ...form,
       [name]: type === "checkbox" ? checked : value,
-    };
+    });
+  }
 
-    if (name === "hsn") {
-      const selected = HSN_LIST.find(h => h.hsn === value);
-      if (selected) updated.gst = selected.gst;
+  /* ================= IMAGE UPLOAD ================= */
+  async function handleImageUpload(e) {
+    const files = Array.from(e.target.files);
+
+    for (const file of files) {
+      const fd = new FormData();
+      fd.append("file", file);
+
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: fd,
+      });
+
+      const data = await res.json();
+
+      if (data.url) {
+        setForm((prev) => ({
+          ...prev,
+          images: [...prev.images, data.url],
+        }));
+      }
     }
-
-    setForm(updated);
   }
 
   /* ================= SUBMIT ================= */
   async function handleSubmit(e) {
     e.preventDefault();
 
-    if (!form.name || !form.price) {
-      return alert("Name & Price required");
-    }
-
-    setSaving(true);
-
-    try {
-      let res;
-
-      if (editing) {
-        res = await fetch(`/api/admin/products/${form.slug}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(form),
-        });
-      } else {
-        res = await fetch("/api/admin/products", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(form),
-        });
-      }
-
-      const data = await res.json();
-
-      if (!data.success) {
-        alert(data.message || "Failed");
-      } else {
-        alert(editing ? "Updated ✅" : "Created ✅");
-        setForm(emptyForm);
-        setEditing(false);
-        loadProducts();
-      }
-
-    } catch (err) {
-      console.error(err);
-      alert("Error saving product");
-    }
-
-    setSaving(false);
-  }
-
-  /* ================= EDIT ================= */
-  function editProduct(p) {
-    setForm(p);
-    setEditing(true);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }
-
-  /* ================= DELETE ================= */
-  async function deleteProduct(slug) {
-    if (!confirm("Delete this product?")) return;
-
-    await fetch(`/api/admin/products?slug=${slug}`, {
-      method: "DELETE",
+    const res = await fetch("/api/admin/products", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(form),
     });
 
-    loadProducts();
+    const data = await res.json();
+
+    if (data.success) {
+      alert("Product added");
+      setForm(emptyForm);
+      loadProducts();
+    }
   }
 
   return (
     <div style={{ padding: 30 }}>
-      <h1 style={{ fontSize: 28, fontWeight: "bold" }}>
-        🛍 Product Management
-      </h1>
+      <h1>Admin Products</h1>
 
-      {/* ================= FORM ================= */}
-      <form
-        onSubmit={handleSubmit}
-        style={{
-          marginTop: 20,
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: 10,
-        }}
-      >
-        <input name="name" placeholder="Name" value={form.name} onChange={handleChange} />
+      {/* FORM */}
+      <form onSubmit={handleSubmit}>
 
-        <select name="category" value={form.category} onChange={handleChange}>
+        <input name="name" placeholder="Name" onChange={handleChange} />
+
+        <select name="category" onChange={handleChange}>
           <option value="">Category</option>
-          {CATEGORIES.map(c => (
-            <option key={c.name}>{c.name}</option>
-          ))}
-        </select>
-
-        <input name="brand" placeholder="Brand" value={form.brand} onChange={handleChange} />
-
-        <input name="price" type="number" placeholder="Price" value={form.price} onChange={handleChange} />
-        <input name="mrp" type="number" placeholder="MRP" value={form.mrp} onChange={handleChange} />
-        <input name="costPrice" type="number" placeholder="Cost Price" value={form.costPrice} onChange={handleChange} />
-
-        <select name="hsn" value={form.hsn} onChange={handleChange}>
-          <option value="">HSN</option>
-          {HSN_LIST.map(h => (
-            <option key={h.hsn} value={h.hsn}>
-              {h.hsn} - GST {h.gst}%
+          {categories.map((c) => (
+            <option key={c._id} value={c.name}>
+              {c.name}
             </option>
           ))}
         </select>
 
-        <input name="gst" placeholder="GST" value={form.gst} onChange={handleChange} />
+        <input name="price" placeholder="Price" onChange={handleChange} />
+        <input name="mrp" placeholder="MRP" onChange={handleChange} />
+        <input name="costPrice" placeholder="Cost Price" onChange={handleChange} />
 
-        <input name="weight" placeholder="Weight" value={form.weight} onChange={handleChange} />
-        <input name="length" placeholder="Length" value={form.length} onChange={handleChange} />
-        <input name="breadth" placeholder="Breadth" value={form.breadth} onChange={handleChange} />
-        <input name="height" placeholder="Height" value={form.height} onChange={handleChange} />
+        <input type="file" multiple onChange={handleImageUpload} />
 
-        <textarea
-          name="description"
-          placeholder="Description"
-          value={form.description}
-          onChange={handleChange}
-          style={{ gridColumn: "span 2" }}
-        />
-
-        <input name="image" placeholder="Image URL" value={form.image} onChange={handleChange} style={{ gridColumn: "span 2" }} />
-
-        <label style={{ gridColumn: "span 2" }}>
-          <input type="checkbox" name="featured" checked={form.featured} onChange={handleChange} />
-          Featured
-        </label>
-
-        <button style={{ gridColumn: "span 2", padding: 12, background: "#111", color: "#fff" }}>
-          {saving ? "Saving..." : editing ? "Update Product" : "Add Product"}
-        </button>
-      </form>
-
-      {/* ================= LIST ================= */}
-      {loading ? (
-        <p style={{ marginTop: 20 }}>Loading...</p>
-      ) : (
-        <div style={{ marginTop: 30 }}>
-          {products.map(p => (
-            <div key={p._id} style={{
-              border: "1px solid #eee",
-              padding: 15,
-              marginBottom: 10,
-              borderRadius: 8
-            }}>
-              <strong>{p.name}</strong> — ₹{p.price}
-              <br />
-              SKU: {p.sku}
-
-              <div style={{ marginTop: 10 }}>
-                <button onClick={() => editProduct(p)}>Edit</button>
-                <button onClick={() => deleteProduct(p.slug)} style={{ marginLeft: 10 }}>
-                  Delete
-                </button>
-              </div>
-            </div>
+        <div style={{ display: "flex", gap: 10 }}>
+          {form.images.map((img, i) => (
+            <img key={i} src={img} width={60} />
           ))}
         </div>
-      )}
+
+        <button>Add Product</button>
+      </form>
+
+      {/* LIST */}
+      <div style={{ marginTop: 30 }}>
+        {products.map((p) => (
+          <div key={p._id} style={{ borderBottom: "1px solid #ccc", padding: 10 }}>
+            <img src={p.images?.[0]} width={60} />
+            <p>{p.name}</p>
+            <p>₹ {p.price}</p>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
