@@ -2,126 +2,137 @@
 
 import { useState, useEffect } from "react";
 import axios from "axios";
-import { toast } from "react-hot-toast";
 
-export default function CategoriesAdmin() {
+export default function AdminCategoriesPage() {
   const [categories, setCategories] = useState([]);
-  const [name, setName] = useState("");
-  const [type, setType] = useState("website"); // website / gst
+  const [form, setForm] = useState({
+    name: "",
+    type: "website", // website or gst
+    hsn: "",
+    gst: "",
+  });
+  const [editing, setEditing] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [editId, setEditId] = useState(null);
 
   useEffect(() => {
     fetchCategories();
   }, []);
 
-  async function fetchCategories() {
+  const fetchCategories = async () => {
     try {
-      const { data } = await axios.get("/api/admin/categories");
-      setCategories(data.categories || []);
+      const res = await axios.get("/api/admin/categories");
+      setCategories(res.data.categories || []);
     } catch (err) {
-      console.error(err);
-      toast.error("Failed to fetch categories");
+      console.error("Fetch categories error:", err);
     }
-  }
+  };
 
-  async function handleSubmit(e) {
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!name.trim()) return toast.error("Category name required");
-
     setLoading(true);
+
     try {
-      let res;
-      if (editId) {
-        res = await axios.put(`/api/admin/categories/${editId}`, { name, type });
-        toast.success("Category updated");
+      if (editing) {
+        await axios.put(`/api/admin/categories/${editing._id}`, form);
       } else {
-        res = await axios.post("/api/admin/categories", { name, type });
-        toast.success("Category added");
+        await axios.post("/api/admin/categories", form);
       }
 
-      setName("");
-      setType("website");
-      setEditId(null);
+      setForm({ name: "", type: "website", hsn: "", gst: "" });
+      setEditing(null);
       fetchCategories();
     } catch (err) {
-      console.error(err);
-      toast.error(err.response?.data?.message || "Error saving category");
+      console.error("Save category error:", err);
     }
+
     setLoading(false);
-  }
+  };
 
-  function handleEdit(cat) {
-    setName(cat.name);
-    setType(cat.type);
-    setEditId(cat._id);
-  }
-
-  async function toggleStatus(cat) {
-    try {
-      await axios.put(`/api/admin/categories/${cat._id}/status`, {
-        active: !cat.active,
-      });
-      fetchCategories();
-      toast.success("Status updated");
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to update status");
-    }
-  }
+  const handleEdit = (category) => {
+    setForm(category);
+    setEditing(category);
+  };
 
   return (
     <div style={container}>
-      <h1 style={title}>Manage Categories</h1>
+      <h1>Admin Categories</h1>
 
-      {/* ADD / EDIT FORM */}
-      <form onSubmit={handleSubmit} style={form}>
+      {/* Add/Edit Category Form */}
+      <form style={formCard} onSubmit={handleSubmit}>
+        <h2>{editing ? "Edit Category" : "Add Category"}</h2>
+
         <input
-          type="text"
-          placeholder="Category name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
+          name="name"
+          placeholder="Category Name"
+          value={form.name}
+          onChange={handleChange}
+          required
           style={input}
         />
 
-        <select value={type} onChange={(e) => setType(e.target.value)} style={input}>
+        <select
+          name="type"
+          value={form.type}
+          onChange={handleChange}
+          required
+          style={input}
+        >
           <option value="website">Website Category</option>
-          <option value="gst">GST / Food Category</option>
+          <option value="gst">GST Category</option>
         </select>
 
-        <button type="submit" style={button} disabled={loading}>
-          {loading ? "Saving..." : editId ? "Update Category" : "Add Category"}
+        {form.type === "gst" && (
+          <>
+            <input
+              name="hsn"
+              placeholder="HSN Code"
+              value={form.hsn}
+              onChange={handleChange}
+              required
+              style={input}
+            />
+            <input
+              name="gst"
+              placeholder="GST %"
+              type="number"
+              value={form.gst}
+              onChange={handleChange}
+              required
+              style={input}
+            />
+          </>
+        )}
+
+        <button type="submit" disabled={loading} style={button}>
+          {loading ? "Saving..." : editing ? "Update Category" : "Add Category"}
         </button>
       </form>
 
-      {/* CATEGORY TABLE */}
+      {/* Categories Table */}
       <table style={table}>
         <thead>
           <tr>
             <th>Name</th>
             <th>Type</th>
-            <th>Status</th>
+            <th>HSN</th>
+            <th>GST %</th>
             <th>Actions</th>
           </tr>
         </thead>
         <tbody>
-          {categories.map((cat) => (
-            <tr key={cat._id}>
-              <td>{cat.name}</td>
-              <td>{cat.type}</td>
+          {categories.map((c) => (
+            <tr key={c._id}>
+              <td>{c.name}</td>
+              <td>{c.type}</td>
+              <td>{c.hsn || "-"}</td>
+              <td>{c.gst || "-"}</td>
               <td>
-                <button
-                  onClick={() => toggleStatus(cat)}
-                  style={{
-                    ...statusBtn,
-                    background: cat.active ? "#16a34a" : "#dc2626",
-                  }}
-                >
-                  {cat.active ? "Active" : "Inactive"}
-                </button>
-              </td>
-              <td>
-                <button onClick={() => handleEdit(cat)} style={editBtn}>
+                <button onClick={() => handleEdit(c)} style={buttonSmall}>
                   Edit
                 </button>
               </td>
@@ -134,11 +145,15 @@ export default function CategoriesAdmin() {
 }
 
 /* ===== STYLES ===== */
-const container = { padding: 20, maxWidth: 900, margin: "0 auto" };
-const title = { fontSize: 28, fontWeight: 600, marginBottom: 20 };
-const form = { display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap" };
-const input = { padding: 10, borderRadius: 6, border: "1px solid #ccc", flex: "1 1 200px" };
-const button = { padding: "10px 20px", borderRadius: 6, background: "#111", color: "#fff", border: "none", cursor: "pointer" };
-const table = { width: "100%", borderCollapse: "collapse" };
-const statusBtn = { padding: "5px 10px", borderRadius: 6, color: "#fff", border: "none", cursor: "pointer" };
-const editBtn = { padding: "5px 10px", borderRadius: 6, background: "#2563eb", color: "#fff", border: "none", cursor: "pointer" };
+const container = { padding: 20 };
+const formCard = {
+  padding: 20,
+  marginBottom: 40,
+  borderRadius: 10,
+  background: "#fff",
+  boxShadow: "0 5px 15px rgba(0,0,0,0.1)",
+};
+const input = { width: "100%", padding: 10, marginBottom: 10, borderRadius: 5 };
+const button = { padding: 10, background: "#111", color: "#fff", border: "none" };
+const buttonSmall = { padding: 5, background: "#333", color: "#fff", border: "none" };
+const table = { width: "100%", borderCollapse: "collapse", marginTop: 20 };
