@@ -5,11 +5,12 @@ import axios from "axios";
 import Image from "next/image";
 import toast from "react-hot-toast";
 
-export default function ProductsPage() {
+export default function AdminProductsPage() {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [formData, setFormData] = useState({
     name: "",
+    description: "",
     gstCategoryId: "",
     websiteCategoryId: "",
     price: 0,
@@ -19,14 +20,16 @@ export default function ProductsPage() {
     images: [],
     isActive: true,
   });
-
   const [editingProductId, setEditingProductId] = useState(null);
-  const [showAddCategoryModal, setShowAddCategoryModal] = useState(null);
-  const [newCategoryName, setNewCategoryName] = useState("");
-  const [newHSN, setNewHSN] = useState("");
-  const [newGST, setNewGST] = useState("");
+  const [showCategoryModal, setShowCategoryModal] = useState(null);
+  const [newCategory, setNewCategory] = useState({ name: "", hsn: "", gst: "" });
 
-  /* ================= FETCH PRODUCTS ================= */
+  useEffect(() => {
+    fetchProducts();
+    fetchCategories();
+  }, []);
+
+  /* =============== Fetch Products =============== */
   const fetchProducts = async () => {
     try {
       const res = await axios.get("/api/admin/products");
@@ -36,7 +39,7 @@ export default function ProductsPage() {
     }
   };
 
-  /* ================= FETCH CATEGORIES ================= */
+  /* =============== Fetch Categories =============== */
   const fetchCategories = async () => {
     try {
       const res = await axios.get("/api/admin/categories");
@@ -46,22 +49,17 @@ export default function ProductsPage() {
     }
   };
 
-  useEffect(() => {
-    fetchProducts();
-    fetchCategories();
-  }, []);
-
-  /* ================= HANDLE INPUT ================= */
-  const handleInputChange = (e) => {
+  /* =============== Handle Input =============== */
+  const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleFileChange = (e) => {
+  const handleFiles = (e) => {
     setFormData((prev) => ({ ...prev, images: Array.from(e.target.files) }));
   };
 
-  /* ================= ADD / EDIT PRODUCT ================= */
+  /* =============== Add/Edit Product =============== */
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -90,6 +88,7 @@ export default function ProductsPage() {
         toast.success(editingProductId ? "Product updated" : "Product added");
         setFormData({
           name: "",
+          description: "",
           gstCategoryId: "",
           websiteCategoryId: "",
           price: 0,
@@ -106,59 +105,52 @@ export default function ProductsPage() {
       }
     } catch (err) {
       console.error(err);
-      toast.error("Failed to save product");
+      toast.error("Error saving product");
     }
   };
 
-  /* ================= EDIT PRODUCT ================= */
-  const handleEdit = (product) => {
-    setEditingProductId(product._id);
+  /* =============== Edit Product =============== */
+  const handleEdit = (p) => {
+    setEditingProductId(p._id);
     setFormData({
-      name: product.name,
-      gstCategoryId: product.gstCategory?._id || "",
-      websiteCategoryId: product.websiteCategory?._id || "",
-      price: product.price,
-      mrp: product.mrp,
-      costPrice: product.costPrice,
-      discount: product.discount,
-      images: [], // Images will be replaced only if admin uploads new
-      isActive: product.isActive,
+      name: p.name,
+      description: p.description || "",
+      gstCategoryId: p.gstCategory?._id || "",
+      websiteCategoryId: p.websiteCategory?._id || "",
+      price: p.price,
+      mrp: p.mrp,
+      costPrice: p.costPrice,
+      discount: p.discount,
+      images: [],
+      isActive: p.isActive,
     });
   };
 
-  /* ================= TOGGLE ACTIVE ================= */
-  const toggleActive = async (productId) => {
+  /* =============== Toggle Active =============== */
+  const toggleActive = async (id) => {
     try {
-      const res = await axios.put(`/api/admin/products/${productId}/toggle`);
-      if (res.data.success) fetchProducts();
+      await axios.put(`/api/admin/products/${id}/toggle`);
+      fetchProducts();
     } catch (err) {
       console.error(err);
     }
   };
 
-  /* ================= ADD CATEGORY ================= */
+  /* =============== Add Category =============== */
   const handleAddCategory = async () => {
-    if (!newCategoryName) return toast.error("Category name required");
+    if (!newCategory.name) return toast.error("Category name required");
 
     try {
-      const payload = {
-        name: newCategoryName,
-        type: showAddCategoryModal.type,
-        hsnCode: newHSN,
-        gst: newGST,
-      };
-
-      const res = await axios.post("/api/admin/categories", payload);
+      const res = await axios.post("/api/admin/categories", {
+        ...newCategory,
+        type: showCategoryModal.type,
+      });
       if (res.data.success) {
         toast.success("Category added");
-        fetchCategories(); // Refresh dropdown
-        setShowAddCategoryModal(null);
-        setNewCategoryName("");
-        setNewHSN("");
-        setNewGST("");
-      } else {
-        toast.error(res.data.message);
-      }
+        fetchCategories();
+        setShowCategoryModal(null);
+        setNewCategory({ name: "", hsn: "", gst: "" });
+      } else toast.error(res.data.message);
     } catch (err) {
       console.error(err);
       toast.error("Failed to add category");
@@ -167,25 +159,31 @@ export default function ProductsPage() {
 
   return (
     <div style={{ padding: 30 }}>
-      <h2>Products</h2>
+      <h2>Admin Products</h2>
 
-      {/* ================= ADD / EDIT FORM ================= */}
+      {/* ================= Product Form ================= */}
       <form onSubmit={handleSubmit} style={{ marginBottom: 40 }}>
         <input
           type="text"
           name="name"
           placeholder="Product Name"
           value={formData.name}
-          onChange={handleInputChange}
+          onChange={handleChange}
           required
         />
+        <textarea
+          name="description"
+          placeholder="Description"
+          value={formData.description}
+          onChange={handleChange}
+        />
 
-        {/* GST Category Dropdown */}
-        <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 10 }}>
+        {/* GST Category */}
+        <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
           <select
             name="gstCategoryId"
             value={formData.gstCategoryId}
-            onChange={handleInputChange}
+            onChange={handleChange}
             required
           >
             <option value="">Select GST Category</option>
@@ -197,17 +195,17 @@ export default function ProductsPage() {
                 </option>
               ))}
           </select>
-          <button type="button" onClick={() => setShowAddCategoryModal({ type: "gst" })}>
-            + Add Category
+          <button type="button" onClick={() => setShowCategoryModal({ type: "gst" })}>
+            + Add GST
           </button>
         </div>
 
-        {/* Website Category Dropdown */}
-        <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 10 }}>
+        {/* Website Category */}
+        <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
           <select
             name="websiteCategoryId"
             value={formData.websiteCategoryId}
-            onChange={handleInputChange}
+            onChange={handleChange}
             required
           >
             <option value="">Select Website Category</option>
@@ -219,8 +217,8 @@ export default function ProductsPage() {
                 </option>
               ))}
           </select>
-          <button type="button" onClick={() => setShowAddCategoryModal({ type: "website" })}>
-            + Add Category
+          <button type="button" onClick={() => setShowCategoryModal({ type: "website" })}>
+            + Add Website
           </button>
         </div>
 
@@ -229,48 +227,45 @@ export default function ProductsPage() {
           name="price"
           placeholder="Selling Price"
           value={formData.price}
-          onChange={handleInputChange}
+          onChange={handleChange}
         />
         <input
           type="number"
           name="mrp"
           placeholder="MRP"
           value={formData.mrp}
-          onChange={handleInputChange}
+          onChange={handleChange}
         />
         <input
           type="number"
           name="costPrice"
           placeholder="Cost Price"
           value={formData.costPrice}
-          onChange={handleInputChange}
+          onChange={handleChange}
         />
         <input
           type="number"
           name="discount"
           placeholder="Discount %"
           value={formData.discount}
-          onChange={handleInputChange}
+          onChange={handleChange}
         />
 
-        <input type="file" multiple onChange={handleFileChange} />
-
+        <input type="file" multiple onChange={handleFiles} />
         <label>
           Active:
           <input
             type="checkbox"
             checked={formData.isActive}
-            name="isActive"
             onChange={(e) =>
               setFormData((prev) => ({ ...prev, isActive: e.target.checked }))
             }
           />
         </label>
-
         <button type="submit">{editingProductId ? "Update Product" : "Add Product"}</button>
       </form>
 
-      {/* ================= PRODUCTS TABLE ================= */}
+      {/* ================= Products Table ================= */}
       <table border="1" cellPadding={10} style={{ width: "100%", textAlign: "left" }}>
         <thead>
           <tr>
@@ -290,7 +285,7 @@ export default function ProductsPage() {
           {products.map((p) => (
             <tr key={p._id}>
               <td>
-                {p.images?.[0] ? (
+                {p.images?.length ? (
                   <Image src={p.images[0]} alt={p.name} width={50} height={50} />
                 ) : (
                   "No Image"
@@ -318,39 +313,48 @@ export default function ProductsPage() {
         </tbody>
       </table>
 
-      {/* ================= ADD CATEGORY MODAL ================= */}
-      {showAddCategoryModal && (
-        <div style={{
-          position: "fixed", top: 0, left: 0, width: "100%", height: "100%",
-          background: "rgba(0,0,0,0.5)", display: "flex", justifyContent: "center", alignItems: "center"
-        }}>
+      {/* ================= Add Category Modal ================= */}
+      {showCategoryModal && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            width: "100%",
+            height: "100%",
+            background: "rgba(0,0,0,0.5)",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+        >
           <div style={{ background: "#fff", padding: 20, borderRadius: 12, minWidth: 300 }}>
-            <h3>Add {showAddCategoryModal.type === "gst" ? "GST" : "Website"} Category</h3>
+            <h3>Add {showCategoryModal.type === "gst" ? "GST" : "Website"} Category</h3>
             <input
               type="text"
               placeholder="Category Name"
-              value={newCategoryName}
-              onChange={(e) => setNewCategoryName(e.target.value)}
+              value={newCategory.name}
+              onChange={(e) => setNewCategory((prev) => ({ ...prev, name: e.target.value }))}
             />
-            {showAddCategoryModal.type === "gst" && (
+            {showCategoryModal.type === "gst" && (
               <>
                 <input
                   type="text"
                   placeholder="HSN Code"
-                  value={newHSN}
-                  onChange={(e) => setNewHSN(e.target.value)}
+                  value={newCategory.hsn}
+                  onChange={(e) => setNewCategory((prev) => ({ ...prev, hsn: e.target.value }))}
                 />
                 <input
                   type="number"
                   placeholder="GST %"
-                  value={newGST}
-                  onChange={(e) => setNewGST(e.target.value)}
+                  value={newCategory.gst}
+                  onChange={(e) => setNewCategory((prev) => ({ ...prev, gst: e.target.value }))}
                 />
               </>
             )}
             <div style={{ marginTop: 10 }}>
               <button onClick={handleAddCategory}>Add</button>
-              <button onClick={() => setShowAddCategoryModal(null)}>Cancel</button>
+              <button onClick={() => setShowCategoryModal(null)}>Cancel</button>
             </div>
           </div>
         </div>
