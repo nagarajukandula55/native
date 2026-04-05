@@ -1,320 +1,145 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Image from "next/image";
-import axios from "axios";
+import { useRouter } from "next/navigation";
 
-// Helper to upload images to Cloudinary
-async function uploadToCloudinary(file) {
-  const formData = new FormData();
-  formData.append("file", file);
-  formData.append("upload_preset", process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET);
-  const res = await fetch(
-    `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`,
-    {
-      method: "POST",
-      body: formData,
-    }
-  );
-  const data = await res.json();
-  return data.secure_url;
-}
-
-export default function AdminProducts() {
+export default function AdminProductsPage() {
   const [products, setProducts] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [form, setForm] = useState({
-    _id: null,
-    name: "",
-    description: "",
-    categoryId: "",
-    gstCategory: "",
-    mrp: 0,
-    costPrice: 0,
-    discount: 0,
-    images: [],
-    status: "active",
-  });
-  const [showForm, setShowForm] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [newCategoryName, setNewCategoryName] = useState("");
+  const [form, setForm] = useState({
+    _id: "",
+    name: "",
+    category: "",
+    subCategory: "",
+    price: "",
+    costPrice: "",
+    mrp: "",
+    discount: 0,
+    hsn: "",
+    gstPercent: 0,
+    description: "",
+    images: [],
+    active: true,
+  });
 
-  useEffect(() => {
-    fetchProducts();
-    fetchCategories();
-  }, []);
+  const router = useRouter();
 
-  const fetchProducts = async () => {
-    const res = await axios.get("/api/admin/products");
-    if (res.data.success) setProducts(res.data.products);
-  };
+  // Fetch products
+  async function fetchProducts() {
+    const res = await fetch("/api/admin/products");
+    const data = await res.json();
+    if (data.success) setProducts(data.products);
+  }
 
-  const fetchCategories = async () => {
-    const res = await axios.get("/api/admin/categories");
-    if (res.data.success) setCategories(res.data.categories);
-  };
+  useEffect(() => { fetchProducts(); }, []);
 
-  const handleImageChange = async (e) => {
+  // Handle form change
+  const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+
+  // Handle image upload
+  const handleImages = async (e) => {
     const files = Array.from(e.target.files);
-    const urls = [];
-    setLoading(true);
-    for (const file of files) {
-      const url = await uploadToCloudinary(file);
-      urls.push(url);
-    }
-    setForm({ ...form, images: [...form.images, ...urls] });
-    setLoading(false);
+    const urls = await Promise.all(files.map(file => {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.readAsDataURL(file);
+      });
+    }));
+    setForm({ ...form, images: urls });
   };
 
-  const handleSaveProduct = async () => {
+  // Submit product
+  const handleSubmit = async (e) => {
+    e.preventDefault();
     setLoading(true);
-    try {
-      const res = await axios.post("/api/admin/products", form);
-      if (res.data.success) {
-        fetchProducts();
-        setShowForm(false);
-        setForm({
-          _id: null,
-          name: "",
-          description: "",
-          categoryId: "",
-          gstCategory: "",
-          mrp: 0,
-          costPrice: 0,
-          discount: 0,
-          images: [],
-          status: "active",
-        });
-      } else {
-        alert(res.data.message);
-      }
-    } catch (err) {
-      alert(err.message);
-    }
-    setLoading(false);
-  };
-
-  const handleEditProduct = (product) => {
-    setForm({
-      _id: product._id,
-      name: product.name,
-      description: product.description,
-      categoryId: product.category?._id || "",
-      gstCategory: product.gstCategory || "",
-      mrp: product.mrp,
-      costPrice: product.costPrice,
-      discount: product.discount,
-      images: product.images || [],
-      status: product.status,
+    const res = await fetch("/api/admin/products", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(form),
     });
-    setShowForm(true);
+    const data = await res.json();
+    if (data.success) {
+      setFormOpen(false);
+      setForm({
+        _id: "",
+        name: "",
+        category: "",
+        subCategory: "",
+        price: "",
+        costPrice: "",
+        mrp: "",
+        discount: 0,
+        hsn: "",
+        gstPercent: 0,
+        description: "",
+        images: [],
+        active: true,
+      });
+      fetchProducts();
+    }
+    setLoading(false);
   };
 
-  const handleAddCategory = async () => {
-    if (!newCategoryName) return;
-    try {
-      const res = await axios.post("/api/admin/categories", { name: newCategoryName });
-      if (res.data.success) {
-        fetchCategories();
-        setNewCategoryName("");
-      } else alert(res.data.message);
-    } catch (err) {
-      alert(err.message);
-    }
-  };
+  const handleEdit = (p) => { setForm({ ...p }); setFormOpen(true); };
 
   return (
-    <div style={{ padding: 30 }}>
-      <h1>Admin Products</h1>
+    <div style={{ padding: 20 }}>
+      <h1>Products</h1>
+      <button onClick={() => setFormOpen(true)}>Add Product</button>
 
-      {/* Add / Edit Form */}
-      {showForm && (
-        <div style={formContainer}>
-          <h2>{form._id ? "Edit Product" : "Add New Product"}</h2>
-
-          <input
-            placeholder="Product Name"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-            style={input}
-          />
-          <textarea
-            placeholder="Description"
-            value={form.description}
-            onChange={(e) => setForm({ ...form, description: e.target.value })}
-            style={{ ...input, height: 80 }}
-          />
-
-          <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
-            <select
-              value={form.categoryId}
-              onChange={(e) => setForm({ ...form, categoryId: e.target.value })}
-              style={input}
-            >
-              <option value="">Select Category</option>
-              {categories.map((cat) => (
-                <option key={cat._id} value={cat._id}>
-                  {cat.name}
-                </option>
-              ))}
-            </select>
-            <input
-              placeholder="New Category"
-              value={newCategoryName}
-              onChange={(e) => setNewCategoryName(e.target.value)}
-              style={input}
-            />
-            <button onClick={handleAddCategory} style={button}>
-              Add Category
-            </button>
-          </div>
-
-          <select
-            value={form.gstCategory}
-            onChange={(e) => setForm({ ...form, gstCategory: e.target.value })}
-            style={input}
-          >
-            <option value="">Select GST Category</option>
-            <option value="Food - Batter Mix">Food - Batter Mix</option>
-            <option value="Food - Spices">Food - Spices</option>
-            <option value="Food - Honey">Food - Honey</option>
-            <option value="Food - Chutney Mix">Food - Chutney Mix</option>
-            <option value="Food - Masala">Food - Masala</option>
-            <option value="Food - Cold Pressed Oil">Food - Cold Pressed Oil</option>
-          </select>
-
-          <input
-            type="number"
-            placeholder="MRP"
-            value={form.mrp}
-            onChange={(e) => setForm({ ...form, mrp: parseFloat(e.target.value) })}
-            style={input}
-          />
-          <input
-            type="number"
-            placeholder="Cost Price"
-            value={form.costPrice}
-            onChange={(e) => setForm({ ...form, costPrice: parseFloat(e.target.value) })}
-            style={input}
-          />
-          <input
-            type="number"
-            placeholder="Discount %"
-            value={form.discount}
-            onChange={(e) => setForm({ ...form, discount: parseFloat(e.target.value) })}
-            style={input}
-          />
-
-          <input type="file" multiple onChange={handleImageChange} />
-          {form.images.length > 0 && (
-            <div style={{ display: "flex", gap: 10, marginTop: 10, flexWrap: "wrap" }}>
-              {form.images.map((img, idx) => (
-                <Image key={idx} src={img} alt="product" width={80} height={80} style={{ borderRadius: 8 }} />
-              ))}
-            </div>
-          )}
-
-          <select
-            value={form.status}
-            onChange={(e) => setForm({ ...form, status: e.target.value })}
-            style={input}
-          >
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-          </select>
-
-          <button onClick={handleSaveProduct} style={button} disabled={loading}>
-            {loading ? "Saving..." : "Save Product"}
-          </button>
-
-          <button
-            onClick={() => {
-              setShowForm(false);
-              setForm({
-                _id: null,
-                name: "",
-                description: "",
-                categoryId: "",
-                gstCategory: "",
-                mrp: 0,
-                costPrice: 0,
-                discount: 0,
-                images: [],
-                status: "active",
-              });
-            }}
-            style={{ ...button, background: "#999" }}
-          >
-            Cancel
-          </button>
-        </div>
+      {formOpen && (
+        <form onSubmit={handleSubmit} style={{ margin: "20px 0", border: "1px solid #ccc", padding: 20 }}>
+          <input placeholder="Name" name="name" value={form.name} onChange={handleChange} required />
+          <input placeholder="Category" name="category" value={form.category} onChange={handleChange} required />
+          <input placeholder="Sub Category" name="subCategory" value={form.subCategory} onChange={handleChange} required />
+          <input placeholder="Price" name="price" type="number" value={form.price} onChange={handleChange} required />
+          <input placeholder="Cost Price" name="costPrice" type="number" value={form.costPrice} onChange={handleChange} required />
+          <input placeholder="MRP" name="mrp" type="number" value={form.mrp} onChange={handleChange} required />
+          <input placeholder="Discount %" name="discount" type="number" value={form.discount} onChange={handleChange} />
+          <input placeholder="HSN" name="hsn" value={form.hsn} onChange={handleChange} required />
+          <input placeholder="GST %" name="gstPercent" type="number" value={form.gstPercent} onChange={handleChange} required />
+          <textarea placeholder="Description" name="description" value={form.description} onChange={handleChange}></textarea>
+          <input type="file" multiple accept="image/*" onChange={handleImages} />
+          {form.images.map((img, i) => <img key={i} src={img} style={{ width: 50, marginRight: 5 }} />)}
+          <label>
+            Active:
+            <input type="checkbox" checked={form.active} onChange={() => setForm({ ...form, active: !form.active })} />
+          </label>
+          <button type="submit" disabled={loading}>{loading ? "Saving..." : "Save Product"}</button>
+          <button type="button" onClick={() => setFormOpen(false)}>Cancel</button>
+        </form>
       )}
 
-      {/* Products Table */}
-      <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 20 }}>
+      <table border="1" cellPadding="5" cellSpacing="0" style={{ width: "100%", marginTop: 20 }}>
         <thead>
           <tr>
-            <th>#</th>
             <th>Image</th>
             <th>Name</th>
-            <th>Category</th>
+            <th>Category / Sub</th>
+            <th>Price</th>
             <th>MRP</th>
-            <th>Selling Price</th>
-            <th>Status</th>
-            <th>Edit</th>
+            <th>Discount</th>
+            <th>Active</th>
+            <th>Actions</th>
           </tr>
         </thead>
         <tbody>
-          {products.map((p, idx) => (
-            <tr key={p._id} style={{ borderBottom: "1px solid #ccc" }}>
-              <td>{idx + 1}</td>
-              <td>
-                {p.images && p.images[0] && (
-                  <Image src={p.images[0]} alt="img" width={50} height={50} />
-                )}
-              </td>
+          {products.map(p => (
+            <tr key={p._id}>
+              <td>{p.images[0] && <img src={p.images[0]} width={50} />}</td>
               <td>{p.name}</td>
-              <td>{p.category?.name || ""}</td>
+              <td>{p.category} / {p.subCategory}</td>
+              <td>{p.price}</td>
               <td>{p.mrp}</td>
-              <td>{p.sellingPrice}</td>
-              <td>{p.status}</td>
-              <td>
-                <button onClick={() => handleEditProduct(p)} style={button}>
-                  Edit
-                </button>
-              </td>
+              <td>{p.discount}</td>
+              <td>{p.active ? "Yes" : "No"}</td>
+              <td><button onClick={() => handleEdit(p)}>Edit</button></td>
             </tr>
           ))}
         </tbody>
       </table>
-
-      <button onClick={() => setShowForm(true)} style={{ ...button, marginTop: 20 }}>
-        Add New Product
-      </button>
     </div>
   );
 }
-
-/* ====== STYLES ====== */
-const formContainer = {
-  padding: 20,
-  border: "1px solid #ccc",
-  borderRadius: 10,
-  marginBottom: 30,
-  maxWidth: 700,
-};
-const input = {
-  width: "100%",
-  padding: 10,
-  marginBottom: 10,
-  borderRadius: 6,
-  border: "1px solid #ccc",
-};
-const button = {
-  padding: "10px 15px",
-  borderRadius: 6,
-  border: "none",
-  background: "#111",
-  color: "#fff",
-  cursor: "pointer",
-};
