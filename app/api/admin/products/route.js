@@ -3,70 +3,107 @@ import connectDB from "@/lib/mongodb";
 import Product from "@/models/Product";
 import jwt from "jsonwebtoken";
 
-/* ================= AUTH ================= */
-function verifyAdmin(req) {
+// Auth middleware
+async function verifyAdmin(req) {
   const token = req.cookies.get("token")?.value;
   if (!token) throw new Error("Unauthorized");
-
   const decoded = jwt.verify(token, process.env.JWT_SECRET);
-  if (decoded.role !== "admin") throw new Error("Forbidden");
-
+  if (!decoded.role || decoded.role !== "admin") throw new Error("Forbidden");
   return decoded;
 }
 
-/* ================= SLUG ================= */
+// Generate slug
 function generateSlug(name) {
-  return name.toLowerCase().replace(/\s+/g, "-");
+  return name.toLowerCase().trim().replace(/ /g, "-").replace(/[^\w-]+/g, "");
 }
 
-/* ================= SKU ================= */
+// Generate SKU
 async function generateSKU(name) {
-  const prefix = name.substring(0, 3).toUpperCase();
-  const count = await Product.countDocuments();
-  return `${prefix}${String(count + 1).padStart(4, "0")}`;
+  const cleanedName = name.replace(/^Native\s+/i, "");
+  const firstWord = cleanedName.split(" ")[0].toUpperCase();
+  const count = (await Product.countDocuments({ name: new RegExp(`^${firstWord}`, "i") })) + 1;
+  const serial = String(count).padStart(3, "0");
+  return `NA${firstWord}${serial}`;
 }
 
-/* ================= GET ================= */
-export async function GET(req) {
+export async function GET() {
   try {
     await connectDB();
-    verifyAdmin(req);
-
-    const products = await Product.find().sort({ createdAt: -1 });
-
+    // Only admin can get products
     return NextResponse.json({
       success: true,
-      products,
+      products: await Product.find().sort({ createdAt: -1 }).lean(),
     });
-
-  } catch (e) {
-    return NextResponse.json({ success: false, message: e.message });
+  } catch (err) {
+    return NextResponse.json({ success: false, message: err.message || "Server error" }, { status: 500 });
   }
 }
 
-/* ================= POST ================= */
 export async function POST(req) {
   try {
     await connectDB();
-    verifyAdmin(req);
+    await verifyAdmin(req);
 
     const body = await req.json();
+    const { name, description, costPrice, sellingPrice, mrp, images, variants, gstCategory, websiteCategory } = body;
 
-    const slug = generateSlug(body.name);
-    const sku = await generateSKU(body.name);
+    if (!name || !description || !costPrice || !sellingPrice || !mrp) {
+      return NextResponse.json({ success: false, message: "Missing required fields" }, { status: 400 });
+    }
+
+    const slug = generateSlug(name);
+    const existing = await Product.findOne({ slug });
+    if (existing) return NextResponse.json({ success: false, message: "Product already exists" }, { status: 400 });
+
+    const sku = await generateSKU(name);
+
+    // Auto GST based on category
+    let hsn = "";
+    let gstPercent = 0;
+    if (gstCategory === "Food") { hsn = "2106"; gstPercent = 5; }
+    else if (gstCategory === "Electronics") { hsn = "8471"; gstPercent = 18; }
+
+    // Auto SEO
+    const seoTitle = `${name} - Buy Online at Best Price`;
+    const seoDescription = description.slice(0, 160);
 
     const product = await Product.create({
-      ...body,
+      name,
       slug,
       sku,
+      description,
+      costPrice,
+      sellingPrice,
+      mrp,
+      images,
+      variants,
+      gstCategory,
+      hsn,
+      gstPercent,
+      websiteCategory,
+      seoTitle,
+      seoDescription,
+      status: "Active",
     });
 
-    return NextResponse.json({
-      success: true,
-      product,
-    });
+    return NextResponse.json({ success: true, product });
+  } catch (err) {
+    console.error(err);
+    return NextResponse.json({ success: false, message: err.message || "Server error" }, { status: 500 });
+  }
+}
 
-  } catch (e) {
-    return NextResponse.json({ success: false, message: e.message });
+export async function DELETE(req) {
+  try {
+    await connectDB();
+    await verifyAdmin(req);
+    const { searchParams } = new URL(req.url);
+    const slug = searchParams.get("slug");
+    if (!slug) return NextResponse.json({ success: false, message: "Slug required" }, { status: 400 });
+
+    await Product.deleteOne({ slug });
+    return NextResponse.json({ success: true, message: "Product deleted" });
+  } catch (err) {
+    return NextResponse.json({ success: false, message: err.message || "Server error" }, { status: 500 });
   }
 }
