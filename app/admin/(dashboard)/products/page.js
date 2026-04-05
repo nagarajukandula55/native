@@ -11,20 +11,43 @@ function generateSlug(name) {
     .replace(/\s+/g, "-");
 }
 
-function generateSKU() {
-  return "SKU-" + Math.random().toString(36).substring(2, 10).toUpperCase();
+// Extract word after "Native"
+function extractCoreWord(name) {
+  if (!name) return "";
+
+  const words = name.trim().split(/\s+/);
+
+  if (words[0].toLowerCase() === "native" && words.length > 1) {
+    return words[1]; // take only next word
+  }
+
+  return words[0]; // fallback
+}
+
+function generateSKU(name, products) {
+  if (!name) return "";
+
+  const coreWord = extractCoreWord(name).toUpperCase().replace(/[^A-Z0-9]/g, "");
+
+  if (!coreWord) return "";
+
+  const base = `NA${coreWord}`;
+
+  // Find existing SKUs
+  const same = products.filter((p) => p.sku?.startsWith(base));
+
+  const nextNumber = same.length + 1;
+
+  return `${base}${String(nextNumber).padStart(3, "0")}`;
 }
 
 function generateTags(name, desc) {
-  const words = (name + " " + desc).toLowerCase().split(" ");
-  return [...new Set(words)].slice(0, 10);
+  return [...new Set((name + " " + desc).toLowerCase().split(" "))].slice(0, 10);
 }
 
 /* ================= COMPONENT ================= */
 
 export default function ProductsPage() {
-  /* ===== STATE ===== */
-
   const [products, setProducts] = useState([]);
 
   const [categories, setCategories] = useState([]);
@@ -36,21 +59,16 @@ export default function ProductsPage() {
     slug: "",
     description: "",
     brand: "",
-
     category: "",
     subcategory: "",
-
     gstCategory: "",
     hsnCode: "",
     gstPercent: 0,
-
     costPrice: "",
     mrp: "",
     sellingPrice: "",
-
-    sku: generateSKU(),
+    sku: "",
     tags: [],
-
     images: [],
     status: "active",
   });
@@ -59,17 +77,17 @@ export default function ProductsPage() {
   const [newSubcategory, setNewSubcategory] = useState("");
   const [newGst, setNewGst] = useState({ name: "", hsn: "", gst: "" });
 
-  /* ===== HANDLERS ===== */
+  /* ================= HANDLERS ================= */
 
   function handleChange(e) {
     const { name, value } = e.target;
 
-    const updated = { ...form, [name]: value };
+    let updated = { ...form, [name]: value };
 
-    // AUTO SLUG + TAGS
     if (name === "name" || name === "description") {
       updated.slug = generateSlug(updated.name);
       updated.tags = generateTags(updated.name, updated.description);
+      updated.sku = generateSKU(updated.name, products); // ✅ UPDATED SKU
     }
 
     setForm(updated);
@@ -98,25 +116,25 @@ export default function ProductsPage() {
     }));
   }
 
-  /* ===== CATEGORY ADD (UI ONLY) ===== */
+  /* ================= CATEGORY ADD ================= */
 
   function addCategory() {
-    if (!newCategory) return;
+    if (!newCategory.trim()) return;
 
-    const obj = { _id: Date.now(), name: newCategory };
+    const obj = { _id: Date.now(), name: newCategory.trim() };
     setCategories((p) => [...p, obj]);
 
-    setForm((f) => ({ ...f, category: newCategory }));
+    setForm((f) => ({ ...f, category: obj.name }));
     setNewCategory("");
   }
 
   function addSubcategory() {
-    if (!newSubcategory) return;
+    if (!newSubcategory.trim()) return;
 
-    const obj = { _id: Date.now(), name: newSubcategory };
+    const obj = { _id: Date.now(), name: newSubcategory.trim() };
     setSubcategories((p) => [...p, obj]);
 
-    setForm((f) => ({ ...f, subcategory: newSubcategory }));
+    setForm((f) => ({ ...f, subcategory: obj.name }));
     setNewSubcategory("");
   }
 
@@ -143,144 +161,125 @@ export default function ProductsPage() {
     setNewGst({ name: "", hsn: "", gst: "" });
   }
 
-  /* ===== UI ===== */
+  /* ================= UI ================= */
 
   return (
-    <div style={{ padding: 20, maxWidth: 1300, margin: "auto" }}>
-      <h1>Product Management</h1>
+    <div style={container}>
+      <h1 style={{ marginBottom: 20 }}>Product Management</h1>
 
-      <div style={{ display: "flex", gap: 20 }}>
-        
-        {/* ================= FORM ================= */}
-        <div style={{ flex: 2 }}>
-          <div style={card}>
-            <h2>Add Product</h2>
+      <div style={layout}>
+        <div style={card}>
+          <h2>Add Product</h2>
 
-            <div style={grid}>
-              <input name="name" placeholder="Product Name" onChange={handleChange} />
+          <div style={grid}>
+            <input name="name" placeholder="Product Name" onChange={handleChange} />
 
-              <input value={form.slug} readOnly placeholder="Slug (auto)" />
+            <input value={form.slug} readOnly placeholder="Slug" />
 
-              <input name="brand" placeholder="Brand" onChange={handleChange} />
+            <input value={form.sku} readOnly placeholder="SKU (auto)" />
 
-              {/* CATEGORY */}
-              <select name="category" value={form.category} onChange={handleChange}>
-                <option value="">Select Category</option>
-                {categories.map((c) => (
-                  <option key={c._id}>{c.name}</option>
-                ))}
-              </select>
+            <input name="brand" placeholder="Brand" onChange={handleChange} />
 
-              <div style={inline}>
-                <input
-                  placeholder="New Category"
-                  value={newCategory}
-                  onChange={(e) => setNewCategory(e.target.value)}
-                />
-                <button type="button" onClick={addCategory}>+</button>
-              </div>
-
-              {/* SUBCATEGORY */}
-              <select name="subcategory" value={form.subcategory} onChange={handleChange}>
-                <option value="">Subcategory</option>
-                {subcategories.map((c) => (
-                  <option key={c._id}>{c.name}</option>
-                ))}
-              </select>
-
-              <div style={inline}>
-                <input
-                  placeholder="New Subcategory"
-                  value={newSubcategory}
-                  onChange={(e) => setNewSubcategory(e.target.value)}
-                />
-                <button type="button" onClick={addSubcategory}>+</button>
-              </div>
-
-              {/* GST */}
-              <select value={form.gstCategory} onChange={handleGstChange}>
-                <option>GST Category</option>
-                {gstCategories.map((c) => (
-                  <option key={c._id}>{c.name}</option>
-                ))}
-              </select>
-
-              <div style={inline}>
-                <input placeholder="Name" value={newGst.name} onChange={(e) => setNewGst({ ...newGst, name: e.target.value })} />
-                <input placeholder="HSN" value={newGst.hsn} onChange={(e) => setNewGst({ ...newGst, hsn: e.target.value })} />
-                <input placeholder="GST %" value={newGst.gst} onChange={(e) => setNewGst({ ...newGst, gst: e.target.value })} />
-                <button type="button" onClick={addGstCategory}>+</button>
-              </div>
-
-              <input value={form.hsnCode} readOnly placeholder="HSN" />
-              <input value={form.gstPercent} readOnly placeholder="GST %" />
-
-              <input name="costPrice" placeholder="Cost Price" onChange={handleChange} />
-              <input name="mrp" placeholder="MRP" onChange={handleChange} />
-              <input name="sellingPrice" placeholder="Selling Price" onChange={handleChange} />
-
-              <input value={form.sku} readOnly />
-
-              <select name="status" onChange={handleChange}>
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-                <option value="draft">Draft</option>
-                <option value="out_of_stock">Out of Stock</option>
-              </select>
-            </div>
-
-            <textarea
-              placeholder="Description"
-              onChange={(e) =>
-                handleChange({ target: { name: "description", value: e.target.value } })
-              }
-            />
-
-            {/* IMAGES (Cloudinary UI ready) */}
-            <input type="file" multiple onChange={handleImage} />
-
-            <div style={{ display: "flex", gap: 10 }}>
-              {form.images.map((file, i) => (
-                <div key={i}>
-                  <img src={URL.createObjectURL(file)} width={60} />
-                  <button onClick={() => removeImage(i)}>X</button>
-                </div>
+            {/* CATEGORY */}
+            <select name="category" value={form.category} onChange={handleChange}>
+              <option value="">Category</option>
+              {categories.map((c) => (
+                <option key={c._id}>{c.name}</option>
               ))}
+            </select>
+
+            <div style={inline}>
+              <input value={newCategory} onChange={(e) => setNewCategory(e.target.value)} placeholder="Add Category" />
+              <button type="button" onClick={addCategory}>+</button>
             </div>
 
-            <button style={btn}>Save Product</button>
+            {/* SUBCATEGORY */}
+            <select name="subcategory" value={form.subcategory} onChange={handleChange}>
+              <option value="">Subcategory</option>
+              {subcategories.map((c) => (
+                <option key={c._id}>{c.name}</option>
+              ))}
+            </select>
+
+            <div style={inline}>
+              <input value={newSubcategory} onChange={(e) => setNewSubcategory(e.target.value)} placeholder="Add Subcategory" />
+              <button type="button" onClick={addSubcategory}>+</button>
+            </div>
+
+            {/* GST */}
+            <select value={form.gstCategory} onChange={handleGstChange}>
+              <option value="">GST Category</option>
+              {gstCategories.map((c) => (
+                <option key={c._id}>{c.name}</option>
+              ))}
+            </select>
+
+            <input value={form.hsnCode} readOnly placeholder="HSN" />
+            <input value={form.gstPercent} readOnly placeholder="GST %" />
+
+            <input name="costPrice" placeholder="Cost Price" onChange={handleChange} />
+            <input name="mrp" placeholder="MRP" onChange={handleChange} />
+            <input name="sellingPrice" placeholder="Selling Price" onChange={handleChange} />
+
+            <select name="status" onChange={handleChange}>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+              <option value="draft">Draft</option>
+              <option value="out_of_stock">Out of Stock</option>
+            </select>
           </div>
-        </div>
 
-        {/* ================= TABLE ================= */}
-        <div style={{ flex: 1 }}>
-          <div style={card}>
-            <h3>Products</h3>
+          <textarea
+            placeholder="Description"
+            onChange={(e) =>
+              handleChange({ target: { name: "description", value: e.target.value } })
+            }
+          />
 
-            {products.map((p) => (
-              <div key={p._id} style={{ borderBottom: "1px solid #ddd", padding: 10 }}>
-                {p.name}
+          <input type="file" multiple onChange={handleImage} />
+
+          <div style={{ display: "flex", gap: 10 }}>
+            {form.images.map((file, i) => (
+              <div key={i}>
+                <img src={URL.createObjectURL(file)} width={70} />
+                <button onClick={() => removeImage(i)}>X</button>
               </div>
             ))}
           </div>
+
+          <button style={btn}>Save Product</button>
         </div>
       </div>
     </div>
   );
 }
 
-/* ===== STYLES ===== */
+/* ================= STYLES ================= */
+
+const container = {
+  padding: 30,
+  maxWidth: 1200,
+  margin: "auto",
+};
+
+const layout = {
+  display: "flex",
+  gap: 20,
+};
+
 const card = {
+  flex: 1,
   background: "#fff",
   padding: 20,
-  borderRadius: 10,
-  marginBottom: 20,
+  borderRadius: 12,
+  boxShadow: "0 5px 15px rgba(0,0,0,0.1)",
 };
 
 const grid = {
   display: "grid",
   gridTemplateColumns: "1fr 1fr",
-  gap: 10,
+  gap: 12,
+  marginBottom: 10,
 };
 
 const inline = {
@@ -289,9 +288,10 @@ const inline = {
 };
 
 const btn = {
-  marginTop: 10,
-  padding: 10,
-  background: "#000",
+  marginTop: 15,
+  padding: 12,
+  background: "#111",
   color: "#fff",
   border: "none",
+  borderRadius: 8,
 };
