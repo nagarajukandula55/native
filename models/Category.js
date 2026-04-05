@@ -2,14 +2,8 @@ import mongoose from "mongoose";
 
 const CategorySchema = new mongoose.Schema(
   {
-    name: { type: String, required: true, unique: true },
-    type: {
-      type: String,
-      enum: ["website", "gst"],
-      default: "website",
-      required: true,
-    },
-    active: { type: Boolean, default: true },
+    name: { type: String, required: true },
+    slug: { type: String, required: true, unique: true },
   },
   { timestamps: true }
 );
