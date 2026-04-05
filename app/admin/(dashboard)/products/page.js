@@ -2,66 +2,222 @@
 
 import { useState, useEffect } from "react";
 import axios from "axios";
+import Image from "next/image";
 
-export default function AdminProductsPage() {
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [form, setForm] = useState({
-    name: "", description: "", costPrice: "", sellingPrice: "", mrp: "",
-    images: [], variants: [], gstCategory: "Food", websiteCategory: ""
+// Cloudinary upload helper
+async function uploadToCloudinary(file) {
+  const data = new FormData();
+  data.append("file", file);
+  data.append("upload_preset", process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET);
+
+  const res = await fetch(`https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`, {
+    method: "POST",
+    body: data,
   });
 
-  const fetchProducts = async () => {
+  const json = await res.json();
+  return json.secure_url;
+}
+
+export default function AdminProducts() {
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editProduct, setEditProduct] = useState(null);
+
+  const [form, setForm] = useState({
+    name: "",
+    description: "",
+    category: "",
+    gstCategory: "",
+    costPrice: 0,
+    mrp: 0,
+    sellingPrice: 0,
+    discountPercent: 0,
+    images: [],
+    featuredImage: "",
+    status: "active",
+  });
+
+  const websiteCategories = ["Batter Mix", "Spices", "Chutney Mix", "Honey", "Masala", "Cold Pressed Oil"];
+  const gstCategories = ["Food - Batter Mix","Food - Spices","Food - Chutney Mix","Food - Honey","Food - Masala","Food - Cold Pressed Oil"];
+
+  /* ================= GET PRODUCTS ================= */
+  async function fetchProducts() {
+    setLoading(true);
     try {
       const { data } = await axios.get("/api/admin/products");
-      setProducts(data.products);
-      setLoading(false);
-    } catch (err) { console.error(err); setLoading(false); }
-  };
+      if (data.success) setProducts(data.products);
+    } catch (err) {
+      console.error(err);
+    }
+    setLoading(false);
+  }
 
-  useEffect(() => { fetchProducts(); }, []);
+  useEffect(() => {
+    fetchProducts();
+  }, []);
 
-  const handleSubmit = async (e) => {
+  /* ================= HANDLE INPUT ================= */
+  function handleChange(e) {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  }
+
+  async function handleImageUpload(e, featured = false) {
+    const file = e.target.files[0];
+    const url = await uploadToCloudinary(file);
+
+    if (featured) {
+      setForm({ ...form, featuredImage: url });
+    } else {
+      setForm({ ...form, images: [...form.images, url] });
+    }
+  }
+
+  /* ================= ADD / EDIT ================= */
+  async function handleSubmit(e) {
     e.preventDefault();
+    setLoading(true);
+
     try {
-      const { data } = await axios.post("/api/admin/products", form);
-      alert("Product added: " + data.product.name);
-      setForm({ name: "", description: "", costPrice: "", sellingPrice: "", mrp: "", images: [], variants: [], gstCategory: "Food", websiteCategory: "" });
-      fetchProducts();
-    } catch (err) { console.error(err); alert(err.response?.data?.message || "Error"); }
-  };
+      const endpoint = editProduct ? "/api/admin/products" : "/api/admin/products";
+      const method = editProduct ? "PUT" : "POST";
+
+      const payload = editProduct ? { productId: editProduct._id, updates: form } : form;
+
+      const { data } = await axios({ url: endpoint, method, data: payload });
+
+      if (data.success) {
+        fetchProducts();
+        setModalOpen(false);
+        setEditProduct(null);
+        setForm({
+          name: "",
+          description: "",
+          category: "",
+          gstCategory: "",
+          costPrice: 0,
+          mrp: 0,
+          sellingPrice: 0,
+          discountPercent: 0,
+          images: [],
+          featuredImage: "",
+          status: "active",
+        });
+      } else {
+        alert(data.message);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+
+    setLoading(false);
+  }
+
+  /* ================= EDIT PRODUCT ================= */
+  function editHandler(product) {
+    setEditProduct(product);
+    setForm({
+      name: product.name,
+      description: product.description,
+      category: product.category,
+      gstCategory: product.gstCategory,
+      costPrice: product.costPrice,
+      mrp: product.mrp,
+      sellingPrice: product.sellingPrice,
+      discountPercent: product.discountPercent,
+      images: product.images || [],
+      featuredImage: product.featuredImage || "",
+      status: product.status,
+    });
+    setModalOpen(true);
+  }
 
   return (
-    <div style={{ padding: 30 }}>
-      <h2>Admin Products</h2>
+    <div style={{ padding: 20 }}>
+      <h1>Products</h1>
+      <button onClick={() => setModalOpen(true)}>Add Product</button>
 
-      <form onSubmit={handleSubmit} style={{ marginBottom: 20 }}>
-        <input placeholder="Name" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required />
-        <input placeholder="Description" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} required />
-        <input placeholder="Cost Price" type="number" value={form.costPrice} onChange={e => setForm({ ...form, costPrice: e.target.value })} required />
-        <input placeholder="Selling Price" type="number" value={form.sellingPrice} onChange={e => setForm({ ...form, sellingPrice: e.target.value })} required />
-        <input placeholder="MRP" type="number" value={form.mrp} onChange={e => setForm({ ...form, mrp: e.target.value })} required />
+      {/* ================= PRODUCTS TABLE ================= */}
+      {loading ? <p>Loading...</p> : (
+        <table border={1} cellPadding={10} style={{ marginTop: 20, width: "100%", borderCollapse: "collapse" }}>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Category</th>
+              <th>GST Category</th>
+              <th>MRP</th>
+              <th>Selling Price</th>
+              <th>Status</th>
+              <th>Featured Image</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {products.map(p => (
+              <tr key={p._id}>
+                <td>{p.name}</td>
+                <td>{p.category}</td>
+                <td>{p.gstCategory}</td>
+                <td>{p.mrp}</td>
+                <td>{p.sellingPrice}</td>
+                <td>{p.status}</td>
+                <td>{p.featuredImage && <Image src={p.featuredImage} width={50} height={50} alt={p.name} />}</td>
+                <td>
+                  <button onClick={() => editHandler(p)}>Edit</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
 
-        <select value={form.gstCategory} onChange={e => setForm({ ...form, gstCategory: e.target.value })}>
-          <option value="Food">Food</option>
-          <option value="Electronics">Electronics</option>
-        </select>
+      {/* ================= MODAL ================= */}
+      {modalOpen && (
+        <div style={{
+          position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+          background: "rgba(0,0,0,0.5)", display: "flex",
+          justifyContent: "center", alignItems: "center"
+        }}>
+          <form onSubmit={handleSubmit} style={{ background: "#fff", padding: 20, width: 600, maxHeight: "90vh", overflowY: "scroll" }}>
+            <h2>{editProduct ? "Edit Product" : "Add Product"}</h2>
 
-        <input placeholder="Website Category" value={form.websiteCategory} onChange={e => setForm({ ...form, websiteCategory: e.target.value })} required />
+            <input name="name" placeholder="Name" value={form.name} onChange={handleChange} required />
+            <textarea name="description" placeholder="Description" value={form.description} onChange={handleChange} required />
 
-        <button type="submit">Add Product</button>
-      </form>
+            <select name="category" value={form.category} onChange={handleChange} required>
+              <option value="">Select Website Category</option>
+              {websiteCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+            </select>
 
-      <div>
-        {loading ? "Loading..." :
-          products.map(p => (
-            <div key={p._id} style={{ border: "1px solid #ccc", marginBottom: 10, padding: 10 }}>
-              <h4>{p.name} ({p.sku})</h4>
-              <p>{p.description}</p>
-              <p>MRP: {p.mrp} | Selling: {p.sellingPrice} | Cost: {p.costPrice} | GST: {p.gstPercent}%</p>
-            </div>
-          ))}
-      </div>
+            <select name="gstCategory" value={form.gstCategory} onChange={handleChange} required>
+              <option value="">Select GST Category</option>
+              {gstCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+            </select>
+
+            <input name="costPrice" type="number" placeholder="Cost Price" value={form.costPrice} onChange={handleChange} required />
+            <input name="mrp" type="number" placeholder="MRP" value={form.mrp} onChange={handleChange} required />
+            <input name="sellingPrice" type="number" placeholder="Selling Price" value={form.sellingPrice} onChange={handleChange} required />
+            <input name="discountPercent" type="number" placeholder="Discount %" value={form.discountPercent} onChange={handleChange} />
+
+            <label>Featured Image</label>
+            <input type="file" onChange={(e) => handleImageUpload(e, true)} />
+            {form.featuredImage && <Image src={form.featuredImage} width={100} height={100} alt="featured" />}
+
+            <label>Additional Images</label>
+            <input type="file" onChange={handleImageUpload} />
+            {form.images.map((img, idx) => <Image key={idx} src={img} width={100} height={100} alt="img" />)}
+
+            <select name="status" value={form.status} onChange={handleChange}>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+
+            <button type="submit" disabled={loading}>{loading ? "Saving..." : "Save"}</button>
+            <button type="button" onClick={() => { setModalOpen(false); setEditProduct(null); }}>Cancel</button>
+          </form>
+        </div>
+      )}
     </div>
   );
 }
