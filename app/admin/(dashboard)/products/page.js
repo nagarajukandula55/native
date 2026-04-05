@@ -52,7 +52,7 @@ export default function AdminProductsPage() {
     }
   }
 
-  /* ================= GST AUTO-FILL ================= */
+  /* ================= GST AUTO FILL ================= */
   function handleGstChange(e) {
     const selected = gstCategories.find((c) => c.name === e.target.value);
 
@@ -64,14 +64,15 @@ export default function AdminProductsPage() {
     }));
   }
 
-  /* ================= FORM CHANGE ================= */
+  /* ================= HANDLERS ================= */
   function handleChange(e) {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
   }
 
   function handleFileChange(e) {
-    setForm((prev) => ({ ...prev, images: e.target.files }));
+    const files = Array.from(e.target.files);
+    setForm((prev) => ({ ...prev, images: files }));
   }
 
   /* ================= SUBMIT ================= */
@@ -81,13 +82,11 @@ export default function AdminProductsPage() {
 
     const formData = new FormData();
 
-    Object.keys(form).forEach((key) => {
+    Object.entries(form).forEach(([key, value]) => {
       if (key === "images") {
-        for (let file of form.images) {
-          formData.append("images", file);
-        }
-      } else if (form[key] !== null) {
-        formData.append(key, form[key]);
+        value.forEach((file) => formData.append("images", file));
+      } else {
+        formData.append(key, value);
       }
     });
 
@@ -108,27 +107,6 @@ export default function AdminProductsPage() {
     setLoading(false);
   }
 
-  /* ================= EDIT ================= */
-  function handleEdit(p) {
-    setForm({
-      _id: p._id,
-      name: p.name,
-      description: p.description,
-      category: p.category,
-      gstCategory: p.gstCategory,
-      hsnCode: p.hsnCode,
-      gstPercent: p.gstPercent,
-      costPrice: p.costPrice,
-      mrp: p.mrp,
-      sellingPrice: p.sellingPrice,
-      status: p.status,
-      images: [],
-    });
-
-    setEditing(true);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }
-
   function resetForm() {
     setForm({
       _id: null,
@@ -147,119 +125,183 @@ export default function AdminProductsPage() {
     setEditing(false);
   }
 
-  /* ================= ADD CATEGORY ================= */
+  function handleEdit(p) {
+    setForm({
+      _id: p._id,
+      name: p.name,
+      description: p.description,
+      category: p.category,
+      gstCategory: p.gstCategory,
+      hsnCode: p.hsnCode,
+      gstPercent: p.gstPercent,
+      costPrice: p.costPrice,
+      mrp: p.mrp,
+      sellingPrice: p.sellingPrice,
+      status: p.status,
+      images: [],
+    });
+    setEditing(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  /* ================= CATEGORY ADD ================= */
   async function addWebsiteCategory() {
     if (!newWebsiteCategory) return;
 
-    const res = await fetch("/api/admin/categories", {
+    await fetch("/api/admin/categories", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: newWebsiteCategory, type: "website" }),
     });
 
-    const data = await res.json();
-    if (data.success) {
-      fetchCategories();
-      setNewWebsiteCategory("");
-    }
+    setNewWebsiteCategory("");
+    fetchCategories();
   }
 
   async function addGstCategory() {
     const { name, hsn, gst } = newGstCategory;
     if (!name || !hsn || !gst) return;
 
-    const res = await fetch("/api/admin/categories", {
+    await fetch("/api/admin/categories", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, type: "gst", hsn, gst }),
     });
 
-    const data = await res.json();
-    if (data.success) {
-      fetchCategories();
-      setNewGstCategory({ name: "", hsn: "", gst: "" });
-    }
+    setNewGstCategory({ name: "", hsn: "", gst: "" });
+    fetchCategories();
   }
 
   return (
     <div style={{ padding: 30, maxWidth: 1200, margin: "auto" }}>
-      <h1>Products</h1>
+      <h1 style={{ marginBottom: 20 }}>Product Management</h1>
 
-      {/* ===== FORM ===== */}
-      <form onSubmit={handleSubmit} style={{ marginBottom: 40 }}>
-        <input name="name" placeholder="Name" value={form.name} onChange={handleChange} required />
+      {/* ================= FORM ================= */}
+      <form onSubmit={handleSubmit} style={card}>
+        <h2>{editing ? "Edit Product" : "Add Product"}</h2>
 
-        <textarea name="description" placeholder="Description" value={form.description} onChange={handleChange} />
+        <div style={grid}>
+          <input name="name" placeholder="Product Name" value={form.name} onChange={handleChange} required />
 
-        {/* WEBSITE CATEGORY */}
-        <select name="category" value={form.category} onChange={handleChange}>
-          <option value="">Website Category</option>
-          {websiteCategories.map((c) => (
-            <option key={c._id} value={c.name}>{c.name}</option>
-          ))}
-        </select>
+          <select name="category" value={form.category} onChange={handleChange}>
+            <option value="">Website Category</option>
+            {websiteCategories.map((c) => (
+              <option key={c._id} value={c.name}>{c.name}</option>
+            ))}
+          </select>
 
-        {/* GST CATEGORY */}
-        <select name="gstCategory" value={form.gstCategory} onChange={handleGstChange}>
-          <option value="">GST Category</option>
-          {gstCategories.map((c) => (
-            <option key={c._id} value={c.name}>
-              {c.name} (HSN: {c.hsn}, GST: {c.gst}%)
-            </option>
-          ))}
-        </select>
+          {/* ADD WEBSITE CATEGORY */}
+          <div style={inline}>
+            <input
+              placeholder="New Category"
+              value={newWebsiteCategory}
+              onChange={(e) => setNewWebsiteCategory(e.target.value)}
+            />
+            <button type="button" onClick={addWebsiteCategory}>+ Add</button>
+          </div>
 
-        <input value={form.hsnCode} readOnly placeholder="HSN" />
-        <input value={form.gstPercent} readOnly placeholder="GST %" />
+          <select value={form.gstCategory} onChange={handleGstChange}>
+            <option value="">GST Category</option>
+            {gstCategories.map((c) => (
+              <option key={c._id} value={c.name}>
+                {c.name} ({c.gst}%)
+              </option>
+            ))}
+          </select>
 
-        <input name="costPrice" type="number" placeholder="Cost Price" value={form.costPrice} onChange={handleChange} />
-        <input name="mrp" type="number" placeholder="MRP" value={form.mrp} onChange={handleChange} />
-        <input name="sellingPrice" type="number" placeholder="Selling Price" value={form.sellingPrice} onChange={handleChange} />
+          {/* ADD GST CATEGORY */}
+          <div style={inline}>
+            <input placeholder="GST Name" value={newGstCategory.name} onChange={(e) => setNewGstCategory({ ...newGstCategory, name: e.target.value })} />
+            <input placeholder="HSN" value={newGstCategory.hsn} onChange={(e) => setNewGstCategory({ ...newGstCategory, hsn: e.target.value })} />
+            <input placeholder="GST %" value={newGstCategory.gst} onChange={(e) => setNewGstCategory({ ...newGstCategory, gst: e.target.value })} />
+            <button type="button" onClick={addGstCategory}>+ Add</button>
+          </div>
 
-        <select name="status" value={form.status} onChange={handleChange}>
-          <option value="active">Active</option>
-          <option value="inactive">Inactive</option>
-        </select>
+          <input value={form.hsnCode} readOnly placeholder="HSN Code" />
+          <input value={form.gstPercent} readOnly placeholder="GST %" />
 
+          <input name="costPrice" placeholder="Cost Price" value={form.costPrice} onChange={handleChange} />
+          <input name="mrp" placeholder="MRP" value={form.mrp} onChange={handleChange} />
+          <input name="sellingPrice" placeholder="Selling Price" value={form.sellingPrice} onChange={handleChange} />
+        </div>
+
+        <textarea
+          placeholder="Description"
+          value={form.description}
+          onChange={(e) => setForm({ ...form, description: e.target.value })}
+          style={{ marginTop: 10 }}
+        />
+
+        {/* IMAGE PREVIEW */}
         <input type="file" multiple onChange={handleFileChange} />
+        <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
+          {form.images.map((file, i) => (
+            <img key={i} src={URL.createObjectURL(file)} width={60} />
+          ))}
+        </div>
 
-        <button type="submit">{loading ? "Saving..." : editing ? "Update" : "Create"}</button>
+        <button style={btn}>{loading ? "Saving..." : "Save Product"}</button>
       </form>
 
-      {/* ===== TABLE ===== */}
-      <table width="100%">
-        <thead>
-          <tr>
-            <th>Image</th>
-            <th>Name</th>
-            <th>Category</th>
-            <th>GST</th>
-            <th>Price</th>
-            <th>Status</th>
-            <th>Edit</th>
-          </tr>
-        </thead>
-
-        <tbody>
-          {products.map((p) => (
-            <tr key={p._id}>
-              <td>
-                {p.images?.[0] && (
-                  <Image src={p.images[0]} width={60} height={60} alt={p.name} />
-                )}
-              </td>
-              <td>{p.name}</td>
-              <td>{p.category}</td>
-              <td>{p.gstCategory}</td>
-              <td>₹{p.sellingPrice}</td>
-              <td>{p.status}</td>
-              <td>
-                <button onClick={() => handleEdit(p)}>Edit</button>
-              </td>
+      {/* ================= TABLE ================= */}
+      <div style={card}>
+        <h2>Products</h2>
+        <table style={{ width: "100%" }}>
+          <thead>
+            <tr>
+              <th>Image</th>
+              <th>Name</th>
+              <th>Category</th>
+              <th>Price</th>
+              <th>Edit</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {products.map((p) => (
+              <tr key={p._id}>
+                <td>
+                  {p.images?.[0] && <Image src={p.images[0]} width={50} height={50} alt="" />}
+                </td>
+                <td>{p.name}</td>
+                <td>{p.category}</td>
+                <td>₹{p.sellingPrice}</td>
+                <td>
+                  <button onClick={() => handleEdit(p)}>Edit</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
+
+/* ===== STYLES ===== */
+const card = {
+  background: "#fff",
+  padding: 20,
+  borderRadius: 10,
+  boxShadow: "0 5px 15px rgba(0,0,0,0.1)",
+  marginBottom: 30,
+};
+
+const grid = {
+  display: "grid",
+  gridTemplateColumns: "1fr 1fr",
+  gap: 10,
+};
+
+const inline = {
+  display: "flex",
+  gap: 5,
+};
+
+const btn = {
+  marginTop: 15,
+  padding: 10,
+  background: "#111",
+  color: "#fff",
+  border: "none",
+  borderRadius: 6,
+};
