@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import ProductForm from "../components/ProductForm";
-import ProductTable from "../components/ProductTable";
-import StatsCards from "../components/StatsCards";
+import ProductForm from "../../components/ProductForm";
+import ProductTable from "../../components/ProductTable";
+import StatsCards from "../../components/StatsCards";
 
 export default function Page() {
   const [products, setProducts] = useState([]);
