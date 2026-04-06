@@ -1,16 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import ProductForm from "../../components/ProductForm";
-import ProductTable from "../../components/ProductTable";
+import ProductForm from "../components/ProductForm";
+import ProductTable from "../components/ProductTable";
+import StatsCards from "../components/StatsCards";
 
-export default function ProductsPage() {
+export default function Page() {
   const [products, setProducts] = useState([]);
   const [editing, setEditing] = useState(null);
 
-  useEffect(() => {
-    load();
-  }, []);
+  useEffect(() => { load(); }, []);
 
   async function load() {
     const res = await fetch("/api/admin/products");
@@ -19,7 +18,9 @@ export default function ProductsPage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6">
+      <StatsCards products={products} />
+
       <ProductForm
         refresh={load}
         editing={editing}
@@ -29,7 +30,7 @@ export default function ProductsPage() {
       <ProductTable
         products={products}
         onEdit={setEditing}
-        onDelete={load}
+        refresh={load}
       />
     </div>
   );
