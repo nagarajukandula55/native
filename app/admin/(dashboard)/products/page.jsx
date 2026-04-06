@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Modal from "@/components/Modal"; // Assuming you have a generic modal component
+import Modal from "@/components/ui/Modal"; // Assuming you have a generic modal component
 import slugify from "slugify";
 
 export default function ProductsPage() {
