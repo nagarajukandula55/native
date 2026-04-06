@@ -1,243 +1,155 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 
-export default function ProductsPage() {
-  const [products, setProducts] = useState([]);
-  const [editing, setEditing] = useState(null);
-
-  async function fetchProducts() {
-    const res = await fetch("/api/admin/products");
-    const data = await res.json();
-    setProducts(data.products || []);
-  }
-
-  useEffect(() => {
-    fetchProducts();
-  }, []);
+export default function ProductPage() {
+  const [tab, setTab] = useState("basic");
 
   return (
-    <div>
-      <ProductForm refresh={fetchProducts} editing={editing} setEditing={setEditing} />
+    <div style={{ padding: 20 }}>
+      <h1>Product Management</h1>
+
+      {/* TABS */}
+      <div style={tabs}>
+        {["basic", "pricing", "inventory", "variants", "seo"].map(t => (
+          <button key={t} onClick={() => setTab(t)} style={tabBtn(tab === t)}>
+            {t.toUpperCase()}
+          </button>
+        ))}
+      </div>
+
+      <ProductForm tab={tab} />
     </div>
   );
 }
 
 /* ================= FORM ================= */
 
-function ProductForm({ refresh, editing, setEditing }) {
+function ProductForm({ tab }) {
   const [form, setForm] = useState({
     name: "",
-    brand: "",
-    description: "",
-
     category: "",
-    subcategory: "",
-    gstCategory: "",
-    hsnCode: "",
-    gstPercent: "",
-
     costPrice: "",
-    mrp: "",
     sellingPrice: "",
-
-    totalStock: "",
-    lowStockAlert: "",
-    trackInventory: true,
-    allowBackorder: false,
-
-    weight: "",
-    dimensions: { length: "", width: "", height: "" },
-
-    seoTitle: "",
-    seoDescription: "",
-    seoKeywords: "",
-
-    isFeatured: false,
-    isBestSeller: false,
-    isNewArrival: false,
-
-    images: [],
-    status: "active",
+    gstPercent: "",
+    taxIncluded: false,
   });
 
   const [variants, setVariants] = useState([]);
-  const [preview, setPreview] = useState([]);
 
-  function handleChange(e) {
+  /* SKU AUTO */
+  useEffect(() => {
+    if (form.name && form.category) {
+      const sku = `${form.name.slice(0,3)}-${Date.now()}`;
+      setForm(f => ({ ...f, sku }));
+    }
+  }, [form.name, form.category]);
+
+  /* SEO AUTO */
+  useEffect(() => {
+    if (form.name) {
+      fetch("/api/seo/generate", {
+        method: "POST",
+        body: JSON.stringify(form),
+      })
+        .then(r => r.json())
+        .then(data => {
+          setForm(f => ({
+            ...f,
+            seoTitle: data.title,
+            seoDescription: data.description,
+          }));
+        });
+    }
+  }, [form.name]);
+
+  function handle(e) {
     const { name, value, type, checked } = e.target;
     setForm({ ...form, [name]: type === "checkbox" ? checked : value });
   }
 
-  function handleDimension(field, value) {
-    setForm({
-      ...form,
-      dimensions: { ...form.dimensions, [field]: value },
-    });
-  }
-
-  /* PROFIT AUTO */
-  const profit =
-    form.costPrice && form.sellingPrice
-      ? Number(form.sellingPrice) - Number(form.costPrice)
-      : 0;
-
-  /* IMAGE */
-  function handleImages(e) {
-    const files = [...e.target.files];
-    setForm({ ...form, images: files });
-    setPreview(files.map(f => URL.createObjectURL(f)));
-  }
-
-  /* VARIANTS */
-  function addVariant() {
-    setVariants([
-      ...variants,
-      {
-        type: "",
-        value: "",
-        costPrice: "",
-        mrp: "",
-        sellingPrice: "",
-        stock: "",
-        sku: "",
-      },
-    ]);
-  }
-
-  function updateVariant(i, field, value) {
-    const v = [...variants];
-    v[i][field] = value;
-
-    if (field === "value") {
-      v[i].sku = form.name + "-" + value;
-    }
-
-    setVariants(v);
-  }
-
-  function removeVariant(i) {
-    setVariants(variants.filter((_, idx) => idx !== i));
-  }
-
-  /* VALIDATION */
-  function validate() {
-    if (!form.name || !form.category || !form.costPrice || !form.sellingPrice) {
-      alert("Fill required fields");
-      return false;
-    }
-
-    if (Number(form.sellingPrice) < Number(form.costPrice)) {
-      alert("Loss not allowed");
-      return false;
-    }
-
-    return true;
-  }
-
-  /* SAVE */
-  async function save() {
-    if (!validate()) return;
-
-    const fd = new FormData();
-
-    Object.keys(form).forEach(k => {
-      if (k !== "images" && k !== "dimensions")
-        fd.append(k, form[k]);
-    });
-
-    fd.append("dimensions", JSON.stringify(form.dimensions));
-    fd.append("variants", JSON.stringify(variants));
-
-    form.images.forEach(img => fd.append("images", img));
-
-    await fetch("/api/admin/products", {
-      method: "POST",
-      body: fd,
-    });
-
-    alert("Saved");
-    refresh();
-  }
+  /* GST SPLIT */
+  const cgst = form.gstPercent / 2;
+  const sgst = form.gstPercent / 2;
 
   return (
     <div style={box}>
-      <h2>Product</h2>
-
       {/* BASIC */}
-      <h3>Basic Info</h3>
-      <input name="name" placeholder="Name" onChange={handleChange} />
-      <input name="brand" placeholder="Brand" onChange={handleChange} />
-      <textarea name="description" placeholder="Description" onChange={handleChange} />
+      {tab === "basic" && (
+        <>
+          <input name="name" placeholder="Product Name" onChange={handle} />
+          <input name="brand" placeholder="Brand" onChange={handle} />
+          <textarea name="description" placeholder="Description" onChange={handle} />
+        </>
+      )}
 
       {/* PRICING */}
-      <h3>Pricing</h3>
-      <input name="costPrice" placeholder="Cost" onChange={handleChange} />
-      <input name="mrp" placeholder="MRP" onChange={handleChange} />
-      <input name="sellingPrice" placeholder="Selling" onChange={handleChange} />
-      <p>Profit: ₹{profit}</p>
+      {tab === "pricing" && (
+        <>
+          <input name="costPrice" placeholder="Cost" onChange={handle} />
+          <input name="mrp" placeholder="MRP" onChange={handle} />
+          <input name="sellingPrice" placeholder="Selling" onChange={handle} />
+
+          <input name="gstPercent" placeholder="GST %" onChange={handle} />
+
+          <label>
+            <input type="checkbox" name="taxIncluded" onChange={handle} />
+            Tax Included
+          </label>
+
+          <p>CGST: {cgst}% | SGST: {sgst}%</p>
+        </>
+      )}
 
       {/* INVENTORY */}
-      <h3>Inventory</h3>
-      <input name="totalStock" placeholder="Total Stock" onChange={handleChange} />
-      <input name="lowStockAlert" placeholder="Low Stock Alert" onChange={handleChange} />
-      <label>
-        <input type="checkbox" name="trackInventory" onChange={handleChange} /> Track Inventory
-      </label>
-      <label>
-        <input type="checkbox" name="allowBackorder" onChange={handleChange} /> Allow Backorder
-      </label>
+      {tab === "inventory" && (
+        <>
+          <input name="totalStock" placeholder="Stock" onChange={handle} />
+          <input name="lowStockAlert" placeholder="Low Alert" onChange={handle} />
+
+          <label>
+            <input type="checkbox" name="trackInventory" onChange={handle} />
+            Track Inventory
+          </label>
+        </>
+      )}
 
       {/* VARIANTS */}
-      <h3>Variants</h3>
-      {variants.map((v, i) => (
-        <div key={i} style={row}>
-          <input placeholder="Type" onChange={e => updateVariant(i, "type", e.target.value)} />
-          <input placeholder="Value" onChange={e => updateVariant(i, "value", e.target.value)} />
-          <input placeholder="Cost" onChange={e => updateVariant(i, "costPrice", e.target.value)} />
-          <input placeholder="MRP" onChange={e => updateVariant(i, "mrp", e.target.value)} />
-          <input placeholder="Selling" onChange={e => updateVariant(i, "sellingPrice", e.target.value)} />
-          <input placeholder="Stock" onChange={e => updateVariant(i, "stock", e.target.value)} />
-          <input value={v.sku} readOnly />
-          <button onClick={() => removeVariant(i)}>X</button>
-        </div>
-      ))}
-      <button onClick={addVariant}>+ Variant</button>
-
-      {/* SHIPPING */}
-      <h3>Shipping</h3>
-      <input name="weight" placeholder="Weight (kg)" onChange={handleChange} />
-      <input placeholder="Length" onChange={e => handleDimension("length", e.target.value)} />
-      <input placeholder="Width" onChange={e => handleDimension("width", e.target.value)} />
-      <input placeholder="Height" onChange={e => handleDimension("height", e.target.value)} />
+      {tab === "variants" && (
+        <>
+          {variants.map((v, i) => (
+            <div key={i}>
+              <input placeholder="Type" />
+              <input placeholder="Value" />
+              <input placeholder="Price" />
+            </div>
+          ))}
+          <button onClick={() => setVariants([...variants, {}])}>
+            + Add Variant
+          </button>
+        </>
+      )}
 
       {/* SEO */}
-      <h3>SEO</h3>
-      <input name="seoTitle" placeholder="SEO Title" onChange={handleChange} />
-      <textarea name="seoDescription" placeholder="SEO Description" onChange={handleChange} />
-      <input name="seoKeywords" placeholder="Keywords (comma separated)" onChange={handleChange} />
+      {tab === "seo" && (
+        <>
+          <input value={form.seoTitle || ""} readOnly />
+          <textarea value={form.seoDescription || ""} readOnly />
+        </>
+      )}
 
-      {/* FLAGS */}
-      <h3>Product Flags</h3>
-      <label><input type="checkbox" name="isFeatured" onChange={handleChange} /> Featured</label>
-      <label><input type="checkbox" name="isBestSeller" onChange={handleChange} /> Best Seller</label>
-      <label><input type="checkbox" name="isNewArrival" onChange={handleChange} /> New Arrival</label>
-
-      {/* IMAGES */}
-      <h3>Images</h3>
-      <input type="file" multiple onChange={handleImages} />
-      <div style={{ display: "flex", gap: 10 }}>
-        {preview.map((p, i) => (
-          <img key={i} src={p} width={60} />
-        ))}
-      </div>
-
-      <button onClick={save} style={btn}>Save Product</button>
+      <button style={btn}>Save Product</button>
     </div>
   );
 }
 
-/* STYLES */
+/* ================= STYLES ================= */
+
+const tabs = { display: "flex", gap: 10, marginBottom: 20 };
+const tabBtn = active => ({
+  padding: 10,
+  background: active ? "black" : "#ddd",
+  color: active ? "#fff" : "#000",
+});
 const box = { background: "#fff", padding: 20 };
-const row = { display: "flex", gap: 6, marginBottom: 8 };
-const btn = { background: "black", color: "#fff", padding: 10 };
+const btn = { marginTop: 20, padding: 10, background: "black", color: "#fff" };
