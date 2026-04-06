@@ -10,18 +10,36 @@ export default function ProductsPage() {
   const [search, setSearch] = useState("");
 
   async function fetchProducts() {
-    const res = await fetch("/api/admin/products");
-    const data = await res.json();
-    setProducts(data);
+    try {
+      const res = await fetch("/api/admin/products");
+      const data = await res.json();
+
+      // ✅ SAFE NORMALIZATION
+      if (Array.isArray(data)) {
+        setProducts(data);
+      } else if (Array.isArray(data.products)) {
+        setProducts(data.products);
+      } else if (Array.isArray(data.data)) {
+        setProducts(data.data);
+      } else {
+        console.error("Invalid products response:", data);
+        setProducts([]);
+      }
+    } catch (err) {
+      console.error("Fetch error:", err);
+      setProducts([]);
+    }
   }
 
   useEffect(() => {
     fetchProducts();
   }, []);
 
-  const filtered = products.filter(p =>
-    p.name?.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = Array.isArray(products)
+    ? products.filter(p =>
+        p?.name?.toLowerCase().includes(search.toLowerCase())
+      )
+    : [];
 
   return (
     <div>
@@ -46,12 +64,16 @@ export default function ProductsPage() {
 
 function TopBar({ search, setSearch }) {
   return (
-    <div style={topbar}>
+    <div style={{ marginBottom: 20 }}>
       <input
         placeholder="Search products..."
         value={search}
         onChange={e => setSearch(e.target.value)}
-        style={searchInput}
+        style={{
+          width: "100%",
+          padding: 10,
+          border: "1px solid #ddd",
+        }}
       />
     </div>
   );
@@ -91,14 +113,20 @@ function ProductForm({ refresh, editing, setEditing }) {
   }, []);
 
   async function loadAll() {
-    const [c, s, g] = await Promise.all([
-      fetch("/api/admin/categories").then(r => r.json()),
-      fetch("/api/admin/subcategories").then(r => r.json()),
-      fetch("/api/admin/gst").then(r => r.json()),
-    ]);
-    setCategories(c);
-    setSubcategories(s);
-    setGstCategories(g);
+    try {
+      const [c, s, g] = await Promise.all([
+        fetch("/api/admin/categories").then(r => r.json()),
+        fetch("/api/admin/subcategories").then(r => r.json()),
+        fetch("/api/admin/gst").then(r => r.json()),
+      ]);
+
+      // ✅ SAFE SET
+      setCategories(Array.isArray(c) ? c : c.data || []);
+      setSubcategories(Array.isArray(s) ? s : s.data || []);
+      setGstCategories(Array.isArray(g) ? g : g.data || []);
+    } catch (err) {
+      console.error("Load error:", err);
+    }
   }
 
   useEffect(() => {
@@ -111,6 +139,8 @@ function ProductForm({ refresh, editing, setEditing }) {
 
   function handleGst(e) {
     const g = gstCategories.find(x => x._id === e.target.value);
+    if (!g) return;
+
     setForm({
       ...form,
       gstCategory: g._id,
@@ -122,6 +152,7 @@ function ProductForm({ refresh, editing, setEditing }) {
   /* SKU AUTO */
   useEffect(() => {
     if (!form.name) return;
+
     const base = form.name.replace("Native", "").trim().split(" ")[0];
     setForm(f => ({ ...f, sku: "NA" + base.toUpperCase() }));
   }, [form.name]);
@@ -130,18 +161,21 @@ function ProductForm({ refresh, editing, setEditing }) {
 
   async function addCategory() {
     if (!newCategory) return;
+
     const res = await fetch("/api/admin/categories", {
       method: "POST",
       body: JSON.stringify({ name: newCategory }),
     });
+
     const data = await res.json();
-    setCategories([...categories, data]);
+    setCategories(prev => [...prev, data]);
     setForm({ ...form, category: data._id });
     setNewCategory("");
   }
 
   async function addSubcategory() {
     if (!newSubcategory || !form.category) return;
+
     const res = await fetch("/api/admin/subcategories", {
       method: "POST",
       body: JSON.stringify({
@@ -149,25 +183,32 @@ function ProductForm({ refresh, editing, setEditing }) {
         categoryId: form.category,
       }),
     });
+
     const data = await res.json();
-    setSubcategories([...subcategories, data]);
+    setSubcategories(prev => [...prev, data]);
     setForm({ ...form, subcategory: data._id });
     setNewSubcategory("");
   }
 
   async function addGst() {
+    if (!newGst.name || !newGst.hsn || !newGst.gst) return;
+
     const res = await fetch("/api/admin/gst", {
       method: "POST",
       body: JSON.stringify(newGst),
     });
+
     const data = await res.json();
-    setGstCategories([...gstCategories, data]);
+
+    setGstCategories(prev => [...prev, data]);
+
     setForm({
       ...form,
       gstCategory: data._id,
       hsnCode: data.hsn,
       gstPercent: data.gst,
     });
+
     setNewGst({ name: "", hsn: "", gst: "" });
   }
 
@@ -215,39 +256,33 @@ function ProductForm({ refresh, editing, setEditing }) {
           <div>
             <select name="category" value={form.category} onChange={handleChange}>
               <option value="">Category</option>
-              {categories.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
+              {(Array.isArray(categories) ? categories : []).map(c => (
+                <option key={c._id} value={c._id}>{c.name}</option>
+              ))}
             </select>
 
-            <InlineAdd
-              value={newCategory}
-              setValue={setNewCategory}
-              onAdd={addCategory}
-              placeholder="New Category"
-            />
+            <InlineAdd value={newCategory} setValue={setNewCategory} onAdd={addCategory} placeholder="New Category" />
           </div>
 
           {/* SUBCATEGORY */}
           <div>
             <select name="subcategory" value={form.subcategory} onChange={handleChange}>
               <option value="">Subcategory</option>
-              {subcategories
+              {(Array.isArray(subcategories) ? subcategories : [])
                 .filter(s => s.category?._id === form.category)
-                .map(s => <option key={s._id} value={s._id}>{s.name}</option>)}
+                .map(s => (
+                  <option key={s._id} value={s._id}>{s.name}</option>
+                ))}
             </select>
 
-            <InlineAdd
-              value={newSubcategory}
-              setValue={setNewSubcategory}
-              onAdd={addSubcategory}
-              placeholder="New Subcategory"
-            />
+            <InlineAdd value={newSubcategory} setValue={setNewSubcategory} onAdd={addSubcategory} placeholder="New Subcategory" />
           </div>
 
           {/* GST */}
           <div>
             <select value={form.gstCategory} onChange={handleGst}>
               <option value="">GST</option>
-              {gstCategories.map(g => (
+              {(Array.isArray(gstCategories) ? gstCategories : []).map(g => (
                 <option key={g._id} value={g._id}>{g.name}</option>
               ))}
             </select>
@@ -256,7 +291,7 @@ function ProductForm({ refresh, editing, setEditing }) {
               <input placeholder="Name" onChange={e => setNewGst({ ...newGst, name: e.target.value })} />
               <input placeholder="HSN" onChange={e => setNewGst({ ...newGst, hsn: e.target.value })} />
               <input placeholder="%" onChange={e => setNewGst({ ...newGst, gst: e.target.value })} />
-              <button onClick={addGst}>Add</button>
+              <button onClick={addGst}>+</button>
             </div>
           </div>
         </Grid>
@@ -277,8 +312,8 @@ function ProductForm({ refresh, editing, setEditing }) {
         <input type="file" multiple onChange={e => setForm({ ...form, images: [...e.target.files] })} />
       </Section>
 
-      <button style={primaryBtn} onClick={save}>
-        {editing ? "Update Product" : "Save Product"}
+      <button style={btn} onClick={save}>
+        {editing ? "Update" : "Save"}
       </button>
     </div>
   );
@@ -305,7 +340,7 @@ function ProductTable({ products, refresh, setEditing }) {
       </thead>
 
       <tbody>
-        {products.map(p => (
+        {(Array.isArray(products) ? products : []).map(p => (
           <tr key={p._id}>
             <td>{p.name}</td>
             <td>{p.sku}</td>
@@ -355,18 +390,6 @@ function InlineAdd({ value, setValue, onAdd, placeholder }) {
   );
 }
 
-/* ================= STYLES ================= */
-
-const topbar = {
-  marginBottom: 20,
-};
-
-const searchInput = {
-  width: "100%",
-  padding: 10,
-  border: "1px solid #ddd",
-};
-
 const card = {
   background: "#fff",
   padding: 20,
@@ -374,9 +397,9 @@ const card = {
   marginBottom: 20,
 };
 
-const primaryBtn = {
+const btn = {
   background: "#000",
   color: "#fff",
-  padding: "10px 20px",
+  padding: 10,
   border: "none",
 };
