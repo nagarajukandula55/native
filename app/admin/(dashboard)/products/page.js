@@ -2,33 +2,18 @@
 
 import { useEffect, useState } from "react";
 
-/* ================= MAIN PAGE ================= */
-
 export default function ProductsPage() {
   const [products, setProducts] = useState([]);
   const [editing, setEditing] = useState(null);
   const [search, setSearch] = useState("");
 
   async function fetchProducts() {
-    try {
-      const res = await fetch("/api/admin/products");
-      const data = await res.json();
+    const res = await fetch("/api/admin/products");
+    const data = await res.json();
 
-      // ✅ SAFE NORMALIZATION
-      if (Array.isArray(data)) {
-        setProducts(data);
-      } else if (Array.isArray(data.products)) {
-        setProducts(data.products);
-      } else if (Array.isArray(data.data)) {
-        setProducts(data.data);
-      } else {
-        console.error("Invalid products response:", data);
-        setProducts([]);
-      }
-    } catch (err) {
-      console.error("Fetch error:", err);
-      setProducts([]);
-    }
+    if (Array.isArray(data)) setProducts(data);
+    else if (Array.isArray(data.data)) setProducts(data.data);
+    else setProducts([]);
   }
 
   useEffect(() => {
@@ -43,38 +28,16 @@ export default function ProductsPage() {
 
   return (
     <div>
-      <TopBar search={search} setSearch={setSearch} />
-
-      <ProductForm
-        refresh={fetchProducts}
-        editing={editing}
-        setEditing={setEditing}
-      />
-
-      <ProductTable
-        products={filtered}
-        refresh={fetchProducts}
-        setEditing={setEditing}
-      />
-    </div>
-  );
-}
-
-/* ================= TOP BAR ================= */
-
-function TopBar({ search, setSearch }) {
-  return (
-    <div style={{ marginBottom: 20 }}>
       <input
         placeholder="Search products..."
         value={search}
         onChange={e => setSearch(e.target.value)}
-        style={{
-          width: "100%",
-          padding: 10,
-          border: "1px solid #ddd",
-        }}
+        style={{ width: "100%", padding: 10, marginBottom: 20 }}
       />
+
+      <ProductForm refresh={fetchProducts} editing={editing} setEditing={setEditing} />
+
+      <ProductTable products={filtered} refresh={fetchProducts} setEditing={setEditing} />
     </div>
   );
 }
@@ -86,9 +49,9 @@ function ProductForm({ refresh, editing, setEditing }) {
   const [subcategories, setSubcategories] = useState([]);
   const [gstCategories, setGstCategories] = useState([]);
 
-  const [newCategory, setNewCategory] = useState("");
-  const [newSubcategory, setNewSubcategory] = useState("");
-  const [newGst, setNewGst] = useState({ name: "", hsn: "", gst: "" });
+  const [previewImages, setPreviewImages] = useState([]);
+
+  const [variants, setVariants] = useState([]);
 
   const [form, setForm] = useState({
     name: "",
@@ -113,24 +76,22 @@ function ProductForm({ refresh, editing, setEditing }) {
   }, []);
 
   async function loadAll() {
-    try {
-      const [c, s, g] = await Promise.all([
-        fetch("/api/admin/categories").then(r => r.json()),
-        fetch("/api/admin/subcategories").then(r => r.json()),
-        fetch("/api/admin/gst").then(r => r.json()),
-      ]);
+    const [c, s, g] = await Promise.all([
+      fetch("/api/admin/categories").then(r => r.json()),
+      fetch("/api/admin/subcategories").then(r => r.json()),
+      fetch("/api/admin/gst").then(r => r.json()),
+    ]);
 
-      // ✅ SAFE SET
-      setCategories(Array.isArray(c) ? c : c.data || []);
-      setSubcategories(Array.isArray(s) ? s : s.data || []);
-      setGstCategories(Array.isArray(g) ? g : g.data || []);
-    } catch (err) {
-      console.error("Load error:", err);
-    }
+    setCategories(Array.isArray(c) ? c : c.data || []);
+    setSubcategories(Array.isArray(s) ? s : s.data || []);
+    setGstCategories(Array.isArray(g) ? g : g.data || []);
   }
 
   useEffect(() => {
-    if (editing) setForm(editing);
+    if (editing) {
+      setForm(editing);
+      setVariants(editing.variants || []);
+    }
   }, [editing]);
 
   function handleChange(e) {
@@ -152,65 +113,53 @@ function ProductForm({ refresh, editing, setEditing }) {
   /* SKU AUTO */
   useEffect(() => {
     if (!form.name) return;
-
-    const base = form.name.replace("Native", "").trim().split(" ")[0];
-    setForm(f => ({ ...f, sku: "NA" + base.toUpperCase() }));
+    const base = form.name.split(" ")[0];
+    setForm(f => ({ ...f, sku: "NA-" + base.toUpperCase() }));
   }, [form.name]);
 
-  /* INLINE ADD */
+  /* ===== VARIANTS SYSTEM ===== */
 
-  async function addCategory() {
-    if (!newCategory) return;
-
-    const res = await fetch("/api/admin/categories", {
-      method: "POST",
-      body: JSON.stringify({ name: newCategory }),
-    });
-
-    const data = await res.json();
-    setCategories(prev => [...prev, data]);
-    setForm({ ...form, category: data._id });
-    setNewCategory("");
+  function addVariant() {
+    setVariants([
+      ...variants,
+      {
+        type: "",
+        value: "",
+        price: "",
+        cost: "",
+        stock: "",
+        sku: "",
+      },
+    ]);
   }
 
-  async function addSubcategory() {
-    if (!newSubcategory || !form.category) return;
+  function updateVariant(i, field, value) {
+    const updated = [...variants];
+    updated[i][field] = value;
 
-    const res = await fetch("/api/admin/subcategories", {
-      method: "POST",
-      body: JSON.stringify({
-        name: newSubcategory,
-        categoryId: form.category,
-      }),
-    });
+    // auto SKU
+    if (field === "value") {
+      updated[i].sku = form.sku + "-" + value.toUpperCase();
+    }
 
-    const data = await res.json();
-    setSubcategories(prev => [...prev, data]);
-    setForm({ ...form, subcategory: data._id });
-    setNewSubcategory("");
+    setVariants(updated);
   }
 
-  async function addGst() {
-    if (!newGst.name || !newGst.hsn || !newGst.gst) return;
-
-    const res = await fetch("/api/admin/gst", {
-      method: "POST",
-      body: JSON.stringify(newGst),
-    });
-
-    const data = await res.json();
-
-    setGstCategories(prev => [...prev, data]);
-
-    setForm({
-      ...form,
-      gstCategory: data._id,
-      hsnCode: data.hsn,
-      gstPercent: data.gst,
-    });
-
-    setNewGst({ name: "", hsn: "", gst: "" });
+  function removeVariant(i) {
+    setVariants(variants.filter((_, index) => index !== i));
   }
+
+  /* ===== IMAGE PREVIEW ===== */
+
+  function handleImages(e) {
+    const files = [...e.target.files];
+    setForm({ ...form, images: files });
+
+    const previews = files.map(f => URL.createObjectURL(f));
+    setPreviewImages(previews);
+  }
+
+  /* ===== SAVE ===== */
 
   async function save() {
     const fd = new FormData();
@@ -219,7 +168,15 @@ function ProductForm({ refresh, editing, setEditing }) {
       if (k !== "images") fd.append(k, form[k]);
     });
 
-    form.images.forEach(img => fd.append("images", img));
+    // images
+    if (Array.isArray(form.images)) {
+      form.images.forEach(img => {
+        if (img instanceof File) fd.append("images", img);
+      });
+    }
+
+    // variants
+    fd.append("variants", JSON.stringify(variants));
 
     await fetch("/api/admin/products", {
       method: editing ? "PUT" : "POST",
@@ -231,89 +188,68 @@ function ProductForm({ refresh, editing, setEditing }) {
   }
 
   return (
-    <div style={card}>
+    <div style={{ background: "#fff", padding: 20, marginBottom: 20 }}>
       <h2>{editing ? "Edit Product" : "Add Product"}</h2>
 
       {/* BASIC */}
-      <Section title="Basic Info">
-        <Grid>
-          <input name="name" placeholder="Name" value={form.name} onChange={handleChange} />
-          <input name="brand" placeholder="Brand" value={form.brand} onChange={handleChange} />
-          <input value={form.sku} readOnly placeholder="SKU" />
-        </Grid>
+      <div style={grid}>
+        <input name="name" placeholder="Name" value={form.name} onChange={handleChange} />
+        <input name="brand" placeholder="Brand" value={form.brand} onChange={handleChange} />
+        <input value={form.sku} readOnly placeholder="SKU" />
+      </div>
 
-        <textarea
-          placeholder="Description"
-          value={form.description}
-          onChange={e => setForm({ ...form, description: e.target.value })}
-        />
-      </Section>
-
-      {/* CATEGORY */}
-      <Section title="Category & GST">
-        <Grid>
-          {/* CATEGORY */}
-          <div>
-            <select name="category" value={form.category} onChange={handleChange}>
-              <option value="">Category</option>
-              {(Array.isArray(categories) ? categories : []).map(c => (
-                <option key={c._id} value={c._id}>{c.name}</option>
-              ))}
-            </select>
-
-            <InlineAdd value={newCategory} setValue={setNewCategory} onAdd={addCategory} placeholder="New Category" />
-          </div>
-
-          {/* SUBCATEGORY */}
-          <div>
-            <select name="subcategory" value={form.subcategory} onChange={handleChange}>
-              <option value="">Subcategory</option>
-              {(Array.isArray(subcategories) ? subcategories : [])
-                .filter(s => s.category?._id === form.category)
-                .map(s => (
-                  <option key={s._id} value={s._id}>{s.name}</option>
-                ))}
-            </select>
-
-            <InlineAdd value={newSubcategory} setValue={setNewSubcategory} onAdd={addSubcategory} placeholder="New Subcategory" />
-          </div>
-
-          {/* GST */}
-          <div>
-            <select value={form.gstCategory} onChange={handleGst}>
-              <option value="">GST</option>
-              {(Array.isArray(gstCategories) ? gstCategories : []).map(g => (
-                <option key={g._id} value={g._id}>{g.name}</option>
-              ))}
-            </select>
-
-            <div style={{ display: "flex", gap: 5 }}>
-              <input placeholder="Name" onChange={e => setNewGst({ ...newGst, name: e.target.value })} />
-              <input placeholder="HSN" onChange={e => setNewGst({ ...newGst, hsn: e.target.value })} />
-              <input placeholder="%" onChange={e => setNewGst({ ...newGst, gst: e.target.value })} />
-              <button onClick={addGst}>+</button>
-            </div>
-          </div>
-        </Grid>
-      </Section>
+      <textarea
+        placeholder="Description"
+        value={form.description}
+        onChange={e => setForm({ ...form, description: e.target.value })}
+      />
 
       {/* PRICING */}
-      <Section title="Pricing & Stock">
-        <Grid>
-          <input name="costPrice" placeholder="Cost" value={form.costPrice} onChange={handleChange} />
-          <input name="mrp" placeholder="MRP" value={form.mrp} onChange={handleChange} />
-          <input name="sellingPrice" placeholder="Selling" value={form.sellingPrice} onChange={handleChange} />
-          <input name="stock" placeholder="Stock" value={form.stock} onChange={handleChange} />
-        </Grid>
-      </Section>
+      <div style={grid}>
+        <input name="costPrice" placeholder="Cost" value={form.costPrice} onChange={handleChange} />
+        <input name="sellingPrice" placeholder="Selling" value={form.sellingPrice} onChange={handleChange} />
+        <input name="stock" placeholder="Stock" value={form.stock} onChange={handleChange} />
+      </div>
 
-      {/* MEDIA */}
-      <Section title="Images">
-        <input type="file" multiple onChange={e => setForm({ ...form, images: [...e.target.files] })} />
-      </Section>
+      {/* PROFIT */}
+      <div style={{ fontWeight: 600 }}>
+        Profit: ₹ {form.sellingPrice - form.costPrice || 0}
+      </div>
 
-      <button style={btn} onClick={save}>
-        {editing ? "Update" : "Save"}
+      {/* VARIANTS */}
+      <h3>Variants</h3>
+
+      {variants.map((v, i) => {
+        const profit = v.price && v.cost ? v.price - v.cost : 0;
+
+        return (
+          <div key={i} style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+            <input placeholder="Type" value={v.type} onChange={e => updateVariant(i, "type", e.target.value)} />
+            <input placeholder="Value" value={v.value} onChange={e => updateVariant(i, "value", e.target.value)} />
+            <input placeholder="Cost" value={v.cost} onChange={e => updateVariant(i, "cost", e.target.value)} />
+            <input placeholder="Price" value={v.price} onChange={e => updateVariant(i, "price", e.target.value)} />
+            <input placeholder="Stock" value={v.stock} onChange={e => updateVariant(i, "stock", e.target.value)} />
+            <input placeholder="SKU" value={v.sku} readOnly />
+            <span>₹{profit}</span>
+            <button onClick={() => removeVariant(i)}>X</button>
+          </div>
+        );
+      })}
+
+      <button onClick={addVariant}>+ Add Variant</button>
+
+      {/* IMAGES */}
+      <h3>Images</h3>
+      <input type="file" multiple onChange={handleImages} />
+
+      <div style={{ display: "flex", gap: 10 }}>
+        {previewImages.map((src, i) => (
+          <img key={i} src={src} width={60} height={60} />
+        ))}
+      </div>
+
+      <button onClick={save} style={btn}>
+        Save Product
       </button>
     </div>
   );
@@ -333,19 +269,19 @@ function ProductTable({ products, refresh, setEditing }) {
         <tr>
           <th>Name</th>
           <th>SKU</th>
-          <th>Price</th>
           <th>Stock</th>
+          <th>Variants</th>
           <th>Action</th>
         </tr>
       </thead>
 
       <tbody>
-        {(Array.isArray(products) ? products : []).map(p => (
+        {(products || []).map(p => (
           <tr key={p._id}>
             <td>{p.name}</td>
             <td>{p.sku}</td>
-            <td>{p.sellingPrice}</td>
             <td>{p.stock}</td>
+            <td>{p.variants?.length || 0}</td>
             <td>
               <button onClick={() => setEditing(p)}>Edit</button>
               <button onClick={() => del(p._id)}>Delete</button>
@@ -357,49 +293,18 @@ function ProductTable({ products, refresh, setEditing }) {
   );
 }
 
-/* ================= UI HELPERS ================= */
+/* ================= STYLES ================= */
 
-function Section({ title, children }) {
-  return (
-    <div style={{ marginBottom: 20 }}>
-      <h3>{title}</h3>
-      {children}
-    </div>
-  );
-}
-
-function Grid({ children }) {
-  return (
-    <div style={{
-      display: "grid",
-      gridTemplateColumns: "repeat(3,1fr)",
-      gap: 10,
-      marginBottom: 10,
-    }}>
-      {children}
-    </div>
-  );
-}
-
-function InlineAdd({ value, setValue, onAdd, placeholder }) {
-  return (
-    <div style={{ display: "flex", gap: 5, marginTop: 5 }}>
-      <input value={value} placeholder={placeholder} onChange={e => setValue(e.target.value)} />
-      <button onClick={onAdd}>+</button>
-    </div>
-  );
-}
-
-const card = {
-  background: "#fff",
-  padding: 20,
-  borderRadius: 10,
-  marginBottom: 20,
+const grid = {
+  display: "grid",
+  gridTemplateColumns: "repeat(3,1fr)",
+  gap: 10,
+  marginBottom: 10,
 };
 
 const btn = {
-  background: "#000",
+  background: "black",
   color: "#fff",
   padding: 10,
-  border: "none",
+  marginTop: 10,
 };
