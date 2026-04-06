@@ -1,74 +1,77 @@
 import mongoose from "mongoose";
 
-/* ================= VARIANT SCHEMA ================= */
-const variantSchema = new mongoose.Schema(
-  {
-    type: { type: String, default: "" },     // e.g. Weight, Size
-    value: { type: String, default: "" },    // e.g. 500g, 1kg
+const variantSchema = new mongoose.Schema({
+  type: { type: String, required: true },
+  value: { type: String, required: true },
 
-    cost: { type: Number, default: 0 },
-    price: { type: Number, default: 0 },
+  sku: { type: String, required: true },
 
-    stock: { type: Number, default: 0 },
+  costPrice: Number,
+  mrp: Number,
+  sellingPrice: Number,
 
-    sku: { type: String, default: "" },
-  },
-  { _id: false }
-);
+  stock: { type: Number, default: 0 },
 
-/* ================= PRODUCT SCHEMA ================= */
+  images: [String],
+
+  isActive: { type: Boolean, default: true },
+});
+
 const productSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
-
     slug: { type: String, unique: true },
     sku: { type: String, unique: true },
 
-    description: { type: String, default: "" },
-    brand: { type: String, default: "" },
+    description: String,
+    brand: String,
 
-    category: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Category",
-    },
-    subcategory: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Subcategory",
-    },
+    category: { type: mongoose.Schema.Types.ObjectId, ref: "Category", required: true },
+    subcategory: { type: mongoose.Schema.Types.ObjectId, ref: "Subcategory" },
 
-    gstCategory: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "GstCategory",
-    },
-    hsnCode: { type: String, default: "" },
-    gstPercent: { type: Number, default: 0 },
+    gstCategory: { type: mongoose.Schema.Types.ObjectId, ref: "GstCategory" },
+    hsnCode: String,
+    gstPercent: Number,
 
-    /* ===== PRICING ===== */
-    costPrice: { type: Number, default: 0 },
-    mrp: { type: Number, default: 0 },
-    sellingPrice: { type: Number, default: 0 },
+    costPrice: Number,
+    mrp: Number,
+    sellingPrice: Number,
 
-    /* ===== INVENTORY ===== */
-    stock: { type: Number, default: 0 }, // product-level stock
+    discount: Number,
+    profit: Number,
 
-    /* ===== VARIANTS ===== */
-    variants: {
-      type: [variantSchema],
-      default: [],
-    },
+    images: [String],
 
-    /* ===== MEDIA ===== */
-    images: {
-      type: [String],
-      default: [],
+    variants: [variantSchema],
+
+    totalStock: Number,
+    lowStockAlert: Number,
+    trackInventory: { type: Boolean, default: true },
+    allowBackorder: Boolean,
+
+    weight: Number,
+    dimensions: {
+      length: Number,
+      width: Number,
+      height: Number,
     },
 
-    tags: {
-      type: [String],
-      default: [],
-    },
+    seoTitle: String,
+    seoDescription: String,
+    seoKeywords: [String],
 
-    /* ===== STATUS ===== */
+    tags: [String],
+
+    isFeatured: Boolean,
+    isBestSeller: Boolean,
+    isNewArrival: Boolean,
+
+    averageRating: { type: Number, default: 0 },
+    reviewCount: { type: Number, default: 0 },
+
+    isDeleted: { type: Boolean, default: false },
+    publishedAt: Date,
+
     status: {
       type: String,
       enum: ["active", "inactive", "draft", "out_of_stock"],
@@ -78,5 +81,4 @@ const productSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-export default mongoose.models.Product ||
-  mongoose.model("Product", productSchema);
+export default mongoose.models.Product || mongoose.model("Product", productSchema);
