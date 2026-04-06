@@ -33,9 +33,17 @@ export default function ProductsPage() {
         style={{ width: "100%", padding: 10, marginBottom: 20 }}
       />
 
-      <ProductForm refresh={fetchProducts} editing={editing} setEditing={setEditing} />
+      <ProductForm
+        refresh={fetchProducts}
+        editing={editing}
+        setEditing={setEditing}
+      />
 
-      <ProductTable products={filtered} refresh={fetchProducts} setEditing={setEditing} />
+      <ProductTable
+        products={filtered}
+        refresh={fetchProducts}
+        setEditing={setEditing}
+      />
     </div>
   );
 }
@@ -66,6 +74,10 @@ function ProductForm({ refresh, editing, setEditing }) {
     images: [],
   });
 
+  const [newCategory, setNewCategory] = useState("");
+  const [newSubcategory, setNewSubcategory] = useState("");
+  const [newGstCategory, setNewGstCategory] = useState({ name: "", gst: 0, hsn: "" });
+
   /* ================= LOAD ALL CATEGORIES ================= */
   useEffect(() => {
     loadAll();
@@ -92,7 +104,8 @@ function ProductForm({ refresh, editing, setEditing }) {
   }, [editing]);
 
   function handleChange(e) {
-    const value = e.target.type === "number" ? Number(e.target.value) : e.target.value;
+    const value =
+      e.target.type === "number" ? Number(e.target.value) : e.target.value;
     setForm({ ...form, [e.target.name]: value });
   }
 
@@ -140,13 +153,56 @@ function ProductForm({ refresh, editing, setEditing }) {
 
   function updateVariant(i, field, value) {
     const updated = [...variants];
-    updated[i][field] = field === "cost" || field === "price" || field === "stock" ? Number(value) : value;
+    updated[i][field] =
+      field === "cost" || field === "price" || field === "stock"
+        ? Number(value)
+        : value;
     if (field === "value") updated[i].sku = form.sku + value.toUpperCase();
     setVariants(updated);
   }
 
   function removeVariant(i) {
     setVariants(variants.filter((_, idx) => idx !== i));
+  }
+
+  /* ================= INLINE ADD CATEGORY ================= */
+  async function addCategory() {
+    if (!newCategory) return;
+    const res = await fetch("/api/admin/categories", {
+      method: "POST",
+      body: JSON.stringify({ name: newCategory }),
+      headers: { "Content-Type": "application/json" },
+    });
+    const data = await res.json();
+    setCategories([...categories, data]);
+    setForm({ ...form, category: data._id });
+    setNewCategory("");
+  }
+
+  async function addSubcategory() {
+    if (!newSubcategory || !form.category) return;
+    const res = await fetch("/api/admin/subcategories", {
+      method: "POST",
+      body: JSON.stringify({ name: newSubcategory, category: form.category }),
+      headers: { "Content-Type": "application/json" },
+    });
+    const data = await res.json();
+    setSubcategories([...subcategories, data]);
+    setForm({ ...form, subcategory: data._id });
+    setNewSubcategory("");
+  }
+
+  async function addGstCategory() {
+    if (!newGstCategory.name) return;
+    const res = await fetch("/api/admin/gst", {
+      method: "POST",
+      body: JSON.stringify(newGstCategory),
+      headers: { "Content-Type": "application/json" },
+    });
+    const data = await res.json();
+    setGstCategories([...gstCategories, data]);
+    setForm({ ...form, gstCategory: data._id, hsnCode: data.hsn, gstPercent: data.gst });
+    setNewGstCategory({ name: "", gst: 0, hsn: "" });
   }
 
   /* ================= SAVE PRODUCT ================= */
@@ -179,51 +235,121 @@ function ProductForm({ refresh, editing, setEditing }) {
 
       {/* BASIC */}
       <div style={grid}>
-        <input name="name" placeholder="Name" value={form.name} onChange={handleChange} />
-        <input name="brand" placeholder="Brand" value={form.brand} onChange={handleChange} />
+        <input
+          name="name"
+          placeholder="Name"
+          value={form.name}
+          onChange={handleChange}
+        />
+        <input
+          name="brand"
+          placeholder="Brand"
+          value={form.brand}
+          onChange={handleChange}
+        />
         <input placeholder="SKU" value={form.sku} readOnly />
       </div>
 
-      <textarea placeholder="Description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+      <textarea
+        placeholder="Description"
+        value={form.description}
+        onChange={(e) => setForm({ ...form, description: e.target.value })}
+      />
 
-      {/* CATEGORY */}
+      {/* CATEGORY WITH INLINE ADD */}
       <div style={grid}>
-        <select name="category" value={form.category} onChange={handleChange}>
+        <select
+          name="category"
+          value={form.category}
+          onChange={handleChange}
+        >
           <option value="">Select Category</option>
           {categories.map((c) => (
             <option key={c._id} value={c._id}>{c.name}</option>
           ))}
         </select>
-        <select name="subcategory" value={form.subcategory} onChange={handleChange}>
+        <input
+          placeholder="Add Category"
+          value={newCategory}
+          onChange={(e) => setNewCategory(e.target.value)}
+        />
+        <button onClick={addCategory}>+ Add</button>
+      </div>
+
+      <div style={grid}>
+        <select
+          name="subcategory"
+          value={form.subcategory}
+          onChange={handleChange}
+        >
           <option value="">Select Subcategory</option>
           {subcategories.map((s) => (
             <option key={s._id} value={s._id}>{s.name}</option>
           ))}
         </select>
+        <input
+          placeholder="Add Subcategory"
+          value={newSubcategory}
+          onChange={(e) => setNewSubcategory(e.target.value)}
+        />
+        <button onClick={addSubcategory}>+ Add</button>
+      </div>
+
+      <div style={grid}>
         <select value={form.gstCategory} onChange={handleGst}>
           <option value="">GST Category</option>
           {gstCategories.map((g) => (
             <option key={g._id} value={g._id}>{g.name}</option>
           ))}
         </select>
-      </div>
-
-      <div style={grid}>
-        <input name="hsnCode" placeholder="HSN" value={form.hsnCode} readOnly />
-        <input name="gstPercent" placeholder="GST %" value={form.gstPercent} readOnly />
-        <select name="status" value={form.status} onChange={handleChange}>
-          <option value="active">Active</option>
-          <option value="draft">Draft</option>
-          <option value="inactive">Inactive</option>
-          <option value="out_of_stock">Out of Stock</option>
-        </select>
+        <input
+          placeholder="Add GST Name"
+          value={newGstCategory.name}
+          onChange={(e) =>
+            setNewGstCategory({ ...newGstCategory, name: e.target.value })
+          }
+        />
+        <input
+          placeholder="GST %"
+          type="number"
+          value={newGstCategory.gst}
+          onChange={(e) =>
+            setNewGstCategory({ ...newGstCategory, gst: Number(e.target.value) })
+          }
+        />
+        <input
+          placeholder="HSN"
+          value={newGstCategory.hsn}
+          onChange={(e) =>
+            setNewGstCategory({ ...newGstCategory, hsn: e.target.value })
+          }
+        />
+        <button onClick={addGstCategory}>+ Add</button>
       </div>
 
       {/* PRICING */}
       <div style={grid}>
-        <input type="number" name="costPrice" placeholder="Cost Price" value={form.costPrice} onChange={handleChange} />
-        <input type="number" name="mrp" placeholder="MRP" value={form.mrp} onChange={handleChange} />
-        <input type="number" name="sellingPrice" placeholder="Selling Price" value={form.sellingPrice} onChange={handleChange} />
+        <input
+          type="number"
+          name="costPrice"
+          placeholder="Cost Price"
+          value={form.costPrice}
+          onChange={handleChange}
+        />
+        <input
+          type="number"
+          name="mrp"
+          placeholder="MRP"
+          value={form.mrp}
+          onChange={handleChange}
+        />
+        <input
+          type="number"
+          name="sellingPrice"
+          placeholder="Selling Price"
+          value={form.sellingPrice}
+          onChange={handleChange}
+        />
       </div>
 
       <div>
@@ -234,11 +360,34 @@ function ProductForm({ refresh, editing, setEditing }) {
       <h3>Variants</h3>
       {variants.map((v, i) => (
         <div key={i} style={variantRow}>
-          <input placeholder="Type" value={v.type} onChange={(e) => updateVariant(i, "type", e.target.value)} />
-          <input placeholder="Value" value={v.value} onChange={(e) => updateVariant(i, "value", e.target.value)} />
-          <input placeholder="Cost" type="number" value={v.cost} onChange={(e) => updateVariant(i, "cost", e.target.value)} />
-          <input placeholder="Price" type="number" value={v.price} onChange={(e) => updateVariant(i, "price", e.target.value)} />
-          <input placeholder="Stock" type="number" value={v.stock} onChange={(e) => updateVariant(i, "stock", e.target.value)} />
+          <input
+            placeholder="Type"
+            value={v.type}
+            onChange={(e) => updateVariant(i, "type", e.target.value)}
+          />
+          <input
+            placeholder="Value"
+            value={v.value}
+            onChange={(e) => updateVariant(i, "value", e.target.value)}
+          />
+          <input
+            placeholder="Cost"
+            type="number"
+            value={v.cost}
+            onChange={(e) => updateVariant(i, "cost", e.target.value)}
+          />
+          <input
+            placeholder="Price"
+            type="number"
+            value={v.price}
+            onChange={(e) => updateVariant(i, "price", e.target.value)}
+          />
+          <input
+            placeholder="Stock"
+            type="number"
+            value={v.stock}
+            onChange={(e) => updateVariant(i, "stock", e.target.value)}
+          />
           <input placeholder="SKU" value={v.sku} readOnly />
           <span>₹ {(v.price - v.cost).toFixed(2)}</span>
           <button onClick={() => removeVariant(i)}>X</button>
@@ -255,7 +404,9 @@ function ProductForm({ refresh, editing, setEditing }) {
         ))}
       </div>
 
-      <button onClick={save} style={btn}>Save Product</button>
+      <button onClick={save} style={btn}>
+        Save Product
+      </button>
     </div>
   );
 }
@@ -287,8 +438,8 @@ function ProductTable({ products, refresh, setEditing }) {
             <td>{p.name}</td>
             <td>{p.sku}</td>
             <td>{p.variants?.length || 0}</td>
-            <td>₹ {p.sellingPrice - p.costPrice}</td>
-            <td>₹ {((p.sellingPrice * p.gstPercent) / 100).toFixed(2)}</td>
+            <td>₹ {((p.sellingPrice || 0) - (p.costPrice || 0)).toFixed(2)}</td>
+            <td>₹ {(((p.sellingPrice || 0) * (p.gstPercent || 0)) / 100).toFixed(2)}</td>
             <td>{p.status}</td>
             <td>
               <button onClick={() => setEditing(p)}>Edit</button>
@@ -303,6 +454,11 @@ function ProductTable({ products, refresh, setEditing }) {
 
 /* ================= STYLES ================= */
 const box = { background: "#fff", padding: 20, marginBottom: 20 };
-const grid = { display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginBottom: 10 };
+const grid = {
+  display: "grid",
+  gridTemplateColumns: "repeat(3,1fr)",
+  gap: 10,
+  marginBottom: 10,
+};
 const variantRow = { display: "flex", gap: 8, marginBottom: 8, alignItems: "center" };
 const btn = { background: "black", color: "#fff", padding: 10, marginTop: 10, cursor: "pointer" };
