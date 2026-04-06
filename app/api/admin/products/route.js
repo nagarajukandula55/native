@@ -47,13 +47,14 @@ export async function POST(req) {
 
     const gstData = await GstCategory.findById(gstId);
 
-    /* ===== Upload Images ===== */
+    /* ===== IMAGES ===== */
     const files = formData.getAll("images");
     let images = [];
 
     for (const file of files) {
-      const bytes = await file.arrayBuffer();
-      const buffer = Buffer.from(bytes);
+      if (!file || file.size === 0) continue;
+
+      const buffer = Buffer.from(await file.arrayBuffer());
 
       const res = await new Promise((resolve, reject) => {
         cloudinary.uploader
@@ -66,6 +67,25 @@ export async function POST(req) {
 
       images.push(res.secure_url);
     }
+
+    /* ===== VARIANTS (SAFE PARSE) ===== */
+    let variants = [];
+    try {
+      const raw = formData.get("variants");
+      if (raw) variants = JSON.parse(raw);
+    } catch (e) {
+      variants = [];
+    }
+
+    /* ===== CLEAN VARIANTS ===== */
+    variants = variants.map(v => ({
+      type: v.type || "",
+      value: v.value || "",
+      cost: Number(v.cost) || 0,
+      price: Number(v.price) || 0,
+      stock: Number(v.stock) || 0,
+      sku: v.sku || "",
+    }));
 
     const sku = await generateSKU(category);
 
@@ -82,9 +102,13 @@ export async function POST(req) {
       hsnCode: gstData?.hsn,
       gstPercent: gstData?.gst,
 
-      costPrice: formData.get("costPrice"),
-      mrp: formData.get("mrp"),
-      sellingPrice: formData.get("sellingPrice"),
+      costPrice: Number(formData.get("costPrice")) || 0,
+      mrp: Number(formData.get("mrp")) || 0,
+      sellingPrice: Number(formData.get("sellingPrice")) || 0,
+
+      stock: Number(formData.get("stock")) || 0,
+
+      variants, // ✅ NEW
 
       images,
       sku,
@@ -127,15 +151,37 @@ export async function PUT(req) {
     product.hsnCode = gstData?.hsn;
     product.gstPercent = gstData?.gst;
 
-    product.costPrice = formData.get("costPrice");
-    product.mrp = formData.get("mrp");
-    product.sellingPrice = formData.get("sellingPrice");
+    product.costPrice = Number(formData.get("costPrice")) || 0;
+    product.mrp = Number(formData.get("mrp")) || 0;
+    product.sellingPrice = Number(formData.get("sellingPrice")) || 0;
+
+    product.stock = Number(formData.get("stock")) || 0;
 
     product.status = formData.get("status");
 
-    /* Optional: replace images if new ones added */
+    /* ===== VARIANTS UPDATE ===== */
+    try {
+      const raw = formData.get("variants");
+      if (raw) {
+        let parsed = JSON.parse(raw);
+
+        product.variants = parsed.map(v => ({
+          type: v.type || "",
+          value: v.value || "",
+          cost: Number(v.cost) || 0,
+          price: Number(v.price) || 0,
+          stock: Number(v.stock) || 0,
+          sku: v.sku || "",
+        }));
+      }
+    } catch (e) {
+      // ignore bad JSON
+    }
+
+    /* ===== IMAGES UPDATE ===== */
     const files = formData.getAll("images");
-    if (files.length > 0 && files[0].size > 0) {
+
+    if (files.length > 0 && files[0]?.size > 0) {
       let images = [];
 
       for (const file of files) {
