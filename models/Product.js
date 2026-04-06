@@ -1,52 +1,45 @@
 import mongoose from "mongoose";
 
 const variantSchema = new mongoose.Schema({
-  type: { type: String, required: true },
-  value: { type: String, required: true },
-
-  sku: { type: String, required: true },
+  type: String,
+  value: String,
+  sku: String,
 
   costPrice: Number,
   mrp: Number,
   sellingPrice: Number,
 
-  stock: { type: Number, default: 0 },
-
+  stock: Number,
   images: [String],
-
-  isActive: { type: Boolean, default: true },
 });
 
 const productSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
-    slug: { type: String, unique: true },
+    slug: String,
     sku: { type: String, unique: true },
 
     description: String,
     brand: String,
 
-    category: { type: mongoose.Schema.Types.ObjectId, ref: "Category", required: true },
+    category: { type: mongoose.Schema.Types.ObjectId, ref: "Category" },
     subcategory: { type: mongoose.Schema.Types.ObjectId, ref: "Subcategory" },
 
     gstCategory: { type: mongoose.Schema.Types.ObjectId, ref: "GstCategory" },
     hsnCode: String,
     gstPercent: Number,
+    taxIncluded: Boolean,
 
     costPrice: Number,
     mrp: Number,
     sellingPrice: Number,
-
-    discount: Number,
     profit: Number,
-
-    images: [String],
 
     variants: [variantSchema],
 
     totalStock: Number,
     lowStockAlert: Number,
-    trackInventory: { type: Boolean, default: true },
+    trackInventory: Boolean,
     allowBackorder: Boolean,
 
     weight: Number,
@@ -60,21 +53,15 @@ const productSchema = new mongoose.Schema(
     seoDescription: String,
     seoKeywords: [String],
 
-    tags: [String],
-
     isFeatured: Boolean,
     isBestSeller: Boolean,
     isNewArrival: Boolean,
 
-    averageRating: { type: Number, default: 0 },
-    reviewCount: { type: Number, default: 0 },
-
-    isDeleted: { type: Boolean, default: false },
-    publishedAt: Date,
+    images: [String],
 
     status: {
       type: String,
-      enum: ["active", "inactive", "draft", "out_of_stock"],
+      enum: ["active", "inactive", "draft"],
       default: "active",
     },
   },
