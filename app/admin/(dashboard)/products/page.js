@@ -20,11 +20,9 @@ export default function ProductsPage() {
     fetchProducts();
   }, []);
 
-  const filtered = Array.isArray(products)
-    ? products.filter(p =>
-        p?.name?.toLowerCase().includes(search.toLowerCase())
-      )
-    : [];
+  const filtered = products.filter(p =>
+    p?.name?.toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
     <div>
@@ -35,14 +33,22 @@ export default function ProductsPage() {
         style={{ width: "100%", padding: 10, marginBottom: 20 }}
       />
 
-      <ProductForm refresh={fetchProducts} editing={editing} setEditing={setEditing} />
+      <ProductForm
+        refresh={fetchProducts}
+        editing={editing}
+        setEditing={setEditing}
+      />
 
-      <ProductTable products={filtered} refresh={fetchProducts} setEditing={setEditing} />
+      <ProductTable
+        products={filtered}
+        refresh={fetchProducts}
+        setEditing={setEditing}
+      />
     </div>
   );
 }
 
-/* ================= PRODUCT FORM ================= */
+/* ================= FORM ================= */
 
 function ProductForm({ refresh, editing, setEditing }) {
   const [categories, setCategories] = useState([]);
@@ -50,7 +56,6 @@ function ProductForm({ refresh, editing, setEditing }) {
   const [gstCategories, setGstCategories] = useState([]);
 
   const [previewImages, setPreviewImages] = useState([]);
-
   const [variants, setVariants] = useState([]);
 
   const [form, setForm] = useState({
@@ -71,6 +76,7 @@ function ProductForm({ refresh, editing, setEditing }) {
     images: [],
   });
 
+  /* LOAD DATA */
   useEffect(() => {
     loadAll();
   }, []);
@@ -87,6 +93,7 @@ function ProductForm({ refresh, editing, setEditing }) {
     setGstCategories(Array.isArray(g) ? g : g.data || []);
   }
 
+  /* EDIT MODE */
   useEffect(() => {
     if (editing) {
       setForm(editing);
@@ -98,6 +105,7 @@ function ProductForm({ refresh, editing, setEditing }) {
     setForm({ ...form, [e.target.name]: e.target.value });
   }
 
+  /* GST AUTO */
   function handleGst(e) {
     const g = gstCategories.find(x => x._id === e.target.value);
     if (!g) return;
@@ -117,16 +125,30 @@ function ProductForm({ refresh, editing, setEditing }) {
     setForm(f => ({ ...f, sku: "NA-" + base.toUpperCase() }));
   }, [form.name]);
 
-  /* ===== VARIANTS SYSTEM ===== */
+  /* PROFIT */
+  const profit =
+    form.sellingPrice && form.costPrice
+      ? (Number(form.sellingPrice) - Number(form.costPrice)).toFixed(2)
+      : 0;
 
+  /* IMAGE PREVIEW */
+  function handleImages(e) {
+    const files = [...e.target.files];
+    setForm({ ...form, images: files });
+
+    const previews = files.map(file => URL.createObjectURL(file));
+    setPreviewImages(previews);
+  }
+
+  /* VARIANTS */
   function addVariant() {
     setVariants([
       ...variants,
       {
         type: "",
         value: "",
-        price: "",
         cost: "",
+        price: "",
         stock: "",
         sku: "",
       },
@@ -137,7 +159,6 @@ function ProductForm({ refresh, editing, setEditing }) {
     const updated = [...variants];
     updated[i][field] = value;
 
-    // auto SKU
     if (field === "value") {
       updated[i].sku = form.sku + "-" + value.toUpperCase();
     }
@@ -149,18 +170,7 @@ function ProductForm({ refresh, editing, setEditing }) {
     setVariants(variants.filter((_, index) => index !== i));
   }
 
-  /* ===== IMAGE PREVIEW ===== */
-
-  function handleImages(e) {
-    const files = [...e.target.files];
-    setForm({ ...form, images: files });
-
-    const previews = files.map(f => URL.createObjectURL(f));
-    setPreviewImages(previews);
-  }
-
-  /* ===== SAVE ===== */
-
+  /* SAVE */
   async function save() {
     const fd = new FormData();
 
@@ -168,14 +178,12 @@ function ProductForm({ refresh, editing, setEditing }) {
       if (k !== "images") fd.append(k, form[k]);
     });
 
-    // images
     if (Array.isArray(form.images)) {
       form.images.forEach(img => {
         if (img instanceof File) fd.append("images", img);
       });
     }
 
-    // variants
     fd.append("variants", JSON.stringify(variants));
 
     await fetch("/api/admin/products", {
@@ -188,7 +196,7 @@ function ProductForm({ refresh, editing, setEditing }) {
   }
 
   return (
-    <div style={{ background: "#fff", padding: 20, marginBottom: 20 }}>
+    <div style={box}>
       <h2>{editing ? "Edit Product" : "Add Product"}</h2>
 
       {/* BASIC */}
@@ -204,33 +212,67 @@ function ProductForm({ refresh, editing, setEditing }) {
         onChange={e => setForm({ ...form, description: e.target.value })}
       />
 
+      {/* CATEGORY */}
+      <div style={grid}>
+        <select name="category" value={form.category} onChange={handleChange}>
+          <option value="">Select Category</option>
+          {categories.map(c => (
+            <option key={c._id} value={c._id}>{c.name}</option>
+          ))}
+        </select>
+
+        <select name="subcategory" value={form.subcategory} onChange={handleChange}>
+          <option value="">Select Subcategory</option>
+          {subcategories.map(s => (
+            <option key={s._id} value={s._id}>{s.name}</option>
+          ))}
+        </select>
+
+        <select value={form.gstCategory} onChange={handleGst}>
+          <option value="">GST Category</option>
+          {gstCategories.map(g => (
+            <option key={g._id} value={g._id}>{g.name}</option>
+          ))}
+        </select>
+      </div>
+
+      <div style={grid}>
+        <input name="hsnCode" placeholder="HSN" value={form.hsnCode} readOnly />
+        <input name="gstPercent" placeholder="GST %" value={form.gstPercent} readOnly />
+        <select name="status" value={form.status} onChange={handleChange}>
+          <option value="active">Active</option>
+          <option value="draft">Draft</option>
+        </select>
+      </div>
+
       {/* PRICING */}
       <div style={grid}>
         <input name="costPrice" placeholder="Cost" value={form.costPrice} onChange={handleChange} />
+        <input name="mrp" placeholder="MRP" value={form.mrp} onChange={handleChange} />
         <input name="sellingPrice" placeholder="Selling" value={form.sellingPrice} onChange={handleChange} />
+      </div>
+
+      <div style={grid}>
         <input name="stock" placeholder="Stock" value={form.stock} onChange={handleChange} />
       </div>
 
-      {/* PROFIT */}
-      <div style={{ fontWeight: 600 }}>
-        Profit: ₹ {form.sellingPrice - form.costPrice || 0}
-      </div>
+      <div><b>Profit:</b> ₹ {profit}</div>
 
       {/* VARIANTS */}
       <h3>Variants</h3>
 
       {variants.map((v, i) => {
-        const profit = v.price && v.cost ? v.price - v.cost : 0;
+        const vp = v.price && v.cost ? v.price - v.cost : 0;
 
         return (
-          <div key={i} style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+          <div key={i} style={variantRow}>
             <input placeholder="Type" value={v.type} onChange={e => updateVariant(i, "type", e.target.value)} />
             <input placeholder="Value" value={v.value} onChange={e => updateVariant(i, "value", e.target.value)} />
             <input placeholder="Cost" value={v.cost} onChange={e => updateVariant(i, "cost", e.target.value)} />
             <input placeholder="Price" value={v.price} onChange={e => updateVariant(i, "price", e.target.value)} />
             <input placeholder="Stock" value={v.stock} onChange={e => updateVariant(i, "stock", e.target.value)} />
-            <input placeholder="SKU" value={v.sku} readOnly />
-            <span>₹{profit}</span>
+            <input value={v.sku} readOnly />
+            <span>₹{vp}</span>
             <button onClick={() => removeVariant(i)}>X</button>
           </div>
         );
@@ -244,13 +286,11 @@ function ProductForm({ refresh, editing, setEditing }) {
 
       <div style={{ display: "flex", gap: 10 }}>
         {previewImages.map((src, i) => (
-          <img key={i} src={src} width={60} height={60} />
+          <img key={i} src={src} width={60} />
         ))}
       </div>
 
-      <button onClick={save} style={btn}>
-        Save Product
-      </button>
+      <button onClick={save} style={btn}>Save Product</button>
     </div>
   );
 }
@@ -276,7 +316,7 @@ function ProductTable({ products, refresh, setEditing }) {
       </thead>
 
       <tbody>
-        {(products || []).map(p => (
+        {products.map(p => (
           <tr key={p._id}>
             <td>{p.name}</td>
             <td>{p.sku}</td>
@@ -293,18 +333,9 @@ function ProductTable({ products, refresh, setEditing }) {
   );
 }
 
-/* ================= STYLES ================= */
+/* STYLES */
 
-const grid = {
-  display: "grid",
-  gridTemplateColumns: "repeat(3,1fr)",
-  gap: 10,
-  marginBottom: 10,
-};
-
-const btn = {
-  background: "black",
-  color: "#fff",
-  padding: 10,
-  marginTop: 10,
-};
+const box = { background: "#fff", padding: 20, marginBottom: 20 };
+const grid = { display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginBottom: 10 };
+const variantRow = { display: "flex", gap: 8, marginBottom: 8 };
+const btn = { background: "black", color: "#fff", padding: 10, marginTop: 10 };
