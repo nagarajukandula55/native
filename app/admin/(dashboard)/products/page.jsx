@@ -2,286 +2,307 @@
 
 import { useEffect, useState } from "react";
 
-export default function Page() {
-  return <ProductForm />;
+export default function ProductsPage() {
+  const [products, setProducts] = useState([]);
+  const [editing, setEditing] = useState(null);
+  const [search, setSearch] = useState("");
+
+  /* ================= FETCH PRODUCTS ================= */
+  async function fetchProducts() {
+    const res = await fetch("/api/admin/products");
+    const data = await res.json();
+    if (Array.isArray(data)) setProducts(data);
+    else if (Array.isArray(data.data)) setProducts(data.data);
+    else setProducts([]);
+  }
+
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
+  const filtered = products.filter((p) =>
+    p?.name?.toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <div style={{ padding: 20 }}>
+      <input
+        placeholder="Search products..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        style={{ width: "100%", padding: 10, marginBottom: 20 }}
+      />
+
+      <ProductForm refresh={fetchProducts} editing={editing} setEditing={setEditing} />
+
+      <ProductTable products={filtered} refresh={fetchProducts} setEditing={setEditing} />
+    </div>
+  );
 }
 
-function ProductForm() {
-  /* ================= STATE ================= */
-
+/* ================= PRODUCT FORM ================= */
+function ProductForm({ refresh, editing, setEditing }) {
   const [categories, setCategories] = useState([]);
   const [subcategories, setSubcategories] = useState([]);
-  const [gstList, setGstList] = useState([]);
+  const [gstCategories, setGstCategories] = useState([]);
 
-  const [showCat, setShowCat] = useState(false);
-  const [showSub, setShowSub] = useState(false);
-  const [showGst, setShowGst] = useState(false);
-
-  const [newCat, setNewCat] = useState("");
-  const [newSub, setNewSub] = useState("");
-  const [newGst, setNewGst] = useState({ name: "", gst: "", hsn: "" });
+  const [previewImages, setPreviewImages] = useState([]);
+  const [variants, setVariants] = useState([]);
 
   const [form, setForm] = useState({
     name: "",
     brand: "",
     description: "",
-
     category: "",
     subcategory: "",
-
     gstCategory: "",
-    gstPercent: 0,
     hsnCode: "",
-
+    gstPercent: 0,
     costPrice: 0,
     mrp: 0,
     sellingPrice: 0,
-
-    taxIncluded: false,
-
-    seoTitle: "",
-    seoDescription: "",
-    seoKeywords: "",
-
+    status: "active",
+    sku: "",
     images: [],
   });
 
-  /* ================= LOAD ================= */
-
+  /* ================= LOAD ALL CATEGORIES ================= */
   useEffect(() => {
-    loadMasters();
+    loadAll();
   }, []);
 
-  async function loadMasters() {
+  async function loadAll() {
     const [c, s, g] = await Promise.all([
-      fetch("/api/admin/categories").then(r => r.json()),
-      fetch("/api/admin/subcategories").then(r => r.json()),
-      fetch("/api/admin/gst").then(r => r.json()),
+      fetch("/api/admin/categories").then((r) => r.json()),
+      fetch("/api/admin/subcategories").then((r) => r.json()),
+      fetch("/api/admin/gst").then((r) => r.json()),
     ]);
 
-    setCategories(c || []);
-    setSubcategories(s || []);
-    setGstList(g || []);
+    setCategories(Array.isArray(c) ? c : c.data || []);
+    setSubcategories(Array.isArray(s) ? s : s.data || []);
+    setGstCategories(Array.isArray(g) ? g : g.data || []);
   }
 
-  /* ================= HANDLERS ================= */
+  /* ================= EDIT MODE ================= */
+  useEffect(() => {
+    if (editing) {
+      setForm(editing);
+      setVariants(editing.variants || []);
+    }
+  }, [editing]);
 
-  function handle(e) {
-    const { name, value, type, checked } = e.target;
-    setForm({ ...form, [name]: type === "checkbox" ? checked : value });
-  }
-
-  /* ================= CATEGORY CREATE (FIXED) ================= */
-
-  async function createCategory() {
-    if (!newCat) return alert("Enter category name");
-
-    await fetch("/api/admin/categories", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: newCat }),
-    });
-
-    setNewCat("");
-    setShowCat(false);
-    loadMasters(); // 🔥 refresh dropdown
-  }
-
-  async function createSubcategory() {
-    if (!newSub || !form.category)
-      return alert("Select category + enter subcategory");
-
-    await fetch("/api/admin/subcategories", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: newSub,
-        category: form.category,
-      }),
-    });
-
-    setNewSub("");
-    setShowSub(false);
-    loadMasters();
-  }
-
-  async function createGst() {
-    if (!newGst.name || !newGst.gst)
-      return alert("Fill GST details");
-
-    await fetch("/api/admin/gst", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(newGst),
-    });
-
-    setNewGst({ name: "", gst: "", hsn: "" });
-    setShowGst(false);
-    loadMasters();
+  function handleChange(e) {
+    const value = e.target.type === "number" ? Number(e.target.value) : e.target.value;
+    setForm({ ...form, [e.target.name]: value });
   }
 
   /* ================= GST AUTO ================= */
-
   function handleGst(e) {
-    const g = gstList.find(x => x._id === e.target.value);
-
+    const g = gstCategories.find((x) => x._id === e.target.value);
+    if (!g) return;
     setForm({
       ...form,
       gstCategory: g._id,
-      gstPercent: g.gst,
       hsnCode: g.hsn,
+      gstPercent: g.gst,
     });
   }
 
-  /* ================= PRICING AUTO ================= */
-
-  const gstAmount = (form.sellingPrice * form.gstPercent) / 100;
-  const finalPrice = form.taxIncluded
-    ? form.sellingPrice
-    : Number(form.sellingPrice) + gstAmount;
-
-  const profit =
-    Number(form.sellingPrice) - Number(form.costPrice);
-
-  /* ================= SEO AUTO ================= */
-
+  /* ================= SKU AUTO ================= */
   useEffect(() => {
     if (!form.name) return;
-
-    fetch("/api/seo/generate", {
-      method: "POST",
-      body: JSON.stringify({ name: form.name }),
-    })
-      .then(r => r.json())
-      .then(d => {
-        setForm(f => ({
-          ...f,
-          seoTitle: d.title,
-          seoDescription: d.description,
-          seoKeywords: d.keywords.join(","),
-        }));
-      });
+    const firstWord = form.name.split(" ")[0];
+    setForm((f) => ({ ...f, sku: "NA" + firstWord.toUpperCase() }));
   }, [form.name]);
 
-  /* ================= IMAGE ================= */
+  /* ================= PROFIT + GST ================= */
+  const cost = Number(form.costPrice) || 0;
+  const selling = Number(form.sellingPrice) || 0;
+  const gstPercent = Number(form.gstPercent) || 0;
+  const gstAmount = (selling * gstPercent) / 100;
+  const profit = selling - cost;
 
+  /* ================= IMAGE PREVIEW ================= */
   function handleImages(e) {
     const files = [...e.target.files];
     setForm({ ...form, images: files });
+    const previews = files.map((file) => URL.createObjectURL(file));
+    setPreviewImages(previews);
   }
 
-  /* ================= SAVE ================= */
+  /* ================= VARIANTS ================= */
+  function addVariant() {
+    setVariants([
+      ...variants,
+      { type: "", value: "", cost: 0, price: 0, sku: "", stock: 0 },
+    ]);
+  }
 
+  function updateVariant(i, field, value) {
+    const updated = [...variants];
+    updated[i][field] = field === "cost" || field === "price" || field === "stock" ? Number(value) : value;
+    if (field === "value") updated[i].sku = form.sku + value.toUpperCase();
+    setVariants(updated);
+  }
+
+  function removeVariant(i) {
+    setVariants(variants.filter((_, idx) => idx !== i));
+  }
+
+  /* ================= SAVE PRODUCT ================= */
   async function save() {
     const fd = new FormData();
-
-    Object.keys(form).forEach(k => {
+    Object.keys(form).forEach((k) => {
       if (k !== "images") fd.append(k, form[k]);
     });
 
-    form.images.forEach(img => fd.append("images", img));
+    if (Array.isArray(form.images)) {
+      form.images.forEach((img) => {
+        if (img instanceof File) fd.append("images", img);
+      });
+    }
+
+    fd.append("variants", JSON.stringify(variants));
 
     await fetch("/api/admin/products", {
-      method: "POST",
+      method: editing ? "PUT" : "POST",
       body: fd,
     });
 
-    alert("Saved");
+    setEditing(null);
+    refresh();
   }
 
-  /* ================= UI ================= */
-
   return (
-    <div style={{ padding: 20 }}>
-      <h2>Product</h2>
+    <div style={box}>
+      <h2>{editing ? "Edit Product" : "Add Product"}</h2>
 
       {/* BASIC */}
-      <h3>Basic</h3>
-      <input name="name" placeholder="Name" onChange={handle} />
-      <input name="brand" placeholder="Brand" onChange={handle} />
-      <textarea name="description" placeholder="Description" onChange={handle} />
+      <div style={grid}>
+        <input name="name" placeholder="Name" value={form.name} onChange={handleChange} />
+        <input name="brand" placeholder="Brand" value={form.brand} onChange={handleChange} />
+        <input placeholder="SKU" value={form.sku} readOnly />
+      </div>
+
+      <textarea placeholder="Description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
 
       {/* CATEGORY */}
-      <h3>Category</h3>
-
-      <select name="category" onChange={handle}>
-        <option>Category</option>
-        {categories.map(c => (
-          <option key={c._id} value={c._id}>{c.name}</option>
-        ))}
-      </select>
-      <button onClick={() => setShowCat(true)}>+ Add</button>
-
-      <select name="subcategory" onChange={handle}>
-        <option>Subcategory</option>
-        {subcategories
-          .filter(s => s.category === form.category)
-          .map(s => (
+      <div style={grid}>
+        <select name="category" value={form.category} onChange={handleChange}>
+          <option value="">Select Category</option>
+          {categories.map((c) => (
+            <option key={c._id} value={c._id}>{c.name}</option>
+          ))}
+        </select>
+        <select name="subcategory" value={form.subcategory} onChange={handleChange}>
+          <option value="">Select Subcategory</option>
+          {subcategories.map((s) => (
             <option key={s._id} value={s._id}>{s.name}</option>
           ))}
-      </select>
-      <button onClick={() => setShowSub(true)}>+ Add</button>
+        </select>
+        <select value={form.gstCategory} onChange={handleGst}>
+          <option value="">GST Category</option>
+          {gstCategories.map((g) => (
+            <option key={g._id} value={g._id}>{g.name}</option>
+          ))}
+        </select>
+      </div>
 
-      <select onChange={handleGst}>
-        <option>GST</option>
-        {gstList.map(g => (
-          <option key={g._id} value={g._id}>
-            {g.name} ({g.gst}%)
-          </option>
-        ))}
-      </select>
-      <button onClick={() => setShowGst(true)}>+ Add</button>
-
-      {/* MODALS */}
-      {showCat && (
-        <div>
-          <input value={newCat} onChange={e => setNewCat(e.target.value)} />
-          <button onClick={createCategory}>Save</button>
-        </div>
-      )}
-
-      {showSub && (
-        <div>
-          <input value={newSub} onChange={e => setNewSub(e.target.value)} />
-          <button onClick={createSubcategory}>Save</button>
-        </div>
-      )}
-
-      {showGst && (
-        <div>
-          <input placeholder="Name" onChange={e => setNewGst({ ...newGst, name: e.target.value })} />
-          <input placeholder="GST%" onChange={e => setNewGst({ ...newGst, gst: e.target.value })} />
-          <input placeholder="HSN" onChange={e => setNewGst({ ...newGst, hsn: e.target.value })} />
-          <button onClick={createGst}>Save</button>
-        </div>
-      )}
+      <div style={grid}>
+        <input name="hsnCode" placeholder="HSN" value={form.hsnCode} readOnly />
+        <input name="gstPercent" placeholder="GST %" value={form.gstPercent} readOnly />
+        <select name="status" value={form.status} onChange={handleChange}>
+          <option value="active">Active</option>
+          <option value="draft">Draft</option>
+          <option value="inactive">Inactive</option>
+          <option value="out_of_stock">Out of Stock</option>
+        </select>
+      </div>
 
       {/* PRICING */}
-      <h3>Pricing</h3>
-      <input name="costPrice" placeholder="Cost" onChange={handle} />
-      <input name="mrp" placeholder="MRP" onChange={handle} />
-      <input name="sellingPrice" placeholder="Selling Price" onChange={handle} />
+      <div style={grid}>
+        <input type="number" name="costPrice" placeholder="Cost Price" value={form.costPrice} onChange={handleChange} />
+        <input type="number" name="mrp" placeholder="MRP" value={form.mrp} onChange={handleChange} />
+        <input type="number" name="sellingPrice" placeholder="Selling Price" value={form.sellingPrice} onChange={handleChange} />
+      </div>
 
-      <label>
-        <input type="checkbox" name="taxIncluded" onChange={handle} />
-        Tax Included
-      </label>
+      <div>
+        <b>Profit:</b> ₹ {profit.toFixed(2)} | <b>GST:</b> ₹ {gstAmount.toFixed(2)}
+      </div>
 
-      <p>GST: {form.gstPercent}%</p>
-      <p>GST Amount: ₹{gstAmount.toFixed(2)}</p>
-      <p>Final Price: ₹{finalPrice.toFixed(2)}</p>
-      <p>Profit: ₹{profit.toFixed(2)}</p>
-
-      {/* SEO */}
-      <h3>SEO (Auto)</h3>
-      <input value={form.seoTitle} readOnly />
-      <textarea value={form.seoDescription} readOnly />
+      {/* VARIANTS */}
+      <h3>Variants</h3>
+      {variants.map((v, i) => (
+        <div key={i} style={variantRow}>
+          <input placeholder="Type" value={v.type} onChange={(e) => updateVariant(i, "type", e.target.value)} />
+          <input placeholder="Value" value={v.value} onChange={(e) => updateVariant(i, "value", e.target.value)} />
+          <input placeholder="Cost" type="number" value={v.cost} onChange={(e) => updateVariant(i, "cost", e.target.value)} />
+          <input placeholder="Price" type="number" value={v.price} onChange={(e) => updateVariant(i, "price", e.target.value)} />
+          <input placeholder="Stock" type="number" value={v.stock} onChange={(e) => updateVariant(i, "stock", e.target.value)} />
+          <input placeholder="SKU" value={v.sku} readOnly />
+          <span>₹ {(v.price - v.cost).toFixed(2)}</span>
+          <button onClick={() => removeVariant(i)}>X</button>
+        </div>
+      ))}
+      <button onClick={addVariant}>+ Add Variant</button>
 
       {/* IMAGES */}
       <h3>Images</h3>
       <input type="file" multiple onChange={handleImages} />
+      <div style={{ display: "flex", gap: 10 }}>
+        {previewImages.map((src, i) => (
+          <img key={i} src={src} width={60} />
+        ))}
+      </div>
 
-      <button onClick={save}>Save Product</button>
+      <button onClick={save} style={btn}>Save Product</button>
     </div>
   );
 }
+
+/* ================= PRODUCT TABLE ================= */
+function ProductTable({ products, refresh, setEditing }) {
+  async function del(id) {
+    await fetch("/api/admin/products?id=" + id, { method: "DELETE" });
+    refresh();
+  }
+
+  return (
+    <table width="100%" border="1" cellPadding="10">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>SKU</th>
+          <th>Variants</th>
+          <th>Profit</th>
+          <th>GST</th>
+          <th>Status</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+
+      <tbody>
+        {products.map((p) => (
+          <tr key={p._id}>
+            <td>{p.name}</td>
+            <td>{p.sku}</td>
+            <td>{p.variants?.length || 0}</td>
+            <td>₹ {p.sellingPrice - p.costPrice}</td>
+            <td>₹ {((p.sellingPrice * p.gstPercent) / 100).toFixed(2)}</td>
+            <td>{p.status}</td>
+            <td>
+              <button onClick={() => setEditing(p)}>Edit</button>
+              <button onClick={() => del(p._id)}>Delete</button>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+/* ================= STYLES ================= */
+const box = { background: "#fff", padding: 20, marginBottom: 20 };
+const grid = { display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginBottom: 10 };
+const variantRow = { display: "flex", gap: 8, marginBottom: 8, alignItems: "center" };
+const btn = { background: "black", color: "#fff", padding: 10, marginTop: 10, cursor: "pointer" };
