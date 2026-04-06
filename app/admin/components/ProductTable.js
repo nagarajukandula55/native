@@ -1,19 +1,36 @@
 "use client";
 
-export default function ProductTable({ products, onEdit, onDelete }) {
+import { useState } from "react";
+
+export default function ProductTable({ products, onEdit, refresh }) {
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState("");
+
+  const filtered = products.filter(p =>
+    p.name.toLowerCase().includes(search.toLowerCase()) &&
+    (status ? p.status === status : true)
+  );
+
   async function remove(id) {
-    if (!confirm("Delete?")) return;
-
-    await fetch(`/api/admin/products?id=${id}`, {
-      method: "DELETE",
-    });
-
-    onDelete();
+    await fetch(`/api/admin/products?id=${id}`, { method: "DELETE" });
+    refresh();
   }
 
   return (
-    <div className="bg-white shadow rounded-2xl p-6">
-      <h2 className="text-xl font-semibold mb-4">All Products</h2>
+    <div className="bg-white p-6 rounded-xl shadow space-y-4">
+      <div className="flex gap-4">
+        <input
+          placeholder="Search..."
+          className="border p-2"
+          onChange={e => setSearch(e.target.value)}
+        />
+
+        <select onChange={e => setStatus(e.target.value)}>
+          <option value="">All</option>
+          <option value="active">Active</option>
+          <option value="out_of_stock">Out</option>
+        </select>
+      </div>
 
       <table className="w-full text-left">
         <thead>
@@ -27,13 +44,13 @@ export default function ProductTable({ products, onEdit, onDelete }) {
         </thead>
 
         <tbody>
-          {products.map((p) => (
+          {filtered.map(p => (
             <tr key={p._id} className="border-b">
               <td>{p.name}</td>
               <td>{p.sku}</td>
               <td>₹{p.sellingPrice}</td>
               <td>{p.status}</td>
-              <td className="space-x-2">
+              <td>
                 <button onClick={() => onEdit(p)}>Edit</button>
                 <button onClick={() => remove(p._id)}>Delete</button>
               </td>
