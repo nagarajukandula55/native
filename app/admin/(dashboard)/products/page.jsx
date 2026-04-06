@@ -8,7 +8,6 @@ export default function Page() {
 
 function ProductForm() {
   /* ================= STATE ================= */
-  const [tab, setTab] = useState("basic");
 
   const [categories, setCategories] = useState([]);
   const [subcategories, setSubcategories] = useState([]);
@@ -22,9 +21,6 @@ function ProductForm() {
   const [newSub, setNewSub] = useState("");
   const [newGst, setNewGst] = useState({ name: "", gst: "", hsn: "" });
 
-  const [variants, setVariants] = useState([]);
-  const [imagesPreview, setImagesPreview] = useState([]);
-
   const [form, setForm] = useState({
     name: "",
     brand: "",
@@ -34,35 +30,24 @@ function ProductForm() {
     subcategory: "",
 
     gstCategory: "",
+    gstPercent: 0,
     hsnCode: "",
-    gstPercent: "",
+
+    costPrice: 0,
+    mrp: 0,
+    sellingPrice: 0,
+
     taxIncluded: false,
-
-    costPrice: "",
-    mrp: "",
-    sellingPrice: "",
-
-    trackInventory: true,
-    totalStock: "",
-    lowStockAlert: "",
-    allowBackorder: false,
-
-    weight: "",
-    dimensions: { length: "", width: "", height: "" },
 
     seoTitle: "",
     seoDescription: "",
     seoKeywords: "",
 
-    isFeatured: false,
-    isBestSeller: false,
-    isNewArrival: false,
-
     images: [],
-    status: "active",
   });
 
   /* ================= LOAD ================= */
+
   useEffect(() => {
     loadMasters();
   }, []);
@@ -86,12 +71,60 @@ function ProductForm() {
     setForm({ ...form, [name]: type === "checkbox" ? checked : value });
   }
 
-  function handleDim(key, val) {
-    setForm({ ...form, dimensions: { ...form.dimensions, [key]: val } });
+  /* ================= CATEGORY CREATE (FIXED) ================= */
+
+  async function createCategory() {
+    if (!newCat) return alert("Enter category name");
+
+    await fetch("/api/admin/categories", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: newCat }),
+    });
+
+    setNewCat("");
+    setShowCat(false);
+    loadMasters(); // 🔥 refresh dropdown
   }
+
+  async function createSubcategory() {
+    if (!newSub || !form.category)
+      return alert("Select category + enter subcategory");
+
+    await fetch("/api/admin/subcategories", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: newSub,
+        category: form.category,
+      }),
+    });
+
+    setNewSub("");
+    setShowSub(false);
+    loadMasters();
+  }
+
+  async function createGst() {
+    if (!newGst.name || !newGst.gst)
+      return alert("Fill GST details");
+
+    await fetch("/api/admin/gst", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(newGst),
+    });
+
+    setNewGst({ name: "", gst: "", hsn: "" });
+    setShowGst(false);
+    loadMasters();
+  }
+
+  /* ================= GST AUTO ================= */
 
   function handleGst(e) {
     const g = gstList.find(x => x._id === e.target.value);
+
     setForm({
       ...form,
       gstCategory: g._id,
@@ -100,7 +133,18 @@ function ProductForm() {
     });
   }
 
-  /* ================= AUTO SEO ================= */
+  /* ================= PRICING AUTO ================= */
+
+  const gstAmount = (form.sellingPrice * form.gstPercent) / 100;
+  const finalPrice = form.taxIncluded
+    ? form.sellingPrice
+    : Number(form.sellingPrice) + gstAmount;
+
+  const profit =
+    Number(form.sellingPrice) - Number(form.costPrice);
+
+  /* ================= SEO AUTO ================= */
+
   useEffect(() => {
     if (!form.name) return;
 
@@ -119,158 +163,125 @@ function ProductForm() {
       });
   }, [form.name]);
 
-  /* ================= SKU ================= */
-  useEffect(() => {
-    if (form.name && form.category) {
-      const sku = `${form.name.slice(0,3).toUpperCase()}-${Date.now()}`;
-      setForm(f => ({ ...f, sku }));
-    }
-  }, [form.name, form.category]);
+  /* ================= IMAGE ================= */
 
-  /* ================= IMAGES ================= */
   function handleImages(e) {
     const files = [...e.target.files];
     setForm({ ...form, images: files });
-    setImagesPreview(files.map(f => URL.createObjectURL(f)));
   }
 
-  /* ================= VARIANTS ================= */
-  function addVariant() {
-    setVariants([
-      ...variants,
-      { type: "", value: "", price: "", stock: "", sku: "" },
-    ]);
-  }
+  /* ================= SAVE ================= */
 
-  function updateVariant(i, k, v) {
-    const copy = [...variants];
-    copy[i][k] = v;
-    if (k === "value") copy[i].sku = form.sku + "-" + v;
-    setVariants(copy);
-  }
+  async function save() {
+    const fd = new FormData();
 
-  /* ================= GST ================= */
-  const cgst = form.gstPercent / 2;
-  const sgst = form.gstPercent / 2;
+    Object.keys(form).forEach(k => {
+      if (k !== "images") fd.append(k, form[k]);
+    });
+
+    form.images.forEach(img => fd.append("images", img));
+
+    await fetch("/api/admin/products", {
+      method: "POST",
+      body: fd,
+    });
+
+    alert("Saved");
+  }
 
   /* ================= UI ================= */
 
   return (
     <div style={{ padding: 20 }}>
-      <h2>Product Admin</h2>
+      <h2>Product</h2>
 
-      {/* TABS */}
-      <div style={tabs}>
-        {["basic","category","pricing","inventory","variants","shipping","seo","media"].map(t => (
-          <button key={t} onClick={() => setTab(t)} style={tabBtn(tab===t)}>
-            {t}
-          </button>
+      {/* BASIC */}
+      <h3>Basic</h3>
+      <input name="name" placeholder="Name" onChange={handle} />
+      <input name="brand" placeholder="Brand" onChange={handle} />
+      <textarea name="description" placeholder="Description" onChange={handle} />
+
+      {/* CATEGORY */}
+      <h3>Category</h3>
+
+      <select name="category" onChange={handle}>
+        <option>Category</option>
+        {categories.map(c => (
+          <option key={c._id} value={c._id}>{c.name}</option>
         ))}
-      </div>
+      </select>
+      <button onClick={() => setShowCat(true)}>+ Add</button>
 
-      <div style={box}>
+      <select name="subcategory" onChange={handle}>
+        <option>Subcategory</option>
+        {subcategories
+          .filter(s => s.category === form.category)
+          .map(s => (
+            <option key={s._id} value={s._id}>{s.name}</option>
+          ))}
+      </select>
+      <button onClick={() => setShowSub(true)}>+ Add</button>
 
-        {/* BASIC */}
-        {tab==="basic" && (
-          <>
-            <input name="name" placeholder="Name" onChange={handle}/>
-            <input name="brand" placeholder="Brand" onChange={handle}/>
-            <textarea name="description" placeholder="Description" onChange={handle}/>
-          </>
-        )}
+      <select onChange={handleGst}>
+        <option>GST</option>
+        {gstList.map(g => (
+          <option key={g._id} value={g._id}>
+            {g.name} ({g.gst}%)
+          </option>
+        ))}
+      </select>
+      <button onClick={() => setShowGst(true)}>+ Add</button>
 
-        {/* CATEGORY */}
-        {tab==="category" && (
-          <>
-            <select value={form.category} onChange={handle} name="category">
-              <option>Category</option>
-              {categories.map(c=><option key={c._id} value={c._id}>{c.name}</option>)}
-            </select>
-            <button onClick={()=>setShowCat(true)}>+ Add</button>
+      {/* MODALS */}
+      {showCat && (
+        <div>
+          <input value={newCat} onChange={e => setNewCat(e.target.value)} />
+          <button onClick={createCategory}>Save</button>
+        </div>
+      )}
 
-            <select value={form.subcategory} onChange={handle} name="subcategory">
-              <option>Subcategory</option>
-              {subcategories.filter(s=>s.category===form.category)
-                .map(s=><option key={s._id} value={s._id}>{s.name}</option>)}
-            </select>
-            <button onClick={()=>setShowSub(true)}>+ Add</button>
+      {showSub && (
+        <div>
+          <input value={newSub} onChange={e => setNewSub(e.target.value)} />
+          <button onClick={createSubcategory}>Save</button>
+        </div>
+      )}
 
-            <select onChange={handleGst}>
-              <option>GST</option>
-              {gstList.map(g=><option key={g._id} value={g._id}>{g.name}</option>)}
-            </select>
-            <button onClick={()=>setShowGst(true)}>+ Add</button>
-          </>
-        )}
+      {showGst && (
+        <div>
+          <input placeholder="Name" onChange={e => setNewGst({ ...newGst, name: e.target.value })} />
+          <input placeholder="GST%" onChange={e => setNewGst({ ...newGst, gst: e.target.value })} />
+          <input placeholder="HSN" onChange={e => setNewGst({ ...newGst, hsn: e.target.value })} />
+          <button onClick={createGst}>Save</button>
+        </div>
+      )}
 
-        {/* PRICING */}
-        {tab==="pricing" && (
-          <>
-            <input name="costPrice" placeholder="Cost" onChange={handle}/>
-            <input name="mrp" placeholder="MRP" onChange={handle}/>
-            <input name="sellingPrice" placeholder="Selling" onChange={handle}/>
-            <p>GST Split → CGST: {cgst}% | SGST: {sgst}%</p>
-          </>
-        )}
+      {/* PRICING */}
+      <h3>Pricing</h3>
+      <input name="costPrice" placeholder="Cost" onChange={handle} />
+      <input name="mrp" placeholder="MRP" onChange={handle} />
+      <input name="sellingPrice" placeholder="Selling Price" onChange={handle} />
 
-        {/* INVENTORY */}
-        {tab==="inventory" && (
-          <>
-            <input name="totalStock" placeholder="Total Stock" onChange={handle}/>
-            <input name="lowStockAlert" placeholder="Low Alert" onChange={handle}/>
-            <label><input type="checkbox" name="trackInventory" onChange={handle}/>Track</label>
-            <label><input type="checkbox" name="allowBackorder" onChange={handle}/>Backorder</label>
-          </>
-        )}
+      <label>
+        <input type="checkbox" name="taxIncluded" onChange={handle} />
+        Tax Included
+      </label>
 
-        {/* VARIANTS */}
-        {tab==="variants" && (
-          <>
-            {variants.map((v,i)=>(
-              <div key={i}>
-                <input placeholder="Type" onChange={e=>updateVariant(i,"type",e.target.value)}/>
-                <input placeholder="Value" onChange={e=>updateVariant(i,"value",e.target.value)}/>
-                <input placeholder="Price" onChange={e=>updateVariant(i,"price",e.target.value)}/>
-                <input placeholder="Stock" onChange={e=>updateVariant(i,"stock",e.target.value)}/>
-                <input value={v.sku} readOnly/>
-              </div>
-            ))}
-            <button onClick={addVariant}>+ Variant</button>
-          </>
-        )}
+      <p>GST: {form.gstPercent}%</p>
+      <p>GST Amount: ₹{gstAmount.toFixed(2)}</p>
+      <p>Final Price: ₹{finalPrice.toFixed(2)}</p>
+      <p>Profit: ₹{profit.toFixed(2)}</p>
 
-        {/* SHIPPING */}
-        {tab==="shipping" && (
-          <>
-            <input name="weight" placeholder="Weight" onChange={handle}/>
-            <input placeholder="L" onChange={e=>handleDim("length",e.target.value)}/>
-            <input placeholder="W" onChange={e=>handleDim("width",e.target.value)}/>
-            <input placeholder="H" onChange={e=>handleDim("height",e.target.value)}/>
-          </>
-        )}
+      {/* SEO */}
+      <h3>SEO (Auto)</h3>
+      <input value={form.seoTitle} readOnly />
+      <textarea value={form.seoDescription} readOnly />
 
-        {/* SEO */}
-        {tab==="seo" && (
-          <>
-            <input value={form.seoTitle||""} readOnly/>
-            <textarea value={form.seoDescription||""} readOnly/>
-          </>
-        )}
+      {/* IMAGES */}
+      <h3>Images</h3>
+      <input type="file" multiple onChange={handleImages} />
 
-        {/* MEDIA */}
-        {tab==="media" && (
-          <>
-            <input type="file" multiple onChange={handleImages}/>
-            <div>{imagesPreview.map((i,idx)=><img key={idx} src={i} width={60}/>)}</div>
-          </>
-        )}
-
-      </div>
+      <button onClick={save}>Save Product</button>
     </div>
   );
 }
-
-/* STYLES */
-const tabs={display:"flex",gap:10};
-const tabBtn=a=>({padding:10,background:a?"black":"#ccc",color:a?"#fff":"#000"});
-const box={background:"#fff",padding:20,marginTop:20};
