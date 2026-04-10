@@ -1,50 +1,30 @@
 import { NextResponse } from "next/server";
+import jwt from "jsonwebtoken";
 
 export function middleware(req) {
-  const url = req.nextUrl.clone();
-  const pathname = url.pathname;
-  const tokenExists = !!req.cookies.get("token")?.value;
+  const token = req.cookies.get("token")?.value;
+  const url = req.nextUrl.pathname;
 
-  // Auth pages
-  if (pathname.startsWith("/login") || pathname.startsWith("/signup")) {
-    if (tokenExists) {
-      url.pathname = "/";
-      return NextResponse.redirect(url);
+  if (url.startsWith("/admin") || url.startsWith("/store")) {
+    if (!token) {
+      return NextResponse.redirect(new URL("/login", req.url));
     }
-    return NextResponse.next();
-  }
 
-  // Public API / home
-  if (pathname.startsWith("/api") || pathname === "/") return NextResponse.next();
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-  // Branding pages
-  if (pathname.startsWith("/branding")) {
-    if (!tokenExists) {
-      url.pathname = "/login";
-      return NextResponse.redirect(url);
+      if (url.startsWith("/admin") && decoded.role !== "admin") {
+        return NextResponse.redirect(new URL("/", req.url));
+      }
+
+      if (url.startsWith("/store") && decoded.role !== "store") {
+        return NextResponse.redirect(new URL("/", req.url));
+      }
+
+    } catch {
+      return NextResponse.redirect(new URL("/login", req.url));
     }
-    // JWT verification done on frontend
-    return NextResponse.next();
-  }
-
-  // Admin / account pages
-  if (pathname.startsWith("/admin") || pathname.startsWith("/account")) {
-    if (!tokenExists) {
-      url.pathname = "/login";
-      return NextResponse.redirect(url);
-    }
-    return NextResponse.next();
   }
 
   return NextResponse.next();
 }
-
-export const config = {
-  matcher: [
-    "/login",
-    "/signup",
-    "/admin/:path*",
-    "/account/:path*",
-    "/branding/:path*",
-  ],
-};
