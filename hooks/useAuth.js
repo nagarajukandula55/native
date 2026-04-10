@@ -1,4 +1,6 @@
-import { useState, useEffect } from "react";
+"use client";
+
+import { useEffect, useState } from "react";
 
 export default function useAuth() {
   const [user, setUser] = useState(null);
@@ -6,17 +8,21 @@ export default function useAuth() {
 
   async function fetchUser() {
     try {
-      const res = await fetch("/api/user/me");
+      const res = await fetch("/api/auth/me", {
+        credentials: "include",
+      });
+
       const data = await res.json();
 
       if (data.success) {
-        setUser(data.data);
+        setUser(data.user);
       } else {
         setUser(null);
       }
     } catch {
       setUser(null);
     }
+
     setLoading(false);
   }
 
@@ -27,6 +33,6 @@ export default function useAuth() {
   return {
     user,
     loading,
-    refreshUser: fetchUser, // 🔥 IMPORTANT
+    refreshUser: fetchUser,
   };
 }
