@@ -4,67 +4,112 @@ import User from "@/models/User";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 
+export const dynamic = "force-dynamic";
+
 export async function POST(req) {
   try {
     await connectDB();
-    const { email, password } = await req.json();
 
-    if (!email || !password) {
-      return NextResponse.json({ success: false, message: "Email & password required" });
-    }
-
-    const user = await User.findOne({ email }).lean();
-
-    if (!user) {
-      return NextResponse.json({ success: false, message: "Invalid credentials" });
-    }
-
-    // 🔥 FIXED PASSWORD HANDLING
-    const hashedPassword = user.password || user.passwordHash;
-
-    if (!hashedPassword) {
+    /* ================= BODY PARSE ================= */
+    let body;
+    try {
+      body = await req.json();
+    } catch {
       return NextResponse.json({
         success: false,
-        message: "User not configured properly",
+        message: "Invalid request body",
       });
     }
 
-    const isMatch = await bcrypt.compare(password, hashedPassword);
+    let { email, password } = body;
+
+    if (!email || !password) {
+      return NextResponse.json({
+        success: false,
+        message: "Email and password are required",
+      });
+    }
+
+    /* ================= NORMALIZE EMAIL ================= */
+    const normalizedEmail = email.trim().toLowerCase();
+
+    // 🔍 Debug (you can remove later)
+    console.log("LOGIN ATTEMPT:", normalizedEmail);
+
+    /* ================= FIND USER ================= */
+    const user = await User.findOne({ email: normalizedEmail }).lean();
+
+    if (!user) {
+      console.log("❌ USER NOT FOUND");
+      return NextResponse.json({
+        success: false,
+        message: "Invalid email or password",
+      });
+    }
+
+    /* ================= PASSWORD CHECK ================= */
+    if (!user.password || typeof user.password !== "string") {
+      console.error("❌ INVALID USER PASSWORD FIELD:", user);
+      return NextResponse.json({
+        success: false,
+        message: "User account is not properly configured",
+      });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
 
     if (!isMatch) {
-      return NextResponse.json({ success: false, message: "Invalid credentials" });
+      console.log("❌ PASSWORD MISMATCH");
+      return NextResponse.json({
+        success: false,
+        message: "Invalid email or password",
+      });
+    }
+
+    /* ================= JWT ================= */
+    if (!process.env.JWT_SECRET) {
+      throw new Error("JWT_SECRET missing in env");
     }
 
     const token = jwt.sign(
       {
         id: user._id,
-        role: user.role,
+        name: user.name,
         email: user.email,
+        role: user.role,
       },
       process.env.JWT_SECRET,
       { expiresIn: "7d" }
     );
 
-    const res = NextResponse.json({
+    /* ================= RESPONSE ================= */
+    const response = NextResponse.json({
       success: true,
+      message: "Login successful",
       user: {
         name: user.name,
-        role: user.role,
         email: user.email,
+        role: user.role,
       },
     });
 
-    res.cookies.set("token", token, {
+    /* ================= COOKIE ================= */
+    response.cookies.set("token", token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: process.env.NODE_ENV === "production", // 🔐 important
       sameSite: "lax",
       path: "/",
-      maxAge: 60 * 60 * 24 * 7,
+      maxAge: 60 * 60 * 24 * 7, // 7 days
     });
 
-    return res;
-  } catch (err) {
-    console.error(err);
-    return NextResponse.json({ success: false, message: "Server error" });
+    return response;
+
+  } catch (error) {
+    console.error("LOGIN ERROR:", error);
+
+    return NextResponse.json({
+      success: false,
+      message: "Server error. Please try again.",
+    });
   }
 }
