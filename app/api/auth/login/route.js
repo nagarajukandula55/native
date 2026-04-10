@@ -10,7 +10,18 @@ export async function POST(req) {
   try {
     await connectDB();
 
-    const { email, password } = await req.json();
+    /* ================= BODY ================= */
+    let body;
+    try {
+      body = await req.json();
+    } catch {
+      return NextResponse.json({
+        success: false,
+        message: "Invalid request",
+      });
+    }
+
+    const { email, password } = body;
 
     if (!email || !password) {
       return NextResponse.json({
@@ -19,7 +30,8 @@ export async function POST(req) {
       });
     }
 
-    const user = await User.findOne({ email });
+    /* ================= USER ================= */
+    const user = await User.findOne({ email }).lean();
 
     if (!user) {
       return NextResponse.json({
@@ -28,14 +40,15 @@ export async function POST(req) {
       });
     }
 
-    /* 🔥 SAFE PASSWORD CHECK */
-    let isMatch = false;
-
-    if (user.password.startsWith("$2")) {
-      isMatch = await bcrypt.compare(password, user.password);
-    } else {
-      isMatch = password === user.password;
+    /* ================= PASSWORD CHECK (FINAL) ================= */
+    if (!user.password || typeof user.password !== "string") {
+      return NextResponse.json({
+        success: false,
+        message: "Invalid user configuration",
+      });
     }
+
+    const isMatch = await bcrypt.compare(password, user.password);
 
     if (!isMatch) {
       return NextResponse.json({
@@ -44,6 +57,7 @@ export async function POST(req) {
       });
     }
 
+    /* ================= JWT ================= */
     if (!process.env.JWT_SECRET) {
       throw new Error("JWT_SECRET missing");
     }
@@ -59,6 +73,7 @@ export async function POST(req) {
       { expiresIn: "7d" }
     );
 
+    /* ================= RESPONSE ================= */
     const response = NextResponse.json({
       success: true,
       message: "Login successful",
@@ -69,12 +84,13 @@ export async function POST(req) {
       },
     });
 
+    /* ================= COOKIE ================= */
     response.cookies.set("token", token, {
       httpOnly: true,
-      secure: false,
+      secure: process.env.NODE_ENV === "production", // ✅ important
       sameSite: "lax",
       path: "/",
-      maxAge: 60 * 60 * 24 * 7,
+      maxAge: 60 * 60 * 24 * 7, // 7 days
     });
 
     return response;
@@ -84,7 +100,7 @@ export async function POST(req) {
 
     return NextResponse.json({
       success: false,
-      message: error.message || "Server error",
+      message: "Server error",
     });
   }
 }
