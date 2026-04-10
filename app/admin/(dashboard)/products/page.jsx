@@ -1,383 +1,261 @@
-"use client";
+"use client"
 
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react"
+import { HSN_LIST } from "@/lib/hsn"
+import { CATEGORIES } from "@/lib/category"
 
-/* ================= PRODUCT PAGE ================= */
-export default function ProductsPage() {
-  const [products, setProducts] = useState([]);
-  const [editing, setEditing] = useState(null);
-  const [search, setSearch] = useState("");
-
-  async function fetchProducts() {
-    const res = await fetch("/api/admin/products");
-    const data = await res.json();
-
-    if (Array.isArray(data.products)) setProducts(data.products);
-    else setProducts([]);
-  }
-
-  useEffect(() => {
-    fetchProducts();
-  }, []);
-
-  const filtered = products.filter((p) =>
-    p?.name?.toLowerCase().includes(search.toLowerCase())
-  );
-
-  return (
-    <div style={{ padding: 20 }}>
-      <h1>Products</h1>
-      <input
-        placeholder="Search products..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        style={{ width: "100%", padding: 10, marginBottom: 20 }}
-      />
-
-      <ProductForm refresh={fetchProducts} editing={editing} setEditing={setEditing} />
-
-      <ProductTable products={filtered} refresh={fetchProducts} setEditing={setEditing} />
-    </div>
-  );
-}
-
-/* ================= PRODUCT FORM ================= */
-function ProductForm({ refresh, editing, setEditing }) {
-  const [categories, setCategories] = useState([]);
-  const [subcategories, setSubcategories] = useState([]);
-  const [gstCategories, setGstCategories] = useState([]);
-  const [previewImages, setPreviewImages] = useState([]);
-  const [variants, setVariants] = useState([]);
-
-  const [modal, setModal] = useState({ type: "", value: "" });
-
-  const [form, setForm] = useState({
+export default function AdminProducts() {
+  const emptyForm = {
     name: "",
-    brand: "",
     description: "",
-    category: "",
-    subcategory: "",
-    gstCategory: "",
-    hsnCode: "",
-    gstPercent: "",
-    costPrice: "",
+    price: "",
     mrp: "",
-    sellingPrice: "",
-    sku: "",
-    status: "active",
+    costPrice: "",
+    category: "",
+    brand: "",
+    hsn: "",
+    gst: "",
+    weight: "",
+    length: "",
+    breadth: "",
+    height: "",
+    featured: false,
+    status: "ACTIVE",
     images: [],
-    tags: [],
-    variants: [],
-  });
-
-  /* ============== LOAD DATA ============== */
-  useEffect(() => {
-    loadAll();
-  }, []);
-
-  async function loadAll() {
-    const [c, s, g] = await Promise.all([
-      fetch("/api/admin/categories").then((r) => r.json()),
-      fetch("/api/admin/subcategories").then((r) => r.json()),
-      fetch("/api/admin/gst").then((r) => r.json()),
-    ]);
-
-    setCategories(Array.isArray(c.data) ? c.data : []);
-    setSubcategories(Array.isArray(s.data) ? s.data : []);
-    setGstCategories(Array.isArray(g.data) ? g.data : []);
+    sku: "",
   }
 
-  /* ============== EDIT MODE ============== */
-  useEffect(() => {
-    if (editing) {
-      setForm(editing);
-      setVariants(editing.variants || []);
-      setPreviewImages(editing.images || []);
-    }
-  }, [editing]);
+  const [form, setForm] = useState(emptyForm)
+  const [products, setProducts] = useState([])
+  const [filteredProducts, setFilteredProducts] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [search, setSearch] = useState("")
 
-  /* ============== HANDLERS ============== */
+  useEffect(() => {
+    loadProducts()
+  }, [])
+
+  useEffect(() => {
+    applyFilters()
+  }, [products, search])
+
+  function generateSKU(name) {
+    return name.substring(0, 3).toUpperCase() + "-" + Math.floor(1000 + Math.random() * 9000)
+  }
+
+  function calculateDiscount(mrp, price) {
+    if (!mrp || !price) return 0
+    return Math.round(((mrp - price) / mrp) * 100)
+  }
+
   function handleChange(e) {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  }
+    const { name, value, type, checked } = e.target
+    let updated = { ...form, [name]: type === "checkbox" ? checked : value }
 
-  function handleGst(e) {
-    const g = gstCategories.find((x) => x._id === e.target.value);
-    if (!g) return;
-    setForm({
-      ...form,
-      gstCategory: g._id,
-      hsnCode: g.hsn,
-      gstPercent: g.gst,
-    });
-  }
-
-  useEffect(() => {
-    if (!form.name) return;
-    const base = form.name.split(" ")[0];
-    setForm((f) => ({ ...f, sku: "NA" + base.toUpperCase() }));
-  }, [form.name]);
-
-  const profit =
-    form.sellingPrice && form.costPrice
-      ? (Number(form.sellingPrice) - Number(form.costPrice)).toFixed(2)
-      : 0;
-
-  function handleImages(e) {
-    const files = [...e.target.files];
-    setForm({ ...form, images: files });
-    setPreviewImages(files.map((file) => URL.createObjectURL(file)));
-  }
-
-  /* ================= VARIANTS ================= */
-  function addVariant() {
-    setVariants([
-      ...variants,
-      { type: "", value: "", cost: "", price: "", sku: "", stock: "" },
-    ]);
-  }
-
-  function updateVariant(i, field, value) {
-    const updated = [...variants];
-    updated[i][field] = value;
-
-    if (field === "value") {
-      updated[i].sku = form.sku + value.toUpperCase();
+    if (name === "hsn") {
+      const selected = HSN_LIST.find(h => h.hsn === value)
+      if (selected) updated.gst = selected.gst
     }
-    setVariants(updated);
+
+    setForm(updated)
   }
 
-  function removeVariant(i) {
-    setVariants(variants.filter((_, idx) => idx !== i));
+  async function loadProducts() {
+    const res = await fetch("/api/admin/products")
+    const data = await res.json()
+    setProducts(data.data || [])
+    setLoading(false)
   }
 
-  /* ============== INLINE ADD CATEGORY / SUBCATEGORY / GST ============== */
-  async function addInline(type) {
-    if (!modal.value) return alert("Enter value");
+  async function handleImageUpload(e) {
+    const files = Array.from(e.target.files)
+    setUploading(true)
 
-    try {
-      let url = "/api/admin/categories";
-      let body = { name: modal.value };
+    const uploaded = []
 
-      if (type === "subcategories") {
-        url = "/api/admin/subcategories";
-        body.category = form.category;
-      }
-      if (type === "gst") url = "/api/admin/gst";
+    for (let file of files) {
+      const fd = new FormData()
+      fd.append("file", file)
 
-      const res = await fetch(url, {
+      const res = await fetch("/api/upload", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
+        body: fd,
+      })
 
-      if (!res.ok) throw new Error(`Failed to add ${type}`);
+      const data = await res.json()
+      if (data.url) uploaded.push(data.url)
+    }
 
-      const newItem = await res.json();
+    setForm(prev => ({
+      ...prev,
+      images: [...prev.images, ...uploaded],
+    }))
 
-      if (type === "categories") setCategories([...categories, newItem]);
-      if (type === "subcategories") setSubcategories([...subcategories, newItem]);
-      if (type === "gst") setGstCategories([...gstCategories, newItem]);
+    setUploading(false)
+  }
 
-      setModal({ type: "", value: "" });
-    } catch (err) {
-      console.error(err);
-      alert(err.message);
+  function buildPayload() {
+    return {
+      ...form,
+      price: Number(form.price),
+      mrp: Number(form.mrp),
+      costPrice: Number(form.costPrice),
+      gst: Number(form.gst),
+      weight: Number(form.weight),
+      dimensions: {
+        length: Number(form.length),
+        breadth: Number(form.breadth),
+        height: Number(form.height),
+      },
+      image: form.images[0],
     }
   }
 
-  /* ============== SAVE PRODUCT ================= */
-  async function save() {
-    const fd = new FormData();
+  async function handleSubmit(e) {
+    e.preventDefault()
 
-    Object.keys(form).forEach((k) => {
-      if (k !== "images" && k !== "variants") fd.append(k, form[k]);
-    });
+    if (!form.sku) {
+      form.sku = generateSKU(form.name)
+    }
 
-    form.images.forEach((img) => {
-      if (img instanceof File) fd.append("images", img);
-    });
+    setSaving(true)
 
-    fd.append("variants", JSON.stringify(variants));
+    const payload = buildPayload()
 
-    await fetch("/api/admin/products", {
-      method: editing ? "PUT" : "POST",
-      body: fd,
-    });
+    const url = editing
+      ? `/api/admin/products/${form.slug}`
+      : "/api/admin/products"
 
-    setEditing(null);
-    setForm({ ...form, images: [], variants: [] });
-    setPreviewImages([]);
-    refresh();
+    const method = editing ? "PUT" : "POST"
+
+    await fetch(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    })
+
+    setForm(emptyForm)
+    setEditing(false)
+    loadProducts()
+    setSaving(false)
   }
 
-  /* ================= RENDER ================= */
+  function editProduct(p) {
+    setForm({
+      ...p,
+      images: p.images || [],
+      length: p.dimensions?.length || "",
+      breadth: p.dimensions?.breadth || "",
+      height: p.dimensions?.height || "",
+    })
+    setEditing(true)
+    window.scrollTo({ top: 0, behavior: "smooth" })
+  }
+
+  async function deleteProduct(slug) {
+    if (!confirm("Delete this product?")) return
+    await fetch("/api/admin/products/" + slug, { method: "DELETE" })
+    loadProducts()
+  }
+
+  function applyFilters() {
+    let temp = [...products]
+
+    if (search) {
+      const s = search.toLowerCase()
+      temp = temp.filter(p =>
+        p.name.toLowerCase().includes(s) ||
+        p.sku?.toLowerCase().includes(s)
+      )
+    }
+
+    setFilteredProducts(temp)
+  }
+
   return (
-    <div style={{ background: "#fff", padding: 20, borderRadius: 8, marginBottom: 20 }}>
-      <h2>{editing ? "Edit Product" : "Add Product"}</h2>
+    <div style={{ maxWidth: 1300, margin: "auto", padding: 30 }}>
+      <h1>🛍 Products Admin</h1>
 
-      {/* BASIC */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10 }}>
-        <input name="name" placeholder="Name" value={form.name} onChange={handleChange} />
-        <input name="brand" placeholder="Brand" value={form.brand} onChange={handleChange} />
-        <input value={form.sku} placeholder="SKU" readOnly />
-      </div>
+      {/* FORM */}
+      <form onSubmit={handleSubmit} style={formGrid}>
+        <input name="name" placeholder="Product Name" value={form.name} onChange={handleChange} required />
+        <input name="sku" placeholder="SKU (Auto if empty)" value={form.sku} onChange={handleChange} />
 
-      <textarea
-        placeholder="Description"
-        value={form.description}
-        onChange={(e) => setForm({ ...form, description: e.target.value })}
-        style={{ width: "100%", marginTop: 10, padding: 8 }}
-      />
-
-      {/* CATEGORY DROPDOWNS + INLINE ADD */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginTop: 10 }}>
-        <div>
-          <select name="category" value={form.category} onChange={handleChange}>
-            <option value="">Select Category</option>
-            {categories.map((c) => (
-              <option key={c._id} value={c._id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-          <div style={{ display: "flex", marginTop: 5 }}>
-            <input
-              placeholder="Add Category"
-              value={modal.type === "categories" ? modal.value : ""}
-              onChange={(e) => setModal({ type: "categories", value: e.target.value })}
-            />
-            <button onClick={() => addInline("categories")}>Add</button>
-          </div>
-        </div>
-
-        <div>
-          <select name="subcategory" value={form.subcategory} onChange={handleChange}>
-            <option value="">Select Subcategory</option>
-            {subcategories.map((s) => (
-              <option key={s._id} value={s._id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-          <div style={{ display: "flex", marginTop: 5 }}>
-            <input
-              placeholder="Add Subcategory"
-              value={modal.type === "subcategories" ? modal.value : ""}
-              onChange={(e) => setModal({ type: "subcategories", value: e.target.value })}
-            />
-            <button onClick={() => addInline("subcategories")}>Add</button>
-          </div>
-        </div>
-
-        <div>
-          <select value={form.gstCategory} onChange={handleGst}>
-            <option value="">GST Category</option>
-            {gstCategories.map((g) => (
-              <option key={g._id} value={g._id}>
-                {g.name}
-              </option>
-            ))}
-          </select>
-          <div style={{ display: "flex", marginTop: 5 }}>
-            <input
-              placeholder="Add GST"
-              value={modal.type === "gst" ? modal.value : ""}
-              onChange={(e) => setModal({ type: "gst", value: e.target.value })}
-            />
-            <button onClick={() => addInline("gst")}>Add</button>
-          </div>
-        </div>
-      </div>
-
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginTop: 10 }}>
-        <input name="hsnCode" value={form.hsnCode} placeholder="HSN Code" readOnly />
-        <input name="gstPercent" value={form.gstPercent} placeholder="GST %" readOnly />
-        <select name="status" value={form.status} onChange={handleChange}>
-          <option value="active">Active</option>
-          <option value="draft">Draft</option>
-          <option value="inactive">Inactive</option>
-          <option value="out_of_stock">Out of Stock</option>
+        <select name="category" value={form.category} onChange={handleChange} required>
+          <option value="">Category</option>
+          {CATEGORIES.map(c => <option key={c.name}>{c.name}</option>)}
         </select>
-      </div>
 
-      {/* PRICING */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginTop: 10 }}>
-        <input name="costPrice" placeholder="Cost Price" value={form.costPrice} onChange={handleChange} />
-        <input name="mrp" placeholder="MRP" value={form.mrp} onChange={handleChange} />
-        <input name="sellingPrice" placeholder="Selling Price" value={form.sellingPrice} onChange={handleChange} />
-      </div>
+        <input name="brand" placeholder="Brand" value={form.brand} onChange={handleChange} />
 
-      <div style={{ marginTop: 10 }}>
-        <b>Profit:</b> ₹ {profit}
-      </div>
+        <input name="mrp" type="number" placeholder="MRP" value={form.mrp} onChange={handleChange} />
+        <input name="price" type="number" placeholder="Selling Price" value={form.price} onChange={handleChange} />
 
-      {/* VARIANTS */}
-      <h3>Variants</h3>
-      {variants.map((v, i) => {
-        const vp = v.price && v.cost ? v.price - v.cost : 0;
-        return (
-          <div key={i} style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-            <input placeholder="Type" value={v.type} onChange={(e) => updateVariant(i, "type", e.target.value)} />
-            <input placeholder="Value" value={v.value} onChange={(e) => updateVariant(i, "value", e.target.value)} />
-            <input placeholder="Cost" value={v.cost} onChange={(e) => updateVariant(i, "cost", e.target.value)} />
-            <input placeholder="Price" value={v.price} onChange={(e) => updateVariant(i, "price", e.target.value)} />
-            <input placeholder="Stock" value={v.stock} onChange={(e) => updateVariant(i, "stock", e.target.value)} />
-            <input placeholder="SKU" value={v.sku} readOnly />
-            <span>₹{vp}</span>
-            <button onClick={() => removeVariant(i)}>X</button>
-          </div>
-        );
-      })}
-      <button onClick={addVariant}>+ Add Variant</button>
+        <p style={{ gridColumn: "span 2", color: "green" }}>
+          Discount: {calculateDiscount(form.mrp, form.price)}%
+        </p>
 
-      {/* IMAGE UPLOAD */}
-      <h3>Images</h3>
-      <input type="file" multiple onChange={handleImages} />
-      <div style={{ display: "flex", gap: 10, marginTop: 5 }}>
-        {previewImages.map((src, i) => (
-          <img key={i} src={src} width={60} />
-        ))}
-      </div>
+        <input name="costPrice" type="number" placeholder="Cost Price" value={form.costPrice} onChange={handleChange} />
 
-      <button onClick={save} style={{ background: "black", color: "#fff", padding: 10, marginTop: 15 }}>
-        Save Product
-      </button>
+        <select name="hsn" value={form.hsn} onChange={handleChange}>
+          <option>HSN</option>
+          {HSN_LIST.map(h => (
+            <option key={h.hsn} value={h.hsn}>{h.hsn} - {h.gst}%</option>
+          ))}
+        </select>
+
+        <input name="gst" value={form.gst} readOnly />
+
+        <textarea name="description" placeholder="Description" value={form.description} onChange={handleChange} style={{ gridColumn: "span 2" }} />
+
+        <input type="file" multiple onChange={handleImageUpload} style={{ gridColumn: "span 2" }} />
+
+        <div style={{ display: "flex", gap: 10 }}>
+          {form.images.map((img, i) => (
+            <img key={i} src={img} style={{ width: 60 }} />
+          ))}
+        </div>
+
+        <button disabled={saving} style={{ gridColumn: "span 2" }}>
+          {saving ? "Saving..." : editing ? "Update" : "Add Product"}
+        </button>
+      </form>
+
+      {/* LIST */}
+      {loading ? <p>Loading...</p> : (
+        <table style={{ width: "100%", marginTop: 20 }}>
+          <thead>
+            <tr>
+              <th>Image</th>
+              <th>SKU</th>
+              <th>Name</th>
+              <th>Price</th>
+              <th>Discount</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredProducts.map(p => (
+              <tr key={p._id}>
+                <td><img src={p.image} width={50} /></td>
+                <td>{p.sku}</td>
+                <td>{p.name}</td>
+                <td>₹{p.price}</td>
+                <td>{calculateDiscount(p.mrp, p.price)}%</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </div>
-  );
+  )
 }
 
-/* ================= PRODUCT TABLE ================= */
-function ProductTable({ products, refresh, setEditing }) {
-  async function del(id) {
-    if (!confirm("Delete product?")) return;
-    await fetch("/api/admin/products?id=" + id, { method: "DELETE" });
-    refresh();
-  }
-
-  return (
-    <table width="100%" border="1" cellPadding="10" style={{ marginTop: 20 }}>
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>SKU</th>
-          <th>Variants</th>
-          <th>Action</th>
-        </tr>
-      </thead>
-      <tbody>
-        {products.map((p) => (
-          <tr key={p._id}>
-            <td>{p.name}</td>
-            <td>{p.sku}</td>
-            <td>{p.variants?.length || 0}</td>
-            <td>
-              <button onClick={() => setEditing(p)}>Edit</button>
-              <button onClick={() => del(p._id)}>Delete</button>
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
+const formGrid = {
+  display: "grid",
+  gridTemplateColumns: "1fr 1fr",
+  gap: 10,
+  marginTop: 20,
 }
