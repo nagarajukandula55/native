@@ -8,14 +8,7 @@ import CartDrawer from "./CartDrawer";
 import useAuth from "@/hooks/useAuth";
 import { roleMenus } from "@/lib/roleMenus";
 
-import {
-  ShoppingCart,
-  User,
-  Menu,
-  X,
-  Search,
-  LogOut,
-} from "lucide-react";
+import { ShoppingCart, User, Menu, X, Search } from "lucide-react";
 
 export default function Navbar() {
   const { cartCount, drawerOpen, openCart, closeCart } = useCart();
@@ -24,27 +17,26 @@ export default function Navbar() {
   const { user, loading, refreshUser } = useAuth();
 
   const [search, setSearch] = useState("");
-  const [isMobile, setIsMobile] = useState(false);
+  const [mobile, setMobile] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [userMenu, setUserMenu] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
   /* ===== RESPONSIVE ===== */
   useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth <= 900);
-    handleResize();
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
+    const resize = () => setMobile(window.innerWidth < 900);
+    resize();
+    window.addEventListener("resize", resize);
+    return () => window.removeEventListener("resize", resize);
   }, []);
 
-  /* ===== SCROLL SHADOW ===== */
+  /* ===== SCROLL EFFECT ===== */
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 10);
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
+    const scroll = () => setScrolled(window.scrollY > 10);
+    window.addEventListener("scroll", scroll);
+    return () => window.removeEventListener("scroll", scroll);
   }, []);
 
-  /* ===== SEARCH ===== */
   function handleSearch(e) {
     e.preventDefault();
     if (!search.trim()) return;
@@ -52,7 +44,6 @@ export default function Navbar() {
     setSearch("");
   }
 
-  /* ===== LOGOUT ===== */
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
     await refreshUser();
@@ -65,21 +56,26 @@ export default function Navbar() {
 
   return (
     <>
-      <header style={{ ...header, boxShadow: scrolled ? shadow : "none" }}>
-        {/* LEFT */}
-        <div style={left}>
-          <Link href="/" style={logoWrap}>
-            <img src="/logo.png" style={logo} />
-            <span style={brand}>ShopNative</span>
-          </Link>
-        </div>
+      <header style={{
+        ...header,
+        background: scrolled
+          ? "rgba(255,255,255,0.9)"
+          : "linear-gradient(to right, #ffffff, #f9fafb)",
+        backdropFilter: "blur(10px)",
+        boxShadow: scrolled ? "0 8px 25px rgba(0,0,0,0.08)" : "none"
+      }}>
+        
+        {/* LOGO */}
+        <Link href="/">
+          <img src="/logo.png" style={logo} />
+        </Link>
 
-        {/* CENTER SEARCH */}
-        {!isMobile && (
+        {/* SEARCH */}
+        {!mobile && (
           <form onSubmit={handleSearch} style={searchBox}>
             <Search size={16} />
             <input
-              placeholder="Search products..."
+              placeholder="Search for products..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               style={searchInput}
@@ -87,23 +83,17 @@ export default function Navbar() {
           </form>
         )}
 
-        {/* RIGHT */}
-        <div style={right}>
-          {/* DESKTOP */}
-          {!isMobile && (
+        {/* NAV */}
+        <nav style={nav}>
+          {!mobile && (
             <>
-              {/* PUBLIC */}
               <NavLink href="/" label="Home" pathname={pathname} />
               <NavLink href="/products" label="Products" pathname={pathname} />
+              <NavLink href="/track" label="Track" pathname={pathname} />
+              <NavLink href="/blog" label="Blog" pathname={pathname} />
 
-              {/* ROLE MENUS */}
-              {menus.map((m) => (
-                <NavLink
-                  key={m.name}
-                  href={m.path}
-                  label={m.name}
-                  pathname={pathname}
-                />
+              {menus.map(m => (
+                <NavLink key={m.name} href={m.path} label={m.name} pathname={pathname} />
               ))}
 
               {/* CART */}
@@ -114,33 +104,21 @@ export default function Navbar() {
 
               {/* AUTH */}
               {!user ? (
-                <Link href="/login" style={loginBtn}>
-                  Login
-                </Link>
+                <Link href="/login" style={loginBtn}>Login</Link>
               ) : (
-                <div style={userWrapper}>
+                <div style={userWrap}>
                   <div onClick={() => setUserMenu(!userMenu)} style={userBtn}>
                     <User size={18} />
                     <span>{user.name}</span>
                   </div>
 
-                  {/* DROPDOWN */}
                   {userMenu && (
                     <div style={dropdown}>
-                      <div style={dropdownItem}>
-                        👤 {user.name}
-                      </div>
-                      <div style={dropdownItem}>
-                        Role: {user.role}
-                      </div>
-
+                      <div style={dropdownItem}>{user.name}</div>
+                      <div style={dropdownItem}>{user.role}</div>
                       <hr />
-
-                      <div
-                        style={{ ...dropdownItem, color: "red" }}
-                        onClick={handleLogout}
-                      >
-                        <LogOut size={16} /> Logout
+                      <div onClick={handleLogout} style={{...dropdownItem, color: "red"}}>
+                        Logout
                       </div>
                     </div>
                   )}
@@ -150,21 +128,23 @@ export default function Navbar() {
           )}
 
           {/* MOBILE */}
-          {isMobile && (
+          {mobile && (
             <div onClick={() => setMenuOpen(!menuOpen)}>
               {menuOpen ? <X /> : <Menu />}
             </div>
           )}
-        </div>
+        </nav>
       </header>
 
       {/* MOBILE MENU */}
-      {menuOpen && isMobile && (
+      {menuOpen && mobile && (
         <div style={mobileMenu}>
           <Link href="/">Home</Link>
           <Link href="/products">Products</Link>
+          <Link href="/track">Track</Link>
+          <Link href="/blog">Blog</Link>
 
-          {menus.map((m) => (
+          {menus.map(m => (
             <div key={m.name} onClick={() => router.push(m.path)}>
               {m.name}
             </div>
@@ -193,12 +173,14 @@ function NavLink({ href, label, pathname }) {
     <Link
       href={href}
       style={{
-        color: active ? "#2563eb" : "#333",
-        fontWeight: active ? "600" : "500",
+        position: "relative",
         textDecoration: "none",
+        color: active ? "#2563eb" : "#333",
+        fontWeight: 500,
       }}
     >
       {label}
+      {active && <span style={underline}></span>}
     </Link>
   );
 }
@@ -210,53 +192,43 @@ const header = {
   justifyContent: "space-between",
   alignItems: "center",
   padding: "12px 24px",
-  background: "#fff",
   position: "sticky",
   top: 0,
   zIndex: 100,
 };
 
-const shadow = "0 5px 20px rgba(0,0,0,0.08)";
+const logo = { height: 42 };
 
-const left = { display: "flex", alignItems: "center" };
-const right = { display: "flex", alignItems: "center", gap: 20 };
-
-const logoWrap = {
+const nav = {
   display: "flex",
   alignItems: "center",
-  gap: 8,
-  textDecoration: "none",
+  gap: 20,
 };
-
-const logo = { height: 40 };
-const brand = { fontWeight: 600, fontSize: 16, color: "#111" };
 
 const searchBox = {
   display: "flex",
   alignItems: "center",
   gap: 8,
-  border: "1px solid #ddd",
+  background: "#f1f5f9",
   padding: "8px 12px",
-  borderRadius: 8,
+  borderRadius: 999,
   width: "40%",
 };
 
 const searchInput = {
   border: "none",
+  background: "transparent",
   outline: "none",
   width: "100%",
 };
 
-const cart = {
-  position: "relative",
-  cursor: "pointer",
-};
+const cart = { position: "relative", cursor: "pointer" };
 
 const cartCountStyle = {
   position: "absolute",
   top: -6,
   right: -10,
-  background: "red",
+  background: "#ef4444",
   color: "#fff",
   borderRadius: "50%",
   fontSize: 10,
@@ -264,20 +236,18 @@ const cartCountStyle = {
 };
 
 const loginBtn = {
-  padding: "6px 14px",
   background: "#111",
   color: "#fff",
-  borderRadius: 8,
+  padding: "6px 14px",
+  borderRadius: 20,
 };
 
-const userWrapper = {
-  position: "relative",
-};
+const userWrap = { position: "relative" };
 
 const userBtn = {
   display: "flex",
-  alignItems: "center",
   gap: 6,
+  alignItems: "center",
   cursor: "pointer",
 };
 
@@ -286,16 +256,23 @@ const dropdown = {
   top: 35,
   right: 0,
   background: "#fff",
-  border: "1px solid #eee",
   borderRadius: 10,
   padding: 10,
-  minWidth: 180,
-  boxShadow: "0 10px 30px rgba(0,0,0,0.1)",
+  boxShadow: "0 10px 25px rgba(0,0,0,0.1)",
 };
 
 const dropdownItem = {
-  padding: 8,
+  padding: 6,
   cursor: "pointer",
+};
+
+const underline = {
+  position: "absolute",
+  bottom: -4,
+  left: 0,
+  height: 2,
+  width: "100%",
+  background: "#2563eb",
 };
 
 const mobileMenu = {
