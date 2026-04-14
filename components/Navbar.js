@@ -7,20 +7,17 @@ import { useCart } from "@/context/CartContext";
 import CartDrawer from "./CartDrawer";
 import useAuth from "@/hooks/useAuth";
 import { roleMenus } from "@/lib/roleMenus";
-
-import { ShoppingCart, User, Menu, X, Search } from "lucide-react";
+import { ShoppingCart, User, Menu, X } from "lucide-react";
 
 export default function Navbar() {
   const { cartCount, drawerOpen, openCart, closeCart } = useCart();
-  const router = useRouter();
-  const pathname = usePathname();
   const { user, loading, refreshUser } = useAuth();
 
-  const [search, setSearch] = useState("");
+  const router = useRouter();
+  const pathname = usePathname();
+
   const [mobile, setMobile] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [userMenu, setUserMenu] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
 
   /* ===== RESPONSIVE ===== */
   useEffect(() => {
@@ -30,20 +27,7 @@ export default function Navbar() {
     return () => window.removeEventListener("resize", resize);
   }, []);
 
-  /* ===== SCROLL EFFECT ===== */
-  useEffect(() => {
-    const scroll = () => setScrolled(window.scrollY > 10);
-    window.addEventListener("scroll", scroll);
-    return () => window.removeEventListener("scroll", scroll);
-  }, []);
-
-  function handleSearch(e) {
-    e.preventDefault();
-    if (!search.trim()) return;
-    router.push(`/products?search=${search}`);
-    setSearch("");
-  }
-
+  /* ===== LOGOUT ===== */
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
     await refreshUser();
@@ -52,82 +36,73 @@ export default function Navbar() {
 
   if (loading) return null;
 
-  const menus = user ? roleMenus[user.role] || [] : [];
+  /* ===== ROLE MENUS ===== */
+  const roleBasedMenus = user ? roleMenus[user.role] || [] : [];
+
+  /* ===== DASHBOARD CHECK ===== */
+  const isDashboard =
+    pathname.startsWith("/admin") ||
+    pathname.startsWith("/vendor") ||
+    pathname.startsWith("/finance") ||
+    pathname.startsWith("/support") ||
+    pathname.startsWith("/branding") ||
+    pathname.startsWith("/analytics") ||
+    pathname.startsWith("/super-admin");
 
   return (
     <>
-      <header style={{
-        ...header,
-        background: scrolled
-          ? "rgba(255,255,255,0.9)"
-          : "linear-gradient(to right, #ffffff, #f9fafb)",
-        backdropFilter: "blur(10px)",
-        boxShadow: scrolled ? "0 8px 25px rgba(0,0,0,0.08)" : "none"
-      }}>
-        
+      <header style={header}>
         {/* LOGO */}
         <Link href="/">
           <img src="/logo.png" style={logo} />
         </Link>
 
-        {/* SEARCH */}
-        {!mobile && (
-          <form onSubmit={handleSearch} style={searchBox}>
-            <Search size={16} />
-            <input
-              placeholder="Search for products..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              style={searchInput}
-            />
-          </form>
-        )}
-
         {/* NAV */}
         <nav style={nav}>
-          {!mobile && (
+          {/* ===== PUBLIC MENU (ALWAYS FOR NON-DASHBOARD) ===== */}
+          {!isDashboard && (
             <>
               <NavLink href="/" label="Home" pathname={pathname} />
               <NavLink href="/products" label="Products" pathname={pathname} />
               <NavLink href="/track" label="Track" pathname={pathname} />
               <NavLink href="/blog" label="Blog" pathname={pathname} />
-
-              {menus.map(m => (
-                <NavLink key={m.name} href={m.path} label={m.name} pathname={pathname} />
-              ))}
-
-              {/* CART */}
-              <div style={cart} onClick={openCart}>
-                <ShoppingCart size={18} />
-                <span style={cartCountStyle}>{cartCount}</span>
-              </div>
-
-              {/* AUTH */}
-              {!user ? (
-                <Link href="/login" style={loginBtn}>Login</Link>
-              ) : (
-                <div style={userWrap}>
-                  <div onClick={() => setUserMenu(!userMenu)} style={userBtn}>
-                    <User size={18} />
-                    <span>{user.name}</span>
-                  </div>
-
-                  {userMenu && (
-                    <div style={dropdown}>
-                      <div style={dropdownItem}>{user.name}</div>
-                      <div style={dropdownItem}>{user.role}</div>
-                      <hr />
-                      <div onClick={handleLogout} style={{...dropdownItem, color: "red"}}>
-                        Logout
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
             </>
           )}
 
-          {/* MOBILE */}
+          {/* ===== ROLE MENU ===== */}
+          {user &&
+            roleBasedMenus.map((m) => (
+              <NavLink
+                key={m.name}
+                href={m.path}
+                label={m.name}
+                pathname={pathname}
+              />
+            ))}
+
+          {/* ===== CART ONLY FOR PUBLIC / CUSTOMER ===== */}
+          {!isDashboard && (
+            <div style={cart} onClick={openCart}>
+              <ShoppingCart size={18} />
+              <span>{cartCount}</span>
+            </div>
+          )}
+
+          {/* ===== AUTH ===== */}
+          {!user ? (
+            <Link href="/login" style={loginBtn}>
+              Login
+            </Link>
+          ) : (
+            <div style={userBox}>
+              <span>Hi, {user.name}</span>
+              <button onClick={handleLogout} style={logoutBtn}>
+                Logout
+              </button>
+            </div>
+          )}
+
+          {/* MOBILE MENU ICON */}
           {mobile && (
             <div onClick={() => setMenuOpen(!menuOpen)}>
               {menuOpen ? <X /> : <Menu />}
@@ -139,12 +114,16 @@ export default function Navbar() {
       {/* MOBILE MENU */}
       {menuOpen && mobile && (
         <div style={mobileMenu}>
-          <Link href="/">Home</Link>
-          <Link href="/products">Products</Link>
-          <Link href="/track">Track</Link>
-          <Link href="/blog">Blog</Link>
+          {!isDashboard && (
+            <>
+              <Link href="/">Home</Link>
+              <Link href="/products">Products</Link>
+              <Link href="/track">Track</Link>
+              <Link href="/blog">Blog</Link>
+            </>
+          )}
 
-          {menus.map(m => (
+          {roleBasedMenus.map((m) => (
             <div key={m.name} onClick={() => router.push(m.path)}>
               {m.name}
             </div>
@@ -153,9 +132,7 @@ export default function Navbar() {
           {!user ? (
             <Link href="/login">Login</Link>
           ) : (
-            <div onClick={handleLogout} style={{ color: "red" }}>
-              Logout
-            </div>
+            <div onClick={handleLogout}>Logout</div>
           )}
         </div>
       )}
@@ -173,14 +150,12 @@ function NavLink({ href, label, pathname }) {
     <Link
       href={href}
       style={{
-        position: "relative",
-        textDecoration: "none",
         color: active ? "#2563eb" : "#333",
-        fontWeight: 500,
+        fontWeight: active ? "600" : "500",
+        textDecoration: "none",
       }}
     >
       {label}
-      {active && <span style={underline}></span>}
     </Link>
   );
 }
@@ -190,94 +165,43 @@ function NavLink({ href, label, pathname }) {
 const header = {
   display: "flex",
   justifyContent: "space-between",
-  alignItems: "center",
-  padding: "12px 24px",
-  position: "sticky",
-  top: 0,
-  zIndex: 100,
+  padding: "12px 20px",
+  borderBottom: "1px solid #eee",
 };
-
-const logo = { height: 42 };
 
 const nav = {
   display: "flex",
+  gap: 15,
   alignItems: "center",
-  gap: 20,
 };
 
-const searchBox = {
-  display: "flex",
-  alignItems: "center",
-  gap: 8,
-  background: "#f1f5f9",
-  padding: "8px 12px",
-  borderRadius: 999,
-  width: "40%",
-};
+const logo = { height: 40 };
 
-const searchInput = {
-  border: "none",
-  background: "transparent",
-  outline: "none",
-  width: "100%",
-};
-
-const cart = { position: "relative", cursor: "pointer" };
-
-const cartCountStyle = {
-  position: "absolute",
-  top: -6,
-  right: -10,
-  background: "#ef4444",
-  color: "#fff",
-  borderRadius: "50%",
-  fontSize: 10,
-  padding: "2px 6px",
-};
+const cart = { cursor: "pointer" };
 
 const loginBtn = {
+  padding: "6px 12px",
   background: "#111",
   color: "#fff",
-  padding: "6px 14px",
-  borderRadius: 20,
+  borderRadius: 6,
 };
 
-const userWrap = { position: "relative" };
-
-const userBtn = {
+const userBox = {
   display: "flex",
-  gap: 6,
+  gap: 10,
   alignItems: "center",
-  cursor: "pointer",
 };
 
-const dropdown = {
-  position: "absolute",
-  top: 35,
-  right: 0,
-  background: "#fff",
-  borderRadius: 10,
-  padding: 10,
-  boxShadow: "0 10px 25px rgba(0,0,0,0.1)",
-};
-
-const dropdownItem = {
-  padding: 6,
-  cursor: "pointer",
-};
-
-const underline = {
-  position: "absolute",
-  bottom: -4,
-  left: 0,
-  height: 2,
-  width: "100%",
-  background: "#2563eb",
+const logoutBtn = {
+  padding: "6px 10px",
+  background: "red",
+  color: "#fff",
+  borderRadius: 6,
 };
 
 const mobileMenu = {
   position: "absolute",
-  top: 70,
+  top: 60,
   right: 10,
   background: "#fff",
   padding: 15,
