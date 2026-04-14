@@ -6,6 +6,7 @@ import { useState, useEffect } from "react";
 import { useCart } from "@/context/CartContext";
 import CartDrawer from "./CartDrawer";
 import useAuth from "@/hooks/useAuth";
+import { roleMenus } from "@/lib/roleMenus";
 
 export default function Navbar() {
   const { cartCount, drawerOpen, openCart, closeCart } = useCart();
@@ -16,6 +17,7 @@ export default function Navbar() {
 
   const [search, setSearch] = useState("");
   const [isMobile, setIsMobile] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   /* ================= RESPONSIVE ================= */
   useEffect(() => {
@@ -41,14 +43,22 @@ export default function Navbar() {
       credentials: "include",
     });
 
-    await refreshUser(); // 🔥 update state instantly
-    router.push("/");    // redirect cleanly
+    await refreshUser();
+    router.push("/");
   }
 
-  const isAdminArea = pathname.startsWith("/admin");
-  const isBrandingArea = pathname.startsWith("/branding");
+  const isAdminArea =
+    pathname.startsWith("/admin") ||
+    pathname.startsWith("/vendor") ||
+    pathname.startsWith("/finance") ||
+    pathname.startsWith("/support") ||
+    pathname.startsWith("/branding") ||
+    pathname.startsWith("/analytics") ||
+    pathname.startsWith("/super-admin");
 
   if (loading) return null;
+
+  const menus = user ? roleMenus[user.role] || [] : [];
 
   return (
     <>
@@ -59,7 +69,7 @@ export default function Navbar() {
         </Link>
 
         {/* SEARCH */}
-        {!isAdminArea && !isBrandingArea && (
+        {!isAdminArea && !isMobile && (
           <form onSubmit={handleSearch}>
             <input
               type="text"
@@ -73,11 +83,12 @@ export default function Navbar() {
 
         {/* NAV */}
         <nav style={nav}>
-          {!isAdminArea && !isBrandingArea && (
+          {/* PUBLIC MENU */}
+          {!isAdminArea && !isMobile && (
             <>
               <Link href="/">Home</Link>
               <Link href="/products">Products</Link>
-              <Link href="/track">Track Order</Link>
+              <Link href="/track">Track</Link>
 
               <div onClick={openCart} style={cartBox}>
                 🛒 {cartCount}
@@ -91,33 +102,70 @@ export default function Navbar() {
               Login
             </Link>
           ) : (
-            <div style={userBox}>
-              <span>Hi, {user.name}</span>
+            <>
+              {/* DESKTOP ROLE MENU */}
+              {!isMobile &&
+                menus.map((m) => (
+                  <Link key={m.name} href={m.path}>
+                    {m.name}
+                  </Link>
+                ))}
 
-              {/* ROLE BASED LINKS */}
-              {user.role === "admin" && <Link href="/admin">Admin</Link>}
-              {user.role === "store" && <Link href="/store">Store</Link>}
-              {user.role === "user" && <Link href="/account">My Orders</Link>}
+              {!isMobile && <span>👤 {user.name}</span>}
 
-              <button onClick={handleLogout} style={logoutBtn}>
-                Logout
-              </button>
-            </div>
+              {!isMobile && (
+                <button onClick={handleLogout} style={logoutBtn}>
+                  Logout
+                </button>
+              )}
+
+              {/* MOBILE MENU BUTTON */}
+              {isMobile && (
+                <div onClick={() => setMenuOpen(!menuOpen)}>☰</div>
+              )}
+            </>
           )}
         </nav>
       </header>
+
+      {/* MOBILE MENU */}
+      {menuOpen && isMobile && (
+        <div style={mobileMenu}>
+          {!user ? (
+            <>
+              <Link href="/login">Login</Link>
+              <Link href="/signup">Signup</Link>
+            </>
+          ) : (
+            <>
+              {menus.map((m) => (
+                <div key={m.name} onClick={() => router.push(m.path)}>
+                  {m.name}
+                </div>
+              ))}
+              <div>👤 {user.name}</div>
+              <div onClick={handleLogout} style={{ color: "red" }}>
+                Logout
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
       <CartDrawer open={drawerOpen} setOpen={closeCart} />
     </>
   );
 }
 
-/* STYLES */
+/* ===== STYLES ===== */
+
 const header = {
   display: "flex",
   justifyContent: "space-between",
+  alignItems: "center",
   padding: 15,
   borderBottom: "1px solid #eee",
+  background: "#fff",
 };
 
 const logo = { height: 50 };
@@ -125,6 +173,7 @@ const logo = { height: 50 };
 const searchInput = {
   padding: 8,
   border: "1px solid #ccc",
+  borderRadius: 6,
 };
 
 const nav = {
@@ -139,16 +188,26 @@ const loginBtn = {
   padding: 6,
   background: "#111",
   color: "#fff",
-};
-
-const userBox = {
-  display: "flex",
-  gap: 10,
-  alignItems: "center",
+  borderRadius: 6,
 };
 
 const logoutBtn = {
   padding: 6,
   background: "#111",
   color: "#fff",
+  borderRadius: 6,
+};
+
+const mobileMenu = {
+  position: "absolute",
+  top: 70,
+  right: 10,
+  background: "#fff",
+  padding: 15,
+  borderRadius: 10,
+  boxShadow: "0 10px 30px rgba(0,0,0,0.1)",
+  display: "flex",
+  flexDirection: "column",
+  gap: 10,
+  zIndex: 999,
 };
