@@ -1,7 +1,28 @@
 import mongoose from "mongoose";
 
-const schema = new mongoose.Schema({
-  name: { type: String, unique: true },
-});
+const categorySchema = new mongoose.Schema(
+  {
+    name: { type: String, required: true },
 
-export default mongoose.models.Category || mongoose.model("Category", schema);
+    type: {
+      type: String,
+      enum: ["website", "sub", "gst"],
+      required: true,
+    },
+
+    parent: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Category",
+      default: null, // for subcategory
+    },
+
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
+  },
+  { timestamps: true }
+);
+
+export default mongoose.models.Category ||
+  mongoose.model("Category", categorySchema);
