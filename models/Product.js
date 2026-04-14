@@ -1,71 +1,79 @@
 import mongoose from "mongoose";
-
-const variantSchema = new mongoose.Schema({
-  type: String,
-  value: String,
-  sku: String,
-
-  costPrice: Number,
-  mrp: Number,
-  sellingPrice: Number,
-
-  stock: Number,
-  images: [String],
-});
+import slugify from "slugify";
 
 const productSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
-    slug: String,
-    sku: { type: String, unique: true },
 
-    description: String,
+    slug: { type: String, unique: true },
+
+    sku: { type: String, unique: true, required: true },
+
     brand: String,
 
+    shortDescription: String,
+    description: String,
+
     category: { type: mongoose.Schema.Types.ObjectId, ref: "Category" },
-    subcategory: { type: mongoose.Schema.Types.ObjectId, ref: "Subcategory" },
+    subCategory: { type: mongoose.Schema.Types.ObjectId, ref: "Category" },
+    gstCategory: { type: mongoose.Schema.Types.ObjectId, ref: "Category" },
 
-    gstCategory: { type: mongoose.Schema.Types.ObjectId, ref: "GstCategory" },
-    hsnCode: String,
-    gstPercent: Number,
-    taxIncluded: Boolean,
-
-    costPrice: Number,
     mrp: Number,
     sellingPrice: Number,
-    profit: Number,
+    costPrice: Number,
 
-    variants: [variantSchema],
+    discountPercent: Number,
+    profitMargin: Number,
 
-    totalStock: Number,
-    lowStockAlert: Number,
-    trackInventory: Boolean,
-    allowBackorder: Boolean,
+    hsnCode: String,
+    gstPercent: Number,
 
-    weight: Number,
-    dimensions: {
+    images: [String],
+    featuredImage: String,
+
+    attributes: {
+      weight: Number,
       length: Number,
-      width: Number,
+      breadth: Number,
       height: Number,
     },
 
     seoTitle: String,
     seoDescription: String,
-    seoKeywords: [String],
-
-    isFeatured: Boolean,
-    isBestSeller: Boolean,
-    isNewArrival: Boolean,
-
-    images: [String],
 
     status: {
       type: String,
       enum: ["active", "inactive", "draft"],
       default: "active",
     },
+
+    approved: { type: Boolean, default: false },
+
+    createdBy: String,
   },
   { timestamps: true }
 );
 
-export default mongoose.models.Product || mongoose.model("Product", productSchema);
+/* 🔥 AUTO LOGIC */
+productSchema.pre("save", function (next) {
+  if (!this.slug) {
+    this.slug = slugify(this.name, { lower: true });
+  }
+
+  if (this.mrp && this.sellingPrice) {
+    this.discountPercent =
+      ((this.mrp - this.sellingPrice) / this.mrp) * 100;
+  }
+
+  if (this.costPrice && this.sellingPrice) {
+    this.profitMargin = this.sellingPrice - this.costPrice;
+  }
+
+  this.seoTitle = this.name;
+  this.seoDescription = this.shortDescription || this.description?.slice(0, 120);
+
+  next();
+});
+
+export default mongoose.models.Product ||
+  mongoose.model("Product", productSchema);
