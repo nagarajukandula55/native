@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
+import { cookies } from "next/headers";
 
-export async function GET(req) {
+export async function GET() {
   try {
-    const token = req.cookies.get("token")?.value;
+    const cookieStore = cookies();
+    const token = cookieStore.get("token")?.value;
+
+    console.log("TOKEN FROM COOKIE:", token); // DEBUG
 
     if (!token) {
       return NextResponse.json({ success: false, user: null });
