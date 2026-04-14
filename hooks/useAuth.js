@@ -8,11 +8,17 @@ export default function useAuth() {
 
   async function fetchUser() {
     try {
-      const res = await fetch("/api/auth/me");
+      const res = await fetch("/api/auth/me", {
+        credentials: "include",
+      });
+
       const data = await res.json();
 
-      if (data.success) setUser(data.user);
-      else setUser(null);
+      if (data.success) {
+        setUser(data.user);
+      } else {
+        setUser(null);
+      }
     } catch {
       setUser(null);
     }
@@ -24,5 +30,9 @@ export default function useAuth() {
     fetchUser();
   }, []);
 
-  return { user, loading, refreshUser: fetchUser };
+  return {
+    user,
+    loading,
+    refreshUser: fetchUser,
+  };
 }
