@@ -5,6 +5,18 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import useAuth from "@/hooks/useAuth";
 
+const roleRoutes = {
+  super_admin: "/super-admin",
+  admin: "/admin",
+  logistics: "/logistics",
+  customer_support: "/support",
+  finance: "/finance",
+  vendor: "/vendor",
+  branding: "/branding",
+  customer: "/account",
+  analytics: "/analytics",
+};
+
 export default function LoginPage() {
   const router = useRouter();
   const { refreshUser } = useAuth();
@@ -14,7 +26,6 @@ export default function LoginPage() {
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState(false);
 
   async function handleLogin(e) {
     e.preventDefault();
@@ -34,13 +45,21 @@ export default function LoginPage() {
           "Content-Type": "application/json",
         },
         credentials: "include",
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({
+          email: email.trim().toLowerCase(),
+          password,
+        }),
       });
 
-      const data = await res.json();
+      let data;
+      try {
+        data = await res.json();
+      } catch {
+        throw new Error("Invalid server response");
+      }
 
       if (!res.ok || !data.success) {
-        setError(data.message || "Login failed"); // ✅ FIXED
+        setError(data?.message || "Login failed");
         setLoading(false);
         return;
       }
@@ -48,33 +67,21 @@ export default function LoginPage() {
       const role = data.user?.role;
 
       if (!role) {
-        setError("Invalid response from server");
+        setError("Invalid user role");
         setLoading(false);
         return;
       }
 
-      /* ✅ REFRESH AUTH STATE */
+      /* 🔥 Refresh auth state */
       await refreshUser();
 
-      /* ✅ SHOW SUCCESS UI */
-      setSuccess(true);
-
-      /* ✅ CLEAN REDIRECT */
-      setTimeout(() => {
-        if (role === "admin") {
-          router.push("/admin");
-        } else if (role === "store") {
-          router.push("/store"); // ✅ FIXED ROUTE
-        } else if (role === "branding") {
-          router.push("/branding");
-        } else {
-          router.push("/account");
-        }
-      }, 1000);
+      /* 🚀 Instant Redirect */
+      const path = roleRoutes[role] || "/";
+      router.replace(path);
 
     } catch (err) {
-      console.error(err);
-      setError("Server error. Try again.");
+      console.error("LOGIN ERROR:", err);
+      setError("Server error. Please try again.");
     }
 
     setLoading(false);
@@ -82,7 +89,6 @@ export default function LoginPage() {
 
   return (
     <div style={container}>
-
       {/* LOGO */}
       <div style={{ marginBottom: 30 }}>
         <Image
@@ -95,64 +101,56 @@ export default function LoginPage() {
         />
       </div>
 
-      {success ? (
-        <div style={successBox}>
-          <h2 style={successTitle}>Login Successful ✅</h2>
-          <p style={{ marginTop: 10 }}>Redirecting...</p>
-          <div style={loader}></div>
-        </div>
-      ) : (
-        <form style={card} onSubmit={handleLogin}>
-          <h2 style={title}>Welcome Back</h2>
+      <form style={card} onSubmit={handleLogin}>
+        <h2 style={title}>Welcome Back</h2>
 
+        <input
+          type="email"
+          placeholder="Email address"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          style={input}
+        />
+
+        <div style={{ position: "relative" }}>
           <input
-            type="email"
-            placeholder="Email address"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            type={showPass ? "text" : "password"}
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
             style={input}
           />
 
-          <div style={{ position: "relative" }}>
-            <input
-              type={showPass ? "text" : "password"}
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              style={input}
-            />
+          <span onClick={() => setShowPass(!showPass)} style={eye}>
+            {showPass ? "🙈" : "👁"}
+          </span>
+        </div>
 
-            <span onClick={() => setShowPass(!showPass)} style={eye}>
-              {showPass ? "🙈" : "👁"}
-            </span>
-          </div>
+        {error && <p style={errorText}>{error}</p>}
 
-          {error && <p style={errorText}>{error}</p>}
+        <button
+          type="submit"
+          disabled={loading}
+          style={{ ...button, opacity: loading ? 0.7 : 1 }}
+        >
+          {loading ? "Signing in..." : "Sign in"}
+        </button>
 
-          <button
-            type="submit"
-            disabled={loading}
-            style={{ ...button, opacity: loading ? 0.7 : 1 }}
-          >
-            {loading ? "Signing in..." : "Sign in"}
-          </button>
+        <div style={linksBox}>
+          <p onClick={() => router.push("/forgot-password")} style={link}>
+            Forgot password?
+          </p>
 
-          <div style={linksBox}>
-            <p onClick={() => router.push("/forgot-password")} style={link}>
-              Forgot password?
-            </p>
-
-            <p onClick={() => router.push("/signup")} style={link}>
-              Create account
-            </p>
-          </div>
-        </form>
-      )}
+          <p onClick={() => router.push("/signup")} style={link}>
+            Create account
+          </p>
+        </div>
+      </form>
     </div>
   );
 }
 
-/* ===== STYLES (UNCHANGED) ===== */
+/* ===== STYLES ===== */
 
 const container = {
   minHeight: "100vh",
@@ -222,29 +220,4 @@ const link = {
   cursor: "pointer",
   fontSize: 14,
   marginTop: 5,
-};
-
-const successBox = {
-  width: 360,
-  background: "#fff",
-  padding: 30,
-  borderRadius: 16,
-  boxShadow: "0 15px 40px rgba(0,0,0,0.08)",
-  textAlign: "center",
-};
-
-const successTitle = {
-  color: "#16a34a",
-  fontSize: 22,
-  fontWeight: 600,
-};
-
-const loader = {
-  margin: "20px auto 0",
-  width: 30,
-  height: 30,
-  border: "3px solid #ddd",
-  borderTop: "3px solid #16a34a",
-  borderRadius: "50%",
-  animation: "spin 1s linear infinite",
 };
