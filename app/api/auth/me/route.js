@@ -6,7 +6,7 @@ export async function GET(req) {
     const token = req.cookies.get("token")?.value;
 
     if (!token) {
-      return NextResponse.json({ success: false });
+      return NextResponse.json({ success: false, user: null });
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
@@ -16,7 +16,8 @@ export async function GET(req) {
       user: decoded,
     });
 
-  } catch {
-    return NextResponse.json({ success: false });
+  } catch (err) {
+    console.error("ME API ERROR:", err);
+    return NextResponse.json({ success: false, user: null });
   }
 }
