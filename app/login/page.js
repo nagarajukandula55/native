@@ -5,18 +5,6 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import useAuth from "@/hooks/useAuth";
 
-const roleRoutes = {
-  super_admin: "/super-admin",
-  admin: "/admin",
-  logistics: "/logistics",
-  customer_support: "/support",
-  finance: "/finance",
-  vendor: "/vendor",
-  branding: "/branding",
-  customer: "/account",
-  analytics: "/analytics",
-};
-
 export default function LoginPage() {
   const router = useRouter();
   const { refreshUser } = useAuth();
@@ -26,9 +14,14 @@ export default function LoginPage() {
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
 
+  /* ================= LOGIN ================= */
   async function handleLogin(e) {
-    e.preventDefault();
+    e.preventDefault(); // ✅ VERY IMPORTANT
+
+    console.log("LOGIN CLICKED");
+
     setError("");
 
     if (!email || !password) {
@@ -44,44 +37,44 @@ export default function LoginPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        credentials: "include",
-        body: JSON.stringify({
-          email: email.trim().toLowerCase(),
-          password,
-        }),
+        credentials: "include", // ✅ CRITICAL
+        body: JSON.stringify({ email, password }),
       });
 
-      let data;
-      try {
-        data = await res.json();
-      } catch {
-        throw new Error("Invalid server response");
-      }
+      const data = await res.json();
+      console.log("LOGIN RESPONSE:", data);
 
       if (!res.ok || !data.success) {
-        setError(data?.message || "Login failed");
+        setError(data.message || "Login failed");
         setLoading(false);
         return;
       }
 
-      const role = data.user?.role;
+      /* 🔥 WAIT FOR COOKIE TO SET */
+      await new Promise((resolve) => setTimeout(resolve, 300));
 
-      if (!role) {
-        setError("Invalid user role");
-        setLoading(false);
-        return;
-      }
-
-      /* 🔥 Refresh auth state */
+      /* 🔥 REFRESH AUTH */
       await refreshUser();
 
-      /* 🚀 Instant Redirect */
-      const path = roleRoutes[role] || "/";
-      router.replace(path);
+      setSuccess(true);
+
+      /* 🔥 REDIRECT BASED ON ROLE */
+      setTimeout(() => {
+        const role = data.user?.role;
+
+        if (role === "super_admin") router.replace("/super-admin");
+        else if (role === "admin") router.replace("/admin");
+        else if (role === "vendor") router.replace("/vendor");
+        else if (role === "finance") router.replace("/finance");
+        else if (role === "customer_support") router.replace("/support");
+        else if (role === "branding") router.replace("/branding");
+        else if (role === "analytics") router.replace("/analytics");
+        else router.replace("/account");
+      }, 800);
 
     } catch (err) {
       console.error("LOGIN ERROR:", err);
-      setError("Server error. Please try again.");
+      setError("Server error. Try again.");
     }
 
     setLoading(false);
@@ -101,51 +94,59 @@ export default function LoginPage() {
         />
       </div>
 
-      <form style={card} onSubmit={handleLogin}>
-        <h2 style={title}>Welcome Back</h2>
+      {success ? (
+        <div style={successBox}>
+          <h2 style={successTitle}>Login Successful ✅</h2>
+          <p style={{ marginTop: 10 }}>Redirecting...</p>
+          <div style={loader}></div>
+        </div>
+      ) : (
+        <form style={card} onSubmit={handleLogin}>
+          <h2 style={title}>Welcome Back</h2>
 
-        <input
-          type="email"
-          placeholder="Email address"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          style={input}
-        />
-
-        <div style={{ position: "relative" }}>
           <input
-            type={showPass ? "text" : "password"}
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            type="email"
+            placeholder="Email address"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
             style={input}
           />
 
-          <span onClick={() => setShowPass(!showPass)} style={eye}>
-            {showPass ? "🙈" : "👁"}
-          </span>
-        </div>
+          <div style={{ position: "relative" }}>
+            <input
+              type={showPass ? "text" : "password"}
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              style={input}
+            />
 
-        {error && <p style={errorText}>{error}</p>}
+            <span onClick={() => setShowPass(!showPass)} style={eye}>
+              {showPass ? "🙈" : "👁"}
+            </span>
+          </div>
 
-        <button
-          type="submit"
-          disabled={loading}
-          style={{ ...button, opacity: loading ? 0.7 : 1 }}
-        >
-          {loading ? "Signing in..." : "Sign in"}
-        </button>
+          {error && <p style={errorText}>{error}</p>}
 
-        <div style={linksBox}>
-          <p onClick={() => router.push("/forgot-password")} style={link}>
-            Forgot password?
-          </p>
+          <button
+            type="submit"
+            disabled={loading}
+            style={{ ...button, opacity: loading ? 0.7 : 1 }}
+          >
+            {loading ? "Signing in..." : "Sign in"}
+          </button>
 
-          <p onClick={() => router.push("/signup")} style={link}>
-            Create account
-          </p>
-        </div>
-      </form>
+          <div style={linksBox}>
+            <p onClick={() => router.push("/forgot-password")} style={link}>
+              Forgot password?
+            </p>
+
+            <p onClick={() => router.push("/signup")} style={link}>
+              Create account
+            </p>
+          </div>
+        </form>
+      )}
     </div>
   );
 }
@@ -220,4 +221,29 @@ const link = {
   cursor: "pointer",
   fontSize: 14,
   marginTop: 5,
+};
+
+const successBox = {
+  width: 360,
+  background: "#fff",
+  padding: 30,
+  borderRadius: 16,
+  boxShadow: "0 15px 40px rgba(0,0,0,0.08)",
+  textAlign: "center",
+};
+
+const successTitle = {
+  color: "#16a34a",
+  fontSize: 22,
+  fontWeight: 600,
+};
+
+const loader = {
+  margin: "20px auto 0",
+  width: 30,
+  height: 30,
+  border: "3px solid #ddd",
+  borderTop: "3px solid #16a34a",
+  borderRadius: "50%",
+  animation: "spin 1s linear infinite",
 };
