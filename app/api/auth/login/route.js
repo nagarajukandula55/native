@@ -38,12 +38,13 @@ export async function POST(req) {
       },
     });
 
-    res.cookies.set("token", token, {
-      httpOnly: true,
-      secure: false,
-      sameSite: "lax",
-      path: "/",
-    });
+    response.cookies.set("token", token, {
+    httpOnly: true,
+    secure: false,       // ✅ IMPORTANT (keep false in local)
+    sameSite: "lax",     // ✅ IMPORTANT
+    path: "/",           // ✅ IMPORTANT
+    maxAge: 60 * 60 * 24 * 7,
+  });
 
     return res;
 
