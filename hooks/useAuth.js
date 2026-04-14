@@ -9,17 +9,18 @@ export default function useAuth() {
   async function fetchUser() {
     try {
       const res = await fetch("/api/auth/me", {
-        credentials: "include",
+        credentials: "include", // 🔥 VERY IMPORTANT
       });
 
       const data = await res.json();
 
-      if (data.success) {
+      if (data.success && data.user) {
         setUser(data.user);
       } else {
         setUser(null);
       }
-    } catch {
+    } catch (err) {
+      console.error("AUTH ERROR:", err);
       setUser(null);
     }
 
