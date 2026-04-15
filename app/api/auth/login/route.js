@@ -1,74 +1,75 @@
 import { NextResponse } from "next/server";
-import connectDB from "@/lib/mongodb";
-import User from "@/models/User";
 import jwt from "jsonwebtoken";
-import bcrypt from "bcryptjs";
+
+/* 🔥 MOCK USER (replace with DB later) */
+const USERS = [
+  {
+    email: "an@shopnative.in",
+    password: "123456",
+    name: "AN",
+    role: "super_admin",
+  },
+  {
+    email: "admin@shopnative.in",
+    password: "123456",
+    name: "Admin",
+    role: "admin",
+  },
+];
 
 export async function POST(req) {
   try {
-    await connectDB();
-
     const body = await req.json();
     const { email, password } = body;
 
+    /* ===== VALIDATION ===== */
     if (!email || !password) {
-      return NextResponse.json({
-        success: false,
-        message: "Email & Password required",
-      });
+      return NextResponse.json(
+        { success: false, message: "Email & Password required" },
+        { status: 400 }
+      );
     }
 
-    const user = await User.findOne({ email: email.toLowerCase() });
+    /* ===== USER CHECK ===== */
+    const user = USERS.find(
+      (u) => u.email === email && u.password === password
+    );
 
     if (!user) {
-      return NextResponse.json({
-        success: false,
-        message: "Invalid credentials",
-      });
+      return NextResponse.json(
+        { success: false, message: "Invalid credentials" },
+        { status: 401 }
+      );
     }
 
-    /* ===== PASSWORD CHECK ===== */
-    const isMatch = await bcrypt.compare(password, user.password);
-
-    if (!isMatch) {
-      return NextResponse.json({
-        success: false,
-        message: "Invalid credentials",
-      });
-    }
-
-    /* ===== JWT ===== */
-    if (!process.env.JWT_SECRET) {
-      throw new Error("JWT_SECRET missing");
-    }
-
+    /* ===== CREATE TOKEN ===== */
     const token = jwt.sign(
       {
-        id: user._id,
         name: user.name,
-        role: user.role,
         email: user.email,
+        role: user.role,
       },
       process.env.JWT_SECRET,
       { expiresIn: "7d" }
     );
 
+    /* ===== RESPONSE ===== */
     const response = NextResponse.json({
       success: true,
       user: {
         name: user.name,
-        role: user.role,
         email: user.email,
+        role: user.role,
       },
     });
 
-    /* ===== COOKIE (FINAL FIX) ===== */
+    /* 🔥🔥🔥 CRITICAL FIX: SET COOKIE PROPERLY 🔥🔥🔥 */
     response.cookies.set("token", token, {
       httpOnly: true,
-      secure: false,      // ⚠️ keep false in local
+      secure: process.env.NODE_ENV === "production", // ✅ important for Vercel
       sameSite: "lax",
-      path: "/",
-      maxAge: 60 * 60 * 24 * 7,
+      path: "/", // ✅ VERY IMPORTANT
+      maxAge: 60 * 60 * 24 * 7, // 7 days
     });
 
     return response;
@@ -76,9 +77,9 @@ export async function POST(req) {
   } catch (err) {
     console.error("LOGIN ERROR:", err);
 
-    return NextResponse.json({
-      success: false,
-      message: "Server error",
-    });
+    return NextResponse.json(
+      { success: false, message: "Server error" },
+      { status: 500 }
+    );
   }
 }
