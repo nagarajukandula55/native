@@ -61,12 +61,18 @@ export default function ProductsPage() {
       const res = await fetch("/api/admin/products", {
         credentials: "include",
       });
-
+  
+      /* 🔥 HANDLE AUTH FAILURE */
+      if (res.status === 401) {
+        router.replace("/login");
+        return;
+      }
+  
       const data = await res.json();
-      setProducts(Array.isArray(data.products) ? data.products : []);
+      setProducts(data.products || []);
+  
     } catch (err) {
-      console.error("PRODUCT LOAD ERROR", err);
-      setProducts([]);
+      console.error("Error fetching products:", err);
     }
   }
 
