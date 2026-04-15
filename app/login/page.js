@@ -12,24 +12,23 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
 
   /* ================= LOGIN ================= */
   async function handleLogin(e) {
-    e.preventDefault(); // ✅ VERY IMPORTANT
-
-    console.log("LOGIN CLICKED");
+    e.preventDefault();
 
     setError("");
+    setLoading(true);
 
     if (!email || !password) {
       setError("Please enter email and password");
+      setLoading(false);
       return;
     }
-
-    setLoading(true);
 
     try {
       const res = await fetch("/api/auth/login", {
@@ -37,12 +36,11 @@ export default function LoginPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        credentials: "include", // ✅ CRITICAL
+        credentials: "include",
         body: JSON.stringify({ email, password }),
       });
 
       const data = await res.json();
-      console.log("LOGIN RESPONSE:", data);
 
       if (!res.ok || !data.success) {
         setError(data.message || "Login failed");
@@ -50,27 +48,32 @@ export default function LoginPage() {
         return;
       }
 
-      /* 🔥 WAIT FOR COOKIE TO SET */
-      await new Promise((resolve) => setTimeout(resolve, 300));
+      console.log("LOGIN SUCCESS:", data);
 
-      /* 🔥 REFRESH AUTH */
+      /* ================= IMPORTANT SYNC FIX ================= */
       await refreshUser();
+
+      // allow cookie + /me sync time
+      await new Promise((r) => setTimeout(r, 300));
 
       setSuccess(true);
 
-      /* 🔥 REDIRECT BASED ON ROLE */
-      setTimeout(() => {
-        const role = data.user?.role;
+      const roleRoutes = {
+        super_admin: "/super-admin",
+        admin: "/admin",
+        vendor: "/vendor",
+        finance: "/finance",
+        customer_support: "/support",
+        branding: "/branding",
+        analytics: "/analytics",
+        customer: "/account",
+      };
 
-        if (role === "super_admin") router.replace("/super-admin");
-        else if (role === "admin") router.replace("/admin");
-        else if (role === "vendor") router.replace("/vendor");
-        else if (role === "finance") router.replace("/finance");
-        else if (role === "customer_support") router.replace("/support");
-        else if (role === "branding") router.replace("/branding");
-        else if (role === "analytics") router.replace("/analytics");
-        else router.replace("/account");
-      }, 800);
+      const role = data?.user?.role;
+
+      setTimeout(() => {
+        router.replace(roleRoutes[role] || "/");
+      }, 600);
 
     } catch (err) {
       console.error("LOGIN ERROR:", err);
@@ -121,7 +124,10 @@ export default function LoginPage() {
               style={input}
             />
 
-            <span onClick={() => setShowPass(!showPass)} style={eye}>
+            <span
+              onClick={() => setShowPass(!showPass)}
+              style={eye}
+            >
               {showPass ? "🙈" : "👁"}
             </span>
           </div>
@@ -131,7 +137,10 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            style={{ ...button, opacity: loading ? 0.7 : 1 }}
+            style={{
+              ...button,
+              opacity: loading ? 0.7 : 1,
+            }}
           >
             {loading ? "Signing in..." : "Sign in"}
           </button>
@@ -151,7 +160,7 @@ export default function LoginPage() {
   );
 }
 
-/* ===== STYLES ===== */
+/* ================= STYLES ================= */
 
 const container = {
   minHeight: "100vh",
@@ -159,15 +168,15 @@ const container = {
   flexDirection: "column",
   justifyContent: "center",
   alignItems: "center",
-  background: "#f3f4f6",
+  background: "linear-gradient(135deg, #f8fafc, #eef2f7)",
 };
 
 const card = {
-  width: 360,
+  width: 380,
   background: "#fff",
-  padding: 30,
-  borderRadius: 16,
-  boxShadow: "0 15px 40px rgba(0,0,0,0.08)",
+  padding: 32,
+  borderRadius: 18,
+  boxShadow: "0 20px 60px rgba(0,0,0,0.08)",
 };
 
 const title = {
@@ -175,31 +184,34 @@ const title = {
   marginBottom: 20,
   fontSize: 22,
   fontWeight: 600,
+  color: "#111",
 };
 
 const input = {
   width: "100%",
   padding: 12,
   marginTop: 12,
-  borderRadius: 8,
-  border: "1px solid #ddd",
+  borderRadius: 10,
+  border: "1px solid #e5e7eb",
   fontSize: 14,
+  outline: "none",
 };
 
 const button = {
   width: "100%",
   padding: 12,
   marginTop: 18,
-  borderRadius: 8,
+  borderRadius: 10,
   border: "none",
-  background: "#111",
+  background: "linear-gradient(135deg, #111, #333)",
   color: "#fff",
   cursor: "pointer",
   fontSize: 15,
+  fontWeight: 500,
 };
 
 const errorText = {
-  color: "#e11d48",
+  color: "#ef4444",
   fontSize: 13,
   marginTop: 10,
 };
@@ -220,15 +232,15 @@ const link = {
   color: "#2563eb",
   cursor: "pointer",
   fontSize: 14,
-  marginTop: 5,
+  marginTop: 6,
 };
 
 const successBox = {
-  width: 360,
+  width: 380,
   background: "#fff",
-  padding: 30,
-  borderRadius: 16,
-  boxShadow: "0 15px 40px rgba(0,0,0,0.08)",
+  padding: 32,
+  borderRadius: 18,
+  boxShadow: "0 20px 60px rgba(0,0,0,0.08)",
   textAlign: "center",
 };
 
@@ -242,7 +254,7 @@ const loader = {
   margin: "20px auto 0",
   width: 30,
   height: 30,
-  border: "3px solid #ddd",
+  border: "3px solid #e5e7eb",
   borderTop: "3px solid #16a34a",
   borderRadius: "50%",
   animation: "spin 1s linear infinite",
