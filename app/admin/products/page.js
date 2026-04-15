@@ -30,17 +30,21 @@ export default function ProductsPage() {
 
   /* ================= AUTH GUARD ================= */
   useEffect(() => {
-    if (!loading) {
-      if (!user) {
-        router.push("/login");
-      } else if (!["admin", "super_admin"].includes(user.role)) {
-        router.push("/");
-      }
+    if (loading) return; // ⛔ wait until auth finishes
+  
+    if (!user) {
+      router.replace("/login"); // 🔥 no history stacking
+      return;
+    }
+  
+    if (!["admin", "super_admin"].includes(user.role)) {
+      router.replace("/");
     }
   }, [user, loading]);
-
-  if (loading) return <p style={{ padding: 20 }}>Loading...</p>;
-  if (!user) return null;
+  
+  if (loading) {
+    return <p style={{ padding: 20 }}>Checking access...</p>;
+  }
 
   /* ================= LOAD DATA ================= */
   useEffect(() => {
