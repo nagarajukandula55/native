@@ -27,25 +27,19 @@ export default function Navbar() {
     return () => window.removeEventListener("resize", resize);
   }, []);
 
-  /* ===== WAIT FOR AUTH ===== */
-  if (!authReady) return null;
+  if (!authReady || loading) return null;
 
-  /* ===== PUBLIC MENU (ALWAYS SAME) ===== */
-  const publicMenus = [
-    { name: "Home", path: "/" },
-    { name: "Products", path: "/products" },
-    { name: "Track", path: "/track" },
-    { name: "Blog", path: "/blog" },
-  ];
+  const isDashboard =
+    pathname.startsWith("/admin") ||
+    pathname.startsWith("/vendor") ||
+    pathname.startsWith("/finance") ||
+    pathname.startsWith("/support") ||
+    pathname.startsWith("/branding") ||
+    pathname.startsWith("/analytics") ||
+    pathname.startsWith("/super-admin");
 
-  /* ===== ROLE MENU ===== */
+  const showPublic = !user;
   const roleBasedMenus = user ? roleMenus[user.role] || [] : [];
-
-  /* ===== LOGOUT ===== */
-  async function handleLogout() {
-    await logout();
-    router.push("/");
-  }
 
   return (
     <>
@@ -55,40 +49,49 @@ export default function Navbar() {
           <img src="/logo.png" style={logo} />
         </Link>
 
-        {/* DESKTOP NAV */}
         <nav style={nav}>
-          {/* PUBLIC MENU */}
-          {publicMenus.map((m) => (
-            <NavLink key={m.path} {...m} pathname={pathname} />
-          ))}
+          {/* ================= PUBLIC MENU ================= */}
+          {showPublic && (
+            <>
+              <NavLink href="/" label="Home" pathname={pathname} />
+              <NavLink href="/products" label="Products" pathname={pathname} />
+              <NavLink href="/track" label="Track" pathname={pathname} />
+              <NavLink href="/blog" label="Blog" pathname={pathname} />
+              <NavLink href="/login" label="Login" pathname={pathname} />
+            </>
+          )}
 
-          {/* ROLE MENU */}
+          {/* ================= ROLE MENU ================= */}
           {user &&
             roleBasedMenus.map((m) => (
-              <NavLink key={m.path} {...m} pathname={pathname} />
+              <NavLink
+                key={m.name}
+                href={m.path}
+                label={m.name}
+                pathname={pathname}
+              />
             ))}
 
-          {/* CART */}
-          <div style={cart} onClick={openCart}>
-            <ShoppingCart size={18} />
-            <span>{cartCount}</span>
-          </div>
+          {/* ================= USER INFO ================= */}
+          {user && (
+            <>
+              <span style={{ marginLeft: 10 }}>Hi, {user.name}</span>
 
-          {/* AUTH */}
-          {!user ? (
-            <Link href="/login" style={loginBtn}>
-              Login
-            </Link>
-          ) : (
-            <div style={userBox}>
-              <span>Hi, {user.name}</span>
-              <button onClick={handleLogout} style={logoutBtn}>
+              <button onClick={logout} style={logoutBtn}>
                 Logout
               </button>
+            </>
+          )}
+
+          {/* CART ONLY FOR PUBLIC */}
+          {showPublic && (
+            <div onClick={openCart} style={cart}>
+              <ShoppingCart size={18} />
+              <span>{cartCount}</span>
             </div>
           )}
 
-          {/* MOBILE ICON */}
+          {/* MOBILE */}
           {mobile && (
             <div onClick={() => setMenuOpen(!menuOpen)}>
               {menuOpen ? <X /> : <Menu />}
@@ -100,24 +103,24 @@ export default function Navbar() {
       {/* MOBILE MENU */}
       {menuOpen && mobile && (
         <div style={mobileMenu}>
-          {publicMenus.map((m) => (
-            <Link key={m.path} href={m.path}>
-              {m.name}
-            </Link>
-          ))}
+          {showPublic && (
+            <>
+              <Link href="/">Home</Link>
+              <Link href="/products">Products</Link>
+              <Link href="/track">Track</Link>
+              <Link href="/blog">Blog</Link>
+              <Link href="/login">Login</Link>
+            </>
+          )}
 
           {user &&
             roleBasedMenus.map((m) => (
-              <div key={m.path} onClick={() => router.push(m.path)}>
+              <div key={m.name} onClick={() => router.push(m.path)}>
                 {m.name}
               </div>
             ))}
 
-          {!user ? (
-            <Link href="/login">Login</Link>
-          ) : (
-            <div onClick={handleLogout}>Logout</div>
-          )}
+          {user && <div onClick={logout}>Logout</div>}
         </div>
       )}
 
@@ -126,20 +129,20 @@ export default function Navbar() {
   );
 }
 
-/* ===== LINK ===== */
-function NavLink({ path, name, pathname }) {
-  const active = pathname === path;
+function NavLink({ href, label, pathname }) {
+  const active = pathname === href;
 
   return (
     <Link
-      href={path}
+      href={href}
       style={{
+        marginRight: 12,
         color: active ? "#2563eb" : "#333",
         fontWeight: active ? "600" : "500",
         textDecoration: "none",
       }}
     >
-      {name}
+      {label}
     </Link>
   );
 }
@@ -156,32 +159,21 @@ const header = {
 
 const nav = {
   display: "flex",
-  gap: 15,
   alignItems: "center",
+  gap: 12,
 };
 
 const logo = { height: 40 };
 
 const cart = { cursor: "pointer", display: "flex", gap: 5 };
 
-const loginBtn = {
-  padding: "6px 12px",
-  background: "#111",
-  color: "#fff",
-  borderRadius: 6,
-};
-
-const userBox = {
-  display: "flex",
-  gap: 10,
-  alignItems: "center",
-};
-
 const logoutBtn = {
+  marginLeft: 10,
   padding: "6px 10px",
-  background: "red",
+  background: "#ef4444",
   color: "#fff",
   borderRadius: 6,
+  border: "none",
 };
 
 const mobileMenu = {
