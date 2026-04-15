@@ -1,13 +1,11 @@
 import { NextResponse } from "next/server";
-import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
+import jwt from "jsonwebtoken";
 
 export async function GET() {
   try {
     const cookieStore = cookies();
     const token = cookieStore.get("token")?.value;
-
-    console.log("TOKEN FROM COOKIE:", token); // DEBUG
 
     if (!token) {
       return NextResponse.json({ success: false, user: null });
@@ -17,11 +15,19 @@ export async function GET() {
 
     return NextResponse.json({
       success: true,
-      user: decoded,
+      user: {
+        name: decoded.name,
+        email: decoded.email,
+        role: decoded.role,
+      },
     });
 
   } catch (err) {
     console.error("ME API ERROR:", err);
-    return NextResponse.json({ success: false, user: null });
+
+    return NextResponse.json({
+      success: false,
+      user: null,
+    });
   }
 }
