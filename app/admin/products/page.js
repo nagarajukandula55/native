@@ -1,9 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import useAuth from "@/hooks/useAuth";
 
 export default function ProductsPage() {
-  const [form, setForm] = useState({
+  const router = useRouter();
+  const { user, loading } = useAuth();
+
+  /* ================= STATE ================= */
+  const emptyForm = {
     name: "",
     sku: "",
     sellingPrice: "",
@@ -15,28 +21,62 @@ export default function ProductsPage() {
     description: "",
     shortDescription: "",
     image: "",
-  });
+  };
 
+  const [form, setForm] = useState(emptyForm);
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [saving, setSaving] = useState(false);
 
+  /* ================= AUTH GUARD ================= */
+  useEffect(() => {
+    if (!loading) {
+      if (!user) {
+        router.push("/login");
+      } else if (!["admin", "super_admin"].includes(user.role)) {
+        router.push("/");
+      }
+    }
+  }, [user, loading]);
+
+  if (loading) return <p style={{ padding: 20 }}>Loading...</p>;
+  if (!user) return null;
+
+  /* ================= LOAD DATA ================= */
   useEffect(() => {
     loadProducts();
     loadCategories();
   }, []);
 
   async function loadProducts() {
-    const res = await fetch("/api/admin/products");
-    const data = await res.json();
-    setProducts(data.products || []);
+    try {
+      const res = await fetch("/api/admin/products", {
+        credentials: "include",
+      });
+      const data = await res.json();
+
+      setProducts(Array.isArray(data.products) ? data.products : []);
+    } catch (err) {
+      console.error("PRODUCT LOAD ERROR", err);
+      setProducts([]);
+    }
   }
 
   async function loadCategories() {
-    const res = await fetch("/api/admin/categories");
-    const data = await res.json();
-    setCategories(data.categories || []);
+    try {
+      const res = await fetch("/api/admin/categories", {
+        credentials: "include",
+      });
+      const data = await res.json();
+
+      setCategories(Array.isArray(data.categories) ? data.categories : []);
+    } catch (err) {
+      console.error("CATEGORY LOAD ERROR", err);
+      setCategories([]);
+    }
   }
 
+  /* ================= FORM ================= */
   function handleChange(e) {
     setForm({ ...form, [e.target.name]: e.target.value });
   }
@@ -44,87 +84,164 @@ export default function ProductsPage() {
   async function handleSubmit(e) {
     e.preventDefault();
 
-    await fetch("/api/admin/products", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(form),
-    });
+    if (!form.name || !form.sku || !form.sellingPrice) {
+      return alert("Name, SKU & Price required");
+    }
 
-    setForm({
-      name: "",
-      sku: "",
-      sellingPrice: "",
-      mrp: "",
-      costPrice: "",
-      category: "",
-      subCategory: "",
-      gstCategory: "",
-      description: "",
-      shortDescription: "",
-      image: "",
-    });
+    setSaving(true);
 
-    loadProducts();
+    try {
+      await fetch("/api/admin/products", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          ...form,
+          sellingPrice: Number(form.sellingPrice),
+          mrp: Number(form.mrp),
+          costPrice: Number(form.costPrice),
+        }),
+      });
+
+      setForm(emptyForm);
+      loadProducts();
+
+    } catch (err) {
+      console.error(err);
+      alert("Failed to save product");
+    }
+
+    setSaving(false);
   }
 
-  const websiteCats = categories.filter(c => c.type === "website");
-  const subCats = categories.filter(c => c.type === "sub");
-  const gstCats = categories.filter(c => c.type === "gst");
+  /* ================= FILTER CATEGORIES ================= */
+  const websiteCats = categories?.filter(c => c.type === "website") || [];
+  const subCats = categories?.filter(c => c.type === "sub") || [];
+  const gstCats = categories?.filter(c => c.type === "gst") || [];
 
+  /* ================= UI ================= */
   return (
-    <div style={{ padding: 30 }}>
-      <h2>🛍 Products</h2>
+    <div style={container}>
+      <h1 style={title}>🛍 Product Management</h1>
 
-      <form onSubmit={handleSubmit} style={grid}>
-        <input name="name" placeholder="Name" value={form.name} onChange={handleChange} />
+      {/* ===== FORM ===== */}
+      <form onSubmit={handleSubmit} style={formBox}>
+        <input name="name" placeholder="Product Name" value={form.name} onChange={handleChange} />
         <input name="sku" placeholder="SKU" value={form.sku} onChange={handleChange} />
 
-        <input name="sellingPrice" placeholder="Selling Price" onChange={handleChange} />
-        <input name="mrp" placeholder="MRP" onChange={handleChange} />
-        <input name="costPrice" placeholder="Cost Price" onChange={handleChange} />
+        <input name="sellingPrice" type="number" placeholder="Selling Price" value={form.sellingPrice} onChange={handleChange} />
+        <input name="mrp" type="number" placeholder="MRP" value={form.mrp} onChange={handleChange} />
+        <input name="costPrice" type="number" placeholder="Cost Price" value={form.costPrice} onChange={handleChange} />
 
-        <select name="category" onChange={handleChange}>
-          <option>Select Category</option>
-          {websiteCats.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
+        <select name="category" value={form.category} onChange={handleChange}>
+          <option value="">Website Category</option>
+          {websiteCats.map(c => (
+            <option key={c._id} value={c._id}>{c.name}</option>
+          ))}
         </select>
 
-        <select name="subCategory" onChange={handleChange}>
-          <option>Sub Category</option>
-          {subCats.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
+        <select name="subCategory" value={form.subCategory} onChange={handleChange}>
+          <option value="">Sub Category</option>
+          {subCats.map(c => (
+            <option key={c._id} value={c._id}>{c.name}</option>
+          ))}
         </select>
 
-        <select name="gstCategory" onChange={handleChange}>
-          <option>GST Category</option>
-          {gstCats.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
+        <select name="gstCategory" value={form.gstCategory} onChange={handleChange}>
+          <option value="">GST Category</option>
+          {gstCats.map(c => (
+            <option key={c._id} value={c._id}>{c.name}</option>
+          ))}
         </select>
 
-        <textarea name="description" placeholder="Description" onChange={handleChange} style={{ gridColumn: "span 2" }} />
+        <textarea
+          name="shortDescription"
+          placeholder="Short Description"
+          value={form.shortDescription}
+          onChange={handleChange}
+          style={{ gridColumn: "span 2" }}
+        />
 
-        <button style={{ gridColumn: "span 2" }}>Add Product</button>
+        <textarea
+          name="description"
+          placeholder="Full Description"
+          value={form.description}
+          onChange={handleChange}
+          style={{ gridColumn: "span 2" }}
+        />
+
+        <button disabled={saving} style={btn}>
+          {saving ? "Saving..." : "Add Product"}
+        </button>
       </form>
 
-      <hr />
+      {/* ===== LIST ===== */}
+      <div style={{ marginTop: 40 }}>
+        <h2>Products List</h2>
 
-      {products.map(p => (
-        <div key={p._id} style={card}>
-          <h4>{p.name}</h4>
-          <p>₹{p.sellingPrice}</p>
-        </div>
-      ))}
+        {products.length === 0 ? (
+          <p>No products found</p>
+        ) : (
+          <div style={list}>
+            {products.map(p => (
+              <div key={p._id} style={card}>
+                <h4>{p.name}</h4>
+                <p>SKU: {p.sku}</p>
+                <p>₹{p.sellingPrice}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
-const grid = {
+/* ================= STYLES ================= */
+
+const container = {
+  maxWidth: 1200,
+  margin: "auto",
+  padding: 20,
+};
+
+const title = {
+  fontSize: 28,
+  fontWeight: "bold",
+  marginBottom: 20,
+};
+
+const formBox = {
   display: "grid",
   gridTemplateColumns: "1fr 1fr",
-  gap: 10,
+  gap: 12,
+  background: "#fff",
+  padding: 20,
+  borderRadius: 12,
+  boxShadow: "0 10px 25px rgba(0,0,0,0.05)",
+};
+
+const btn = {
+  gridColumn: "span 2",
+  padding: 12,
+  background: "#111",
+  color: "#fff",
+  border: "none",
+  borderRadius: 8,
+  cursor: "pointer",
+};
+
+const list = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fill, minmax(220px,1fr))",
+  gap: 15,
 };
 
 const card = {
-  padding: 10,
-  border: "1px solid #ddd",
-  marginTop: 10,
+  padding: 15,
+  border: "1px solid #eee",
+  borderRadius: 10,
+  background: "#fff",
 };
