@@ -8,7 +8,6 @@ export default function ProductsPage() {
   const router = useRouter();
   const { user, loading, authReady } = useAuth();
 
-  /* ================= STATE ================= */
   const emptyForm = {
     name: "",
     sku: "",
@@ -28,31 +27,34 @@ export default function ProductsPage() {
   const [categories, setCategories] = useState([]);
   const [saving, setSaving] = useState(false);
 
-  /* ================= AUTH GUARD (FIXED) ================= */
+  /* ================= HARD AUTH GUARD (FIXED) ================= */
   useEffect(() => {
-    if (!authReady) return; // 🔥 WAIT FOR AUTH SYSTEM
+    if (!authReady) return;
 
     if (!user) {
       router.replace("/login");
       return;
     }
 
-    if (!["admin", "super_admin", "vendor"].includes(user.role)) {
+    const allowedRoles = ["admin", "super_admin", "vendor"];
+
+    if (!allowedRoles.includes(user.role)) {
       router.replace("/");
     }
-  }, [user, authReady]);
+  }, [user, authReady, router]);
 
+  /* ================= BLOCK RENDER UNTIL AUTH READY ================= */
   if (!authReady || loading) {
     return <p style={{ padding: 20 }}>Checking access...</p>;
   }
 
+  if (!user) return null;
+
   /* ================= LOAD DATA ================= */
   useEffect(() => {
-    if (!user) return;
-
     loadProducts();
     loadCategories();
-  }, [user]);
+  }, []);
 
   async function loadProducts() {
     try {
@@ -82,7 +84,6 @@ export default function ProductsPage() {
     }
   }
 
-  /* ================= FORM ================= */
   function handleChange(e) {
     setForm({ ...form, [e.target.name]: e.target.value });
   }
@@ -99,9 +100,7 @@ export default function ProductsPage() {
     try {
       await fetch("/api/admin/products", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
           ...form,
@@ -121,12 +120,10 @@ export default function ProductsPage() {
     setSaving(false);
   }
 
-  /* ================= CATEGORY FILTER ================= */
   const websiteCats = categories.filter((c) => c.type === "website");
   const subCats = categories.filter((c) => c.type === "sub");
   const gstCats = categories.filter((c) => c.type === "gst");
 
-  /* ================= UI ================= */
   return (
     <div style={container}>
       <h1 style={title}>🛍 Product Management</h1>
