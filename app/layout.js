@@ -2,6 +2,7 @@ import "./globals.css";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { CartProvider } from "@/context/CartContext";
+import { AuthProvider } from "@/context/AuthContext"; // ✅ ADD THIS
 import { Cinzel, Poppins } from "next/font/google";
 import Script from "next/script";
 
@@ -38,21 +39,24 @@ export default function RootLayout({ children }) {
           fontFamily: "var(--font-body)",
         }}
       >
-        {/* ✅ Razorpay Script (IMPORTANT) */}
+        {/* ✅ Razorpay Script */}
         <Script
           src="https://checkout.razorpay.com/v1/checkout.js"
           strategy="beforeInteractive"
         />
 
-        <CartProvider>
-          <Navbar />
+        {/* 🔥 GLOBAL STATE WRAPPER */}
+        <AuthProvider>
+          <CartProvider>
+            <Navbar />
 
-          <main style={{ minHeight: "80vh" }}>
-            {children}
-          </main>
+            <main style={{ minHeight: "80vh" }}>
+              {children}
+            </main>
 
-          <Footer />
-        </CartProvider>
+            <Footer />
+          </CartProvider>
+        </AuthProvider>
       </body>
     </html>
   );
