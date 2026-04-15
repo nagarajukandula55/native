@@ -5,7 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import { useCart } from "@/context/CartContext";
 import CartDrawer from "./CartDrawer";
-import useAuth from "@/hooks/useAuth";
+import { useAuth } from "@/context/AuthContext";
 import { roleMenus } from "@/lib/roleMenus";
 import { ShoppingCart, User, Menu, X } from "lucide-react";
 
