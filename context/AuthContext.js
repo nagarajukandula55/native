@@ -7,12 +7,9 @@ const AuthContext = createContext();
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [authReady, setAuthReady] = useState(false);
 
-  async function fetchUser() {
+  const fetchUser = async () => {
     try {
-      setLoading(true);
-
       const res = await fetch("/api/auth/me", {
         credentials: "include",
         cache: "no-store",
@@ -20,19 +17,13 @@ export function AuthProvider({ children }) {
 
       const data = await res.json();
 
-      if (data.success && data.user) {
-        setUser(data.user);
-      } else {
-        setUser(null);
-      }
-    } catch (err) {
-      console.error("AUTH ERROR:", err);
+      setUser(data.success ? data.user : null);
+    } catch {
       setUser(null);
     }
 
     setLoading(false);
-    setAuthReady(true);
-  }
+  };
 
   useEffect(() => {
     fetchUser();
@@ -45,7 +36,6 @@ export function AuthProvider({ children }) {
     });
 
     setUser(null);
-    setAuthReady(true);
   };
 
   return (
@@ -53,9 +43,9 @@ export function AuthProvider({ children }) {
       value={{
         user,
         loading,
-        authReady,
         refreshUser: fetchUser,
         logout,
+        authReady: !loading,
       }}
     >
       {children}
@@ -63,6 +53,4 @@ export function AuthProvider({ children }) {
   );
 }
 
-export function useAuth() {
-  return useContext(AuthContext);
-}
+export const useAuth = () => useContext(AuthContext);
