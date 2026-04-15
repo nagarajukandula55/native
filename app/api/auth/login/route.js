@@ -1,82 +1,46 @@
 import { NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
 
-/* 🔥 MOCK USER (replace with DB later) */
-const USERS = [
-  {
-    email: "an@shopnative.in",
-    password: "123456",
-    name: "AN",
-    role: "super_admin",
-  },
-  {
-    email: "admin@shopnative.in",
-    password: "123456",
-    name: "Admin",
-    role: "admin",
-  },
-];
-
 export async function POST(req) {
   try {
-    const body = await req.json();
-    const { email, password } = body;
+    const { email, password } = await req.json();
 
-    /* ===== VALIDATION ===== */
-    if (!email || !password) {
-      return NextResponse.json(
-        { success: false, message: "Email & Password required" },
-        { status: 400 }
-      );
-    }
-
-    /* ===== USER CHECK ===== */
-    const user = USERS.find(
-      (u) => u.email === email && u.password === password
-    );
-
-    if (!user) {
+    // 🔥 TEMP USER (replace with DB later)
+    if (email !== "admin@shopnative.in" || password !== "123456") {
       return NextResponse.json(
         { success: false, message: "Invalid credentials" },
         { status: 401 }
       );
     }
 
-    /* ===== CREATE TOKEN ===== */
-    const token = jwt.sign(
-      {
-        name: user.name,
-        email: user.email,
-        role: user.role,
-      },
-      process.env.JWT_SECRET,
-      { expiresIn: "7d" }
-    );
+    const user = {
+      name: "Admin",
+      email,
+      role: "admin",
+    };
 
-    /* ===== RESPONSE ===== */
-    const response = NextResponse.json({
-      success: true,
-      user: {
-        name: user.name,
-        email: user.email,
-        role: user.role,
-      },
+    const token = jwt.sign(user, process.env.JWT_SECRET, {
+      expiresIn: "7d",
     });
 
-    /* 🔥🔥🔥 CRITICAL FIX: SET COOKIE PROPERLY 🔥🔥🔥 */
+    const response = NextResponse.json({
+      success: true,
+      user,
+    });
+
+    /* 🔥 CRITICAL COOKIE FIX */
     response.cookies.set("token", token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production", // ✅ important for Vercel
-      sameSite: "lax",
-      path: "/", // ✅ VERY IMPORTANT
-      maxAge: 60 * 60 * 24 * 7, // 7 days
+      secure: true,          // 🔥 REQUIRED for Vercel HTTPS
+      sameSite: "none",      // 🔥 REQUIRED for browser cookies
+      path: "/",
+      maxAge: 60 * 60 * 24 * 7,
     });
 
     return response;
 
   } catch (err) {
     console.error("LOGIN ERROR:", err);
-
     return NextResponse.json(
       { success: false, message: "Server error" },
       { status: 500 }
