@@ -6,7 +6,7 @@ import { useAuth } from "@/context/AuthContext";
 
 export default function ProductsPage() {
   const router = useRouter();
-  const { user, loading } = useAuth();
+  const { user, loading, authReady } = useAuth();
 
   /* ================= STATE ================= */
   const emptyForm = {
@@ -28,37 +28,39 @@ export default function ProductsPage() {
   const [categories, setCategories] = useState([]);
   const [saving, setSaving] = useState(false);
 
-  /* ================= AUTH GUARD ================= */
+  /* ================= AUTH GUARD (FIXED) ================= */
   useEffect(() => {
-    if (loading) return; // ⛔ wait until auth finishes
-  
+    if (!authReady) return; // 🔥 WAIT FOR AUTH SYSTEM
+
     if (!user) {
-      router.replace("/login"); // 🔥 no history stacking
+      router.replace("/login");
       return;
     }
-  
-    if (!["admin", "super_admin"].includes(user.role)) {
+
+    if (!["admin", "super_admin", "vendor"].includes(user.role)) {
       router.replace("/");
     }
-  }, [user, loading]);
-  
-  if (loading) {
+  }, [user, authReady]);
+
+  if (!authReady || loading) {
     return <p style={{ padding: 20 }}>Checking access...</p>;
   }
 
   /* ================= LOAD DATA ================= */
   useEffect(() => {
+    if (!user) return;
+
     loadProducts();
     loadCategories();
-  }, []);
+  }, [user]);
 
   async function loadProducts() {
     try {
       const res = await fetch("/api/admin/products", {
         credentials: "include",
       });
-      const data = await res.json();
 
+      const data = await res.json();
       setProducts(Array.isArray(data.products) ? data.products : []);
     } catch (err) {
       console.error("PRODUCT LOAD ERROR", err);
@@ -71,8 +73,8 @@ export default function ProductsPage() {
       const res = await fetch("/api/admin/categories", {
         credentials: "include",
       });
-      const data = await res.json();
 
+      const data = await res.json();
       setCategories(Array.isArray(data.categories) ? data.categories : []);
     } catch (err) {
       console.error("CATEGORY LOAD ERROR", err);
@@ -111,7 +113,6 @@ export default function ProductsPage() {
 
       setForm(emptyForm);
       loadProducts();
-
     } catch (err) {
       console.error(err);
       alert("Failed to save product");
@@ -120,17 +121,17 @@ export default function ProductsPage() {
     setSaving(false);
   }
 
-  /* ================= FILTER CATEGORIES ================= */
-  const websiteCats = categories?.filter(c => c.type === "website") || [];
-  const subCats = categories?.filter(c => c.type === "sub") || [];
-  const gstCats = categories?.filter(c => c.type === "gst") || [];
+  /* ================= CATEGORY FILTER ================= */
+  const websiteCats = categories.filter((c) => c.type === "website");
+  const subCats = categories.filter((c) => c.type === "sub");
+  const gstCats = categories.filter((c) => c.type === "gst");
 
   /* ================= UI ================= */
   return (
     <div style={container}>
       <h1 style={title}>🛍 Product Management</h1>
 
-      {/* ===== FORM ===== */}
+      {/* FORM */}
       <form onSubmit={handleSubmit} style={formBox}>
         <input name="name" placeholder="Product Name" value={form.name} onChange={handleChange} />
         <input name="sku" placeholder="SKU" value={form.sku} onChange={handleChange} />
@@ -141,21 +142,21 @@ export default function ProductsPage() {
 
         <select name="category" value={form.category} onChange={handleChange}>
           <option value="">Website Category</option>
-          {websiteCats.map(c => (
+          {websiteCats.map((c) => (
             <option key={c._id} value={c._id}>{c.name}</option>
           ))}
         </select>
 
         <select name="subCategory" value={form.subCategory} onChange={handleChange}>
           <option value="">Sub Category</option>
-          {subCats.map(c => (
+          {subCats.map((c) => (
             <option key={c._id} value={c._id}>{c.name}</option>
           ))}
         </select>
 
         <select name="gstCategory" value={form.gstCategory} onChange={handleChange}>
           <option value="">GST Category</option>
-          {gstCats.map(c => (
+          {gstCats.map((c) => (
             <option key={c._id} value={c._id}>{c.name}</option>
           ))}
         </select>
@@ -181,7 +182,7 @@ export default function ProductsPage() {
         </button>
       </form>
 
-      {/* ===== LIST ===== */}
+      {/* LIST */}
       <div style={{ marginTop: 40 }}>
         <h2>Products List</h2>
 
@@ -189,7 +190,7 @@ export default function ProductsPage() {
           <p>No products found</p>
         ) : (
           <div style={list}>
-            {products.map(p => (
+            {products.map((p) => (
               <div key={p._id} style={card}>
                 <h4>{p.name}</h4>
                 <p>SKU: {p.sku}</p>
