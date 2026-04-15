@@ -4,7 +4,6 @@ import { Suspense, useEffect, useState } from "react"
 import Link from "next/link"
 import { useCart } from "@/context/CartContext"
 import { useSearchParams } from "next/navigation"
-import { useAuth } from "@/context/AuthContext";
 
 function ProductsContent() {
   const { addToCart } = useCart()
