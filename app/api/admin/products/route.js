@@ -1,21 +1,36 @@
 import { NextResponse } from "next/server";
-import connectDB from "@/lib/mongodb";
-import Product from "@/models/Product";
+import { cookies } from "next/headers";
+import jwt from "jsonwebtoken";
 
 export async function GET() {
-  await connectDB();
-  const products = await Product.find()
-    .populate("category subCategory gstCategory")
-    .sort({ createdAt: -1 });
+  try {
+    const token = cookies().get("token")?.value;
 
-  return NextResponse.json({ success: true, products });
-}
+    if (!token) {
+      return NextResponse.json(
+        { success: false, message: "Unauthorized" },
+        { status: 401 }
+      );
+    }
 
-export async function POST(req) {
-  await connectDB();
-  const body = await req.json();
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-  const product = await Product.create(body);
+    if (!["admin", "super_admin", "vendor"].includes(decoded.role)) {
+      return NextResponse.json(
+        { success: false, message: "Forbidden" },
+        { status: 403 }
+      );
+    }
 
-  return NextResponse.json({ success: true, product });
+    return NextResponse.json({
+      success: true,
+      products: [], // your DB later
+    });
+
+  } catch (err) {
+    return NextResponse.json(
+      { success: false, message: "Invalid token" },
+      { status: 401 }
+    );
+  }
 }
