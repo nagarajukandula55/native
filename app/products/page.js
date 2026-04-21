@@ -1,190 +1,134 @@
-"use client"
+"use client";
 
-import { Suspense, useEffect, useState } from "react"
-import Link from "next/link"
-import { useCart } from "@/context/CartContext"
-import { useSearchParams } from "next/navigation"
+import { Suspense, useEffect, useState } from "react";
+import Link from "next/link";
+import { useCart } from "@/context/CartContext";
+import { useSearchParams } from "next/navigation";
 
 function ProductsContent() {
-  const { addToCart } = useCart()
-  const searchParams = useSearchParams()
-  const search = searchParams.get("search")
+  const { addToCart } = useCart();
+  const searchParams = useSearchParams();
+  const search = searchParams.get("search");
 
-  const [products, setProducts] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        // ✅ PUBLIC API FOR ALL USERS
-        const res = await fetch("/api/products")
-        const data = await res.json()
+        const res = await fetch("/api/products");
 
-        // Ensure we only set array
-        if (Array.isArray(data)) {
-          setProducts(data)
+        if (!res.ok) {
+          throw new Error("Failed to fetch products");
+        }
+
+        const data = await res.json();
+
+        if (data.success && Array.isArray(data.products)) {
+          setProducts(data.products);
         } else {
-          console.warn("Products API returned unexpected data:", data)
-          setProducts([])
+          console.warn("Unexpected API response:", data);
+          setProducts([]);
         }
       } catch (err) {
-        console.log("Product fetch error:", err)
-        setProducts([])
+        console.error("Product fetch error:", err);
+        setProducts([]);
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
-    fetchProducts()
-  }, [])
+    fetchProducts();
+  }, []);
 
-  const filteredProducts = products.filter((product) =>
-    !search || product.name.toLowerCase().includes(search.toLowerCase())
-  )
+  const filteredProducts = products.filter(
+    (product) =>
+      !search ||
+      product.name?.toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
-    <div
-      style={{
-        maxWidth: "1300px",
-        margin: "auto",
-        padding: "60px 20px",
-      }}
-    >
-      <h1
-        style={{
-          fontSize: "42px",
-          marginBottom: "10px",
-          textAlign: "center",
-        }}
-      >
+    <div className="max-w-7xl mx-auto px-4 py-12">
+
+      {/* TITLE */}
+      <h1 className="text-4xl font-semibold text-center mb-4">
         Our Products
       </h1>
 
+      {/* SEARCH TEXT */}
       {search && (
-        <p
-          style={{
-            textAlign: "center",
-            marginBottom: "30px",
-            color: "#777",
-          }}
-        >
-          Showing results for "<b>{search}</b>"
+        <p className="text-center text-gray-500 mb-8">
+          Showing results for <b>"{search}"</b>
         </p>
       )}
 
+      {/* LOADING */}
       {loading ? (
-        <p style={{ textAlign: "center" }}>Loading products...</p>
+        <p className="text-center">Loading products...</p>
       ) : filteredProducts.length === 0 ? (
-        <p style={{ textAlign: "center" }}>No products found</p>
+        <p className="text-center">No products found</p>
       ) : (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))",
-            gap: "30px",
-          }}
-        >
+        <div className="grid gap-8 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+
           {filteredProducts.map((product) => (
             <div
-              key={product._id}
-              style={{
-                border: "1px solid #eee",
-                borderRadius: "12px",
-                overflow: "hidden",
-                background: "#fff",
-                boxShadow: "0 5px 20px rgba(0,0,0,0.05)",
-                transition: "transform 0.2s",
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.02)")}
-              onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
+              key={product._id || product.id}
+              className="bg-white rounded-xl shadow hover:shadow-lg transition overflow-hidden"
             >
-              {/* IMAGE LINK */}
+
+              {/* IMAGE */}
               <Link href={`/products/${product.slug}`}>
                 <img
                   src={product.image || "/placeholder.png"}
                   alt={product.name}
-                  style={{
-                    width: "100%",
-                    height: "220px",
-                    objectFit: "cover",
-                  }}
+                  className="w-full h-52 object-cover"
                 />
               </Link>
 
-              <div style={{ padding: "18px" }}>
-                {/* TITLE LINK */}
-                <Link href={`/products/${product.slug}`} style={{ textDecoration: "none" }}>
-                  <h3
-                    style={{
-                      fontSize: "18px",
-                      marginBottom: "10px",
-                      color: "#333",
-                    }}
-                  >
+              <div className="p-4">
+
+                {/* NAME */}
+                <Link href={`/products/${product.slug}`}>
+                  <h3 className="text-lg font-medium mb-2 text-gray-800 hover:underline">
                     {product.name}
                   </h3>
                 </Link>
 
                 {/* DESCRIPTION */}
-                <p
-                  style={{
-                    color: "#777",
-                    fontSize: "14px",
-                    marginBottom: "12px",
-                    minHeight: "38px",
-                  }}
-                >
-                  {product.description?.slice(0, 60) || "Natural healthy product"}
+                <p className="text-sm text-gray-500 mb-3 min-h-[40px]">
+                  {product.description?.slice(0, 60) ||
+                    "Natural healthy product"}
                 </p>
 
-                {/* PRICE + ADD BUTTON */}
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                  }}
-                >
-                  <span
-                    style={{
-                      fontSize: "18px",
-                      fontWeight: "600",
-                      color: "#c28b45",
-                    }}
-                  >
+                {/* PRICE + BUTTON */}
+                <div className="flex items-center justify-between">
+
+                  <span className="text-lg font-semibold text-yellow-700">
                     ₹{product.price}
                   </span>
 
                   <button
                     onClick={() => addToCart(product)}
-                    style={{
-                      padding: "8px 16px",
-                      border: "none",
-                      borderRadius: "20px",
-                      background: "#c28b45",
-                      color: "#fff",
-                      cursor: "pointer",
-                      transition: "background 0.2s",
-                    }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = "#a67030")}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = "#c28b45")}
+                    className="px-4 py-2 bg-yellow-700 text-white rounded-full hover:bg-yellow-800 transition"
                   >
                     Add
                   </button>
+
                 </div>
               </div>
             </div>
           ))}
+
         </div>
       )}
     </div>
-  )
+  );
 }
 
 export default function ProductsPage() {
   return (
-    <Suspense fallback={<p style={{ textAlign: "center" }}>Loading...</p>}>
+    <Suspense fallback={<p className="text-center">Loading...</p>}>
       <ProductsContent />
     </Suspense>
-  )
+  );
 }
