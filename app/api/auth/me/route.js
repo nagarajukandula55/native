@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
+import { cookies } from "next/headers";
 
-export async function GET(req) {
+export async function GET() {
   try {
-    const token = req.cookies.get("token")?.value;
+    const cookieStore = cookies();
+    const token = cookieStore.get("token")?.value;
 
+    // 🔥 No token
     if (!token) {
       return NextResponse.json(
         { success: false, message: "Not authenticated" },
@@ -12,6 +15,7 @@ export async function GET(req) {
       );
     }
 
+    // 🔥 Verify token
     const user = jwt.verify(token, process.env.JWT_SECRET);
 
     return NextResponse.json({
@@ -20,8 +24,10 @@ export async function GET(req) {
     });
 
   } catch (error) {
+    console.error("AUTH ME ERROR:", error);
+
     return NextResponse.json(
-      { success: false, message: "Invalid token" },
+      { success: false, message: "Invalid or expired token" },
       { status: 401 }
     );
   }
