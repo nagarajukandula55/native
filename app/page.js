@@ -12,15 +12,33 @@ export default function Home() {
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const res = await fetch("/api/products"); // PUBLIC API
-        const data = await res.json();
+        const res = await fetch("/api/products", {
+          cache: "no-store",
+        });
 
-        if (Array.isArray(data)) {
+        const text = await res.text();
+
+        let data;
+        try {
+          data = JSON.parse(text);
+        } catch {
+          throw new Error("Invalid JSON response");
+        }
+
+        if (!res.ok) {
+          throw new Error(data?.message || "Failed to fetch products");
+        }
+
+        // ✅ FIXED LOGIC (supports both formats)
+        if (data.success && Array.isArray(data.products)) {
+          setProducts(data.products);
+        } else if (Array.isArray(data)) {
           setProducts(data);
         } else {
           console.warn("Products API returned unexpected data", data);
           setProducts([]);
         }
+
       } catch (err) {
         console.error("Error fetching products:", err);
         setProducts([]);
@@ -28,6 +46,7 @@ export default function Home() {
         setLoading(false);
       }
     };
+
     fetchProducts();
   }, []);
 
@@ -188,7 +207,7 @@ export default function Home() {
           >
             {products.map((product) => (
               <div
-                key={product._id}
+                key={product._id || product.id}
                 style={{
                   border: "1px solid #eee",
                   borderRadius: 12,
@@ -207,13 +226,17 @@ export default function Home() {
                 }}
               >
                 <img
-                  src={product.image || "/placeholder.png"}
-                  alt={product.name}
+                  src={product?.image || "/placeholder.png"}
+                  alt={product?.name || "Product"}
                   style={{ width: "100%", height: 220, objectFit: "cover" }}
                 />
                 <div style={{ padding: 20, textAlign: "center" }}>
-                  <h3 style={{ marginBottom: 10, color: "#333" }}>{product.name}</h3>
-                  <p style={{ color: "#c28b45", fontSize: 18, marginBottom: 15 }}>₹{product.price}</p>
+                  <h3 style={{ marginBottom: 10, color: "#333" }}>
+                    {product?.name || "Unnamed Product"}
+                  </h3>
+                  <p style={{ color: "#c28b45", fontSize: 18, marginBottom: 15 }}>
+                    ₹{product?.price ?? 0}
+                  </p>
                   <button
                     onClick={() => {
                       addToCart(product);
