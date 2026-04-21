@@ -14,14 +14,20 @@ export function AuthProvider({ children }) {
         credentials: "include",
         cache: "no-store",
       });
-
+  
+      if (!res.ok) {
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+  
       const data = await res.json();
-
       setUser(data.success ? data.user : null);
+  
     } catch {
       setUser(null);
     }
-
+  
     setLoading(false);
   };
 
