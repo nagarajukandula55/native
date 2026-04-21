@@ -17,7 +17,6 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
 
-  /* ================= LOGIN ================= */
   async function handleLogin(e) {
     e.preventDefault();
 
@@ -25,22 +24,13 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      if (!email || !password) {
-        setError("Please enter email and password");
-        setLoading(false);
-        return;
-      }
-
       const res = await fetch("/api/auth/login", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({ email, password }),
       });
 
-      // ✅ SAFE RESPONSE PARSE (prevents crash)
       const text = await res.text();
       let data;
 
@@ -56,132 +46,121 @@ export default function LoginPage() {
         return;
       }
 
-      // ✅ WAIT for cookie to be set (CRITICAL for Vercel)
       await new Promise((r) => setTimeout(r, 400));
-
-      // ✅ Refresh auth AFTER cookie
       await refreshUser();
 
       setSuccess(true);
 
-      const role = data?.user?.role;
-
-      const routes = {
-        super_admin: "/super-admin",
-        admin: "/admin",
-        vendor: "/vendor",
-        finance: "/finance",
-        customer_support: "/support",
-        branding: "/branding",
-        analytics: "/analytics",
-        customer: "/account",
-      };
-
-      // ✅ Smooth redirect
       setTimeout(() => {
-        router.replace(routes[role] || "/");
-      }, 700);
+        router.replace("/admin"); // change later if needed
+      }, 800);
 
     } catch (err) {
-      console.error("LOGIN ERROR:", err);
-      setError("Server error. Please try again.");
+      console.error(err);
+      setError("Server error. Try again.");
     }
 
     setLoading(false);
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#f5f1e8] via-[#faf8f3] to-[#efe7d8] px-4">
 
-      {/* 🔥 LOGO (KEPT) */}
-      <div className="mb-8">
-        <Image
-          src="/logo.png"
-          alt="Logo"
-          width={180}
-          height={70}
-          className="object-contain"
-          priority
-        />
-      </div>
+      <div className="w-full max-w-md">
 
-      {success ? (
-        <div className="bg-white p-8 rounded-2xl shadow-lg text-center w-full max-w-md">
-          <h2 className="text-green-600 text-xl font-semibold">
-            Login Successful ✅
-          </h2>
-          <p className="mt-2">Redirecting...</p>
-
-          <div className="mt-4 animate-spin h-6 w-6 border-2 border-black border-t-transparent rounded-full mx-auto"></div>
-        </div>
-      ) : (
-        <form
-          onSubmit={handleLogin}
-          className="bg-white p-8 rounded-2xl shadow-lg w-full max-w-md"
-        >
-          <h2 className="text-xl font-semibold text-center mb-6">
-            Welcome Back
-          </h2>
-
-          {/* EMAIL */}
-          <input
-            type="email"
-            placeholder="Email address"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full p-3 mb-4 border rounded-lg outline-none focus:ring-2 focus:ring-black"
+        {/* LOGO */}
+        <div className="flex justify-center mb-6">
+          <Image
+            src="/logo.png"
+            alt="Native Logo"
+            width={180}
+            height={70}
+            className="object-contain"
+            priority
           />
+        </div>
 
-          {/* PASSWORD */}
-          <div className="relative">
-            <input
-              type={showPass ? "text" : "password"}
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full p-3 mb-4 border rounded-lg outline-none focus:ring-2 focus:ring-black"
-            />
+        {/* CARD */}
+        <div className="bg-white/90 backdrop-blur-lg shadow-2xl rounded-3xl p-8 border border-gray-200">
 
-            <span
-              onClick={() => setShowPass(!showPass)}
-              className="absolute right-3 top-3 cursor-pointer"
-            >
-              {showPass ? "🙈" : "👁"}
-            </span>
-          </div>
+          {success ? (
+            <div className="text-center">
+              <h2 className="text-green-600 text-xl font-semibold">
+                Login Successful ✅
+              </h2>
+              <p className="mt-2 text-gray-600">Redirecting...</p>
 
-          {/* ERROR */}
-          {error && (
-            <p className="text-red-500 text-sm mb-3">{error}</p>
+              <div className="mt-4 flex justify-center">
+                <div className="h-6 w-6 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
+              </div>
+            </div>
+          ) : (
+            <>
+              <h2 className="text-2xl font-semibold text-center mb-6 text-gray-800">
+                Welcome Back 👋
+              </h2>
+
+              {/* EMAIL */}
+              <input
+                type="email"
+                placeholder="Email address"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full p-3 mb-4 border rounded-xl focus:ring-2 focus:ring-[#c28b45] outline-none"
+              />
+
+              {/* PASSWORD */}
+              <div className="relative">
+                <input
+                  type={showPass ? "text" : "password"}
+                  placeholder="Password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full p-3 mb-4 border rounded-xl focus:ring-2 focus:ring-[#c28b45] outline-none"
+                />
+
+                <span
+                  onClick={() => setShowPass(!showPass)}
+                  className="absolute right-4 top-3 cursor-pointer text-gray-600"
+                >
+                  {showPass ? "🙈" : "👁"}
+                </span>
+              </div>
+
+              {/* ERROR */}
+              {error && (
+                <p className="text-red-500 text-sm mb-3">{error}</p>
+              )}
+
+              {/* BUTTON */}
+              <button
+                onClick={handleLogin}
+                disabled={loading}
+                className="w-full py-3 rounded-xl bg-[#c28b45] text-white font-medium hover:bg-[#a67030] transition"
+              >
+                {loading ? "Signing in..." : "Sign in"}
+              </button>
+
+              {/* LINKS */}
+              <div className="flex justify-between mt-4 text-sm">
+                <p
+                  onClick={() => router.push("/forgot-password")}
+                  className="text-[#c28b45] cursor-pointer hover:underline"
+                >
+                  Forgot password?
+                </p>
+
+                <p
+                  onClick={() => router.push("/signup")}
+                  className="text-[#c28b45] cursor-pointer hover:underline"
+                >
+                  Create account
+                </p>
+              </div>
+            </>
           )}
-
-          {/* BUTTON */}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full p-3 rounded-lg bg-black text-white hover:opacity-90 transition"
-          >
-            {loading ? "Signing in..." : "Sign in"}
-          </button>
-
-          {/* LINKS */}
-          <div className="flex justify-between mt-4 text-sm">
-            <p
-              onClick={() => router.push("/forgot-password")}
-              className="text-blue-600 cursor-pointer"
-            >
-              Forgot password?
-            </p>
-
-            <p
-              onClick={() => router.push("/signup")}
-              className="text-blue-600 cursor-pointer"
-            >
-              Create account
-            </p>
-          </div>
-        </form>
-      )}
+        </div>
+      </div>
     </div>
   );
 }
