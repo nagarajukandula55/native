@@ -1,47 +1,28 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import jwt from "jsonwebtoken";
 
-export async function GET() {
+export async function GET(req) {
   try {
-    const cookieStore = cookies();
-    const token = cookieStore.get("token")?.value;
+    const token = req.cookies.get("token")?.value;
 
-    /* 🔴 NO TOKEN */
     if (!token) {
       return NextResponse.json(
-        { success: false, user: null, message: "No token" },
+        { success: false, message: "Not authenticated" },
         { status: 401 }
       );
     }
 
-    /* 🔴 VERIFY TOKEN SAFELY */
-    let decoded;
-    try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET);
-    } catch (err) {
-      return NextResponse.json(
-        { success: false, user: null, message: "Invalid token" },
-        { status: 401 }
-      );
-    }
+    const user = jwt.verify(token, process.env.JWT_SECRET);
 
-    /* ✅ SUCCESS */
     return NextResponse.json({
       success: true,
-      user: {
-        name: decoded.name,
-        email: decoded.email,
-        role: decoded.role,
-      },
+      user,
     });
 
-  } catch (err) {
-    console.error("ME API ERROR:", err);
-
+  } catch (error) {
     return NextResponse.json(
-      { success: false, user: null, message: "Server error" },
-      { status: 500 }
+      { success: false, message: "Invalid token" },
+      { status: 401 }
     );
   }
 }
