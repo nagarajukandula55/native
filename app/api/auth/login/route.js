@@ -39,7 +39,15 @@ export default function LoginPage() {
         body: JSON.stringify({ email, password }),
       });
 
-      const data = await res.json();
+      // 🔥 SAFE JSON PARSE
+      const text = await res.text();
+
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        throw new Error("Invalid server response");
+      }
 
       if (!res.ok || !data.success) {
         setError(data.message || "Invalid credentials");
@@ -47,9 +55,11 @@ export default function LoginPage() {
         return;
       }
 
-      // ✅ Refresh auth state
+      // 🔥 WAIT for cookie to settle (VERY IMPORTANT)
+      await new Promise((r) => setTimeout(r, 300));
+
+      // 🔥 Refresh auth AFTER cookie is ready
       await refreshUser();
-      router.refresh();
 
       setSuccess(true);
 
@@ -66,9 +76,10 @@ export default function LoginPage() {
         customer: "/account",
       };
 
+      // 🔥 Smooth redirect
       setTimeout(() => {
         router.replace(routes[role] || "/");
-      }, 800);
+      }, 700);
 
     } catch (err) {
       console.error("LOGIN ERROR:", err);
