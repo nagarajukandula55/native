@@ -32,7 +32,7 @@ export async function POST(req) {
     response.cookies.set("token", token, {
       httpOnly: true,
       secure: true,          // 🔥 REQUIRED for Vercel HTTPS
-      sameSite: "none",      // 🔥 REQUIRED for browser cookies
+      sameSite: "lax",      // 🔥 REQUIRED for browser cookies
       path: "/",
       maxAge: 60 * 60 * 24 * 7,
     });
