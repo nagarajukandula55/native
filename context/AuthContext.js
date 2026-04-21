@@ -10,24 +10,33 @@ export function AuthProvider({ children }) {
 
   const fetchUser = async () => {
     try {
-      const res = await fetch("/api/auth/me", {
+      let res = await fetch("/api/auth/me", {
         credentials: "include",
         cache: "no-store",
       });
-  
+
+      // 🔥 retry once (fixes random 401)
       if (!res.ok) {
-        setUser(null);
-        setLoading(false);
-        return;
+        await new Promise((r) => setTimeout(r, 300));
+        res = await fetch("/api/auth/me", {
+          credentials: "include",
+          cache: "no-store",
+        });
       }
-  
+
       const data = await res.json();
-      setUser(data.success ? data.user : null);
-  
-    } catch {
+
+      if (res.ok && data.success) {
+        setUser(data.user);
+      } else {
+        setUser(null);
+      }
+
+    } catch (err) {
+      console.error("Auth error:", err);
       setUser(null);
     }
-  
+
     setLoading(false);
   };
 
