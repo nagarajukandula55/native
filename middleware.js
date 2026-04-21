@@ -5,10 +5,15 @@ export function middleware(req) {
   const token = req.cookies.get("token")?.value;
   const { pathname } = req.nextUrl;
 
-  // ✅ Public routes
-  const publicRoutes = ["/", "/login", "/products", "/blog", "/track"];
+  console.log("PATH:", pathname);
+  console.log("TOKEN:", token ? "EXISTS" : "MISSING");
 
-  if (publicRoutes.includes(pathname)) {
+  // ✅ Always allow these
+  if (
+    pathname === "/login" ||
+    pathname === "/" ||
+    pathname.startsWith("/products")
+  ) {
     return NextResponse.next();
   }
 
@@ -20,33 +25,21 @@ export function middleware(req) {
   try {
     const user = jwt.verify(token, process.env.JWT_SECRET);
 
+    console.log("USER ROLE:", user.role);
+
     // ✅ Role protection
-    if (pathname.startsWith("/admin") && !["admin", "super_admin"].includes(user.role)) {
-      return NextResponse.redirect(new URL("/", req.url));
-    }
-
-    if (pathname.startsWith("/vendor") && user.role !== "vendor") {
-      return NextResponse.redirect(new URL("/", req.url));
-    }
-
-    if (pathname.startsWith("/finance") && user.role !== "finance") {
+    if (pathname.startsWith("/admin") && user.role !== "admin") {
       return NextResponse.redirect(new URL("/", req.url));
     }
 
     return NextResponse.next();
 
   } catch (err) {
+    console.log("JWT ERROR:", err.message);
     return NextResponse.redirect(new URL("/login", req.url));
   }
 }
 
 export const config = {
-  matcher: [
-    "/admin/:path*",
-    "/vendor/:path*",
-    "/finance/:path*",
-    "/branding/:path*",
-    "/analytics/:path*",
-    "/super-admin/:path*",
-  ],
+  matcher: ["/admin/:path*"],
 };
