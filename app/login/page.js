@@ -17,51 +17,48 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
 
-  async function handleLogin(e) {
-    e.preventDefault();
+async function handleLogin(e) {
+  e.preventDefault();
 
-    setError("");
-    setLoading(true);
+  setError("");
+  setLoading(true);
 
-    try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ email, password }),
-      });
+  try {
+    const res = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include",
+      body: JSON.stringify({ email, password }),
+    });
 
-      const text = await res.text();
-      let data;
+    const data = await res.json();
 
-      try {
-        data = JSON.parse(text);
-      } catch {
-        throw new Error("Invalid server response");
-      }
-
-      if (!res.ok || !data.success) {
-        setError(data.message || "Invalid credentials");
-        setLoading(false);
-        return;
-      }
-
-      await new Promise((r) => setTimeout(r, 400));
-      await refreshUser();
-
-      setSuccess(true);
-
-      setTimeout(() => {
-        router.replace("/admin"); // change later if needed
-      }, 800);
-
-    } catch (err) {
-      console.error(err);
-      setError("Server error. Try again.");
+    if (!res.ok || !data.success) {
+      setError(data.message || "Invalid credentials");
+      setLoading(false);
+      return;
     }
 
-    setLoading(false);
+    // ✅ wait for cookie
+    await new Promise((r) => setTimeout(r, 500));
+
+    // ✅ refresh auth
+    await refreshUser();
+
+    setSuccess(true);
+
+    // ✅ redirect
+    router.push("/admin");
+    router.refresh();
+
+  } catch (err) {
+    setError("Server error");
   }
+
+  setLoading(false);
+}
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#f5f1e8] via-[#faf8f3] to-[#efe7d8] px-4">
