@@ -1,16 +1,13 @@
 import { NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
-import { cookies } from "next/headers";
 
 export async function GET(req) {
   try {
     const token = req.cookies.get("token")?.value;
 
-    console.log("TOKEN:", token); // 🔥 DEBUG
-
     if (!token) {
       return NextResponse.json(
-        { success: false, message: "No token" },
+        { success: false },
         { status: 401 }
       );
     }
@@ -22,11 +19,9 @@ export async function GET(req) {
       user,
     });
 
-  } catch (err) {
-    console.error("AUTH ERROR:", err);
-
+  } catch {
     return NextResponse.json(
-      { success: false, message: "Invalid token" },
+      { success: false },
       { status: 401 }
     );
   }
