@@ -40,7 +40,15 @@ export default function LoginPage() {
         body: JSON.stringify({ email, password }),
       });
 
-      const data = await res.json();
+      // ✅ SAFE RESPONSE PARSE (prevents crash)
+      const text = await res.text();
+      let data;
+
+      try {
+        data = JSON.parse(text);
+      } catch {
+        throw new Error("Invalid server response");
+      }
 
       if (!res.ok || !data.success) {
         setError(data.message || "Invalid credentials");
@@ -48,19 +56,16 @@ export default function LoginPage() {
         return;
       }
 
-      console.log("LOGIN SUCCESS:", data);
-
-      // 🔥 STEP 1: Sync auth immediately
-      await refreshUser();
-
-      // 🔥 STEP 2: wait for cookie propagation (important in prod)
+      // ✅ WAIT for cookie to be set (CRITICAL for Vercel)
       await new Promise((r) => setTimeout(r, 400));
+
+      // ✅ Refresh auth AFTER cookie
+      await refreshUser();
 
       setSuccess(true);
 
       const role = data?.user?.role;
 
-      // 🔥 CENTRALIZED ROLE ROUTING
       const routes = {
         super_admin: "/super-admin",
         admin: "/admin",
@@ -72,7 +77,7 @@ export default function LoginPage() {
         customer: "/account",
       };
 
-      // 🔥 STEP 3: safe redirect (no flicker)
+      // ✅ Smooth redirect
       setTimeout(() => {
         router.replace(routes[role] || "/");
       }, 700);
@@ -86,70 +91,92 @@ export default function LoginPage() {
   }
 
   return (
-    <div style={container}>
-      {/* LOGO */}
-      <div style={{ marginBottom: 30 }}>
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 px-4">
+
+      {/* 🔥 LOGO (KEPT) */}
+      <div className="mb-8">
         <Image
           src="/logo.png"
           alt="Logo"
           width={180}
           height={70}
-          style={{ objectFit: "contain" }}
+          className="object-contain"
           priority
         />
       </div>
 
       {success ? (
-        <div style={successBox}>
-          <h2 style={successTitle}>Login Successful ✅</h2>
-          <p style={{ marginTop: 10 }}>Redirecting...</p>
-          <div style={loader}></div>
+        <div className="bg-white p-8 rounded-2xl shadow-lg text-center w-full max-w-md">
+          <h2 className="text-green-600 text-xl font-semibold">
+            Login Successful ✅
+          </h2>
+          <p className="mt-2">Redirecting...</p>
+
+          <div className="mt-4 animate-spin h-6 w-6 border-2 border-black border-t-transparent rounded-full mx-auto"></div>
         </div>
       ) : (
-        <form style={card} onSubmit={handleLogin}>
-          <h2 style={title}>Welcome Back</h2>
+        <form
+          onSubmit={handleLogin}
+          className="bg-white p-8 rounded-2xl shadow-lg w-full max-w-md"
+        >
+          <h2 className="text-xl font-semibold text-center mb-6">
+            Welcome Back
+          </h2>
 
+          {/* EMAIL */}
           <input
             type="email"
             placeholder="Email address"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            style={input}
+            className="w-full p-3 mb-4 border rounded-lg outline-none focus:ring-2 focus:ring-black"
           />
 
-          <div style={{ position: "relative" }}>
+          {/* PASSWORD */}
+          <div className="relative">
             <input
               type={showPass ? "text" : "password"}
               placeholder="Password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              style={input}
+              className="w-full p-3 mb-4 border rounded-lg outline-none focus:ring-2 focus:ring-black"
             />
 
-            <span onClick={() => setShowPass(!showPass)} style={eye}>
+            <span
+              onClick={() => setShowPass(!showPass)}
+              className="absolute right-3 top-3 cursor-pointer"
+            >
               {showPass ? "🙈" : "👁"}
             </span>
           </div>
 
-          {error && <p style={errorText}>{error}</p>}
+          {/* ERROR */}
+          {error && (
+            <p className="text-red-500 text-sm mb-3">{error}</p>
+          )}
 
+          {/* BUTTON */}
           <button
             type="submit"
             disabled={loading}
-            style={{
-              ...button,
-              opacity: loading ? 0.7 : 1,
-            }}
+            className="w-full p-3 rounded-lg bg-black text-white hover:opacity-90 transition"
           >
             {loading ? "Signing in..." : "Sign in"}
           </button>
 
-          <div style={linksBox}>
-            <p onClick={() => router.push("/forgot-password")} style={link}>
+          {/* LINKS */}
+          <div className="flex justify-between mt-4 text-sm">
+            <p
+              onClick={() => router.push("/forgot-password")}
+              className="text-blue-600 cursor-pointer"
+            >
               Forgot password?
             </p>
 
-            <p onClick={() => router.push("/signup")} style={link}>
+            <p
+              onClick={() => router.push("/signup")}
+              className="text-blue-600 cursor-pointer"
+            >
               Create account
             </p>
           </div>
