@@ -16,20 +16,34 @@ function ProductsContent() {
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const res = await fetch("/api/products");
+        const res = await fetch("/api/products", {
+          cache: "no-store",
+        });
 
-        if (!res.ok) {
-          throw new Error("Failed to fetch products");
+        // 🔥 Handle non-JSON / 404 safely
+        const text = await res.text();
+
+        let data;
+        try {
+          data = JSON.parse(text);
+        } catch {
+          throw new Error("Invalid JSON response");
         }
 
-        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data?.message || "Failed to fetch products");
+        }
 
-        if (data.success && Array.isArray(data.products)) {
+        // ✅ Flexible handling (prevents your warning completely)
+        if (Array.isArray(data)) {
+          setProducts(data);
+        } else if (data?.success && Array.isArray(data.products)) {
           setProducts(data.products);
         } else {
           console.warn("Unexpected API response:", data);
           setProducts([]);
         }
+
       } catch (err) {
         console.error("Product fetch error:", err);
         setProducts([]);
@@ -44,7 +58,7 @@ function ProductsContent() {
   const filteredProducts = products.filter(
     (product) =>
       !search ||
-      product.name?.toLowerCase().includes(search.toLowerCase())
+      product?.name?.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
@@ -55,7 +69,7 @@ function ProductsContent() {
         Our Products
       </h1>
 
-      {/* SEARCH TEXT */}
+      {/* SEARCH INFO */}
       {search && (
         <p className="text-center text-gray-500 mb-8">
           Showing results for <b>"{search}"</b>
@@ -77,10 +91,10 @@ function ProductsContent() {
             >
 
               {/* IMAGE */}
-              <Link href={`/products/${product.slug}`}>
+              <Link href={`/products/${product.slug || product._id}`}>
                 <img
                   src={product.image || "/placeholder.png"}
-                  alt={product.name}
+                  alt={product.name || "Product"}
                   className="w-full h-52 object-cover"
                 />
               </Link>
@@ -88,9 +102,9 @@ function ProductsContent() {
               <div className="p-4">
 
                 {/* NAME */}
-                <Link href={`/products/${product.slug}`}>
+                <Link href={`/products/${product.slug || product._id}`}>
                   <h3 className="text-lg font-medium mb-2 text-gray-800 hover:underline">
-                    {product.name}
+                    {product.name || "Unnamed Product"}
                   </h3>
                 </Link>
 
@@ -104,7 +118,7 @@ function ProductsContent() {
                 <div className="flex items-center justify-between">
 
                   <span className="text-lg font-semibold text-yellow-700">
-                    ₹{product.price}
+                    ₹{product.price ?? 0}
                   </span>
 
                   <button
