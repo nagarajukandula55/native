@@ -2,7 +2,7 @@ import "./globals.css";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { CartProvider } from "@/context/CartContext";
-import { AuthProvider } from "@/context/AuthContext"; // ✅ ADD THIS
+import { AuthProvider } from "@/context/AuthContext";
 import { Cinzel, Poppins } from "next/font/google";
 import Script from "next/script";
 
@@ -13,12 +13,14 @@ const cinzel = Cinzel({
   subsets: ["latin"],
   weight: ["400", "600"],
   variable: "--font-brand",
+  display: "swap", // ✅ prevents font flicker
 });
 
 const poppins = Poppins({
   subsets: ["latin"],
   weight: ["300", "400", "500"],
   variable: "--font-body",
+  display: "swap", // ✅ better UX
 });
 
 /* ================= META ================= */
@@ -31,7 +33,11 @@ export const metadata = {
 /* ================= LAYOUT ================= */
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" className={`${cinzel.variable} ${poppins.variable}`}>
+    <html
+      lang="en"
+      className={`${cinzel.variable} ${poppins.variable}`}
+      suppressHydrationWarning // ✅ prevents hydration mismatch errors
+    >
       <body
         style={{
           margin: 0,
@@ -39,22 +45,33 @@ export default function RootLayout({ children }) {
           fontFamily: "var(--font-body)",
         }}
       >
-        {/* ✅ Razorpay Script */}
+        {/* ✅ Razorpay Script (safe load) */}
         <Script
           src="https://checkout.razorpay.com/v1/checkout.js"
-          strategy="beforeInteractive"
+          strategy="afterInteractive"
         />
 
-        {/* 🔥 GLOBAL STATE WRAPPER */}
+        {/* 🔥 GLOBAL STATE */}
         <AuthProvider>
           <CartProvider>
+
+            {/* NAVBAR */}
             <Navbar />
 
-            <main style={{ minHeight: "80vh" }}>
+            {/* MAIN CONTENT */}
+            <main
+              style={{
+                minHeight: "80vh",
+                display: "flex",
+                flexDirection: "column",
+              }}
+            >
               {children}
             </main>
 
+            {/* FOOTER */}
             <Footer />
+
           </CartProvider>
         </AuthProvider>
       </body>
