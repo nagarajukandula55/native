@@ -34,13 +34,15 @@ export async function POST(req) {
     });
 
     // 🔥 FINAL COOKIE CONFIG (THIS FIXES YOUR ISSUE)
-    response.cookies.set("token", token, {
-      httpOnly: true,
-      secure: true,        // ✅ REQUIRED on Vercel
-      sameSite: "lax",     // ✅ CRITICAL FIX (NOT "none")
-      path: "/",
-      maxAge: 60 * 60 * 24 * 7,
-    });
+      response.cookies.set("token", token, {
+        httpOnly: true,
+        secure: true,
+        sameSite: "lax",
+        path: "/",
+        // ❗ ADD THIS LINE
+        domain: ".shopnative.in",
+        maxAge: 60 * 60 * 24 * 7,
+      });
 
     return response;
 
