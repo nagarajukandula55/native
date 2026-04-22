@@ -8,18 +8,17 @@ export function CartProvider({ children }) {
   const [cart, setCart] = useState([]);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  /* ================= LOAD FROM STORAGE ================= */
+  /* ================= STORAGE ================= */
   useEffect(() => {
     const saved = localStorage.getItem("cart");
     if (saved) setCart(JSON.parse(saved));
   }, []);
 
-  /* ================= SAVE TO STORAGE ================= */
   useEffect(() => {
     localStorage.setItem("cart", JSON.stringify(cart));
   }, [cart]);
 
-  /* ================= ADD TO CART ================= */
+  /* ================= CART ACTIONS ================= */
   const addToCart = (product) => {
     setCart((prev) => {
       const exists = prev.find((p) => p._id === product._id);
@@ -35,15 +34,13 @@ export function CartProvider({ children }) {
       return [...prev, { ...product, qty: 1 }];
     });
 
-    setDrawerOpen(true);
+    setDrawerOpen(true); // 🔥 auto open on add
   };
 
-  /* ================= REMOVE ================= */
   const removeFromCart = (id) => {
     setCart((prev) => prev.filter((p) => p._id !== id));
   };
 
-  /* ================= UPDATE QTY ================= */
   const updateQty = (id, qty) => {
     if (qty <= 0) return removeFromCart(id);
 
@@ -54,7 +51,6 @@ export function CartProvider({ children }) {
     );
   };
 
-  /* ================= TOTAL ================= */
   const cartTotal = cart.reduce(
     (sum, item) => sum + item.price * item.qty,
     0
@@ -64,6 +60,10 @@ export function CartProvider({ children }) {
     (sum, item) => sum + item.qty,
     0
   );
+
+  /* ================= FIXED CONTROLS ================= */
+  const openCart = () => setDrawerOpen(true);
+  const closeCart = () => setDrawerOpen(false);
 
   return (
     <CartContext.Provider
@@ -76,7 +76,9 @@ export function CartProvider({ children }) {
         cartTotal,
         cartCount,
         drawerOpen,
-        setDrawerOpen,
+        openCart,     // 🔥 IMPORTANT
+        closeCart,    // 🔥 IMPORTANT
+        setDrawerOpen
       }}
     >
       {children}
