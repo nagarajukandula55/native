@@ -24,34 +24,31 @@ async function handleLogin(e) {
   setLoading(true);
 
   try {
-    const res = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      credentials: "include",
-      body: JSON.stringify({ email, password }),
-    });
+const res = await fetch("/api/auth/login", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  credentials: "include",
+  body: JSON.stringify({ email, password }),
+});
 
-    const data = await res.json();
+const data = await res.json();
 
-    if (!res.ok || !data.success) {
-      setError(data.message || "Invalid credentials");
-      setLoading(false);
-      return;
-    }
+if (!res.ok || !data.success) {
+  setError(data.message);
+  setLoading(false);
+  return;
+}
 
-    // ✅ wait for cookie
-    await new Promise((r) => setTimeout(r, 500));
+// 🔥 FORCE SYNC FIRST
+await refreshUser();
 
-    // ✅ refresh auth
-    await refreshUser();
+// 🔥 WAIT FOR CONTEXT UPDATE
+await new Promise((r) => setTimeout(r, 500));
 
-    setSuccess(true);
+setSuccess(true);
 
-    // ✅ redirect
-    router.push("/admin");
-    router.refresh();
+// 🔥 REDIRECT ONLY AFTER STABLE STATE
+router.replace("/");
 
   } catch (err) {
     setError("Server error");
