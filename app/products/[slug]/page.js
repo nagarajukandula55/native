@@ -1,108 +1,60 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { useParams } from "next/navigation"
-import { useCart } from "@/context/CartContext"
-import Link from "next/link"
+import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
+import { useCart } from "@/context/CartContext";
 
-export default function ProductViewPage() {
-  const { slug } = useParams()
-  const { addToCart } = useCart()
-
-  const [product, setProduct] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState("")
+export default function ProductDetail() {
+  const { slug } = useParams();
+  const { addToCart } = useCart();
+  const [product, setProduct] = useState(null);
 
   useEffect(() => {
-    const fetchProduct = async () => {
-      try {
-        // ✅ Use the correct admin API path
-        const res = await fetch(`/api/admin/products/${slug}`)
-        if (!res.ok) throw new Error("Product not found")
-        const data = await res.json()
-        if (!data.success) throw new Error(data.message)
-        setProduct(data.product)
-      } catch (err) {
-        setError(err.message)
-      } finally {
-        setLoading(false)
-      }
+    async function load() {
+      const res = await fetch(`/api/products/${slug}`);
+      const data = await res.json();
+      setProduct(data.product);
     }
 
-    fetchProduct()
-  }, [slug])
+    load();
+  }, [slug]);
 
-  if (loading) return <p style={{ textAlign: "center", marginTop: "40px" }}>Loading product...</p>
-  if (error) return <p style={{ textAlign: "center", marginTop: "40px", color: "red" }}>{error}</p>
+  if (!product) return <p>Loading...</p>;
 
   return (
-    <div style={{ maxWidth: "1000px", margin: "auto", padding: "20px" }}>
-      {/* Product Info */}
-      <div style={{ display: "flex", flexWrap: "wrap", gap: "30px", marginBottom: "50px" }}>
-        <div style={{ flex: "1 1 350px" }}>
-          <img
-            src={product.image}
-            alt={product.name}
-            style={{ width: "100%", borderRadius: "10px", objectFit: "cover" }}
-          />
-        </div>
+    <div className="container">
+      <img src={product.image} />
 
-        <div style={{ flex: "1 1 300px" }}>
-          <h1 style={{ fontSize: "32px", marginBottom: "10px" }}>{product.name}</h1>
-          <p style={{ fontSize: "20px", color: "#c28b45", marginBottom: "15px" }}>
-            ₹{product.price}
-          </p>
-          <p style={{ marginBottom: "20px", lineHeight: "1.6" }}>
-            {product.description || "No description available."}
-          </p>
-
-          <button
-            onClick={() => addToCart(product)}
-            style={{
-              padding: "12px 25px",
-              background: "#c28b45",
-              color: "#fff",
-              border: "none",
-              borderRadius: "6px",
-              cursor: "pointer",
-              fontWeight: "500",
-            }}
-          >
-            Add to Cart
-          </button>
-        </div>
+      <div>
+        <h1>{product.name}</h1>
+        <p>₹{product.price}</p>
+        <button onClick={() => addToCart(product)}>
+          Add to Cart
+        </button>
       </div>
 
-      {/* Related Blog Posts Placeholder */}
-      <div style={{ marginTop: "50px" }}>
-        <h2 style={{ fontSize: "28px", marginBottom: "20px" }}>Related Articles</h2>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
-            gap: "20px",
-          }}
-        >
-          {[1, 2, 3].map((i) => (
-            <div
-              key={i}
-              style={{
-                background: "#fff",
-                padding: "20px",
-                borderRadius: "10px",
-                boxShadow: "0 5px 15px rgba(0,0,0,0.05)",
-                textAlign: "center",
-              }}
-            >
-              <h3>Blog Post {i}</h3>
-              <p>Summary about this product...</p>
-              <Link href={`/blog/${i}`} style={{ color: "#c28b45", fontWeight: "500" }}>
-                Read More
-              </Link>
-            </div>
-          ))}
-        </div>
-      </div>
+      <style jsx>{`
+        .container {
+          max-width: 900px;
+          margin: auto;
+          padding: 40px;
+          display: flex;
+          gap: 30px;
+        }
+
+        img {
+          width: 300px;
+          border-radius: 10px;
+        }
+
+        button {
+          background: #c28b45;
+          color: white;
+          padding: 10px;
+          border: none;
+          border-radius: 8px;
+        }
+      `}</style>
     </div>
-  )
+  );
 }
