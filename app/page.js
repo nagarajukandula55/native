@@ -5,302 +5,287 @@ import { useCart } from "@/context/CartContext";
 
 export default function Home() {
   const { addToCart } = useCart();
+
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Fetch public products API
+  /* ================= FETCH PRODUCTS ================= */
   useEffect(() => {
-    const fetchProducts = async () => {
+    async function loadProducts() {
       try {
         const res = await fetch("/api/products", {
           cache: "no-store",
         });
 
-        const text = await res.text();
+        const data = await res.json();
 
-        let data;
-        try {
-          data = JSON.parse(text);
-        } catch {
-          throw new Error("Invalid JSON response");
-        }
+        const list =
+          data?.products ||
+          data ||
+          [];
 
-        if (!res.ok) {
-          throw new Error(data?.message || "Failed to fetch products");
-        }
-
-        // ✅ FIXED LOGIC (supports both formats)
-        if (data.success && Array.isArray(data.products)) {
-          setProducts(data.products);
-        } else if (Array.isArray(data)) {
-          setProducts(data);
-        } else {
-          console.warn("Products API returned unexpected data", data);
-          setProducts([]);
-        }
-
+        setProducts(Array.isArray(list) ? list : []);
       } catch (err) {
-        console.error("Error fetching products:", err);
+        console.error("Product fetch error:", err);
         setProducts([]);
       } finally {
         setLoading(false);
       }
-    };
+    }
 
-    fetchProducts();
+    loadProducts();
   }, []);
 
   return (
-    <div>
-      {/* HERO SECTION */}
-      <section
-        style={{
-          position: "relative",
-          minHeight: "85vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          textAlign: "center",
-          padding: "40px 20px",
-          background: "url('/hero.png') center/cover no-repeat",
-          overflow: "hidden",
-        }}
-      >
-        {/* DARK OVERLAY */}
-        <div
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            width: "100%",
-            height: "100%",
-            backgroundColor: "rgba(0,0,0,0.35)",
-            zIndex: 1,
-          }}
-        />
+    <div className="home">
 
-        {/* SCROLLING TEXT */}
-        <div
-          style={{
-            position: "absolute",
-            top: 20,
-            width: "100%",
-            zIndex: 2,
-            overflow: "hidden",
-            whiteSpace: "nowrap",
-          }}
-        >
-          <div
-            style={{
-              display: "inline-block",
-              paddingLeft: "100%",
-              animation: "scroll-left 15s linear infinite",
-              color: "#fff",
-              fontWeight: 500,
-              fontSize: 18,
-            }}
-          >
-            We are going to get new products to our Catalogue
-          </div>
+      {/* ================= HERO ================= */}
+      <section className="hero">
+        <div className="overlay" />
+
+        <div className="scrollText">
+          <div>We are adding new products to our catalogue ✨</div>
         </div>
 
-        {/* HERO CONTENT */}
-        <div style={{ maxWidth: "800px", position: "relative", zIndex: 2, color: "#fff" }}>
-          <h1
-            style={{
-              fontSize: "clamp(48px,7vw,80px)",
-              fontFamily: "Cinzel, serif",
-              fontWeight: 600,
-              marginBottom: "10px",
-            }}
-          >
-            Welcome to Native
-          </h1>
-          <p style={{ fontSize: 22, marginBottom: 20 }}>Eat Healthy, Stay Healthy</p>
-          <p style={{ fontSize: 18, lineHeight: 1.8, marginBottom: 30 }}>
+        <div className="heroContent">
+          <h1>Welcome to Native</h1>
+          <p className="tagline">Eat Healthy, Stay Healthy</p>
+          <p className="desc">
             Authentic natural food products refined directly from the source.
-            Pure, traditional and healthy for everyday life.
           </p>
+
           <button
-            onClick={() => document.getElementById("products").scrollIntoView({ behavior: "smooth" })}
-            style={{
-              padding: "14px 40px",
-              borderRadius: "40px",
-              border: "none",
-              background: "#c28b45",
-              color: "#fff",
-              fontSize: 16,
-              cursor: "pointer",
-              transition: "background 0.2s",
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = "#a67030")}
-            onMouseLeave={(e) => (e.currentTarget.style.background = "#c28b45")}
+            onClick={() =>
+              document.getElementById("products").scrollIntoView({
+                behavior: "smooth",
+              })
+            }
           >
             Explore Products
           </button>
         </div>
-
-        {/* SCROLL ANIMATION */}
-        <style>
-          {`
-            @keyframes scroll-left {
-              0% { transform: translateX(0%); }
-              100% { transform: translateX(-100%); }
-            }
-          `}
-        </style>
       </section>
 
-      {/* CATEGORY SECTION */}
-      <section style={{ padding: "70px 20px", maxWidth: 1200, margin: "auto", textAlign: "center" }}>
-        <h2 style={{ fontSize: 36, marginBottom: 40 }}>Our Categories</h2>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))",
-            gap: 25,
-          }}
-        >
-          {["Batter Mix", "Cold Pressed Oils", "Traditional Foods", "Natural Products"].map((cat) => (
-            <div
-              key={cat}
-              style={{
-                background: "#fff",
-                padding: "40px 20px",
-                borderRadius: 10,
-                fontSize: 18,
-                fontWeight: 500,
-                boxShadow: "0 5px 15px rgba(0,0,0,0.05)",
-                cursor: "pointer",
-                transition: "transform 0.2s, box-shadow 0.2s",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = "scale(1.03)";
-                e.currentTarget.style.boxShadow = "0 10px 25px rgba(0,0,0,0.1)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = "scale(1)";
-                e.currentTarget.style.boxShadow = "0 5px 15px rgba(0,0,0,0.05)";
-              }}
-            >
-              {cat}
-            </div>
-          ))}
+      {/* ================= CATEGORIES ================= */}
+      <section className="section">
+        <h2>Our Categories</h2>
+
+        <div className="grid">
+          {["Batter Mix", "Cold Pressed Oils", "Traditional Foods", "Natural Products"].map(
+            (cat) => (
+              <div key={cat} className="card">
+                {cat}
+              </div>
+            )
+          )}
         </div>
       </section>
 
-      {/* FEATURED PRODUCTS */}
-      <section id="products" style={{ padding: "70px 20px", maxWidth: 1200, margin: "auto" }}>
-        <h2 style={{ textAlign: "center", fontSize: 36, marginBottom: 50 }}>Featured Products</h2>
+      {/* ================= PRODUCTS ================= */}
+      <section id="products" className="section">
+        <h2>Featured Products</h2>
 
         {loading ? (
-          <p style={{ textAlign: "center" }}>Loading products...</p>
+          <p className="center">Loading products...</p>
         ) : products.length === 0 ? (
-          <p style={{ textAlign: "center" }}>No products available</p>
+          <p className="center">No products found</p>
         ) : (
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit,minmax(250px,1fr))",
-              gap: 30,
-            }}
-          >
-            {products.map((product) => (
-              <div
-                key={product._id || product.id}
-                style={{
-                  border: "1px solid #eee",
-                  borderRadius: 12,
-                  overflow: "hidden",
-                  background: "#fff",
-                  boxShadow: "0 5px 15px rgba(0,0,0,0.05)",
-                  transition: "transform 0.2s, box-shadow 0.2s",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = "scale(1.03)";
-                  e.currentTarget.style.boxShadow = "0 10px 25px rgba(0,0,0,0.1)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = "scale(1)";
-                  e.currentTarget.style.boxShadow = "0 5px 15px rgba(0,0,0,0.05)";
-                }}
-              >
+          <div className="productGrid">
+            {products.map((p) => (
+              <div key={p._id || p.id} className="productCard">
+
                 <img
-                  src={product?.image || "/placeholder.png"}
-                  alt={product?.name || "Product"}
-                  style={{ width: "100%", height: 220, objectFit: "cover" }}
+                  src={p.image || "/placeholder.png"}
+                  alt={p.name}
                 />
-                <div style={{ padding: 20, textAlign: "center" }}>
-                  <h3 style={{ marginBottom: 10, color: "#333" }}>
-                    {product?.name || "Unnamed Product"}
-                  </h3>
-                  <p style={{ color: "#c28b45", fontSize: 18, marginBottom: 15 }}>
-                    ₹{product?.price ?? 0}
-                  </p>
-                  <button
-                    onClick={() => {
-                      addToCart(product);
-                      window.dispatchEvent(new Event("cart-open"));
-                    }}
-                    style={{
-                      padding: "10px 20px",
-                      border: "none",
-                      borderRadius: 25,
-                      background: "#c28b45",
-                      color: "#fff",
-                      cursor: "pointer",
-                      transition: "background 0.2s",
-                    }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = "#a67030")}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = "#c28b45")}
-                  >
+
+                <div className="productBody">
+                  <h3>{p.name}</h3>
+                  <p>₹{p.price}</p>
+
+                  <button onClick={() => addToCart(p)}>
                     Add to Cart
                   </button>
                 </div>
+
               </div>
             ))}
           </div>
         )}
       </section>
 
-      {/* WHY NATIVE */}
-      <section style={{ background: "#f4efe6", padding: "70px 20px", textAlign: "center" }}>
-        <h2 style={{ fontSize: 36, marginBottom: 40 }}>Why Choose Native</h2>
-        <div
-          style={{
-            maxWidth: 1000,
-            margin: "auto",
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))",
-            gap: 30,
-          }}
-        >
+      {/* ================= WHY US ================= */}
+      <section className="why">
+        <h2>Why Choose Native</h2>
+
+        <div className="grid">
           {[
-            { icon: "🌿", text: "100% Natural" },
-            { icon: "🚜", text: "Direct From Farmers" },
-            { icon: "🧂", text: "Traditional Methods" },
-            { icon: "❤️", text: "Healthy Lifestyle" },
-          ].map((item) => (
-            <div
-              key={item.text}
-              style={{
-                background: "#fff",
-                padding: 30,
-                borderRadius: 10,
-                fontSize: 18,
-                boxShadow: "0 5px 15px rgba(0,0,0,0.05)",
-                transition: "transform 0.2s",
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.03)")}
-              onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
-            >
-              <span style={{ fontSize: 40 }}>{item.icon}</span>
-              <br />
-              <strong>{item.text}</strong>
+            ["🌿", "100% Natural"],
+            ["🚜", "Direct From Farmers"],
+            ["🧂", "Traditional Methods"],
+            ["❤️", "Healthy Lifestyle"],
+          ].map(([icon, text]) => (
+            <div key={text} className="card">
+              <div className="icon">{icon}</div>
+              <strong>{text}</strong>
             </div>
           ))}
         </div>
       </section>
+
+      {/* ================= STYLES ================= */}
+      <style jsx>{`
+        .home {
+          font-family: system-ui;
+        }
+
+        /* HERO */
+        .hero {
+          position: relative;
+          min-height: 85vh;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          text-align: center;
+          background: url('/hero.png') center/cover;
+          color: white;
+        }
+
+        .overlay {
+          position: absolute;
+          inset: 0;
+          background: rgba(0,0,0,0.4);
+        }
+
+        .heroContent {
+          position: relative;
+          z-index: 2;
+          max-width: 800px;
+        }
+
+        h1 {
+          font-size: 64px;
+          margin: 0;
+        }
+
+        .tagline {
+          font-size: 22px;
+        }
+
+        .desc {
+          margin: 20px 0;
+        }
+
+        button {
+          padding: 12px 30px;
+          background: #c28b45;
+          border: none;
+          color: white;
+          border-radius: 30px;
+          cursor: pointer;
+        }
+
+        /* SCROLL TEXT */
+        .scrollText {
+          position: absolute;
+          top: 20px;
+          width: 100%;
+          overflow: hidden;
+          white-space: nowrap;
+          color: white;
+        }
+
+        .scrollText div {
+          display: inline-block;
+          padding-left: 100%;
+          animation: scroll 12s linear infinite;
+        }
+
+        @keyframes scroll {
+          from { transform: translateX(0); }
+          to { transform: translateX(-100%); }
+        }
+
+        /* SECTIONS */
+        .section {
+          padding: 70px 20px;
+          max-width: 1200px;
+          margin: auto;
+          text-align: center;
+        }
+
+        h2 {
+          font-size: 32px;
+          margin-bottom: 30px;
+        }
+
+        .center {
+          text-align: center;
+        }
+
+        /* GRID */
+        .grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+          gap: 20px;
+        }
+
+        .card {
+          background: white;
+          padding: 25px;
+          border-radius: 12px;
+          box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+        }
+
+        /* PRODUCTS */
+        .productGrid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+          gap: 25px;
+        }
+
+        .productCard {
+          background: white;
+          border-radius: 12px;
+          overflow: hidden;
+          box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+        }
+
+        .productCard img {
+          width: 100%;
+          height: 220px;
+          object-fit: cover;
+        }
+
+        .productBody {
+          padding: 15px;
+        }
+
+        .productBody h3 {
+          margin: 0;
+        }
+
+        .productBody p {
+          color: #c28b45;
+          font-weight: bold;
+        }
+
+        .productBody button {
+          width: 100%;
+          margin-top: 10px;
+        }
+
+        /* WHY */
+        .why {
+          background: #f4efe6;
+          padding: 70px 20px;
+          text-align: center;
+        }
+
+        .icon {
+          font-size: 40px;
+        }
+      `}</style>
     </div>
   );
 }
