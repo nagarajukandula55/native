@@ -2,8 +2,23 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import jwt from "jsonwebtoken";
 
-/* 🔥 TEMP MOCK DB (replace with real DB later) */
+/* 🔥 TEMP MOCK DB */
 let PRODUCTS_DB = [];
+
+/* 🔧 HELPER: EXTRACT SKU NUMBER SAFELY */
+function extractSequence(sku) {
+  try {
+    const match = sku.match(/-(\d{3})-/);
+    return match ? parseInt(match[1]) : 0;
+  } catch {
+    return 0;
+  }
+}
+
+/* 🔧 HELPER: CREATE VARIANT STRING */
+function buildVariant(value, unit) {
+  return `${value}${unit}`.toUpperCase();
+}
 
 /* ================= GET PRODUCTS ================= */
 export async function GET() {
@@ -82,38 +97,59 @@ export async function POST(req) {
     const {
       name,
       productKey,
-      variant,
       variantValue,
       variantUnit,
+      slug,
     } = body;
 
-    /* 🔥 STEP 1: FIND EXISTING PRODUCTS */
+    /* 🔥 BUILD VARIANT */
+    const variant = buildVariant(variantValue, variantUnit);
+
+    /* ❌ PREVENT DUPLICATE VARIANT */
+    const duplicate = PRODUCTS_DB.find(
+      (p) =>
+        p.productKey === productKey &&
+        p.variant === variant
+    );
+
+    if (duplicate) {
+      return NextResponse.json(
+        { success: false, message: "Variant already exists" },
+        { status: 400 }
+      );
+    }
+
+    /* 🔥 FIND EXISTING PRODUCTS */
     const existing = PRODUCTS_DB.filter(
       (p) => p.productKey === productKey
     );
 
-    /* 🔥 STEP 2: FIND MAX SEQUENCE */
+    /* 🔥 FIND MAX SEQUENCE */
     let nextNumber = 1;
 
     if (existing.length > 0) {
-      const numbers = existing.map((p) => {
-        const parts = p.sku.split("-");
-        return parseInt(parts[2]); // 001
-      });
+      const numbers = existing.map((p) =>
+        extractSequence(p.sku)
+      );
 
       nextNumber = Math.max(...numbers) + 1;
     }
 
-    /* 🔥 STEP 3: FORMAT NUMBER */
+    /* 🔥 FORMAT NUMBER */
     const sequence = String(nextNumber).padStart(3, "0");
 
-    /* 🔥 STEP 4: FINAL SKU */
+    /* 🔥 FINAL SKU */
     const finalSKU = `NA-${productKey}-${sequence}-${variant}`;
+
+    /* 🔥 UNIQUE SLUG PER VARIANT */
+    const finalSlug = `${slug}-${variant.toLowerCase()}`;
 
     /* 🔥 SAVE PRODUCT */
     const newProduct = {
       ...body,
+      variant,
       sku: finalSKU,
+      slug: finalSlug,
       createdAt: new Date(),
     };
 
