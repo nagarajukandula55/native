@@ -29,18 +29,52 @@ export default function ProductUpload() {
   const [slug, setSlug] = useState("");
 
   const [imagePreviews, setImagePreviews] = useState([]);
-  const [uploading, setUploading] = useState(false);
 
   /* ================= GST CONFIG ================= */
 
   const gstOptions = [
-    { name: "Food Preparations (Instant Mix)", hsn: "2106", tax: 5, desc: "Food preparations like dosa mix" },
-    { name: "Spices (Mixed/Ground)", hsn: "0910", tax: 5, desc: "Masalas & spices" },
-    { name: "Edible Oils", hsn: "1513", tax: 5, desc: "Cold pressed oils" },
-    { name: "Flours & Atta", hsn: "1101", tax: 5, desc: "Wheat, millet flours" },
-    { name: "Pickles & Preserved Foods", hsn: "2001", tax: 12, desc: "Pickles" },
-    { name: "Ready to Eat Foods", hsn: "2106", tax: 12, desc: "Cooked packaged food" },
-    { name: "Snacks / Namkeen", hsn: "2106", tax: 12, desc: "Snacks" },
+    {
+      name: "Food Preparations (Instant Mix)",
+      hsn: "2106",
+      tax: 5,
+      desc: "Food preparations not elsewhere specified or included (e.g., dosa mix, idli mix)",
+    },
+    {
+      name: "Spices (Mixed/Ground)",
+      hsn: "0910",
+      tax: 5,
+      desc: "Spices including mixed masalas and ground spices",
+    },
+    {
+      name: "Edible Oils",
+      hsn: "1513",
+      tax: 5,
+      desc: "Vegetable oils including cold pressed oils",
+    },
+    {
+      name: "Flours & Atta",
+      hsn: "1101",
+      tax: 5,
+      desc: "Cereal flours like wheat, millet, rice flour",
+    },
+    {
+      name: "Pickles & Preserved Foods",
+      hsn: "2001",
+      tax: 12,
+      desc: "Vegetables, fruits preserved in vinegar, brine, or oil",
+    },
+    {
+      name: "Ready to Eat Foods",
+      hsn: "2106",
+      tax: 12,
+      desc: "Fully cooked packaged food products",
+    },
+    {
+      name: "Snacks / Namkeen",
+      hsn: "2106",
+      tax: 12,
+      desc: "Namkeen, mixtures, fried snack items",
+    },
   ];
 
   const websiteCategories = [
@@ -63,14 +97,20 @@ export default function ProductUpload() {
     if (!form.name) return;
 
     let clean = form.name.replace(/native/gi, "").trim();
+
     const key = clean.toUpperCase().replace(/[^A-Z0-9]/g, "");
     setProductKey(key);
 
-    const s = form.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+    const s = form.name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "");
     setSlug(s);
 
+    const variant = `${form.variantValue}${form.variantUnit}`.toUpperCase();
+
     if (form.variantValue) {
-      setSkuPreview(`NA-${key}-001-${form.variantValue}${form.variantUnit}`);
+      setSkuPreview(`NA-${key}-001-${variant}`);
     }
   }, [form.name, form.variantValue, form.variantUnit]);
 
@@ -90,7 +130,7 @@ export default function ProductUpload() {
     setForm({ ...form, [e.target.name]: e.target.value });
   }
 
-  /* ================= IMAGE UPLOAD WITH PREVIEW ================= */
+  /* ================= IMAGE UPLOAD + PREVIEW ================= */
 
   async function handleImageUpload(e) {
     const files = Array.from(e.target.files);
@@ -101,14 +141,16 @@ export default function ProductUpload() {
     }));
 
     setImagePreviews((prev) => [...prev, ...previews]);
-    setUploading(true);
 
     const uploadedUrls = [];
 
     for (let i = 0; i < files.length; i++) {
       const data = new FormData();
       data.append("file", files[i]);
-      data.append("upload_preset", process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET);
+      data.append(
+        "upload_preset",
+        process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET
+      );
 
       const res = await fetch(
         `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`,
@@ -132,8 +174,6 @@ export default function ProductUpload() {
       ...prev,
       images: [...prev.images, ...uploadedUrls],
     }));
-
-    setUploading(false);
   }
 
   function removeImage(index) {
@@ -158,7 +198,7 @@ export default function ProductUpload() {
       sku: skuPreview,
       productKey,
       slug,
-      variant: `${form.variantValue}${form.variantUnit}`,
+      variant: `${form.variantValue}${form.variantUnit}`.toUpperCase(),
       discount:
         form.mrp && form.sellingPrice
           ? Math.round(((form.mrp - form.sellingPrice) / form.mrp) * 100)
@@ -191,18 +231,22 @@ export default function ProductUpload() {
         <input name="name" placeholder="Product Name" value={form.name} onChange={handleChange} />
 
         <select name="category" value={form.category} onChange={handleChange}>
-          <option value="">Select Category</option>
-          {websiteCategories.map((c) => <option key={c}>{c}</option>)}
-        </select>
-
-        <select name="gstCategory" value={form.gstCategory} onChange={handleChange}>
-          <option value="">Select GST</option>
-          {gstOptions.map((g) => (
-            <option key={g.name}>{g.name} ({g.tax}%)</option>
+          <option value="">Select Website Category</option>
+          {websiteCategories.map((cat) => (
+            <option key={cat}>{cat}</option>
           ))}
         </select>
 
-        <input value={form.hsn} readOnly placeholder="HSN" />
+        <select name="gstCategory" value={form.gstCategory} onChange={handleChange}>
+          <option value="">Select GST Category</option>
+          {gstOptions.map((g) => (
+            <option key={g.name}>
+              {g.name} ({g.tax}%)
+            </option>
+          ))}
+        </select>
+
+        <input value={form.hsn} readOnly placeholder="HSN Code" />
         <input value={form.tax} readOnly placeholder="Tax %" />
 
         <textarea value={form.gstDescription} readOnly placeholder="GST Description" />
@@ -215,26 +259,25 @@ export default function ProductUpload() {
         <input name="variantValue" placeholder="Value" value={form.variantValue} onChange={handleChange} />
 
         <select name="variantUnit" value={form.variantUnit} onChange={handleChange}>
-          <option>GM</option><option>KG</option><option>ML</option><option>L</option>
+          <option>GM</option>
+          <option>KG</option>
+          <option>ML</option>
+          <option>L</option>
         </select>
 
         <input name="mrp" type="number" placeholder="MRP" value={form.mrp} onChange={handleChange} />
         <input name="sellingPrice" type="number" placeholder="Selling Price" value={form.sellingPrice} onChange={handleChange} />
-
-        <div className="preview">
-          <p><b>Discount:</b> {discount}%</p>
-          <p><b>SKU:</b> {skuPreview}</p>
-        </div>
 
         <textarea name="shortDescription" placeholder="Short Description" value={form.shortDescription} onChange={handleChange} />
         <textarea name="description" placeholder="Full Description" value={form.description} onChange={handleChange} />
 
         <input name="ingredients" placeholder="Ingredients" value={form.ingredients} onChange={handleChange} />
         <input name="shelfLife" placeholder="Shelf Life" value={form.shelfLife} onChange={handleChange} />
-        <input name="fssai" placeholder="FSSAI License" value={form.fssai} onChange={handleChange} />
+        <input name="fssai" placeholder="FSSAI License No" value={form.fssai} onChange={handleChange} />
 
         <input type="file" multiple onChange={handleImageUpload} />
 
+        {/* IMAGE PREVIEW */}
         <div className="imageGrid">
           {imagePreviews.map((img, i) => (
             <div key={i} className="imgBox">
@@ -245,18 +288,24 @@ export default function ProductUpload() {
           ))}
         </div>
 
-        <button disabled={uploading}>
-          {uploading ? "Uploading Images..." : "Add Product"}
-        </button>
+        {/* FULL PREVIEW */}
+        <div className="preview">
+          <p><b>SKU:</b> {skuPreview}</p>
+          <p><b>Slug:</b> {slug}</p>
+          <p><b>Product Key:</b> {productKey}</p>
+          <p><b>Discount:</b> {discount}%</p>
+        </div>
+
+        <button>Add Product</button>
       </form>
 
       <style jsx>{`
-        .container { max-width: 900px; margin:auto; padding:20px; }
-        .form { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
-        input, textarea, select { padding:10px; border:1px solid #ddd; border-radius:8px; }
-        textarea { grid-column:span 2; }
-        button { grid-column:span 2; padding:12px; background:black; color:white; border:none; border-radius:10px; }
-        .preview { grid-column:span 2; background:#f5f5f5; padding:10px; border-radius:8px; }
+        .container { max-width: 900px; margin: auto; padding: 20px; }
+        .form { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        input, textarea, select { padding: 10px; border: 1px solid #ddd; border-radius: 8px; }
+        textarea { grid-column: span 2; }
+        button { grid-column: span 2; padding: 12px; background: black; color: white; border: none; border-radius: 10px; }
+        .preview { grid-column: span 2; background: #f5f5f5; padding: 10px; border-radius: 8px; }
 
         .imageGrid {
           grid-column: span 2;
@@ -278,6 +327,7 @@ export default function ProductUpload() {
           border-radius: 50%;
           width: 22px;
           height: 22px;
+          cursor: pointer;
         }
 
         .overlay {
