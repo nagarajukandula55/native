@@ -1,44 +1,52 @@
 import { NextResponse } from "next/server";
+import dbConnect from "@/lib/dbConnect";
+import Order from "@/models/Order";
 import Razorpay from "razorpay";
-
-export const dynamic = "force-dynamic";
-
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET,
-});
 
 export async function POST(req) {
   try {
+    await dbConnect();
+
     const body = await req.json();
+    const { cart, amount, address } = body;
 
-    const { cart, amount, user } = body;
-
-    if (!cart || !amount) {
-      return NextResponse.json(
-        { success: false, message: "Invalid order data" },
-        { status: 400 }
-      );
+    if (!cart || cart.length === 0) {
+      return NextResponse.json({ success: false, message: "Cart empty" });
     }
 
-    // Create Razorpay order
-    const order = await razorpay.orders.create({
-      amount: amount * 100, // INR → paise
-      currency: "INR",
-      receipt: "rcpt_" + Date.now(),
+    // 1️⃣ Create DB order (PENDING)
+    const orderDoc = await Order.create({
+      orderId: "ORD_" + Date.now(),
+      items: cart,
+      amount,
+      address,
+      status: "PENDING_PAYMENT",
     });
+
+    // 2️⃣ Razorpay order
+    const razorpay = new Razorpay({
+      key_id: process.env.RAZORPAY_KEY_ID,
+      key_secret: process.env.RAZORPAY_KEY_SECRET,
+    });
+
+    const razorpayOrder = await razorpay.orders.create({
+      amount: amount * 100,
+      currency: "INR",
+      receipt: orderDoc.orderId,
+    });
+
+    // 3️⃣ attach razorpay id
+    orderDoc.payment.razorpay_order_id = razorpayOrder.id;
+    await orderDoc.save();
 
     return NextResponse.json({
       success: true,
-      order,
+      order: razorpayOrder,
+      dbOrderId: orderDoc._id,
     });
 
   } catch (err) {
     console.error(err);
-
-    return NextResponse.json(
-      { success: false, message: "Order creation failed" },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false });
   }
 }
