@@ -10,9 +10,7 @@ import { ShoppingCart, Menu, X } from "lucide-react";
 export default function Navbar() {
   const { cartCount, drawerOpen, openCart, closeCart } = useCart();
 
-  // ❌ AUTH REMOVED (TEMP SAFE MODE)
-  const user = null;
-  const logout = () => {};
+  const user = null; // auth disabled for now
 
   const router = useRouter();
   const pathname = usePathname();
@@ -20,6 +18,7 @@ export default function Navbar() {
   const [mobile, setMobile] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
+  /* ================= RESPONSIVE ================= */
   useEffect(() => {
     const resize = () => setMobile(window.innerWidth < 900);
     resize();
@@ -28,6 +27,11 @@ export default function Navbar() {
   }, []);
 
   const showPublic = !user;
+
+  /* ================= HANDLERS ================= */
+  const handleCartClick = () => {
+    openCart?.(); // 🔥 safe call
+  };
 
   return (
     <>
@@ -50,14 +54,22 @@ export default function Navbar() {
           )}
 
           {/* CART */}
-          <div onClick={openCart} style={cart}>
+          <div
+            onClick={handleCartClick}
+            style={cart}
+            role="button"
+            tabIndex={0}
+          >
             <ShoppingCart size={18} />
             <span>{cartCount}</span>
           </div>
 
           {/* MOBILE MENU */}
           {mobile && (
-            <div onClick={() => setMenuOpen(!menuOpen)}>
+            <div
+              onClick={() => setMenuOpen(!menuOpen)}
+              style={{ cursor: "pointer" }}
+            >
               {menuOpen ? <X /> : <Menu />}
             </div>
           )}
@@ -65,7 +77,7 @@ export default function Navbar() {
       </header>
 
       {/* MOBILE MENU */}
-      {menuOpen && mobile && (
+      {mobile && menuOpen && (
         <div style={mobileMenu}>
           <Link href="/">Home</Link>
           <Link href="/products">Products</Link>
@@ -75,12 +87,13 @@ export default function Navbar() {
         </div>
       )}
 
+      {/* CART DRAWER */}
       <CartDrawer open={drawerOpen} setOpen={closeCart} />
     </>
   );
 }
 
-/* ================= LINK ================= */
+/* ================= NAV LINK ================= */
 function NavLink({ href, label, pathname }) {
   const active = pathname === href;
 
@@ -107,6 +120,9 @@ const header = {
   padding: "12px 20px",
   borderBottom: "1px solid #eee",
   background: "#fff",
+  position: "sticky",
+  top: 0,
+  zIndex: 50,
 };
 
 const nav = {
@@ -120,7 +136,10 @@ const logo = { height: 40 };
 const cart = {
   cursor: "pointer",
   display: "flex",
-  gap: 5,
+  alignItems: "center",
+  gap: 6,
+  padding: "6px 10px",
+  borderRadius: 8,
 };
 
 const mobileMenu = {
@@ -133,4 +152,5 @@ const mobileMenu = {
   display: "flex",
   flexDirection: "column",
   gap: 10,
+  zIndex: 999,
 };
