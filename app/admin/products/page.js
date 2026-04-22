@@ -4,13 +4,13 @@ import { useState, useEffect } from "react";
 
 export default function ProductUpload() {
 
-  const emptyVariant = {
+  const createEmptyVariant = () => ({
     value: "",
     unit: "GM",
     sku: "",
     mrp: "",
     sellingPrice: "",
-  };
+  });
 
   const emptyForm = {
     name: "",
@@ -24,57 +24,57 @@ export default function ProductUpload() {
     ingredients: "",
     shelfLife: "",
     images: [],
-    variants: [emptyVariant],
+    variants: [createEmptyVariant()],
   };
 
   const [form, setForm] = useState(emptyForm);
   const [productKey, setProductKey] = useState("");
   const [slug, setSlug] = useState("");
 
-  /* ================= GST CONFIG ================= */
+  /* ================= GST CONFIG (CORRECT) ================= */
 
   const gstOptions = [
     {
       name: "Flours & Meals (Cereal Based)",
-      hsn: "1101",
+      hsn: "1101/1102/1106",
       tax: 5,
-      desc: "Flour, meal and powder of cereals, pulses, millets",
+      desc: "Flour, meal and powder of cereals, pulses and millets (Chapter 11)",
     },
     {
-      name: "Food Preparations (Not Elsewhere Specified)",
+      name: "Food Preparations (NES)",
       hsn: "2106",
       tax: 5,
-      desc: "Food preparations like dosa mix, idli mix",
+      desc: "Food preparations not elsewhere specified or included (dosa mix, idli mix)",
     },
     {
       name: "Spices",
-      hsn: "0910",
+      hsn: "0904-0910",
       tax: 5,
-      desc: "Spices including masalas and powders",
+      desc: "Spices including pepper, chilli, turmeric and mixed masalas",
     },
     {
       name: "Edible Oils",
-      hsn: "1513",
+      hsn: "1507-1515",
       tax: 5,
-      desc: "Vegetable oils like groundnut, coconut oil",
+      desc: "Vegetable oils including groundnut, sesame, coconut oil",
     },
     {
       name: "Prepared / Preserved Foods",
-      hsn: "2001",
+      hsn: "2001-2008",
       tax: 12,
-      desc: "Pickles, chutneys, preserved foods",
+      desc: "Prepared or preserved vegetables, fruits, pickles, chutneys",
     },
     {
-      name: "Ready to Eat / Packaged Food",
-      hsn: "1904",
+      name: "Ready to Eat Food",
+      hsn: "1904/2106",
       tax: 12,
-      desc: "Ready-to-eat packaged food",
+      desc: "Prepared ready-to-eat packaged food",
     },
     {
-      name: "Namkeen / Snack Items",
+      name: "Namkeen / Snacks",
       hsn: "2106",
       tax: 12,
-      desc: "Namkeen, fried snacks",
+      desc: "Namkeen, mixtures and fried snack items",
     },
   ];
 
@@ -92,7 +92,7 @@ export default function ProductUpload() {
     "New Arrivals",
   ];
 
-  /* ================= AUTO ================= */
+  /* ================= AUTO PRODUCT KEY ================= */
 
   useEffect(() => {
     if (!form.name) return;
@@ -110,7 +110,7 @@ export default function ProductUpload() {
     setSlug(slugGen);
   }, [form.name]);
 
-  /* ================= GST AUTO FIXED ================= */
+  /* ================= GST AUTO FIX ================= */
 
   useEffect(() => {
     if (!form.gstCategory) return;
@@ -119,47 +119,44 @@ export default function ProductUpload() {
       (g) => g.name === form.gstCategory
     );
 
-    if (!selected) {
-      setForm(prev => ({
+    if (selected) {
+      setForm((prev) => ({
         ...prev,
-        hsn: "",
-        tax: "",
-        gstDescription: "",
+        hsn: selected.hsn,
+        tax: selected.tax,
+        gstDescription: selected.desc,
       }));
-      return;
     }
-
-    setForm(prev => ({
-      ...prev,
-      hsn: selected.hsn,
-      tax: selected.tax,
-      gstDescription: selected.desc,
-    }));
   }, [form.gstCategory]);
 
-  /* ================= VARIANTS ================= */
+  /* ================= VARIANT ================= */
 
   function updateVariant(i, field, value) {
     const updated = [...form.variants];
-    updated[i][field] = value;
+
+    updated[i] = { ...updated[i], [field]: value };
 
     if (updated[i].value && productKey) {
       const seq = String(i + 1).padStart(3, "0");
+
       updated[i].sku = `NA-${productKey}-${seq}-${updated[i].value}${updated[i].unit}`;
     }
 
-    setForm({ ...form, variants: updated });
+    setForm((prev) => ({ ...prev, variants: updated }));
   }
 
   function addVariant() {
-    setForm({ ...form, variants: [...form.variants, emptyVariant] });
+    setForm((prev) => ({
+      ...prev,
+      variants: [...prev.variants, createEmptyVariant()],
+    }));
   }
 
   function removeVariant(i) {
-    setForm({
-      ...form,
-      variants: form.variants.filter((_, idx) => idx !== i),
-    });
+    setForm((prev) => ({
+      ...prev,
+      variants: prev.variants.filter((_, idx) => idx !== i),
+    }));
   }
 
   /* ================= SUBMIT ================= */
@@ -167,17 +164,7 @@ export default function ProductUpload() {
   async function handleSubmit(e) {
     e.preventDefault();
 
-    if (!form.name || !form.category || !form.gstCategory) {
-      return alert("Fill all required fields");
-    }
-
-    if (!form.hsn || !form.tax) {
-      return alert("GST not mapped correctly");
-    }
-
     for (let v of form.variants) {
-      if (!v.value || !v.sellingPrice) continue;
-
       await fetch("/api/admin/products", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -193,7 +180,8 @@ export default function ProductUpload() {
       });
     }
 
-    alert("Product Added Successfully");
+    alert("Product Added");
+
     setForm(emptyForm);
   }
 
@@ -208,26 +196,32 @@ export default function ProductUpload() {
         <input
           placeholder="Product Name"
           value={form.name}
-          onChange={(e) => setForm({ ...form, name: e.target.value })}
+          onChange={(e) =>
+            setForm({ ...form, name: e.target.value })
+          }
         />
 
         <select
           value={form.category}
-          onChange={(e) => setForm({ ...form, category: e.target.value })}
+          onChange={(e) =>
+            setForm({ ...form, category: e.target.value })
+          }
         >
           <option value="">Select Category</option>
-          {websiteCategories.map(c => (
+          {websiteCategories.map((c) => (
             <option key={c} value={c}>{c}</option>
           ))}
         </select>
 
-        {/* GST FIXED */}
+        {/* ✅ GST FIXED */}
         <select
           value={form.gstCategory}
-          onChange={(e) => setForm({ ...form, gstCategory: e.target.value })}
+          onChange={(e) =>
+            setForm({ ...form, gstCategory: e.target.value })
+          }
         >
           <option value="">Select GST Category</option>
-          {gstOptions.map(g => (
+          {gstOptions.map((g) => (
             <option key={g.name} value={g.name}>
               {g.name} ({g.tax}%)
             </option>
@@ -236,7 +230,7 @@ export default function ProductUpload() {
 
         <input value={form.hsn} readOnly placeholder="HSN Code" />
         <input value={form.tax} readOnly placeholder="Tax %" />
-        <textarea value={form.gstDescription} readOnly placeholder="GST Description" />
+        <textarea value={form.gstDescription} readOnly />
 
         {/* VARIANTS */}
         <h3>Variants</h3>
@@ -246,33 +240,48 @@ export default function ProductUpload() {
             <input
               placeholder="Value"
               value={v.value}
-              onChange={(e)=>updateVariant(i,"value",e.target.value)}
+              onChange={(e) =>
+                updateVariant(i, "value", e.target.value)
+              }
             />
+
             <select
               value={v.unit}
-              onChange={(e)=>updateVariant(i,"unit",e.target.value)}
+              onChange={(e) =>
+                updateVariant(i, "unit", e.target.value)
+              }
             >
               <option>GM</option>
               <option>KG</option>
               <option>ML</option>
               <option>L</option>
             </select>
+
             <input
               placeholder="MRP"
               value={v.mrp}
-              onChange={(e)=>updateVariant(i,"mrp",e.target.value)}
+              onChange={(e) =>
+                updateVariant(i, "mrp", e.target.value)
+              }
             />
+
             <input
               placeholder="Selling Price"
               value={v.sellingPrice}
-              onChange={(e)=>updateVariant(i,"sellingPrice",e.target.value)}
+              onChange={(e) =>
+                updateVariant(i, "sellingPrice", e.target.value)
+              }
             />
+
             <input value={v.sku} readOnly />
-            <button type="button" onClick={()=>removeVariant(i)}>X</button>
+
+            <button type="button" onClick={() => removeVariant(i)}>X</button>
           </div>
         ))}
 
-        <button type="button" onClick={addVariant}>+ Add Variant</button>
+        <button type="button" onClick={addVariant}>
+          + Add Variant
+        </button>
 
         <button>Add Product</button>
 
@@ -281,11 +290,7 @@ export default function ProductUpload() {
       <style jsx>{`
         .container { max-width:900px;margin:auto;padding:20px; }
         input,select,textarea { width:100%;padding:10px;margin:8px 0; }
-        .row {
-          display:grid;
-          grid-template-columns:1fr 1fr 1fr 1fr 2fr auto;
-          gap:10px;
-        }
+        .row { display:grid;grid-template-columns:1fr 1fr 1fr 1fr 2fr auto;gap:10px; }
       `}</style>
     </div>
   );
