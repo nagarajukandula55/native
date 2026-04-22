@@ -18,8 +18,7 @@ export async function GET(req) {
       success: true,
       user,
     });
-
-  } catch {
+  } catch (err) {
     return NextResponse.json(
       { success: false },
       { status: 401 }
