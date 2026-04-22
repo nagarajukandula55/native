@@ -13,11 +13,17 @@ export async function POST(req) {
     }
 
     const user = {
+      id: 1,
       name: "Admin",
       email,
-      role: "admin",
+      permissions: [
+        "orders.view",
+        "orders.process",
+        "products.view",
+        "warehouse.view"
+      ]
     };
-
+    
     const token = jwt.sign(user, process.env.JWT_SECRET, {
       expiresIn: "7d",
     });
