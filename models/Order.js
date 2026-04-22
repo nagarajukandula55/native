@@ -1,71 +1,63 @@
 import mongoose from "mongoose";
 
+const OrderItemSchema = new mongoose.Schema({
+  productId: String,
+  name: String,
+  image: String,
+  price: Number,
+  qty: Number,
+});
+
 const OrderSchema = new mongoose.Schema(
   {
+    userId: { type: String, default: null },
+
     orderId: {
       type: String,
-      required: true,
       unique: true,
     },
 
-    customerName: String,
-    phone: String,
-    email: String,
+    items: [OrderItemSchema],
 
-    address: String,
-    pincode: String,
-
-    items: [
-      {
-        productId: mongoose.Schema.Types.ObjectId,
-        name: String,
-        quantity: Number,
-        price: Number,
-      },
-    ],
-
-    /* 🔥 NEW: SMART ALLOCATION */
-    allocations: [
-      {
-        productId: mongoose.Schema.Types.ObjectId,
-        warehouseId: mongoose.Schema.Types.ObjectId,
-        quantity: Number,
-      },
-    ],
-
-    totalAmount: Number,
+    amount: {
+      type: Number,
+      required: true,
+    },
 
     status: {
       type: String,
-      default: "Order Placed",
+      default: "PENDING_PAYMENT",
+      enum: [
+        "PENDING_PAYMENT",
+        "PAID",
+        "PROCESSING",
+        "PACKED",
+        "SHIPPED",
+        "DELIVERED",
+        "CANCELLED",
+        "FAILED",
+      ],
     },
 
-    paymentMethod: String,
-    paymentStatus: {
-      type: String,
-      default: "Pending",
+    payment: {
+      razorpay_order_id: String,
+      razorpay_payment_id: String,
+      razorpay_signature: String,
+      method: String,
+      paidAt: Date,
     },
 
-    assignedStore: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+    address: {
+      name: String,
+      phone: String,
+      address: String,
+      city: String,
+      pincode: String,
     },
 
-    awbNumber: String,
-    courierName: String,
-    trackingUrl: String,
-
-    statusHistory: [
-      {
-        status: String,
-        time: Date,
-        updatedBy: mongoose.Schema.Types.ObjectId,
-      },
-    ],
-
-    isDeleted: {
-      type: Boolean,
-      default: false,
+    createdAt: {
+      type: Date,
+      default: Date.now,
     },
   },
   { timestamps: true }
