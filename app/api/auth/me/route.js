@@ -12,11 +12,11 @@ export async function GET(req) {
       );
     }
 
-    const user = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     return NextResponse.json({
       success: true,
-      user,
+      user: decoded,
     });
   } catch (err) {
     return NextResponse.json(
