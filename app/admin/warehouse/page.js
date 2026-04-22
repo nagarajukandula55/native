@@ -78,3 +78,23 @@ export default function WarehousePage() {
     </div>
   );
 }
+
+
+const container = {
+  padding: 20,
+};
+
+const grid = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+  gap: 15,
+  marginTop: 20,
+};
+
+const card = {
+  background: "#fff",
+  padding: 15,
+  borderRadius: 10,
+  border: "1px solid #eee",
+  boxShadow: "0 3px 10px rgba(0,0,0,0.05)",
+};
