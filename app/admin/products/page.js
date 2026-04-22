@@ -1,147 +1,193 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
 
-export default function ProductsPage() {
-  const router = useRouter();
-
+export default function ProductUpload() {
   const emptyForm = {
     name: "",
-    sku: "",
-    sellingPrice: "",
-    mrp: "",
-    costPrice: "",
     category: "",
     subCategory: "",
-    gstCategory: "",
-    description: "",
+    mrp: "",
+    sellingPrice: "",
     shortDescription: "",
-    image: "",
+    description: "",
+    variantType: "Weight",
+    variantValue: "",
+    variantUnit: "GM",
+    images: [],
   };
 
   const [form, setForm] = useState(emptyForm);
-  const [products, setProducts] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [saving, setSaving] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [skuPreview, setSkuPreview] = useState("");
+  const [productKey, setProductKey] = useState("");
+  const [slug, setSlug] = useState("");
 
-  /* ================= LOAD DATA ================= */
+  /* ================= AUTO GENERATORS ================= */
+
   useEffect(() => {
-    loadProducts();
-    loadCategories();
-  }, []);
+    if (!form.name) return;
 
-  async function loadProducts() {
-    try {
-      const res = await fetch("/api/admin/products", {
-        credentials: "include",
-      });
+    // REMOVE "Native"
+    let clean = form.name.replace(/native/gi, "").trim();
 
-      const data = await res.json();
-      setProducts(data.products || []);
-    } catch (err) {
-      console.error("Error fetching products:", err);
-      setProducts([]);
-    } finally {
-      setLoading(false);
+    // PRODUCT KEY
+    const key = clean.toUpperCase().replace(/[^A-Z0-9]/g, "");
+    setProductKey(key);
+
+    // SLUG
+    const s = form.name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "");
+    setSlug(s);
+
+    // SKU PREVIEW (STATIC 001 FOR NOW)
+    const variant = `${form.variantValue}${form.variantUnit}`.toUpperCase();
+
+    if (form.variantValue) {
+      setSkuPreview(`NA-${key}-001-${variant}`);
     }
-  }
+  }, [form.name, form.variantValue, form.variantUnit]);
 
-  async function loadCategories() {
-    try {
-      const res = await fetch("/api/admin/categories", {
-        credentials: "include",
-      });
-
-      const data = await res.json();
-      setCategories(Array.isArray(data.categories) ? data.categories : []);
-    } catch (err) {
-      console.error("CATEGORY LOAD ERROR", err);
-      setCategories([]);
-    }
-  }
+  /* ================= HANDLE CHANGE ================= */
 
   function handleChange(e) {
     setForm({ ...form, [e.target.name]: e.target.value });
   }
 
+  /* ================= IMAGE UPLOAD ================= */
+
+  async function handleImageUpload(e) {
+    const files = Array.from(e.target.files);
+
+    const uploaded = [];
+
+    for (let file of files) {
+      const data = new FormData();
+      data.append("file", file);
+      data.append("upload_preset", "your_upload_preset");
+
+      const res = await fetch(
+        `https://api.cloudinary.com/v1_1/YOUR_CLOUD_NAME/image/upload`,
+        {
+          method: "POST",
+          body: data,
+        }
+      );
+
+      const json = await res.json();
+      uploaded.push(json.secure_url);
+    }
+
+    setForm({ ...form, images: [...form.images, ...uploaded] });
+  }
+
+  /* ================= SUBMIT ================= */
+
   async function handleSubmit(e) {
     e.preventDefault();
 
-    if (!form.name || !form.sku || !form.sellingPrice) {
-      return alert("Name, SKU & Price required");
+    if (!form.name || !form.variantValue || !form.sellingPrice) {
+      return alert("Fill required fields");
     }
 
-    setSaving(true);
+    const finalSKU = skuPreview;
 
-    try {
-      await fetch("/api/admin/products", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          ...form,
-          sellingPrice: Number(form.sellingPrice),
-          mrp: Number(form.mrp),
-          costPrice: Number(form.costPrice),
-        }),
-      });
+    const payload = {
+      ...form,
+      sku: finalSKU,
+      productKey,
+      slug,
+      variant: `${form.variantValue}${form.variantUnit}`.toUpperCase(),
+      discount:
+        form.mrp && form.sellingPrice
+          ? Math.round(
+              ((form.mrp - form.sellingPrice) / form.mrp) * 100
+            )
+          : 0,
+    };
 
-      setForm(emptyForm);
-      loadProducts();
-    } catch (err) {
-      console.error(err);
-      alert("Failed to save product");
-    }
+    await fetch("/api/admin/products", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
 
-    setSaving(false);
+    alert("Product Added");
+    setForm(emptyForm);
   }
 
-  const websiteCats = categories.filter((c) => c.type === "website");
-  const subCats = categories.filter((c) => c.type === "sub");
-  const gstCats = categories.filter((c) => c.type === "gst");
+  /* ================= UI ================= */
 
   return (
-    <div style={container}>
-      <h1 style={title}>🛍 Product Management</h1>
+    <div className="container">
+      <h1>🍽 Product Upload</h1>
 
-      {/* FORM */}
-      <form onSubmit={handleSubmit} style={formBox}>
-        <input name="name" placeholder="Product Name" value={form.name} onChange={handleChange} />
-        <input name="sku" placeholder="SKU" value={form.sku} onChange={handleChange} />
+      <form onSubmit={handleSubmit} className="form">
+        <input
+          name="name"
+          placeholder="Product Name"
+          value={form.name}
+          onChange={handleChange}
+        />
 
-        <input name="sellingPrice" type="number" placeholder="Selling Price" value={form.sellingPrice} onChange={handleChange} />
-        <input name="mrp" type="number" placeholder="MRP" value={form.mrp} onChange={handleChange} />
-        <input name="costPrice" type="number" placeholder="Cost Price" value={form.costPrice} onChange={handleChange} />
+        <input
+          name="category"
+          placeholder="Category"
+          value={form.category}
+          onChange={handleChange}
+        />
 
-        <select name="category" value={form.category} onChange={handleChange}>
-          <option value="">Website Category</option>
-          {websiteCats.map((c) => (
-            <option key={c._id} value={c._id}>{c.name}</option>
-          ))}
+        <input
+          name="subCategory"
+          placeholder="Sub Category"
+          value={form.subCategory}
+          onChange={handleChange}
+        />
+
+        {/* VARIANT */}
+        <select name="variantType" value={form.variantType} onChange={handleChange}>
+          <option>Weight</option>
+          <option>Volume</option>
         </select>
 
-        <select name="subCategory" value={form.subCategory} onChange={handleChange}>
-          <option value="">Sub Category</option>
-          {subCats.map((c) => (
-            <option key={c._id} value={c._id}>{c.name}</option>
-          ))}
+        <input
+          name="variantValue"
+          placeholder="Value (250, 500, 1)"
+          value={form.variantValue}
+          onChange={handleChange}
+        />
+
+        <select name="variantUnit" value={form.variantUnit} onChange={handleChange}>
+          <option>GM</option>
+          <option>KG</option>
+          <option>ML</option>
+          <option>L</option>
         </select>
 
-        <select name="gstCategory" value={form.gstCategory} onChange={handleChange}>
-          <option value="">GST Category</option>
-          {gstCats.map((c) => (
-            <option key={c._id} value={c._id}>{c.name}</option>
-          ))}
-        </select>
+        {/* PRICING */}
+        <input
+          name="mrp"
+          type="number"
+          placeholder="MRP"
+          value={form.mrp}
+          onChange={handleChange}
+        />
 
+        <input
+          name="sellingPrice"
+          type="number"
+          placeholder="Selling Price"
+          value={form.sellingPrice}
+          onChange={handleChange}
+        />
+
+        {/* DESCRIPTION */}
         <textarea
           name="shortDescription"
           placeholder="Short Description"
           value={form.shortDescription}
           onChange={handleChange}
-          style={{ gridColumn: "span 2" }}
         />
 
         <textarea
@@ -149,81 +195,64 @@ export default function ProductsPage() {
           placeholder="Full Description"
           value={form.description}
           onChange={handleChange}
-          style={{ gridColumn: "span 2" }}
         />
 
-        <button disabled={saving} style={btn}>
-          {saving ? "Saving..." : "Add Product"}
-        </button>
+        {/* FOOD FIELDS */}
+        <input name="ingredients" placeholder="Ingredients" onChange={handleChange} />
+        <input name="shelfLife" placeholder="Shelf Life (e.g 6 Months)" onChange={handleChange} />
+        <input name="fssai" placeholder="FSSAI Number" onChange={handleChange} />
+
+        {/* IMAGES */}
+        <input type="file" multiple onChange={handleImageUpload} />
+
+        <div className="preview">
+          <p><b>SKU:</b> {skuPreview}</p>
+          <p><b>Slug:</b> {slug}</p>
+          <p><b>Product Key:</b> {productKey}</p>
+        </div>
+
+        <button>Add Product</button>
       </form>
 
-      {/* LIST */}
-      <div style={{ marginTop: 40 }}>
-        <h2>Products List</h2>
+      <style jsx>{`
+        .container {
+          max-width: 900px;
+          margin: auto;
+          padding: 20px;
+        }
 
-        {loading ? (
-          <p>Loading...</p>
-        ) : products.length === 0 ? (
-          <p>No products found</p>
-        ) : (
-          <div style={list}>
-            {products.map((p) => (
-              <div key={p._id} style={card}>
-                <h4>{p.name}</h4>
-                <p>SKU: {p.sku}</p>
-                <p>₹{p.sellingPrice}</p>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+        .form {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 12px;
+        }
+
+        input, textarea, select {
+          padding: 10px;
+          border: 1px solid #ddd;
+          border-radius: 8px;
+        }
+
+        textarea {
+          grid-column: span 2;
+        }
+
+        button {
+          grid-column: span 2;
+          padding: 12px;
+          background: black;
+          color: white;
+          border: none;
+          border-radius: 10px;
+        }
+
+        .preview {
+          grid-column: span 2;
+          background: #f5f5f5;
+          padding: 10px;
+          border-radius: 8px;
+        }
+      `}</style>
     </div>
   );
 }
-
-/* ================= STYLES ================= */
-
-const container = {
-  maxWidth: 1200,
-  margin: "auto",
-  padding: 20,
-};
-
-const title = {
-  fontSize: 28,
-  fontWeight: "bold",
-  marginBottom: 20,
-};
-
-const formBox = {
-  display: "grid",
-  gridTemplateColumns: "1fr 1fr",
-  gap: 12,
-  background: "#fff",
-  padding: 20,
-  borderRadius: 12,
-  boxShadow: "0 10px 25px rgba(0,0,0,0.05)",
-};
-
-const btn = {
-  gridColumn: "span 2",
-  padding: 12,
-  background: "#111",
-  color: "#fff",
-  border: "none",
-  borderRadius: 8,
-  cursor: "pointer",
-};
-
-const list = {
-  display: "grid",
-  gridTemplateColumns: "repeat(auto-fill, minmax(220px,1fr))",
-  gap: 15,
-};
-
-const card = {
-  padding: 15,
-  border: "1px solid #eee",
-  borderRadius: 10,
-  background: "#fff",
-};
