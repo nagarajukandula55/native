@@ -14,31 +14,33 @@ export async function POST(req) {
     }
 
     const user = {
+      id: "1",
       name: "Admin",
       email,
       role: "admin",
+      permissions: [
+        "orders.view",
+        "orders.process",
+        "products.view",
+        "warehouse.view",
+      ],
     };
 
     const token = jwt.sign(user, process.env.JWT_SECRET, {
       expiresIn: "7d",
     });
 
-    const res = NextResponse.json({
-      success: true,
-      user,
-    });
+    const res = NextResponse.json({ success: true, user });
 
-    // ✅ FINAL COOKIE CONFIG (CRITICAL)
     res.cookies.set("token", token, {
       httpOnly: true,
-      secure: true,
+      secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       path: "/",
       maxAge: 60 * 60 * 24 * 7,
     });
 
     return res;
-
   } catch (err) {
     return NextResponse.json(
       { success: false, message: "Server error" },
