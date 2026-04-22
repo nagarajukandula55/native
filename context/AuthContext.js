@@ -5,9 +5,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(undefined); 
-  // 👆 IMPORTANT: undefined = "still checking"
-
+  const [user, setUser] = useState(undefined); // IMPORTANT
   const [loading, setLoading] = useState(true);
 
   const fetchUser = async () => {
