@@ -20,14 +20,12 @@ export default function ProductUpload() {
     images: [],
     ingredients: "",
     shelfLife: "",
-    fssai: "",
   };
 
   const [form, setForm] = useState(emptyForm);
   const [skuPreview, setSkuPreview] = useState("");
   const [productKey, setProductKey] = useState("");
   const [slug, setSlug] = useState("");
-
   const [imagePreviews, setImagePreviews] = useState([]);
 
   /* ================= GST CONFIG ================= */
@@ -37,13 +35,13 @@ export default function ProductUpload() {
       name: "Food Preparations (Instant Mix)",
       hsn: "2106",
       tax: 5,
-      desc: "Food preparations not elsewhere specified or included (e.g., dosa mix, idli mix)",
+      desc: "Food preparations not elsewhere specified or included",
     },
     {
       name: "Spices (Mixed/Ground)",
       hsn: "0910",
       tax: 5,
-      desc: "Spices including mixed masalas and ground spices",
+      desc: "Spices including mixed masalas",
     },
     {
       name: "Edible Oils",
@@ -61,19 +59,19 @@ export default function ProductUpload() {
       name: "Pickles & Preserved Foods",
       hsn: "2001",
       tax: 12,
-      desc: "Vegetables, fruits preserved in vinegar, brine, or oil",
+      desc: "Preserved vegetables/fruits",
     },
     {
       name: "Ready to Eat Foods",
       hsn: "2106",
       tax: 12,
-      desc: "Fully cooked packaged food products",
+      desc: "Fully cooked packaged foods",
     },
     {
       name: "Snacks / Namkeen",
       hsn: "2106",
       tax: 12,
-      desc: "Namkeen, mixtures, fried snack items",
+      desc: "Namkeen & fried snacks",
     },
   ];
 
@@ -91,7 +89,7 @@ export default function ProductUpload() {
     "New Arrivals",
   ];
 
-  /* ================= AUTO ================= */
+  /* ================= AUTO GENERATORS ================= */
 
   useEffect(() => {
     if (!form.name) return;
@@ -101,21 +99,28 @@ export default function ProductUpload() {
     const key = clean.toUpperCase().replace(/[^A-Z0-9]/g, "");
     setProductKey(key);
 
-    const s = form.name
+    const slugGen = form.name
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/(^-|-$)/g, "");
-    setSlug(s);
+    setSlug(slugGen);
+
+    if (!form.variantValue) return;
 
     const variant = `${form.variantValue}${form.variantUnit}`.toUpperCase();
 
-    if (form.variantValue) {
-      setSkuPreview(`NA-${key}-001-${variant}`);
-    }
+    setSkuPreview(`NA-${key}-001-${variant}`);
   }, [form.name, form.variantValue, form.variantUnit]);
 
+  /* ================= GST AUTO ================= */
+
   useEffect(() => {
-    const selected = gstOptions.find((g) => g.name === form.gstCategory);
+    if (!form.gstCategory) return;
+
+    const selected = gstOptions.find(
+      (g) => g.name === form.gstCategory
+    );
+
     if (selected) {
       setForm((prev) => ({
         ...prev,
@@ -126,11 +131,18 @@ export default function ProductUpload() {
     }
   }, [form.gstCategory]);
 
+  /* ================= SAFE HANDLE CHANGE ================= */
+
   function handleChange(e) {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+
+    setForm((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
   }
 
-  /* ================= IMAGE UPLOAD + PREVIEW ================= */
+  /* ================= IMAGE UPLOAD ================= */
 
   async function handleImageUpload(e) {
     const files = Array.from(e.target.files);
@@ -152,22 +164,26 @@ export default function ProductUpload() {
         process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET
       );
 
-      const res = await fetch(
-        `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`,
-        { method: "POST", body: data }
-      );
+      try {
+        const res = await fetch(
+          `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`,
+          { method: "POST", body: data }
+        );
 
-      const json = await res.json();
-      uploadedUrls.push(json.secure_url);
+        const json = await res.json();
+        uploadedUrls.push(json.secure_url);
 
-      setImagePreviews((prev) => {
-        const updated = [...prev];
-        updated[prev.length - files.length + i] = {
-          preview: json.secure_url,
-          uploading: false,
-        };
-        return updated;
-      });
+        setImagePreviews((prev) => {
+          const updated = [...prev];
+          updated[prev.length - files.length + i] = {
+            preview: json.secure_url,
+            uploading: false,
+          };
+          return updated;
+        });
+      } catch (err) {
+        console.error("Upload failed", err);
+      }
     }
 
     setForm((prev) => ({
@@ -178,6 +194,7 @@ export default function ProductUpload() {
 
   function removeImage(index) {
     setImagePreviews((prev) => prev.filter((_, i) => i !== index));
+
     setForm((prev) => ({
       ...prev,
       images: prev.images.filter((_, i) => i !== index),
@@ -205,6 +222,8 @@ export default function ProductUpload() {
           : 0,
     };
 
+    console.log("PAYLOAD:", payload);
+
     await fetch("/api/admin/products", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -212,6 +231,7 @@ export default function ProductUpload() {
     });
 
     alert("Product Added");
+
     setForm(emptyForm);
     setImagePreviews([]);
   }
@@ -233,14 +253,15 @@ export default function ProductUpload() {
         <select name="category" value={form.category} onChange={handleChange}>
           <option value="">Select Website Category</option>
           {websiteCategories.map((cat) => (
-            <option key={cat}>{cat}</option>
+            <option key={cat} value={cat}>{cat}</option>
           ))}
         </select>
 
+        {/* GST FIXED */}
         <select name="gstCategory" value={form.gstCategory} onChange={handleChange}>
           <option value="">Select GST Category</option>
           {gstOptions.map((g) => (
-            <option key={g.name}>
+            <option key={g.name} value={g.name}>
               {g.name} ({g.tax}%)
             </option>
           ))}
@@ -273,22 +294,9 @@ export default function ProductUpload() {
 
         <input name="ingredients" placeholder="Ingredients" value={form.ingredients} onChange={handleChange} />
         <input name="shelfLife" placeholder="Shelf Life" value={form.shelfLife} onChange={handleChange} />
-        <input name="fssai" placeholder="FSSAI License No" value={form.fssai} onChange={handleChange} />
 
         <input type="file" multiple onChange={handleImageUpload} />
 
-        {/* IMAGE PREVIEW */}
-        <div className="imageGrid">
-          {imagePreviews.map((img, i) => (
-            <div key={i} className="imgBox">
-              <img src={img.preview} />
-              {img.uploading && <div className="overlay">Uploading...</div>}
-              <button type="button" onClick={() => removeImage(i)}>✕</button>
-            </div>
-          ))}
-        </div>
-
-        {/* FULL PREVIEW */}
         <div className="preview">
           <p><b>SKU:</b> {skuPreview}</p>
           <p><b>Slug:</b> {slug}</p>
@@ -298,49 +306,6 @@ export default function ProductUpload() {
 
         <button>Add Product</button>
       </form>
-
-      <style jsx>{`
-        .container { max-width: 900px; margin: auto; padding: 20px; }
-        .form { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-        input, textarea, select { padding: 10px; border: 1px solid #ddd; border-radius: 8px; }
-        textarea { grid-column: span 2; }
-        button { grid-column: span 2; padding: 12px; background: black; color: white; border: none; border-radius: 10px; }
-        .preview { grid-column: span 2; background: #f5f5f5; padding: 10px; border-radius: 8px; }
-
-        .imageGrid {
-          grid-column: span 2;
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
-          gap: 10px;
-        }
-
-        .imgBox { position: relative; }
-        .imgBox img { width: 100%; height: 90px; object-fit: cover; border-radius: 8px; }
-
-        .imgBox button {
-          position: absolute;
-          top: 5px;
-          right: 5px;
-          background: red;
-          color: white;
-          border: none;
-          border-radius: 50%;
-          width: 22px;
-          height: 22px;
-          cursor: pointer;
-        }
-
-        .overlay {
-          position: absolute;
-          inset: 0;
-          background: rgba(0,0,0,0.5);
-          color: white;
-          font-size: 10px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-      `}</style>
     </div>
   );
 }
