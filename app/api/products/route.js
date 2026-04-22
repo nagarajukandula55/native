@@ -2,14 +2,37 @@ import { NextResponse } from "next/server";
 import connectDB from "@/lib/db";
 import Product from "@/models/Product";
 
-export async function GET() {
+export async function GET(req) {
   try {
     await connectDB();
 
-    /* 🔥 FETCH ALL ACTIVE PRODUCTS */
-    const products = await Product.find({ isActive: true }).lean();
+    const { searchParams } = new URL(req.url);
 
-    /* 🔥 GROUP BY productKey */
+    /* ================= QUERY PARAMS ================= */
+    const page = parseInt(searchParams.get("page")) || 1;
+    const limit = parseInt(searchParams.get("limit")) || 12;
+
+    const category = searchParams.get("category");
+    const minPrice = parseInt(searchParams.get("minPrice"));
+    const maxPrice = parseInt(searchParams.get("maxPrice"));
+    const sort = searchParams.get("sort"); // price_asc, price_desc, latest
+    const search = searchParams.get("search");
+
+    /* ================= BASE QUERY ================= */
+    let query = { isActive: true };
+
+    if (category) {
+      query.category = category;
+    }
+
+    if (search) {
+      query.name = { $regex: search, $options: "i" };
+    }
+
+    /* ================= FETCH ================= */
+    const products = await Product.find(query).lean();
+
+    /* ================= GROUP ================= */
     const grouped = {};
 
     for (let p of products) {
@@ -19,13 +42,11 @@ export async function GET() {
       grouped[p.productKey].push(p);
     }
 
-    /* 🔥 BUILD FINAL LIST */
-    const finalProducts = Object.values(grouped).map((variants) => {
-      
-      /* ✅ SORT BY PRICE (LOWEST FIRST) */
+    /* ================= BUILD ================= */
+    let finalProducts = Object.values(grouped).map((variants) => {
       variants.sort((a, b) => a.sellingPrice - b.sellingPrice);
 
-      const best = variants[0]; // default variant
+      const best = variants[0];
 
       const discount =
         best.mrp && best.sellingPrice
@@ -46,19 +67,52 @@ export async function GET() {
         discount,
 
         variantsCount: variants.length,
+        createdAt: best.createdAt,
       };
     });
 
-    /* 🔥 SORT BY LATEST */
-    finalProducts.sort((a, b) => new Date(b._id) - new Date(a._id));
+    /* ================= PRICE FILTER ================= */
+    if (!isNaN(minPrice)) {
+      finalProducts = finalProducts.filter((p) => p.price >= minPrice);
+    }
 
+    if (!isNaN(maxPrice)) {
+      finalProducts = finalProducts.filter((p) => p.price <= maxPrice);
+    }
+
+    /* ================= SORT ================= */
+    if (sort === "price_asc") {
+      finalProducts.sort((a, b) => a.price - b.price);
+    } else if (sort === "price_desc") {
+      finalProducts.sort((a, b) => b.price - a.price);
+    } else {
+      // latest
+      finalProducts.sort(
+        (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+      );
+    }
+
+    /* ================= PAGINATION ================= */
+    const total = finalProducts.length;
+    const start = (page - 1) * limit;
+    const end = start + limit;
+
+    const paginated = finalProducts.slice(start, end);
+
+    /* ================= RESPONSE ================= */
     return NextResponse.json({
       success: true,
-      products: finalProducts,
+      products: paginated,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
     });
 
   } catch (err) {
-    console.error("PRODUCT LIST ERROR:", err);
+    console.error("FILTER API ERROR:", err);
 
     return NextResponse.json(
       { success: false, products: [] },
