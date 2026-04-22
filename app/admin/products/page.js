@@ -28,54 +28,20 @@ export default function ProductUpload() {
   const [productKey, setProductKey] = useState("");
   const [slug, setSlug] = useState("");
 
-  /* ================= GST CONFIG (LEGAL) ================= */
+  const [imagePreviews, setImagePreviews] = useState([]);
+  const [uploading, setUploading] = useState(false);
+
+  /* ================= GST CONFIG ================= */
 
   const gstOptions = [
-    {
-      name: "Food Preparations (Instant Mix)",
-      hsn: "2106",
-      tax: 5,
-      desc: "Food preparations not elsewhere specified or included (e.g., dosa mix, idli mix)",
-    },
-    {
-      name: "Spices (Mixed/Ground)",
-      hsn: "0910",
-      tax: 5,
-      desc: "Spices including mixed masalas and ground spices",
-    },
-    {
-      name: "Edible Oils",
-      hsn: "1513",
-      tax: 5,
-      desc: "Vegetable oils including cold pressed oils",
-    },
-    {
-      name: "Flours & Atta",
-      hsn: "1101",
-      tax: 5,
-      desc: "Cereal flours like wheat, millet, rice flour",
-    },
-    {
-      name: "Pickles & Preserved Foods",
-      hsn: "2001",
-      tax: 12,
-      desc: "Vegetables, fruits preserved in vinegar, brine, or oil",
-    },
-    {
-      name: "Ready to Eat Foods",
-      hsn: "2106",
-      tax: 12,
-      desc: "Fully cooked packaged food products",
-    },
-    {
-      name: "Snacks / Namkeen",
-      hsn: "2106",
-      tax: 12,
-      desc: "Namkeen, mixtures, fried snack items",
-    },
+    { name: "Food Preparations (Instant Mix)", hsn: "2106", tax: 5, desc: "Food preparations like dosa mix" },
+    { name: "Spices (Mixed/Ground)", hsn: "0910", tax: 5, desc: "Masalas & spices" },
+    { name: "Edible Oils", hsn: "1513", tax: 5, desc: "Cold pressed oils" },
+    { name: "Flours & Atta", hsn: "1101", tax: 5, desc: "Wheat, millet flours" },
+    { name: "Pickles & Preserved Foods", hsn: "2001", tax: 12, desc: "Pickles" },
+    { name: "Ready to Eat Foods", hsn: "2106", tax: 12, desc: "Cooked packaged food" },
+    { name: "Snacks / Namkeen", hsn: "2106", tax: 12, desc: "Snacks" },
   ];
-
-  /* ================= WEBSITE CATEGORY ================= */
 
   const websiteCategories = [
     "Instant Mixes",
@@ -91,30 +57,22 @@ export default function ProductUpload() {
     "New Arrivals",
   ];
 
-  /* ================= AUTO GENERATORS ================= */
+  /* ================= AUTO ================= */
 
   useEffect(() => {
     if (!form.name) return;
 
     let clean = form.name.replace(/native/gi, "").trim();
-
     const key = clean.toUpperCase().replace(/[^A-Z0-9]/g, "");
     setProductKey(key);
 
-    const s = form.name
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/(^-|-$)/g, "");
+    const s = form.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
     setSlug(s);
 
-    const variant = `${form.variantValue}${form.variantUnit}`.toUpperCase();
-
     if (form.variantValue) {
-      setSkuPreview(`NA-${key}-001-${variant}`);
+      setSkuPreview(`NA-${key}-001-${form.variantValue}${form.variantUnit}`);
     }
   }, [form.name, form.variantValue, form.variantUnit]);
-
-  /* ================= GST AUTO ================= */
 
   useEffect(() => {
     const selected = gstOptions.find((g) => g.name === form.gstCategory);
@@ -132,33 +90,58 @@ export default function ProductUpload() {
     setForm({ ...form, [e.target.name]: e.target.value });
   }
 
-  /* ================= IMAGE UPLOAD ================= */
+  /* ================= IMAGE UPLOAD WITH PREVIEW ================= */
 
   async function handleImageUpload(e) {
     const files = Array.from(e.target.files);
-    const uploaded = [];
 
-    for (let file of files) {
+    const previews = files.map((file) => ({
+      preview: URL.createObjectURL(file),
+      uploading: true,
+    }));
+
+    setImagePreviews((prev) => [...prev, ...previews]);
+    setUploading(true);
+
+    const uploadedUrls = [];
+
+    for (let i = 0; i < files.length; i++) {
       const data = new FormData();
-      data.append("file", file);
-      data.append(
-        "upload_preset",
-        process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET
-      );
+      data.append("file", files[i]);
+      data.append("upload_preset", process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET);
 
       const res = await fetch(
         `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`,
-        {
-          method: "POST",
-          body: data,
-        }
+        { method: "POST", body: data }
       );
 
       const json = await res.json();
-      uploaded.push(json.secure_url);
+      uploadedUrls.push(json.secure_url);
+
+      setImagePreviews((prev) => {
+        const updated = [...prev];
+        updated[prev.length - files.length + i] = {
+          preview: json.secure_url,
+          uploading: false,
+        };
+        return updated;
+      });
     }
 
-    setForm({ ...form, images: [...form.images, ...uploaded] });
+    setForm((prev) => ({
+      ...prev,
+      images: [...prev.images, ...uploadedUrls],
+    }));
+
+    setUploading(false);
+  }
+
+  function removeImage(index) {
+    setImagePreviews((prev) => prev.filter((_, i) => i !== index));
+    setForm((prev) => ({
+      ...prev,
+      images: prev.images.filter((_, i) => i !== index),
+    }));
   }
 
   /* ================= SUBMIT ================= */
@@ -175,7 +158,7 @@ export default function ProductUpload() {
       sku: skuPreview,
       productKey,
       slug,
-      variant: `${form.variantValue}${form.variantUnit}`.toUpperCase(),
+      variant: `${form.variantValue}${form.variantUnit}`,
       discount:
         form.mrp && form.sellingPrice
           ? Math.round(((form.mrp - form.sellingPrice) / form.mrp) * 100)
@@ -190,7 +173,13 @@ export default function ProductUpload() {
 
     alert("Product Added");
     setForm(emptyForm);
+    setImagePreviews([]);
   }
+
+  const discount =
+    form.mrp && form.sellingPrice
+      ? Math.round(((form.mrp - form.sellingPrice) / form.mrp) * 100)
+      : 0;
 
   /* ================= UI ================= */
 
@@ -201,36 +190,23 @@ export default function ProductUpload() {
       <form onSubmit={handleSubmit} className="form">
         <input name="name" placeholder="Product Name" value={form.name} onChange={handleChange} />
 
-        {/* WEBSITE CATEGORY */}
         <select name="category" value={form.category} onChange={handleChange}>
-          <option value="">Select Website Category</option>
-          {websiteCategories.map((cat) => (
-            <option key={cat} value={cat}>{cat}</option>
-          ))}
+          <option value="">Select Category</option>
+          {websiteCategories.map((c) => <option key={c}>{c}</option>)}
         </select>
 
-        {/* GST CATEGORY */}
         <select name="gstCategory" value={form.gstCategory} onChange={handleChange}>
-          <option value="">Select GST Category</option>
+          <option value="">Select GST</option>
           {gstOptions.map((g) => (
-            <option key={g.name} value={g.name}>
-              {g.name} ({g.tax}%)
-            </option>
+            <option key={g.name}>{g.name} ({g.tax}%)</option>
           ))}
         </select>
 
-        <input name="hsn" placeholder="HSN Code" value={form.hsn} readOnly />
-        <input name="tax" placeholder="Tax %" value={form.tax} readOnly />
+        <input value={form.hsn} readOnly placeholder="HSN" />
+        <input value={form.tax} readOnly placeholder="Tax %" />
 
-        {/* GST DESCRIPTION */}
-        <textarea
-          name="gstDescription"
-          placeholder="GST Description"
-          value={form.gstDescription}
-          readOnly
-        />
+        <textarea value={form.gstDescription} readOnly placeholder="GST Description" />
 
-        {/* VARIANT */}
         <select name="variantType" value={form.variantType} onChange={handleChange}>
           <option>Weight</option>
           <option>Volume</option>
@@ -239,44 +215,81 @@ export default function ProductUpload() {
         <input name="variantValue" placeholder="Value" value={form.variantValue} onChange={handleChange} />
 
         <select name="variantUnit" value={form.variantUnit} onChange={handleChange}>
-          <option>GM</option>
-          <option>KG</option>
-          <option>ML</option>
-          <option>L</option>
+          <option>GM</option><option>KG</option><option>ML</option><option>L</option>
         </select>
 
-        {/* PRICING */}
         <input name="mrp" type="number" placeholder="MRP" value={form.mrp} onChange={handleChange} />
         <input name="sellingPrice" type="number" placeholder="Selling Price" value={form.sellingPrice} onChange={handleChange} />
 
-        {/* DESCRIPTION */}
+        <div className="preview">
+          <p><b>Discount:</b> {discount}%</p>
+          <p><b>SKU:</b> {skuPreview}</p>
+        </div>
+
         <textarea name="shortDescription" placeholder="Short Description" value={form.shortDescription} onChange={handleChange} />
         <textarea name="description" placeholder="Full Description" value={form.description} onChange={handleChange} />
 
-        {/* FOOD */}
         <input name="ingredients" placeholder="Ingredients" value={form.ingredients} onChange={handleChange} />
         <input name="shelfLife" placeholder="Shelf Life" value={form.shelfLife} onChange={handleChange} />
-        <input name="fssai" placeholder="FSSAI License No" value={form.fssai} onChange={handleChange} />
+        <input name="fssai" placeholder="FSSAI License" value={form.fssai} onChange={handleChange} />
 
-        {/* IMAGES */}
         <input type="file" multiple onChange={handleImageUpload} />
 
-        <div className="preview">
-          <p><b>SKU:</b> {skuPreview}</p>
-          <p><b>Slug:</b> {slug}</p>
-          <p><b>Product Key:</b> {productKey}</p>
+        <div className="imageGrid">
+          {imagePreviews.map((img, i) => (
+            <div key={i} className="imgBox">
+              <img src={img.preview} />
+              {img.uploading && <div className="overlay">Uploading...</div>}
+              <button type="button" onClick={() => removeImage(i)}>✕</button>
+            </div>
+          ))}
         </div>
 
-        <button>Add Product</button>
+        <button disabled={uploading}>
+          {uploading ? "Uploading Images..." : "Add Product"}
+        </button>
       </form>
 
       <style jsx>{`
-        .container { max-width: 900px; margin: auto; padding: 20px; }
-        .form { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-        input, textarea, select { padding: 10px; border: 1px solid #ddd; border-radius: 8px; }
-        textarea { grid-column: span 2; }
-        button { grid-column: span 2; padding: 12px; background: black; color: white; border: none; border-radius: 10px; }
-        .preview { grid-column: span 2; background: #f5f5f5; padding: 10px; border-radius: 8px; }
+        .container { max-width: 900px; margin:auto; padding:20px; }
+        .form { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+        input, textarea, select { padding:10px; border:1px solid #ddd; border-radius:8px; }
+        textarea { grid-column:span 2; }
+        button { grid-column:span 2; padding:12px; background:black; color:white; border:none; border-radius:10px; }
+        .preview { grid-column:span 2; background:#f5f5f5; padding:10px; border-radius:8px; }
+
+        .imageGrid {
+          grid-column: span 2;
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+          gap: 10px;
+        }
+
+        .imgBox { position: relative; }
+        .imgBox img { width: 100%; height: 90px; object-fit: cover; border-radius: 8px; }
+
+        .imgBox button {
+          position: absolute;
+          top: 5px;
+          right: 5px;
+          background: red;
+          color: white;
+          border: none;
+          border-radius: 50%;
+          width: 22px;
+          height: 22px;
+        }
+
+        .overlay {
+          position: absolute;
+          inset: 0;
+          background: rgba(0,0,0,0.5);
+          color: white;
+          font-size: 10px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
       `}</style>
     </div>
   );
