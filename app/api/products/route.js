@@ -8,101 +8,128 @@ export async function GET(req) {
 
     const { searchParams } = new URL(req.url);
 
-    /* ================= QUERY PARAMS ================= */
+    /* ================= PARAMS ================= */
     const page = parseInt(searchParams.get("page")) || 1;
     const limit = parseInt(searchParams.get("limit")) || 12;
 
     const category = searchParams.get("category");
     const minPrice = parseInt(searchParams.get("minPrice"));
     const maxPrice = parseInt(searchParams.get("maxPrice"));
-    const sort = searchParams.get("sort"); // price_asc, price_desc, latest
+    const sort = searchParams.get("sort");
     const search = searchParams.get("search");
 
-    /* ================= BASE QUERY ================= */
-    let query = { isActive: true };
+    const skip = (page - 1) * limit;
+
+    /* ================= MATCH STAGE ================= */
+    const matchStage = { isActive: true };
 
     if (category) {
-      query.category = category;
+      matchStage.category = category;
     }
 
     if (search) {
-      query.name = { $regex: search, $options: "i" };
+      matchStage.name = { $regex: search, $options: "i" };
     }
 
-    /* ================= FETCH ================= */
-    const products = await Product.find(query).lean();
+    /* ================= PIPELINE ================= */
+    const pipeline = [
+      { $match: matchStage },
 
-    /* ================= GROUP ================= */
-    const grouped = {};
+      /* 🔥 SORT VARIANTS BY PRICE FIRST */
+      { $sort: { sellingPrice: 1 } },
 
-    for (let p of products) {
-      if (!grouped[p.productKey]) {
-        grouped[p.productKey] = [];
-      }
-      grouped[p.productKey].push(p);
-    }
+      /* 🔥 GROUP BY productKey */
+      {
+        $group: {
+          _id: "$productKey",
+          name: { $first: "$name" },
+          productKey: { $first: "$productKey" },
+          category: { $first: "$category" },
 
-    /* ================= BUILD ================= */
-    let finalProducts = Object.values(grouped).map((variants) => {
-      variants.sort((a, b) => a.sellingPrice - b.sellingPrice);
+          slug: { $first: "$slug" },
+          image: { $first: { $arrayElemAt: ["$images", 0] } },
 
-      const best = variants[0];
+          price: { $first: "$sellingPrice" },
+          mrp: { $first: "$mrp" },
 
-      const discount =
-        best.mrp && best.sellingPrice
-          ? Math.round(((best.mrp - best.sellingPrice) / best.mrp) * 100)
-          : 0;
+          createdAt: { $first: "$createdAt" },
 
-      return {
-        _id: best._id,
-        name: best.name,
-        productKey: best.productKey,
-        category: best.category,
+          variantsCount: { $sum: 1 },
+        },
+      },
 
-        slug: best.slug,
-        image: best.images?.[0] || "",
+      /* 🔥 ADD DISCOUNT */
+      {
+        $addFields: {
+          discount: {
+            $cond: [
+              { $and: ["$mrp", "$price"] },
+              {
+                $round: [
+                  {
+                    $multiply: [
+                      {
+                        $divide: [
+                          { $subtract: ["$mrp", "$price"] },
+                          "$mrp",
+                        ],
+                      },
+                      100,
+                    ],
+                  },
+                  0,
+                ],
+              },
+              0,
+            ],
+          },
+        },
+      },
 
-        price: best.sellingPrice,
-        mrp: best.mrp,
-        discount,
+      /* ================= PRICE FILTER ================= */
+      ...(minPrice || maxPrice
+        ? [
+            {
+              $match: {
+                ...(minPrice ? { price: { $gte: minPrice } } : {}),
+                ...(maxPrice ? { price: { $lte: maxPrice } } : {}),
+              },
+            },
+          ]
+        : []),
 
-        variantsCount: variants.length,
-        createdAt: best.createdAt,
-      };
-    });
+      /* ================= SORT ================= */
+      {
+        $sort:
+          sort === "price_asc"
+            ? { price: 1 }
+            : sort === "price_desc"
+            ? { price: -1 }
+            : { createdAt: -1 },
+      },
 
-    /* ================= PRICE FILTER ================= */
-    if (!isNaN(minPrice)) {
-      finalProducts = finalProducts.filter((p) => p.price >= minPrice);
-    }
+      /* ================= FACET (DATA + COUNT) ================= */
+      {
+        $facet: {
+          data: [
+            { $skip: skip },
+            { $limit: limit },
+          ],
+          totalCount: [
+            { $count: "count" }
+          ],
+        },
+      },
+    ];
 
-    if (!isNaN(maxPrice)) {
-      finalProducts = finalProducts.filter((p) => p.price <= maxPrice);
-    }
+    const result = await Product.aggregate(pipeline);
 
-    /* ================= SORT ================= */
-    if (sort === "price_asc") {
-      finalProducts.sort((a, b) => a.price - b.price);
-    } else if (sort === "price_desc") {
-      finalProducts.sort((a, b) => b.price - a.price);
-    } else {
-      // latest
-      finalProducts.sort(
-        (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
-      );
-    }
+    const products = result[0]?.data || [];
+    const total = result[0]?.totalCount[0]?.count || 0;
 
-    /* ================= PAGINATION ================= */
-    const total = finalProducts.length;
-    const start = (page - 1) * limit;
-    const end = start + limit;
-
-    const paginated = finalProducts.slice(start, end);
-
-    /* ================= RESPONSE ================= */
     return NextResponse.json({
       success: true,
-      products: paginated,
+      products,
       pagination: {
         total,
         page,
@@ -112,7 +139,7 @@ export async function GET(req) {
     });
 
   } catch (err) {
-    console.error("FILTER API ERROR:", err);
+    console.error("AGGREGATION ERROR:", err);
 
     return NextResponse.json(
       { success: false, products: [] },
