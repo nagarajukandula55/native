@@ -1,93 +1,66 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import jwt from "jsonwebtoken";
+import connectDB from "@/lib/db";
+import Product from "@/models/Product";
+import { generateSKU } from "@/lib/skuGenerator";
 
-/* 🔥 TEMP MOCK DB */
-let PRODUCTS_DB = [];
-
-/* 🔧 HELPER: EXTRACT SKU NUMBER SAFELY */
-function extractSequence(sku) {
-  try {
-    const match = sku.match(/-(\d{3})-/);
-    return match ? parseInt(match[1]) : 0;
-  } catch {
-    return 0;
-  }
-}
-
-/* 🔧 HELPER: CREATE VARIANT STRING */
-function buildVariant(value, unit) {
-  return `${value}${unit}`.toUpperCase();
-}
-
-/* ================= GET PRODUCTS ================= */
 export async function GET() {
   try {
+    await connectDB();
+
     const token = cookies().get("token")?.value;
 
     if (!token) {
       return NextResponse.json(
-        { success: false, products: [], message: "No token" },
+        { success: false, products: [] },
         { status: 401 }
       );
     }
 
-    let decoded;
-    try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET);
-    } catch {
-      return NextResponse.json(
-        { success: false, products: [], message: "Invalid token" },
-        { status: 401 }
-      );
-    }
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     if (!["admin", "super_admin", "vendor"].includes(decoded.role)) {
       return NextResponse.json(
-        { success: false, products: [], message: "Forbidden" },
+        { success: false, products: [] },
         { status: 403 }
       );
     }
 
+    const products = await Product.find().sort({ createdAt: -1 });
+
     return NextResponse.json({
       success: true,
-      products: PRODUCTS_DB,
+      products,
     });
 
   } catch (err) {
     console.error(err);
     return NextResponse.json(
-      { success: false, products: [], message: "Server error" },
+      { success: false, products: [] },
       { status: 500 }
     );
   }
 }
 
-/* ================= POST PRODUCT ================= */
 export async function POST(req) {
   try {
+    await connectDB();
+
     const token = cookies().get("token")?.value;
 
     if (!token) {
       return NextResponse.json(
-        { success: false, message: "No token" },
+        { success: false },
         { status: 401 }
       );
     }
 
-    let decoded;
-    try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET);
-    } catch {
-      return NextResponse.json(
-        { success: false, message: "Invalid token" },
-        { status: 401 }
-      );
-    }
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     if (!["admin", "super_admin", "vendor"].includes(decoded.role)) {
       return NextResponse.json(
-        { success: false, message: "Forbidden" },
+        { success: false },
         { status: 403 }
       );
     }
@@ -102,69 +75,39 @@ export async function POST(req) {
       slug,
     } = body;
 
-    /* 🔥 BUILD VARIANT */
-    const variant = buildVariant(variantValue, variantUnit);
+    const variant = `${variantValue}${variantUnit}`.toUpperCase();
 
-    /* ❌ PREVENT DUPLICATE VARIANT */
-    const duplicate = PRODUCTS_DB.find(
-      (p) =>
-        p.productKey === productKey &&
-        p.variant === variant
-    );
+    /* 🔥 GENERATE SKU */
+    const sku = await generateSKU(productKey, variant);
 
-    if (duplicate) {
+    /* 🔥 UNIQUE SLUG */
+    const finalSlug = `${slug}-${variant.toLowerCase()}`;
+
+    const product = await Product.create({
+      ...body,
+      sku,
+      variant,
+      slug: finalSlug,
+    });
+
+    return NextResponse.json({
+      success: true,
+      product,
+    });
+
+  } catch (err) {
+    console.error(err);
+
+    /* HANDLE DUPLICATE VARIANT */
+    if (err.code === 11000) {
       return NextResponse.json(
         { success: false, message: "Variant already exists" },
         { status: 400 }
       );
     }
 
-    /* 🔥 FIND EXISTING PRODUCTS */
-    const existing = PRODUCTS_DB.filter(
-      (p) => p.productKey === productKey
-    );
-
-    /* 🔥 FIND MAX SEQUENCE */
-    let nextNumber = 1;
-
-    if (existing.length > 0) {
-      const numbers = existing.map((p) =>
-        extractSequence(p.sku)
-      );
-
-      nextNumber = Math.max(...numbers) + 1;
-    }
-
-    /* 🔥 FORMAT NUMBER */
-    const sequence = String(nextNumber).padStart(3, "0");
-
-    /* 🔥 FINAL SKU */
-    const finalSKU = `NA-${productKey}-${sequence}-${variant}`;
-
-    /* 🔥 UNIQUE SLUG PER VARIANT */
-    const finalSlug = `${slug}-${variant.toLowerCase()}`;
-
-    /* 🔥 SAVE PRODUCT */
-    const newProduct = {
-      ...body,
-      variant,
-      sku: finalSKU,
-      slug: finalSlug,
-      createdAt: new Date(),
-    };
-
-    PRODUCTS_DB.push(newProduct);
-
-    return NextResponse.json({
-      success: true,
-      product: newProduct,
-    });
-
-  } catch (err) {
-    console.error("POST ERROR:", err);
-
     return NextResponse.json(
-      { success: false, message: "Server error" },
+      { success: false },
       { status: 500 }
     );
   }
