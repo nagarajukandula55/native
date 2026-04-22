@@ -8,10 +8,28 @@ const OrderItemSchema = new mongoose.Schema({
   qty: Number,
 });
 
+const WarehouseSchema = new mongoose.Schema({
+  status: {
+    type: String,
+    default: "NEW",
+    enum: ["NEW", "PICKING", "PACKED", "DISPATCHED"],
+  },
+
+  assignedTo: {
+    type: String,
+    default: null,
+  },
+
+  packedAt: Date,
+  dispatchedAt: Date,
+});
+
 const OrderSchema = new mongoose.Schema(
   {
+    /* ================= USER ================= */
     userId: { type: String, default: null },
 
+    /* ================= ORDER ================= */
     orderId: {
       type: String,
       unique: true,
@@ -24,6 +42,7 @@ const OrderSchema = new mongoose.Schema(
       required: true,
     },
 
+    /* ================= ORDER STATUS ================= */
     status: {
       type: String,
       default: "PENDING_PAYMENT",
@@ -39,6 +58,7 @@ const OrderSchema = new mongoose.Schema(
       ],
     },
 
+    /* ================= PAYMENT ================= */
     payment: {
       razorpay_order_id: String,
       razorpay_payment_id: String,
@@ -47,6 +67,7 @@ const OrderSchema = new mongoose.Schema(
       paidAt: Date,
     },
 
+    /* ================= ADDRESS ================= */
     address: {
       name: String,
       phone: String,
@@ -55,9 +76,13 @@ const OrderSchema = new mongoose.Schema(
       pincode: String,
     },
 
-    createdAt: {
-      type: Date,
-      default: Date.now,
+    /* ================= 🏭 WAREHOUSE MODULE ================= */
+    warehouse: {
+      type: WarehouseSchema,
+      default: () => ({
+        status: "NEW",
+        assignedTo: null,
+      }),
     },
   },
   { timestamps: true }
