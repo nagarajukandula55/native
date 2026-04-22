@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 
 export default function ProductsPage() {
   const router = useRouter();
-  const { user, loading, authReady } = useAuth();
 
   const emptyForm = {
     name: "",
