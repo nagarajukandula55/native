@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-// import { useAuth } from "@/context/AuthContext";
 
 export default function ProductsPage() {
   const router = useRouter();
@@ -25,29 +24,7 @@ export default function ProductsPage() {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [saving, setSaving] = useState(false);
-
-  /* ================= HARD AUTH GUARD (FIXED) ================= */
-  useEffect(() => {
-    if (!authReady) return;
-
-    if (!user) {
-      router.replace("/login");
-      return;
-    }
-
-    const allowedRoles = ["admin", "super_admin", "vendor"];
-
-    if (!allowedRoles.includes(user.role)) {
-      router.replace("/");
-    }
-  }, [user, authReady, router]);
-
-  /* ================= BLOCK RENDER UNTIL AUTH READY ================= */
-  if (!authReady || loading) {
-    return <p style={{ padding: 20 }}>Checking access...</p>;
-  }
-
-  if (!user) return null;
+  const [loading, setLoading] = useState(true);
 
   /* ================= LOAD DATA ================= */
   useEffect(() => {
@@ -60,18 +37,14 @@ export default function ProductsPage() {
       const res = await fetch("/api/admin/products", {
         credentials: "include",
       });
-  
-      /* 🔥 HANDLE AUTH FAILURE */
-      if (res.status === 401) {
-        router.replace("/login");
-        return;
-      }
-  
+
       const data = await res.json();
       setProducts(data.products || []);
-  
     } catch (err) {
       console.error("Error fetching products:", err);
+      setProducts([]);
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -188,7 +161,9 @@ export default function ProductsPage() {
       <div style={{ marginTop: 40 }}>
         <h2>Products List</h2>
 
-        {products.length === 0 ? (
+        {loading ? (
+          <p>Loading...</p>
+        ) : products.length === 0 ? (
           <p>No products found</p>
         ) : (
           <div style={list}>
