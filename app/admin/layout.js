@@ -9,17 +9,18 @@ export default function AdminLayout({ children }) {
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading) {
-      if (!user) {
-        router.replace("/login");
-      } else if (!["admin", "super_admin"].includes(user.role)) {
-        router.replace("/");
-      }
+    if (loading) return; // 🔥 WAIT
+
+    if (!user) {
+      router.replace("/login");
+    } else if (!["admin", "super_admin"].includes(user.role)) {
+      router.replace("/");
     }
   }, [user, loading]);
 
+  // 🔥 CRITICAL: block UI until auth resolved
   if (loading) {
-    return <p style={{ textAlign: "center" }}>Checking access...</p>;
+    return <p style={{ textAlign: "center" }}>Loading dashboard...</p>;
   }
 
   return children;
