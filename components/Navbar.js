@@ -5,12 +5,14 @@ import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useCart } from "@/context/CartContext";
 import CartDrawer from "./CartDrawer";
-// import { useAuth } from "@/context/AuthContext";
 import { ShoppingCart, Menu, X } from "lucide-react";
 
 export default function Navbar() {
   const { cartCount, drawerOpen, openCart, closeCart } = useCart();
-  const { user, loading, authReady, logout } = useAuth();
+
+  // ❌ AUTH REMOVED (TEMP SAFE MODE)
+  const user = null;
+  const logout = () => {};
 
   const router = useRouter();
   const pathname = usePathname();
@@ -24,16 +26,6 @@ export default function Navbar() {
     window.addEventListener("resize", resize);
     return () => window.removeEventListener("resize", resize);
   }, []);
-
-  // 🔥 IMPORTANT: never block UI completely
-  if (loading && !user) {
-    return (
-      <header style={header}>
-        <img src="/logo.png" style={logo} alt="logo" />
-        <div>Loading...</div>
-      </header>
-    );
-  }
 
   const showPublic = !user;
 
@@ -57,30 +49,13 @@ export default function Navbar() {
             </>
           )}
 
-          {/* USER MENU (NO ROLE DEPENDENCY NOW) */}
-          {user && (
-            <>
-              <NavLink href="/" label="Home" pathname={pathname} />
-
-              <span style={{ marginLeft: 10 }}>
-                Hi, {user.name || "User"}
-              </span>
-
-              <button onClick={logout} style={logoutBtn}>
-                Logout
-              </button>
-            </>
-          )}
-
           {/* CART */}
-          {showPublic && (
-            <div onClick={openCart} style={cart}>
-              <ShoppingCart size={18} />
-              <span>{cartCount}</span>
-            </div>
-          )}
+          <div onClick={openCart} style={cart}>
+            <ShoppingCart size={18} />
+            <span>{cartCount}</span>
+          </div>
 
-          {/* MOBILE MENU ICON */}
+          {/* MOBILE MENU */}
           {mobile && (
             <div onClick={() => setMenuOpen(!menuOpen)}>
               {menuOpen ? <X /> : <Menu />}
@@ -92,20 +67,11 @@ export default function Navbar() {
       {/* MOBILE MENU */}
       {menuOpen && mobile && (
         <div style={mobileMenu}>
-          {showPublic ? (
-            <>
-              <Link href="/">Home</Link>
-              <Link href="/products">Products</Link>
-              <Link href="/track">Track</Link>
-              <Link href="/blog">Blog</Link>
-              <Link href="/login">Login</Link>
-            </>
-          ) : (
-            <>
-              <div onClick={() => router.push("/")}>Home</div>
-              <div onClick={logout}>Logout</div>
-            </>
-          )}
+          <Link href="/">Home</Link>
+          <Link href="/products">Products</Link>
+          <Link href="/track">Track</Link>
+          <Link href="/blog">Blog</Link>
+          <Link href="/login">Login</Link>
         </div>
       )}
 
@@ -151,15 +117,10 @@ const nav = {
 
 const logo = { height: 40 };
 
-const cart = { cursor: "pointer", display: "flex", gap: 5 };
-
-const logoutBtn = {
-  marginLeft: 10,
-  padding: "6px 10px",
-  background: "#ef4444",
-  color: "#fff",
-  borderRadius: 6,
-  border: "none",
+const cart = {
+  cursor: "pointer",
+  display: "flex",
+  gap: 5,
 };
 
 const mobileMenu = {
