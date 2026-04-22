@@ -5,23 +5,28 @@ export function middleware(req) {
   const token = req.cookies.get("token")?.value;
   const { pathname } = req.nextUrl;
 
-  const publicRoutes = ["/", "/login", "/products"];
+  const protectedRoutes = [
+    "/admin",
+    "/vendor",
+    "/finance",
+    "/support",
+    "/branding",
+    "/analytics",
+    "/super-admin",
+  ];
 
-  if (publicRoutes.includes(pathname)) {
-    return NextResponse.next();
-  }
+  const isProtected = protectedRoutes.some((route) =>
+    pathname.startsWith(route)
+  );
+
+  if (!isProtected) return NextResponse.next();
 
   if (!token) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
   try {
-    const user = jwt.verify(token, process.env.JWT_SECRET);
-
-    if (pathname.startsWith("/admin") && user.role !== "admin" && user.role !== "super_admin") {
-      return NextResponse.redirect(new URL("/", req.url));
-    }
-
+    jwt.verify(token, process.env.JWT_SECRET);
     return NextResponse.next();
   } catch {
     return NextResponse.redirect(new URL("/login", req.url));
@@ -33,6 +38,9 @@ export const config = {
     "/admin/:path*",
     "/vendor/:path*",
     "/finance/:path*",
+    "/support/:path*",
+    "/branding/:path*",
+    "/analytics/:path*",
     "/super-admin/:path*",
   ],
 };
