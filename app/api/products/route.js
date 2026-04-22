@@ -6,51 +6,62 @@ export async function GET() {
   try {
     await connectDB();
 
-    const allProducts = await Product.find({});
+    /* 🔥 FETCH ALL ACTIVE PRODUCTS */
+    const products = await Product.find({ isActive: true }).lean();
 
-    /* ================= GROUP BY PRODUCT KEY ================= */
+    /* 🔥 GROUP BY productKey */
     const grouped = {};
 
-    for (let p of allProducts) {
+    for (let p of products) {
       if (!grouped[p.productKey]) {
         grouped[p.productKey] = [];
       }
       grouped[p.productKey].push(p);
     }
 
-    /* ================= PICK DEFAULT VARIANT ================= */
-    const finalProducts = Object.values(grouped).map((group) => {
-      // sort by price (lowest first)
-      group.sort((a, b) => a.sellingPrice - b.sellingPrice);
+    /* 🔥 BUILD FINAL LIST */
+    const finalProducts = Object.values(grouped).map((variants) => {
+      
+      /* ✅ SORT BY PRICE (LOWEST FIRST) */
+      variants.sort((a, b) => a.sellingPrice - b.sellingPrice);
 
-      const base = group[0];
+      const best = variants[0]; // default variant
 
       const discount =
-        base.mrp && base.sellingPrice
-          ? Math.round(((base.mrp - base.sellingPrice) / base.mrp) * 100)
+        best.mrp && best.sellingPrice
+          ? Math.round(((best.mrp - best.sellingPrice) / best.mrp) * 100)
           : 0;
 
       return {
-        _id: base._id,
-        name: base.name,
-        slug: base.slug,
-        productKey: base.productKey,
-        category: base.category,
+        _id: best._id,
+        name: best.name,
+        productKey: best.productKey,
+        category: best.category,
 
-        image: base.images?.[0] || "",
-        sellingPrice: base.sellingPrice,
-        mrp: base.mrp,
+        slug: best.slug,
+        image: best.images?.[0] || "",
+
+        price: best.sellingPrice,
+        mrp: best.mrp,
         discount,
+
+        variantsCount: variants.length,
       };
     });
 
-    return NextResponse.json({ products: finalProducts });
+    /* 🔥 SORT BY LATEST */
+    finalProducts.sort((a, b) => new Date(b._id) - new Date(a._id));
+
+    return NextResponse.json({
+      success: true,
+      products: finalProducts,
+    });
 
   } catch (err) {
     console.error("PRODUCT LIST ERROR:", err);
 
     return NextResponse.json(
-      { error: "Server error" },
+      { success: false, products: [] },
       { status: 500 }
     );
   }
