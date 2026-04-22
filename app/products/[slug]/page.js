@@ -3,6 +3,19 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 
+export async function generateMetadata({ params }) {
+  const res = await fetch(`https://shopnative.in/api/products/${params.slug}`);
+  const data = await res.json();
+
+  return {
+    title: data.product.name,
+    description: data.product.shortDescription,
+    openGraph: {
+      images: data.product.images,
+    },
+  };
+}
+
 export default function ProductPage({ params }) {
   const { slug } = params;
 
