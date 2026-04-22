@@ -2,16 +2,15 @@
 
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useCart } from "@/context/CartContext";
 import CartDrawer from "./CartDrawer";
 import { useAuth } from "@/context/AuthContext";
-import { roleMenus } from "@/lib/roleMenus";
 import { ShoppingCart, Menu, X } from "lucide-react";
 
 export default function Navbar() {
   const { cartCount, drawerOpen, openCart, closeCart } = useCart();
-  const showPublic = !user;
+  const { user, loading, authReady, logout } = useAuth();
 
   const router = useRouter();
   const pathname = usePathname();
@@ -19,7 +18,6 @@ export default function Navbar() {
   const [mobile, setMobile] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
-  /* ===== RESPONSIVE ===== */
   useEffect(() => {
     const resize = () => setMobile(window.innerWidth < 900);
     resize();
@@ -27,22 +25,28 @@ export default function Navbar() {
     return () => window.removeEventListener("resize", resize);
   }, []);
 
-  const showPublic = !user;
+  // 🔥 IMPORTANT: never block UI completely
+  if (loading && !user) {
+    return (
+      <header style={header}>
+        <img src="/logo.png" style={logo} alt="logo" />
+        <div>Loading...</div>
+      </header>
+    );
+  }
 
-  const roleBasedMenus = user ? roleMenus[user.role] || [] : [];
+  const showPublic = !user;
 
   return (
     <>
       <header style={header}>
-
         {/* LOGO */}
         <Link href="/">
-          <img src="/logo.png" style={logo} />
+          <img src="/logo.png" style={logo} alt="logo" />
         </Link>
 
         <nav style={nav}>
-
-          {/* ================= PUBLIC MENU ================= */}
+          {/* PUBLIC MENU */}
           {showPublic && (
             <>
               <NavLink href="/" label="Home" pathname={pathname} />
@@ -53,21 +57,14 @@ export default function Navbar() {
             </>
           )}
 
-          {/* ================= ROLE MENU ================= */}
-          {user &&
-            roleBasedMenus.map((m) => (
-              <NavLink
-                key={m.name}
-                href={m.path}
-                label={m.name}
-                pathname={pathname}
-              />
-            ))}
-
-          {/* ================= USER INFO ================= */}
+          {/* USER MENU (NO ROLE DEPENDENCY NOW) */}
           {user && (
             <>
-              <span style={{ marginLeft: 10 }}>Hi, {user.name}</span>
+              <NavLink href="/" label="Home" pathname={pathname} />
+
+              <span style={{ marginLeft: 10 }}>
+                Hi, {user.name || "User"}
+              </span>
 
               <button onClick={logout} style={logoutBtn}>
                 Logout
@@ -75,7 +72,7 @@ export default function Navbar() {
             </>
           )}
 
-          {/* CART ONLY FOR PUBLIC */}
+          {/* CART */}
           {showPublic && (
             <div onClick={openCart} style={cart}>
               <ShoppingCart size={18} />
@@ -83,20 +80,19 @@ export default function Navbar() {
             </div>
           )}
 
-          {/* MOBILE MENU ICON ALWAYS VISIBLE */}
+          {/* MOBILE MENU ICON */}
           {mobile && (
             <div onClick={() => setMenuOpen(!menuOpen)}>
               {menuOpen ? <X /> : <Menu />}
             </div>
           )}
-
         </nav>
       </header>
 
       {/* MOBILE MENU */}
       {menuOpen && mobile && (
         <div style={mobileMenu}>
-          {showPublic && (
+          {showPublic ? (
             <>
               <Link href="/">Home</Link>
               <Link href="/products">Products</Link>
@@ -104,16 +100,12 @@ export default function Navbar() {
               <Link href="/blog">Blog</Link>
               <Link href="/login">Login</Link>
             </>
+          ) : (
+            <>
+              <div onClick={() => router.push("/")}>Home</div>
+              <div onClick={logout}>Logout</div>
+            </>
           )}
-
-          {user &&
-            roleBasedMenus.map((m) => (
-              <div key={m.name} onClick={() => router.push(m.path)}>
-                {m.name}
-              </div>
-            ))}
-
-          {user && <div onClick={logout}>Logout</div>}
         </div>
       )}
 
@@ -122,8 +114,7 @@ export default function Navbar() {
   );
 }
 
-/* ================= NAV LINK ================= */
-
+/* ================= LINK ================= */
 function NavLink({ href, label, pathname }) {
   const active = pathname === href;
 
@@ -150,7 +141,6 @@ const header = {
   padding: "12px 20px",
   borderBottom: "1px solid #eee",
   background: "#fff",
-  alignItems: "center",
 };
 
 const nav = {
@@ -183,12 +173,3 @@ const mobileMenu = {
   flexDirection: "column",
   gap: 10,
 };
-
-if (loading) {
-  return (
-    <header style={header}>
-      <img src="/logo.png" style={logo} />
-      <div>Loading...</div>
-    </header>
-  );
-}
