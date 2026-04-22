@@ -11,7 +11,7 @@ import { ShoppingCart, Menu, X } from "lucide-react";
 
 export default function Navbar() {
   const { cartCount, drawerOpen, openCart, closeCart } = useCart();
-  const { user, loading, authReady, logout } = useAuth();
+  const { user, loading, logout } = useAuth();
 
   const router = useRouter();
   const pathname = usePathname();
@@ -27,29 +27,21 @@ export default function Navbar() {
     return () => window.removeEventListener("resize", resize);
   }, []);
 
-  if (!authReady || loading) return null;
-
-  const isDashboard =
-    pathname.startsWith("/admin") ||
-    pathname.startsWith("/vendor") ||
-    pathname.startsWith("/finance") ||
-    pathname.startsWith("/support") ||
-    pathname.startsWith("/branding") ||
-    pathname.startsWith("/analytics") ||
-    pathname.startsWith("/super-admin");
-
   const showPublic = !user;
+
   const roleBasedMenus = user ? roleMenus[user.role] || [] : [];
 
   return (
     <>
       <header style={header}>
+
         {/* LOGO */}
         <Link href="/">
           <img src="/logo.png" style={logo} />
         </Link>
 
         <nav style={nav}>
+
           {/* ================= PUBLIC MENU ================= */}
           {showPublic && (
             <>
@@ -91,12 +83,13 @@ export default function Navbar() {
             </div>
           )}
 
-          {/* MOBILE */}
+          {/* MOBILE MENU ICON ALWAYS VISIBLE */}
           {mobile && (
             <div onClick={() => setMenuOpen(!menuOpen)}>
               {menuOpen ? <X /> : <Menu />}
             </div>
           )}
+
         </nav>
       </header>
 
@@ -129,6 +122,8 @@ export default function Navbar() {
   );
 }
 
+/* ================= NAV LINK ================= */
+
 function NavLink({ href, label, pathname }) {
   const active = pathname === href;
 
@@ -147,7 +142,7 @@ function NavLink({ href, label, pathname }) {
   );
 }
 
-/* ===== STYLES ===== */
+/* ================= STYLES ================= */
 
 const header = {
   display: "flex",
@@ -155,6 +150,7 @@ const header = {
   padding: "12px 20px",
   borderBottom: "1px solid #eee",
   background: "#fff",
+  alignItems: "center",
 };
 
 const nav = {
