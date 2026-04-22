@@ -1,0 +1,155 @@
+"use client";
+
+import { useEffect, useState } from "react";
+
+export default function AdminOrdersPage() {
+  const [orders, setOrders] = useState([]);
+  const [filtered, setFiltered] = useState([]);
+  const [status, setStatus] = useState("ALL");
+  const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  /* ================= FETCH ORDERS ================= */
+  useEffect(() => {
+    const fetchOrders = async () => {
+      try {
+        const res = await fetch("/api/orders/list");
+        const data = await res.json();
+
+        if (data.success) {
+          setOrders(data.orders);
+          setFiltered(data.orders);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchOrders();
+  }, []);
+
+  /* ================= FILTER LOGIC ================= */
+  useEffect(() => {
+    let temp = [...orders];
+
+    if (status !== "ALL") {
+      temp = temp.filter((o) => o.status === status);
+    }
+
+    if (search) {
+      temp = temp.filter(
+        (o) =>
+          o.orderId?.toLowerCase().includes(search.toLowerCase()) ||
+          o.address?.phone?.includes(search)
+      );
+    }
+
+    setFiltered(temp);
+  }, [status, search, orders]);
+
+  /* ================= STATUS UPDATE ================= */
+  const updateStatus = async (id, newStatus) => {
+    try {
+      const res = await fetch("/api/orders/update-status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, status: newStatus }),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        setOrders((prev) =>
+          prev.map((o) =>
+            o._id === id ? { ...o, status: newStatus } : o
+          )
+        );
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  return (
+    <div style={container}>
+
+      {/* HEADER */}
+      <div style={header}>
+        <h2>Orders Dashboard</h2>
+
+        <input
+          placeholder="Search Order ID / Phone"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          style={input}
+        />
+      </div>
+
+      {/* FILTERS */}
+      <div style={filters}>
+        {["ALL", "PAID", "PROCESSING", "SHIPPED", "DELIVERED"].map(
+          (s) => (
+            <button
+              key={s}
+              onClick={() => setStatus(s)}
+              style={{
+                ...filterBtn,
+                background: status === s ? "#c28b45" : "#eee",
+                color: status === s ? "#fff" : "#000",
+              }}
+            >
+              {s}
+            </button>
+          )
+        )}
+      </div>
+
+      {/* TABLE */}
+      {loading ? (
+        <p>Loading orders...</p>
+      ) : (
+        <div style={table}>
+          <div style={rowHead}>
+            <span>Order ID</span>
+            <span>Customer</span>
+            <span>Amount</span>
+            <span>Status</span>
+            <span>Actions</span>
+          </div>
+
+          {filtered.map((o) => (
+            <div key={o._id} style={row}>
+              <span>{o.orderId}</span>
+
+              <span>
+                {o.address?.name}
+                <br />
+                <small>{o.address?.phone}</small>
+              </span>
+
+              <span>₹{o.amount}</span>
+
+              <span>
+                <b>{o.status}</b>
+              </span>
+
+              <span style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+                <button onClick={() => updateStatus(o._id, "PROCESSING")}>
+                  Process
+                </button>
+                <button onClick={() => updateStatus(o._id, "SHIPPED")}>
+                  Ship
+                </button>
+                <button onClick={() => updateStatus(o._id, "DELIVERED")}>
+                  Deliver
+                </button>
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
