@@ -5,7 +5,7 @@ export function middleware(req) {
   const token = req.cookies.get("token")?.value;
   const { pathname } = req.nextUrl;
 
-  const publicRoutes = ["/login", "/", "/products"];
+  const publicRoutes = ["/", "/login", "/products"];
 
   if (publicRoutes.includes(pathname)) {
     return NextResponse.next();
@@ -18,21 +18,21 @@ export function middleware(req) {
   try {
     const user = jwt.verify(token, process.env.JWT_SECRET);
 
-    req.user = user;
-
-    // ROLE BASED ROUTE GUARD (optional)
-    if (pathname.startsWith("/admin")) {
-      if (user.role !== "admin" && user.role !== "super_admin") {
-        return NextResponse.redirect(new URL("/", req.url));
-      }
+    if (pathname.startsWith("/admin") && user.role !== "admin" && user.role !== "super_admin") {
+      return NextResponse.redirect(new URL("/", req.url));
     }
 
     return NextResponse.next();
-  } catch (err) {
+  } catch {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/warehouse/:path*", "/finance/:path*"],
+  matcher: [
+    "/admin/:path*",
+    "/vendor/:path*",
+    "/finance/:path*",
+    "/super-admin/:path*",
+  ],
 };
