@@ -2,41 +2,53 @@
 
 import { useState } from "react";
 import { useCart } from "@/context/CartContext";
+import { useRouter } from "next/navigation";
 
 export default function CheckoutPage() {
-  const { cart, cartTotal, setCart } = useCart();
+  const router = useRouter();
+  const { cart, cartTotal, setCart, closeCart } = useCart();
 
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [address, setAddress] = useState("");
+  const [form, setForm] = useState({
+    name: "",
+    phone: "",
+    address: "",
+    city: "",
+    pincode: "",
+  });
 
   const [loading, setLoading] = useState(false);
 
-  /* ================= PAY NOW ================= */
+  /* ================= INPUT HANDLER ================= */
+  const handleChange = (e) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
+
+  /* ================= CREATE ORDER ================= */
   const handlePayment = async () => {
     try {
       setLoading(true);
 
-      if (!name || !phone || !address) {
-        alert("Fill all details");
+      if (!form.name || !form.phone || !form.address) {
+        alert("Please fill required fields");
         setLoading(false);
         return;
       }
 
-      // 1️⃣ Create order on backend
+      // 1️⃣ Create order (backend)
       const res = await fetch("/api/orders/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           cart,
           amount: cartTotal,
+          address: form,
         }),
       });
 
       const data = await res.json();
 
       if (!data.success) {
-        alert("Order failed");
+        alert("Order creation failed");
         setLoading(false);
         return;
       }
@@ -49,21 +61,36 @@ export default function CheckoutPage() {
         amount: order.amount,
         currency: order.currency,
         name: "Native Store",
-        description: "Order Payment",
+        description: "Food Products Order",
         order_id: order.id,
 
-        handler: function (response) {
-          console.log("PAYMENT SUCCESS", response);
+        handler: async function (response) {
+          // 3️⃣ Verify payment
+          const verifyRes = await fetch("/api/orders/verify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+            }),
+          });
 
-          alert("Payment Successful 🎉");
+          const verifyData = await verifyRes.json();
 
-          // clear cart
-          setCart([]);
+          if (verifyData.success) {
+            setCart([]);
+            closeCart();
+
+            router.push("/order-success");
+          } else {
+            router.push("/order-failed");
+          }
         },
 
         prefill: {
-          name,
-          contact: phone,
+          name: form.name,
+          contact: form.phone,
         },
 
         theme: {
@@ -84,73 +111,90 @@ export default function CheckoutPage() {
 
   return (
     <div className="container">
-      <h1>Checkout</h1>
 
-      {/* ================= ADDRESS FORM ================= */}
-      <div className="form">
-        <input
-          placeholder="Name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
+      {/* LEFT - FORM */}
+      <div className="formBox">
+        <h2>Checkout</h2>
 
-        <input
-          placeholder="Phone"
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-        />
+        <input name="name" placeholder="Full Name" onChange={handleChange} />
+        <input name="phone" placeholder="Phone Number" onChange={handleChange} />
+        <input name="address" placeholder="Address" onChange={handleChange} />
+        <input name="city" placeholder="City" onChange={handleChange} />
+        <input name="pincode" placeholder="Pincode" onChange={handleChange} />
 
-        <textarea
-          placeholder="Address"
-          value={address}
-          onChange={(e) => setAddress(e.target.value)}
-        />
+        <button onClick={handlePayment} disabled={loading}>
+          {loading ? "Processing..." : "Pay Now"}
+        </button>
       </div>
 
-      {/* ================= SUMMARY ================= */}
-      <div className="summary">
-        <p>Items: {cart.length}</p>
-        <h2>Total: ₹{cartTotal}</h2>
+      {/* RIGHT - SUMMARY */}
+      <div className="summaryBox">
+        <h3>Order Summary</h3>
+
+        {cart.map((item) => (
+          <div key={item._id} className="row">
+            <span>{item.name} x {item.qty}</span>
+            <span>₹{item.price * item.qty}</span>
+          </div>
+        ))}
+
+        <hr />
+
+        <div className="total">
+          <strong>Total</strong>
+          <strong>₹{cartTotal}</strong>
+        </div>
       </div>
 
-      {/* ================= PAY BUTTON ================= */}
-      <button onClick={handlePayment} disabled={loading}>
-        {loading ? "Processing..." : "Pay Now"}
-      </button>
-
-      {/* ================= RAZORPAY SCRIPT ================= */}
-      <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
-
+      {/* STYLES */}
       <style jsx>{`
         .container {
-          max-width: 600px;
+          display: flex;
+          gap: 30px;
+          padding: 40px;
+          max-width: 1100px;
           margin: auto;
-          padding: 30px;
         }
 
-        .form {
+        .formBox {
+          flex: 2;
           display: flex;
           flex-direction: column;
           gap: 10px;
         }
 
-        input, textarea {
-          padding: 10px;
+        input {
+          padding: 12px;
           border: 1px solid #ddd;
-          border-radius: 6px;
-        }
-
-        .summary {
-          margin: 20px 0;
+          border-radius: 8px;
         }
 
         button {
-          width: 100%;
           padding: 12px;
           background: #c28b45;
-          border: none;
           color: white;
+          border: none;
+          border-radius: 10px;
           cursor: pointer;
+        }
+
+        .summaryBox {
+          flex: 1;
+          background: #fafafa;
+          padding: 20px;
+          border-radius: 10px;
+        }
+
+        .row {
+          display: flex;
+          justify-content: space-between;
+          margin-bottom: 8px;
+        }
+
+        .total {
+          display: flex;
+          justify-content: space-between;
+          margin-top: 10px;
         }
       `}</style>
     </div>
