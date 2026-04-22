@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, useMemo } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 
 const CartContext = createContext();
 
@@ -8,121 +8,75 @@ export function CartProvider({ children }) {
   const [cart, setCart] = useState([]);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  /* ================= LOAD CART ================= */
+  /* ================= LOAD FROM STORAGE ================= */
   useEffect(() => {
-    const storedCart = localStorage.getItem("native_cart");
-    if (storedCart) {
-      try {
-        setCart(JSON.parse(storedCart));
-      } catch {
-        setCart([]);
-      }
-    }
+    const saved = localStorage.getItem("cart");
+    if (saved) setCart(JSON.parse(saved));
   }, []);
 
-  /* ================= SAVE CART ================= */
+  /* ================= SAVE TO STORAGE ================= */
   useEffect(() => {
-    localStorage.setItem("native_cart", JSON.stringify(cart));
+    localStorage.setItem("cart", JSON.stringify(cart));
   }, [cart]);
-
-  /* ================= DRAWER ================= */
-  const openCart = () => setDrawerOpen(true);
-  const closeCart = () => setDrawerOpen(false);
 
   /* ================= ADD TO CART ================= */
   const addToCart = (product) => {
     setCart((prev) => {
-      const exists = prev.find(
-        (item) => item.productId === product._id
-      );
+      const exists = prev.find((p) => p._id === product._id);
 
       if (exists) {
-        return prev.map((item) =>
-          item.productId === product._id
-            ? { ...item, quantity: item.quantity + 1 }
-            : item
+        return prev.map((p) =>
+          p._id === product._id
+            ? { ...p, qty: (p.qty || 1) + 1 }
+            : p
         );
       }
 
-      return [
-        ...prev,
-        {
-          productId: product._id,
-          name: product.name,
-          price: Number(product.price),
-          image: product.image || "",
-          quantity: 1,
-        },
-      ];
+      return [...prev, { ...product, qty: 1 }];
     });
 
     setDrawerOpen(true);
   };
 
-  /* ================= INCREASE ================= */
-  const increaseQty = (productId) => {
+  /* ================= REMOVE ================= */
+  const removeFromCart = (id) => {
+    setCart((prev) => prev.filter((p) => p._id !== id));
+  };
+
+  /* ================= UPDATE QTY ================= */
+  const updateQty = (id, qty) => {
+    if (qty <= 0) return removeFromCart(id);
+
     setCart((prev) =>
-      prev.map((item) =>
-        item.productId === productId
-          ? { ...item, quantity: item.quantity + 1 }
-          : item
+      prev.map((p) =>
+        p._id === id ? { ...p, qty } : p
       )
     );
   };
 
-  /* ================= DECREASE ================= */
-  const decreaseQty = (productId) => {
-    setCart((prev) =>
-      prev
-        .map((item) =>
-          item.productId === productId
-            ? { ...item, quantity: item.quantity - 1 }
-            : item
-        )
-        .filter((item) => item.quantity > 0)
-    );
-  };
-
-  /* ================= REMOVE ================= */
-  const removeFromCart = (productId) => {
-    setCart((prev) =>
-      prev.filter((item) => item.productId !== productId)
-    );
-  };
-
-  /* ================= CLEAR ================= */
-  const clearCart = () => {
-    setCart([]);
-    setDrawerOpen(false);
-  };
-
-  /* ================= COUNT ================= */
-  const cartCount = useMemo(() => {
-    return cart.reduce((sum, item) => sum + item.quantity, 0);
-  }, [cart]);
-
   /* ================= TOTAL ================= */
-  const cartTotal = useMemo(() => {
-    return cart.reduce(
-      (sum, item) => sum + item.price * item.quantity,
-      0
-    );
-  }, [cart]);
+  const cartTotal = cart.reduce(
+    (sum, item) => sum + item.price * item.qty,
+    0
+  );
+
+  const cartCount = cart.reduce(
+    (sum, item) => sum + item.qty,
+    0
+  );
 
   return (
     <CartContext.Provider
       value={{
         cart,
-        drawerOpen,
-        openCart,
-        closeCart,
+        setCart,
         addToCart,
-        increaseQty,
-        decreaseQty,
         removeFromCart,
-        clearCart,
-        cartCount,
+        updateQty,
         cartTotal,
+        cartCount,
+        drawerOpen,
+        setDrawerOpen,
       }}
     >
       {children}
