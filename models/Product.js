@@ -1,79 +1,52 @@
 import mongoose from "mongoose";
-import slugify from "slugify";
 
-const productSchema = new mongoose.Schema(
+const ProductSchema = new mongoose.Schema(
   {
-    name: { type: String, required: true },
-
+    name: String,
     slug: { type: String, unique: true },
 
-    sku: { type: String, unique: true, required: true },
+    productKey: { type: String, index: true },
 
-    brand: String,
+    category: String,
 
-    shortDescription: String,
-    description: String,
+    /* GST */
+    gstCategory: String,
+    gstDescription: String,
+    hsn: String,
+    tax: Number,
 
-    category: { type: mongoose.Schema.Types.ObjectId, ref: "Category" },
-    subCategory: { type: mongoose.Schema.Types.ObjectId, ref: "Category" },
-    gstCategory: { type: mongoose.Schema.Types.ObjectId, ref: "Category" },
-
+    /* Pricing */
     mrp: Number,
     sellingPrice: Number,
-    costPrice: Number,
 
-    discountPercent: Number,
-    profitMargin: Number,
+    /* Variant */
+    variant: String, // 250GM
+    variantType: String,
 
-    hsnCode: String,
-    gstPercent: Number,
+    /* SKU */
+    sku: { type: String, unique: true },
 
+    /* Content */
+    description: String,
+    shortDescription: String,
+    ingredients: String,
+    shelfLife: String,
+
+    /* Media */
     images: [String],
-    featuredImage: String,
 
-    attributes: {
-      weight: Number,
-      length: Number,
-      breadth: Number,
-      height: Number,
-    },
+    /* SEO */
+    metaTitle: String,
+    metaDescription: String,
 
-    seoTitle: String,
-    seoDescription: String,
-
-    status: {
-      type: String,
-      enum: ["active", "inactive", "draft"],
-      default: "active",
-    },
-
-    approved: { type: Boolean, default: false },
-
-    createdBy: String,
+    /* System */
+    isActive: { type: Boolean, default: true },
   },
   { timestamps: true }
 );
 
-/* 🔥 AUTO LOGIC */
-productSchema.pre("save", function (next) {
-  if (!this.slug) {
-    this.slug = slugify(this.name, { lower: true });
-  }
-
-  if (this.mrp && this.sellingPrice) {
-    this.discountPercent =
-      ((this.mrp - this.sellingPrice) / this.mrp) * 100;
-  }
-
-  if (this.costPrice && this.sellingPrice) {
-    this.profitMargin = this.sellingPrice - this.costPrice;
-  }
-
-  this.seoTitle = this.name;
-  this.seoDescription = this.shortDescription || this.description?.slice(0, 120);
-
-  next();
-});
+/* 🔥 PREVENT DUPLICATE VARIANT */
+ProductSchema.index({ productKey: 1, variant: 1 }, { unique: true });
 
 export default mongoose.models.Product ||
-  mongoose.model("Product", productSchema);
+  mongoose.model("Product", ProductSchema);
