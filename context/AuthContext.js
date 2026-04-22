@@ -12,12 +12,16 @@ export function AuthProvider({ children }) {
     try {
       const res = await fetch("/api/auth/me", {
         credentials: "include",
+        cache: "no-store",
       });
 
       const data = await res.json();
 
-      if (data.success) setUser(data.user);
-      else setUser(null);
+      if (data.success) {
+        setUser(data.user);
+      } else {
+        setUser(null);
+      }
     } catch {
       setUser(null);
     }
@@ -29,8 +33,24 @@ export function AuthProvider({ children }) {
     fetchUser();
   }, []);
 
+  const logout = async () => {
+    await fetch("/api/auth/logout", {
+      method: "POST",
+      credentials: "include",
+    });
+
+    setUser(null);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, refreshUser: fetchUser }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        refreshUser: fetchUser,
+        logout,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
