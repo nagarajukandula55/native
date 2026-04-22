@@ -5,7 +5,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(undefined); // 🔥 important
+  const [user, setUser] = useState(undefined); // 🔥 IMPORTANT
   const [loading, setLoading] = useState(true);
 
   const fetchUser = async () => {
@@ -22,7 +22,7 @@ export function AuthProvider({ children }) {
       } else {
         setUser(null);
       }
-    } catch (err) {
+    } catch {
       setUser(null);
     } finally {
       setLoading(false);
@@ -49,7 +49,7 @@ export function AuthProvider({ children }) {
         loading,
         refreshUser: fetchUser,
         logout,
-        authReady: !loading,
+        authReady: user !== undefined, // 🔥 KEY FIX
       }}
     >
       {children}
