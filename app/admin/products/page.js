@@ -7,6 +7,7 @@ export default function ProductUpload() {
     name: "",
     category: "",
     gstCategory: "",
+    gstDescription: "",
     hsn: "",
     tax: "",
     mrp: "",
@@ -17,6 +18,9 @@ export default function ProductUpload() {
     variantValue: "",
     variantUnit: "GM",
     images: [],
+    ingredients: "",
+    shelfLife: "",
+    fssai: "",
   };
 
   const [form, setForm] = useState(emptyForm);
@@ -24,13 +28,67 @@ export default function ProductUpload() {
   const [productKey, setProductKey] = useState("");
   const [slug, setSlug] = useState("");
 
-  /* ================= GST CONFIG ================= */
+  /* ================= GST CONFIG (LEGAL) ================= */
 
   const gstOptions = [
-    { name: "Unbranded Food Items", hsn: "1106", tax: 0, desc: "Basic food items" },
-    { name: "Branded Packaged Food", hsn: "2106", tax: 5, desc: "Packaged food items like dosa mix" },
-    { name: "Processed Food", hsn: "2008", tax: 12, desc: "Processed edible items" },
-    { name: "Ready to Eat", hsn: "1904", tax: 5, desc: "Instant ready food" },
+    {
+      name: "Food Preparations (Instant Mix)",
+      hsn: "2106",
+      tax: 5,
+      desc: "Food preparations not elsewhere specified or included (e.g., dosa mix, idli mix)",
+    },
+    {
+      name: "Spices (Mixed/Ground)",
+      hsn: "0910",
+      tax: 5,
+      desc: "Spices including mixed masalas and ground spices",
+    },
+    {
+      name: "Edible Oils",
+      hsn: "1513",
+      tax: 5,
+      desc: "Vegetable oils including cold pressed oils",
+    },
+    {
+      name: "Flours & Atta",
+      hsn: "1101",
+      tax: 5,
+      desc: "Cereal flours like wheat, millet, rice flour",
+    },
+    {
+      name: "Pickles & Preserved Foods",
+      hsn: "2001",
+      tax: 12,
+      desc: "Vegetables, fruits preserved in vinegar, brine, or oil",
+    },
+    {
+      name: "Ready to Eat Foods",
+      hsn: "2106",
+      tax: 12,
+      desc: "Fully cooked packaged food products",
+    },
+    {
+      name: "Snacks / Namkeen",
+      hsn: "2106",
+      tax: 12,
+      desc: "Namkeen, mixtures, fried snack items",
+    },
+  ];
+
+  /* ================= WEBSITE CATEGORY ================= */
+
+  const websiteCategories = [
+    "Instant Mixes",
+    "Spices & Masalas",
+    "Cold Pressed Oils",
+    "Flours & Millets",
+    "Ready to Cook",
+    "Ready to Eat",
+    "Pickles & Chutneys",
+    "Snacks & Namkeen",
+    "Breakfast Essentials",
+    "Combo Packs",
+    "New Arrivals",
   ];
 
   /* ================= AUTO GENERATORS ================= */
@@ -61,7 +119,12 @@ export default function ProductUpload() {
   useEffect(() => {
     const selected = gstOptions.find((g) => g.name === form.gstCategory);
     if (selected) {
-      setForm((prev) => ({ ...prev, hsn: selected.hsn, tax: selected.tax }));
+      setForm((prev) => ({
+        ...prev,
+        hsn: selected.hsn,
+        tax: selected.tax,
+        gstDescription: selected.desc,
+      }));
     }
   }, [form.gstCategory]);
 
@@ -78,7 +141,10 @@ export default function ProductUpload() {
     for (let file of files) {
       const data = new FormData();
       data.append("file", file);
-      data.append("upload_preset", process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET);
+      data.append(
+        "upload_preset",
+        process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET
+      );
 
       const res = await fetch(
         `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`,
@@ -135,10 +201,12 @@ export default function ProductUpload() {
       <form onSubmit={handleSubmit} className="form">
         <input name="name" placeholder="Product Name" value={form.name} onChange={handleChange} />
 
+        {/* WEBSITE CATEGORY */}
         <select name="category" value={form.category} onChange={handleChange}>
           <option value="">Select Website Category</option>
-          <option value="food">Food</option>
-          <option value="snacks">Snacks</option>
+          {websiteCategories.map((cat) => (
+            <option key={cat} value={cat}>{cat}</option>
+          ))}
         </select>
 
         {/* GST CATEGORY */}
@@ -153,6 +221,14 @@ export default function ProductUpload() {
 
         <input name="hsn" placeholder="HSN Code" value={form.hsn} readOnly />
         <input name="tax" placeholder="Tax %" value={form.tax} readOnly />
+
+        {/* GST DESCRIPTION */}
+        <textarea
+          name="gstDescription"
+          placeholder="GST Description"
+          value={form.gstDescription}
+          readOnly
+        />
 
         {/* VARIANT */}
         <select name="variantType" value={form.variantType} onChange={handleChange}>
@@ -178,9 +254,9 @@ export default function ProductUpload() {
         <textarea name="description" placeholder="Full Description" value={form.description} onChange={handleChange} />
 
         {/* FOOD */}
-        <input name="ingredients" placeholder="Ingredients" onChange={handleChange} />
-        <input name="shelfLife" placeholder="Shelf Life" onChange={handleChange} />
-        <input name="fssai" placeholder="FSSAI" onChange={handleChange} />
+        <input name="ingredients" placeholder="Ingredients" value={form.ingredients} onChange={handleChange} />
+        <input name="shelfLife" placeholder="Shelf Life" value={form.shelfLife} onChange={handleChange} />
+        <input name="fssai" placeholder="FSSAI License No" value={form.fssai} onChange={handleChange} />
 
         {/* IMAGES */}
         <input type="file" multiple onChange={handleImageUpload} />
