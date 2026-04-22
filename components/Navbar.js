@@ -11,7 +11,7 @@ import { ShoppingCart, Menu, X } from "lucide-react";
 
 export default function Navbar() {
   const { cartCount, drawerOpen, openCart, closeCart } = useCart();
-  const { user, loading, logout } = useAuth();
+  const showPublic = !user;
 
   const router = useRouter();
   const pathname = usePathname();
@@ -183,3 +183,12 @@ const mobileMenu = {
   flexDirection: "column",
   gap: 10,
 };
+
+if (loading) {
+  return (
+    <header style={header}>
+      <img src="/logo.png" style={logo} />
+      <div>Loading...</div>
+    </header>
+  );
+}
