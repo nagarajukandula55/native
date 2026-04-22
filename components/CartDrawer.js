@@ -2,31 +2,51 @@
 
 import { useCart } from "@/context/CartContext";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 export default function CartDrawer() {
+  const router = useRouter();
+
   const {
     cart,
     drawerOpen,
-    setDrawerOpen,
+    closeCart,
     removeFromCart,
     updateQty,
     cartTotal,
+    setCart,
   } = useCart();
 
   if (!drawerOpen) return null;
 
+  /* ================= HANDLERS ================= */
+  const handleCheckout = () => {
+    closeCart(); // 🔥 IMPORTANT FIX
+
+    setTimeout(() => {
+      router.push("/checkout");
+    }, 150); // smooth UX transition
+  };
+
   return (
-    <div className="overlay" onClick={() => setDrawerOpen(false)}>
+    <div className="overlay" onClick={closeCart}>
       <div className="drawer" onClick={(e) => e.stopPropagation()}>
 
-        <h2>Your Cart</h2>
+        {/* HEADER */}
+        <div className="header">
+          <h2>Your Cart</h2>
 
+          <button className="closeBtn" onClick={closeCart}>
+            ✕
+          </button>
+        </div>
+
+        {/* CART ITEMS */}
         {cart.length === 0 ? (
-          <p>Cart is empty</p>
+          <p className="empty">Your cart is empty</p>
         ) : (
           cart.map((item) => (
             <div key={item._id} className="item">
-
               <img src={item.image || "/placeholder.png"} />
 
               <div className="info">
@@ -56,28 +76,33 @@ export default function CartDrawer() {
           ))
         )}
 
+        {/* FOOTER */}
         <div className="footer">
           <h3>Total: ₹{cartTotal}</h3>
 
-          <Link href="/cart">
-            <button>Go to Cart</button>
-          </Link>
+          <button onClick={handleCheckout} className="checkout">
+            Checkout
+          </button>
 
-          <Link href="/checkout">
-            <button className="checkout">Checkout</button>
+          <Link href="/cart">
+            <button className="viewCart" onClick={closeCart}>
+              View Cart
+            </button>
           </Link>
         </div>
 
       </div>
 
+      {/* ================= STYLES ================= */}
       <style jsx>{`
         .overlay {
           position: fixed;
           inset: 0;
-          background: rgba(0,0,0,0.4);
+          background: rgba(0,0,0,0.45);
           display: flex;
           justify-content: flex-end;
-          z-index: 999;
+          z-index: 9999;
+          animation: fadeIn 0.2s ease-in-out;
         }
 
         .drawer {
@@ -86,6 +111,20 @@ export default function CartDrawer() {
           height: 100%;
           padding: 20px;
           overflow-y: auto;
+          animation: slideIn 0.25s ease-in-out;
+        }
+
+        .header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+
+        .closeBtn {
+          background: none;
+          border: none;
+          font-size: 20px;
+          cursor: pointer;
         }
 
         .item {
@@ -98,6 +137,7 @@ export default function CartDrawer() {
           width: 70px;
           height: 70px;
           object-fit: cover;
+          border-radius: 6px;
         }
 
         .qty button {
@@ -109,6 +149,7 @@ export default function CartDrawer() {
           color: white;
           border: none;
           margin-top: 5px;
+          padding: 5px;
         }
 
         .footer {
@@ -117,17 +158,38 @@ export default function CartDrawer() {
           padding-top: 10px;
         }
 
-        button {
+        .checkout {
           width: 100%;
           margin-top: 8px;
           padding: 10px;
           border: none;
           cursor: pointer;
-        }
-
-        .checkout {
           background: #c28b45;
           color: white;
+        }
+
+        .viewCart {
+          width: 100%;
+          margin-top: 8px;
+          padding: 10px;
+          border: none;
+          cursor: pointer;
+          background: #eee;
+        }
+
+        .empty {
+          padding: 20px;
+          text-align: center;
+        }
+
+        @keyframes slideIn {
+          from { transform: translateX(100%); }
+          to { transform: translateX(0); }
+        }
+
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
         }
       `}</style>
     </div>
