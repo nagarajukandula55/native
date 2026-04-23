@@ -198,19 +198,79 @@ export default function ProductUpload() {
 
   /* ================= PRINT ================= */
 
-  function printStickers() {
-    const win = window.open("");
-    win.document.write("<h3>Sticker Sheet</h3>");
+async function printStickers() {
+  const win = window.open("", "_blank");
 
-    form.variants.forEach(v => {
-      win.document.write(`<div style="border:1px solid #000;padding:10px;margin:5px">
-        <b>${form.name}</b><br/>
-        ${v.sku}<br/>
-      </div>`);
+  let html = `
+    <html>
+    <head>
+      <title>Sticker Sheet</title>
+      <style>
+        body {
+          font-family: Arial;
+          padding: 10px;
+        }
+        .sheet {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 10px;
+        }
+        .sticker {
+          border: 1px solid #000;
+          padding: 10px;
+          text-align: center;
+          font-size: 12px;
+        }
+        img {
+          max-width: 100%;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="sheet">
+  `;
+
+  for (let v of form.variants) {
+
+    /* 🔹 CREATE BARCODE IMAGE */
+    const canvas = document.createElement("canvas");
+    JsBarcode(canvas, v.sku, {
+      format: "CODE128",
+      width: 2,
+      height: 50,
+      displayValue: false,
     });
+    const barcodeImg = canvas.toDataURL("image/png");
 
-    win.print();
+    /* 🔹 CREATE QR IMAGE */
+    const qrImg = await QRCode.toDataURL(v.sku);
+
+    html += `
+      <div class="sticker">
+        <b>${form.name}</b><br/>
+        ${v.value}${v.unit}<br/><br/>
+
+        <img src="${barcodeImg}" /><br/>
+        <small>${v.sku}</small><br/><br/>
+
+        <img src="${qrImg}" style="width:70px;height:70px"/>
+      </div>
+    `;
   }
+
+  html += `
+      </div>
+    </body>
+    </html>
+  `;
+
+  win.document.write(html);
+  win.document.close();
+
+  win.onload = () => {
+    win.print();
+  };
+}
 
   /* ================= UI ================= */
 
