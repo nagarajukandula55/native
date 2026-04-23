@@ -2,11 +2,13 @@
 
 import { useState, useEffect, useRef } from "react";
 import JsBarcode from "jsbarcode";
+import QRCode from "qrcode";
 
 export default function ProductUpload() {
   const barcodeRef = useRef(null);
+  const qrRef = useRef(null);
 
-  /* ================= CORE (UNCHANGED) ================= */
+  /* ================= CORE (UNCHANGED STRUCTURE) ================= */
 
   const emptyVariant = {
     value: "",
@@ -42,159 +44,90 @@ export default function ProductUpload() {
     keywords: "",
   });
 
-  const [status, setStatus] = useState("draft");
-  const [activeTab, setActiveTab] = useState("basic");
-  const [barcodeValue, setBarcodeValue] = useState("");
+  const [status] = useState("draft");
 
-  /* ================= GST (UNCHANGED CORE LOGIC) ================= */
+  /* ================= VALIDATION ERROR LOCK ================= */
+
+  const [errors, setErrors] = useState([]);
+
+  /* ================= GST CONFIG (UNCHANGED LOGIC) ================= */
 
   const gstOptions = [
-    {
-      name: "Food Preparations (Not Elsewhere Specified)",
-      hsn: "2106",
-      tax: 5,
-      desc: "Includes dosa mix, idli mix, etc.",
-    },
-    {
-      name: "Flours & Meals (Cereal Based)",
-      hsn: "1101",
-      tax: 5,
-      desc: "Flours of cereals, pulses, millets",
-    },
-    {
-      name: "Spices",
-      hsn: "0910",
-      tax: 5,
-      desc: "Spices including masalas",
-    },
-    {
-      name: "Edible Oils",
-      hsn: "1515",
-      tax: 5,
-      desc: "Vegetable oils",
-    },
-    {
-      name: "Prepared / Preserved Foods",
-      hsn: "2001",
-      tax: 12,
-      desc: "Pickles, chutneys, etc",
-    },
-    {
-      name: "Ready to Eat / Packaged Food",
-      hsn: "1904",
-      tax: 12,
-      desc: "Packaged foods",
-    },
-    {
-      name: "Namkeen / Snack Items",
-      hsn: "2106",
-      tax: 12,
-      desc: "Snacks",
-    },
+    { name: "Food Preparations (Not Elsewhere Specified)", hsn: "2106", tax: 5, desc: "Includes dosa mix, idli mix, etc." },
+    { name: "Flours & Meals (Cereal Based)", hsn: "1101", tax: 5, desc: "Flours of cereals, pulses, millets" },
+    { name: "Spices", hsn: "0910", tax: 5, desc: "Spices including masalas" },
+    { name: "Edible Oils", hsn: "1515", tax: 5, desc: "Vegetable oils" },
+    { name: "Prepared / Preserved Foods", hsn: "2001", tax: 12, desc: "Pickles, chutneys" },
+    { name: "Ready to Eat / Packaged Food", hsn: "1904", tax: 12, desc: "Packaged food" },
+    { name: "Namkeen / Snack Items", hsn: "2106", tax: 12, desc: "Snacks" },
   ];
 
   const websiteCategories = [
-    "Instant Mixes",
-    "Spices & Masalas",
-    "Cold Pressed Oils",
-    "Flours & Millets",
-    "Ready to Cook",
-    "Ready to Eat",
-    "Pickles & Chutneys",
-    "Snacks & Namkeen",
-    "Breakfast Essentials",
-    "Combo Packs",
-    "New Arrivals",
+    "Instant Mixes","Spices & Masalas","Cold Pressed Oils","Flours & Millets",
+    "Ready to Cook","Ready to Eat","Pickles & Chutneys","Snacks & Namkeen",
+    "Breakfast Essentials","Combo Packs","New Arrivals",
   ];
 
-  /* ================= AUTO SKU + SEO + SLUG ================= */
+  /* ================= AUTO SEO + SKU KEY ================= */
 
   useEffect(() => {
     if (!form.name) return;
 
     const clean = form.name.replace(/native/gi, "").trim();
-
     const key = clean.toUpperCase().replace(/[^A-Z0-9]/g, "");
+
     setProductKey(key);
-
-    const slugGen = form.name
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/(^-|-$)/g, "");
-
-    setSlug(slugGen);
+    setSlug(
+      form.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")
+    );
 
     setSeo({
-      title: `${form.name} | Buy Online`,
-      description: `Premium ${form.name} available online at best price.`,
-      keywords: `${form.name}, buy online, best price`,
+      title: `${form.name} | Premium Branded Product`,
+      description: `Buy ${form.name} online at best price. 100% quality assured.`,
+      keywords: `${form.name}, buy online, premium product`,
     });
   }, [form.name]);
 
-  /* ================= GST AUTO ================= */
+  /* ================= GST AUTO FIX (STABLE) ================= */
 
   useEffect(() => {
     const selected = gstOptions.find(g => g.name === form.gstCategory);
+    if (!selected) return;
 
-    if (selected) {
-      setForm(prev => ({
-        ...prev,
-        hsn: selected.hsn,
-        tax: selected.tax,
-        gstDescription: selected.desc,
-      }));
-    }
+    setForm(prev => ({
+      ...prev,
+      hsn: selected.hsn || "",
+      tax: selected.tax || "",
+      gstDescription: selected.desc || "",
+    }));
   }, [form.gstCategory]);
 
-  /* ================= VARIANTS ================= */
+  /* ================= VARIANT UPDATE (FIXED) ================= */
 
   function updateVariant(i, field, value) {
     const updated = [...form.variants];
-    updated[i][field] = value;
+    updated[i] = { ...updated[i], [field]: value };
 
     if (updated[i].value && productKey) {
       const seq = String(i + 1).padStart(3, "0");
       updated[i].sku = `NA-${productKey}-${seq}-${updated[i].value}${updated[i].unit}`;
     }
 
-    setForm({ ...form, variants: updated });
+    setForm(prev => ({ ...prev, variants: updated }));
   }
 
   function addVariant() {
-    setForm({ ...form, variants: [...form.variants, emptyVariant] });
+    setForm(prev => ({
+      ...prev,
+      variants: [...prev.variants, emptyVariant],
+    }));
   }
 
   function removeVariant(i) {
-    setForm({
-      ...form,
-      variants: form.variants.filter((_, idx) => idx !== i),
-    });
-  }
-
-  /* ================= BARCODE ================= */
-
-  useEffect(() => {
-    if (barcodeRef.current && productKey) {
-      const value = `NA-${productKey}-MASTER`;
-      setBarcodeValue(value);
-
-      JsBarcode(barcodeRef.current, value, {
-        format: "CODE128",
-        width: 2,
-        height: 60,
-        displayValue: true,
-      });
-    }
-  }, [productKey]);
-
-  function downloadBarcode() {
-    const canvas = document.querySelector("#barcodeCanvas");
-    if (!canvas) return;
-
-    const link = document.createElement("a");
-    link.download = `${productKey}-barcode.png`;
-    link.href = canvas.toDataURL("image/png");
-    link.click();
+    setForm(prev => ({
+      ...prev,
+      variants: prev.variants.filter((_, idx) => idx !== i),
+    }));
   }
 
   /* ================= IMAGE UPLOAD ================= */
@@ -231,12 +164,56 @@ export default function ProductUpload() {
     }));
   }
 
-  /* ================= SUBMIT ================= */
+  /* ================= BARCODE + QR ================= */
+
+  useEffect(() => {
+    if (!productKey) return;
+
+    const value = `NA-${productKey}-MASTER`;
+
+    if (barcodeRef.current) {
+      JsBarcode(barcodeRef.current, value, {
+        format: "CODE128",
+        width: 2,
+        height: 70,
+        displayValue: true,
+      });
+    }
+
+    QRCode.toCanvas(qrRef.current, value, { width: 120 });
+  }, [productKey]);
+
+  /* ================= VALIDATION ENGINE (LOCK SYSTEM) ================= */
+
+  function validate() {
+    const err = [];
+
+    if (!form.name) err.push("Product Name required");
+    if (!form.category) err.push("Category required");
+    if (!form.gstCategory) err.push("GST Category required");
+    if (!form.images.length) err.push("At least 1 image required");
+
+    const validVariants = form.variants.filter(v => v.value && v.mrp && v.sellingPrice);
+
+    if (!validVariants.length) err.push("At least 1 valid variant required");
+
+    setErrors(err);
+    return err.length === 0;
+  }
+
+  /* ================= SUBMIT (LOCKED SAFE SAVE) ================= */
 
   async function handleSubmit(e) {
     e.preventDefault();
 
+    if (!validate()) {
+      alert("Fix errors before saving");
+      return;
+    }
+
     for (let v of form.variants) {
+      if (!v.value) continue;
+
       await fetch("/api/admin/products", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -254,7 +231,7 @@ export default function ProductUpload() {
       });
     }
 
-    alert("Product Published");
+    alert("Product Published Successfully");
   }
 
   /* ================= UI ================= */
@@ -262,133 +239,83 @@ export default function ProductUpload() {
   return (
     <div className="wrap">
 
-      {/* HEADER */}
-      <div className="header">
-        <h1>🛒 Shopify Pro Product Admin</h1>
+      <h1>Shopify Pro Product Admin (LOCKED SYSTEM)</h1>
 
-        <div className="tabs">
-          <button onClick={() => setActiveTab("basic")}>Basic</button>
-          <button onClick={() => setActiveTab("variants")}>Variants</button>
-          <button onClick={() => setActiveTab("media")}>Media</button>
-          <button onClick={() => setActiveTab("seo")}>SEO</button>
-          <button onClick={() => setActiveTab("barcode")}>Barcode</button>
+      {errors.length > 0 && (
+        <div className="errors">
+          {errors.map((e,i)=> <p key={i}>⚠ {e}</p>)}
         </div>
-      </div>
+      )}
 
       <form onSubmit={handleSubmit}>
 
-        {/* ================= BASIC ================= */}
-        {activeTab === "basic" && (
-          <div className="grid">
-            <input placeholder="Product Name"
-              value={form.name}
-              onChange={(e)=>setForm({...form,name:e.target.value})}
-            />
+        <input placeholder="Product Name"
+          value={form.name}
+          onChange={(e)=>setForm({...form,name:e.target.value})}
+        />
 
-            <select onChange={(e)=>setForm({...form,category:e.target.value})}>
-              <option>Select Category</option>
-              {websiteCategories.map(c => <option key={c}>{c}</option>)}
+        <select onChange={(e)=>setForm({...form,category:e.target.value})}>
+          <option>Select Category</option>
+          {websiteCategories.map(c => <option key={c}>{c}</option>)}
+        </select>
+
+        <select onChange={(e)=>setForm({...form,gstCategory:e.target.value})}>
+          <option>Select GST Category</option>
+          {gstOptions.map(g =>
+            <option key={g.name} value={g.name}>{g.name} ({g.tax}%)</option>
+          )}
+        </select>
+
+        <input value={form.hsn} readOnly />
+        <input value={form.tax} readOnly />
+        <textarea value={form.gstDescription} readOnly />
+
+        {/* VARIANTS */}
+        {form.variants.map((v,i)=>(
+          <div key={i} className="row">
+            <input placeholder="Value"
+              onChange={(e)=>updateVariant(i,"value",e.target.value)} />
+
+            <select onChange={(e)=>updateVariant(i,"unit",e.target.value)}>
+              <option>GM</option><option>KG</option><option>ML</option><option>L</option>
             </select>
 
-            <select onChange={(e)=>setForm({...form,gstCategory:e.target.value})}>
-              <option>Select GST Category</option>
-              {gstOptions.map(g =>
-                <option key={g.name}>{g.name}</option>
-              )}
-            </select>
+            <input placeholder="MRP"
+              onChange={(e)=>updateVariant(i,"mrp",e.target.value)} />
 
-            <input value={form.hsn} readOnly />
-            <input value={form.tax} readOnly />
-            <textarea value={form.gstDescription} readOnly />
+            <input placeholder="Selling Price"
+              onChange={(e)=>updateVariant(i,"sellingPrice",e.target.value)} />
+
+            <input value={v.sku} readOnly />
           </div>
-        )}
+        ))}
 
-        {/* ================= VARIANTS ================= */}
-        {activeTab === "variants" && (
-          <div>
-            {form.variants.map((v,i)=>(
-              <div className="row" key={i}>
-                <input placeholder="Value"
-                  onChange={(e)=>updateVariant(i,"value",e.target.value)} />
+        <button type="button" onClick={addVariant}>+ Add Variant</button>
 
-                <select onChange={(e)=>updateVariant(i,"unit",e.target.value)}>
-                  <option>GM</option>
-                  <option>KG</option>
-                  <option>ML</option>
-                  <option>L</option>
-                </select>
+        {/* IMAGE */}
+        <input type="file" multiple onChange={handleImageUpload} />
 
-                <input placeholder="MRP"
-                  onChange={(e)=>updateVariant(i,"mrp",e.target.value)} />
+        <div className="imgGrid">
+          {imagePreviews.map((img,i)=>(
+            <img key={i} src={img.preview} />
+          ))}
+        </div>
 
-                <input placeholder="Selling"
-                  onChange={(e)=>updateVariant(i,"sellingPrice",e.target.value)} />
+        {/* BARCODE + QR */}
+        <canvas ref={barcodeRef}></canvas>
+        <canvas ref={qrRef}></canvas>
 
-                <input value={v.sku} readOnly />
-
-                <button type="button" onClick={()=>removeVariant(i)}>X</button>
-              </div>
-            ))}
-
-            <button type="button" onClick={addVariant}>+ Add Variant</button>
-          </div>
-        )}
-
-        {/* ================= MEDIA ================= */}
-        {activeTab === "media" && (
-          <div>
-            <input type="file" multiple onChange={handleImageUpload} />
-
-            <div className="imgGrid">
-              {imagePreviews.map((img,i)=>(
-                <img key={i} src={img.preview} />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* ================= SEO ================= */}
-        {activeTab === "seo" && (
-          <div>
-            <input value={seo.title}
-              onChange={(e)=>setSeo({...seo,title:e.target.value})}/>
-
-            <textarea value={seo.description}
-              onChange={(e)=>setSeo({...seo,description:e.target.value})}/>
-
-            <input value={seo.keywords}
-              onChange={(e)=>setSeo({...seo,keywords:e.target.value})}/>
-          </div>
-        )}
-
-        {/* ================= BARCODE ================= */}
-        {activeTab === "barcode" && (
-          <div>
-            <canvas ref={barcodeRef} id="barcodeCanvas"></canvas>
-
-            <button type="button" onClick={downloadBarcode}>
-              Download Barcode
-            </button>
-
-            <p>{barcodeValue}</p>
-          </div>
-        )}
-
-        <button type="submit" className="save">
-          Publish Product
-        </button>
+        <button type="submit">FINAL PUBLISH (LOCKED)</button>
 
       </form>
 
       <style jsx>{`
         .wrap{max-width:1100px;margin:auto;padding:20px;}
-        .header{display:flex;justify-content:space-between;align-items:center;}
-        .tabs button{margin:5px;padding:8px 12px;}
-        .grid{display:grid;gap:10px;}
-        .row{display:grid;grid-template-columns:repeat(5,1fr) auto;gap:10px;}
+        input,select,textarea{width:100%;padding:10px;margin:8px 0;}
+        .row{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;}
         .imgGrid{display:flex;gap:10px;flex-wrap:wrap;}
         img{width:80px;height:80px;object-fit:cover;}
-        .save{margin-top:20px;padding:12px 20px;background:black;color:#fff;}
+        .errors{background:#ffe5e5;padding:10px;margin-bottom:10px;}
       `}</style>
 
     </div>
