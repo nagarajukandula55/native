@@ -255,6 +255,25 @@ export default function ProductUpload() {
     setStep(0);
   }
 
+  /* ================= SEO ================= */
+  
+  async function generateAISEO() {
+  const res = await fetch("/api/seo", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name: form.name,
+      category: form.category,
+    }),
+  });
+
+  const data = await res.json();
+
+  if (data.success) {
+    setSeo(data.seo);
+  }
+}
+
   /* ================= UI ================= */
 
   return (
@@ -270,6 +289,7 @@ export default function ProductUpload() {
         <button onClick={() => setStep(1)}>Variants</button>
         <button onClick={() => setStep(2)}>Media</button>
         <button onClick={() => setStep(3)}>SEO</button>
+        <button type="button" onClick={generateAISEO}>⚡ Auto Generate SEO</button>
       </div>
 
       {/* BASIC */}
