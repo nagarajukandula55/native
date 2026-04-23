@@ -1,5 +1,3 @@
-still having issue. just see my code don't change it just upgrade t.
-
 "use client";
 
 import { useState, useEffect, useRef } from "react";
