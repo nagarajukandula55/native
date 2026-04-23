@@ -1,52 +1,38 @@
 import mongoose from "mongoose";
 
-const ProductSchema = new mongoose.Schema(
-  {
-    name: String,
-    slug: { type: String, unique: true },
+const ProductSchema = new mongoose.Schema({
+  name: String,
+  slug: String,
+  productKey: String,
+  category: String,
 
-    productKey: { type: String, index: true },
+  variant: String,
+  sku: String,
 
-    category: String,
+  mrp: Number,
+  sellingPrice: Number,
 
-    /* GST */
-    gstCategory: String,
-    gstDescription: String,
-    hsn: String,
-    tax: Number,
+  images: [String],
 
-    /* Pricing */
-    mrp: Number,
-    sellingPrice: Number,
+  description: String,
+  shortDescription: String,
+  ingredients: String,
+  shelfLife: String,
 
-    /* Variant */
-    variant: String, // 250GM
-    variantType: String,
+  seo: Object,
 
-    /* SKU */
-    sku: { type: String, unique: true },
-
-    /* Content */
-    description: String,
-    shortDescription: String,
-    ingredients: String,
-    shelfLife: String,
-
-    /* Media */
-    images: [String],
-
-    /* SEO */
-    metaTitle: String,
-    metaDescription: String,
-
-    /* System */
-    isActive: { type: Boolean, default: true },
+  status: {
+    type: String,
+    default: "review",
   },
-  { timestamps: true }
-);
 
-/* 🔥 PREVENT DUPLICATE VARIANT */
-ProductSchema.index({ productKey: 1, variant: 1 }, { unique: true });
+  isActive: {
+    type: Boolean,
+    default: false,
+  },
+
+  createdAt: Date,
+});
 
 export default mongoose.models.Product ||
   mongoose.model("Product", ProductSchema);
