@@ -1,91 +1,117 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import jwt from "jsonwebtoken";
-import connectDB from "@/lib/db";
+import connectDB from "@/lib/mongodb";
 import Product from "@/models/Product";
+import { generateSKU } from "@/lib/skuGenerator";
+import Inventory from "@/models/Inventory";
+
 
 /* ================= GET PRODUCTS ================= */
-
-export async function GET(req) {
+export async function GET() {
   try {
     await connectDB();
 
     const token = cookies().get("token")?.value;
 
     if (!token) {
-      return NextResponse.json(
-        { success: false, products: [] },
-        { status: 401 }
-      );
+      return NextResponse.json({ success: false, products: [] }, { status: 401 });
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     if (!["admin", "super_admin", "vendor"].includes(decoded.role)) {
-      return NextResponse.json(
-        { success: false, products: [] },
-        { status: 403 }
-      );
+      return NextResponse.json({ success: false, products: [] }, { status: 403 });
     }
 
-    /* ================= QUERY PARAMS ================= */
-
-    const { searchParams } = new URL(req.url);
-
-    const status = searchParams.get("status");     // review / approved / listed
-    const search = searchParams.get("search");     // name / sku
-    const page = parseInt(searchParams.get("page")) || 1;
-    const limit = parseInt(searchParams.get("limit")) || 20;
-
-    const skip = (page - 1) * limit;
-
-    /* ================= BUILD QUERY ================= */
-
-    let query = {};
-
-    // 🔥 ROLE BASED FILTER
-    if (decoded.role === "vendor") {
-      query.createdBy = decoded.id; // only own products
-    }
-
-    // 🔥 STATUS FILTER
-    if (status) {
-      query.status = status;
-    }
-
-    // 🔥 SEARCH FILTER
-    if (search) {
-      query.$or = [
-        { name: { $regex: search, $options: "i" } },
-        { sku: { $regex: search, $options: "i" } },
-      ];
-    }
-
-    /* ================= FETCH ================= */
-
-    const products = await Product.find(query)
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit);
-
-    const total = await Product.countDocuments(query);
+    const products = await Product.find().sort({ createdAt: -1 });
 
     return NextResponse.json({
       success: true,
       products,
-      pagination: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-      },
     });
 
   } catch (err) {
-    console.error("GET PRODUCTS ERROR:", err);
+    console.error(err);
+    return NextResponse.json({ success: false, products: [] }, { status: 500 });
+  }
+}
+
+
+/* ================= CREATE PRODUCT ================= */
+export async function POST(req) {
+  try {
+    await connectDB();
+
+    const token = cookies().get("token")?.value;
+
+    if (!token) {
+      return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    if (!["admin", "super_admin", "vendor"].includes(decoded.role)) {
+      return NextResponse.json({ success: false, message: "Forbidden" }, { status: 403 });
+    }
+
+    const body = await req.json();
+
+    const {
+      name,
+      productKey,
+      variantValue,
+      variantUnit,
+      slug,
+    } = body;
+
+    if (!name || !productKey || !variantValue || !variantUnit) {
+      return NextResponse.json(
+        { success: false, message: "Missing required fields" },
+        { status: 400 }
+      );
+    }
+
+    await Inventory.create({
+      sku,
+      stock: 0, // default
+    });
+
+    /* ================= VARIANT ================= */
+    const variant = `${variantValue}${variantUnit}`.toUpperCase();
+
+    /* ================= SKU GENERATION ================= */
+    const sku = await generateSKU(productKey, variant);
+
+    /* ================= UNIQUE SLUG ================= */
+    const finalSlug = `${slug}-${variant.toLowerCase()}`;
+
+    /* ================= CREATE ================= */
+    const product = await Product.create({
+      ...body,
+      sku,
+      variant,
+      slug: finalSlug,
+      status: "review", // 🔥 ALWAYS REVIEW FIRST
+    });
+
+    return NextResponse.json({
+      success: true,
+      product,
+    });
+
+  } catch (err) {
+    console.error(err);
+
+    if (err.code === 11000) {
+      return NextResponse.json(
+        { success: false, message: "Variant already exists" },
+        { status: 400 }
+      );
+    }
 
     return NextResponse.json(
-      { success: false, products: [] },
+      { success: false, message: "Server error" },
       { status: 500 }
     );
   }
