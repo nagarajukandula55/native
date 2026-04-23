@@ -27,6 +27,7 @@
     "react-hot-toast": "^2.4.0",
     "swr": "^2.2.1",
     "glob": "^10.3.10",
+    "qrcode": "^1.5.4",
     "lucide-react": "^0.468.0"
   },
   "devDependencies": {
