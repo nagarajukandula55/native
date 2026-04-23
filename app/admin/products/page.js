@@ -42,10 +42,11 @@ export default function ProductUpload() {
 
   const [step, setStep] = useState(0);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const barcodeRefs = useRef([]);
 
-  /* ================= GST MASTER (FIXED STRUCTURE) ================= */
+  /* ================= GST ================= */
 
   const gstOptions = [
     { name: "Food Preparations (Not Elsewhere Specified)", hsn: "2106", tax: 5, desc: "Includes dosa mix, idli mix" },
@@ -58,31 +59,23 @@ export default function ProductUpload() {
   ];
 
   const websiteCategories = [
-    "Instant Mixes",
-    "Spices & Masalas",
-    "Cold Pressed Oils",
-    "Flours & Millets",
-    "Ready to Cook",
-    "Ready to Eat",
-    "Pickles & Chutneys",
-    "Snacks & Namkeen",
-    "Breakfast Essentials",
-    "Combo Packs",
-    "New Arrivals",
+    "Instant Mixes","Spices & Masalas","Cold Pressed Oils",
+    "Flours & Millets","Ready to Cook","Ready to Eat",
+    "Pickles & Chutneys","Snacks & Namkeen",
+    "Breakfast Essentials","Combo Packs","New Arrivals",
   ];
 
-  /* ================= AUTO PRODUCT KEY + SEO ================= */
+  /* ================= AUTO ================= */
 
   useEffect(() => {
     if (!form.name) return;
 
     const clean = form.name.replace(/native/gi, "").trim();
-
     const key = clean.toUpperCase().replace(/[^A-Z0-9]/g, "");
+
     setProductKey(key);
 
-    const slugGen = form.name
-      .toLowerCase()
+    const slugGen = form.name.toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/(^-|-$)/g, "");
 
@@ -96,11 +89,10 @@ export default function ProductUpload() {
 
   }, [form.name]);
 
-  /* ================= GST AUTO FIX ================= */
+  /* ================= GST AUTO ================= */
 
   useEffect(() => {
     const selected = gstOptions.find(g => g.name === form.gstCategory);
-
     if (selected) {
       setForm(prev => ({
         ...prev,
@@ -111,27 +103,24 @@ export default function ProductUpload() {
     }
   }, [form.gstCategory]);
 
-  /* ================= SAFE VARIANT UPDATE ================= */
+  /* ================= VARIANT FIX ================= */
 
   function updateVariant(i, field, value) {
-    const updated = [...form.variants];
+    setForm(prev => {
+      const updated = [...prev.variants];
 
-    updated[i] = {
-      ...updated[i],
-      [field]: value,
-    };
+      updated[i] = {
+        ...updated[i],
+        [field]: value,
+      };
 
-    if (updated[i].value && productKey) {
-      const seq = String(i + 1).padStart(3, "0");
+      if (updated[i].value && productKey) {
+        const seq = String(i + 1).padStart(3, "0");
+        updated[i].sku = `NA-${productKey}-${seq}-${updated[i].value}${updated[i].unit}`;
+      }
 
-      updated[i].sku =
-        `NA-${productKey}-${seq}-${updated[i].value}${updated[i].unit}`;
-    }
-
-    setForm(prev => ({
-      ...prev,
-      variants: updated,
-    }));
+      return { ...prev, variants: updated };
+    });
   }
 
   function addVariant() {
@@ -148,7 +137,7 @@ export default function ProductUpload() {
     }));
   }
 
-  /* ================= IMAGE SAFE ================= */
+  /* ================= IMAGE ================= */
 
   async function handleImageUpload(e) {
     const files = Array.from(e.target.files);
@@ -171,10 +160,7 @@ export default function ProductUpload() {
       );
 
       const json = await res.json();
-
-      if (json?.secure_url) {
-        uploaded.push(json.secure_url);
-      }
+      if (json?.secure_url) uploaded.push(json.secure_url);
     }
 
     setForm(prev => ({
@@ -183,7 +169,7 @@ export default function ProductUpload() {
     }));
   }
 
-  /* ================= VALIDATION (LOCK SAVE) ================= */
+  /* ================= VALIDATION ================= */
 
   function validate() {
     if (!form.name) return "Product name required";
@@ -191,16 +177,13 @@ export default function ProductUpload() {
     if (!form.gstCategory) return "GST category required";
     if (form.variants.length === 0) return "Add at least one variant";
 
-    const invalidVariant = form.variants.find(
-      v => !v.value || !v.mrp || !v.sellingPrice
-    );
-
-    if (invalidVariant) return "Fill all variant fields";
+    const invalid = form.variants.find(v => !v.value || !v.mrp || !v.sellingPrice);
+    if (invalid) return "Fill all variant fields";
 
     return null;
   }
 
-  /* ================= BARCODE SAFE ================= */
+  /* ================= BARCODE ================= */
 
   useEffect(() => {
     form.variants.forEach((v, i) => {
@@ -223,56 +206,41 @@ export default function ProductUpload() {
 
   async function handleSubmit() {
     const err = validate();
-    if (err) {
-      setError(err);
-      return;
-    }
+    if (err) return setError(err);
 
     setError("");
+    setLoading(true);
 
-    for (let v of form.variants) {
-      await fetch("/api/admin/products", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...form,
-          variant: `${v.value}${v.unit}`,
-          sku: v.sku,
-          mrp: v.mrp,
-          sellingPrice: v.sellingPrice,
-          productKey,
-          slug,
-          seo,
-          status: "review",
-        }),
-      });
+    try {
+      for (let v of form.variants) {
+        const res = await fetch("/api/admin/products", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...form,
+            variant: `${v.value}${v.unit}`,
+            sku: v.sku,
+            mrp: v.mrp,
+            sellingPrice: v.sellingPrice,
+            productKey,
+            slug,
+            seo,
+            status: "review",
+          }),
+        });
+
+        const data = await res.json();
+        if (!data.success) throw new Error(data.message || "Save failed");
+      }
+
+      window.location.href = "/admin/products/review";
+
+    } catch (e) {
+      setError(e.message);
     }
 
-    alert("Product sent for review ✔");
-
-    setForm(emptyForm);
-    setImagePreviews([]);
-    setStep(0);
+    setLoading(false);
   }
-
-  /* ================= SEO ================= */
-  
-  async function generateAISEO() {
-  const res = await fetch("/api/seo", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      name: form.name,
-      category: form.category,
-    }),
-  });
-
-  const data = await res.json();
-
-  if (data.success) {
-    setSeo(data.seo);
-  }
-}
 
   /* ================= UI ================= */
 
@@ -283,159 +251,60 @@ export default function ProductUpload() {
 
       {error && <div className="error">{error}</div>}
 
-      {/* STEPS */}
       <div className="steps">
-        <button onClick={() => setStep(0)}>Basic</button>
-        <button onClick={() => setStep(1)}>Variants</button>
-        <button onClick={() => setStep(2)}>Media</button>
-        <button onClick={() => setStep(3)}>SEO</button>
-        <button type="button" onClick={generateAISEO}>⚡ Auto Generate SEO</button>
+        {["Basic","Variants","Media","SEO"].map((s,i)=>(
+          <button key={i}
+            className={step===i ? "active":""}
+            onClick={()=>setStep(i)}>
+            {s}
+          </button>
+        ))}
       </div>
 
-      {/* BASIC */}
       {step === 0 && (
         <div className="card">
-          <input
-            placeholder="Product Name"
-            value={form.name}
-            onChange={e => setForm({ ...form, name: e.target.value })}
-          />
-
-          <select
-            value={form.category}
-            onChange={e => setForm({ ...form, category: e.target.value })}
-          >
-            <option>Select Category</option>
-            {websiteCategories.map(c => (
-              <option key={c}>{c}</option>
-            ))}
-          </select>
-
-          <select
-            value={form.gstCategory}
-            onChange={e => setForm({ ...form, gstCategory: e.target.value })}
-          >
-            <option>Select GST</option>
-            {gstOptions.map(g => (
-              <option key={g.name}>{g.name}</option>
-            ))}
-          </select>
-
-          <input value={form.hsn} readOnly />
-          <input value={form.tax} readOnly />
+          <input value={form.name}
+            onChange={e=>setForm({...form,name:e.target.value})} />
         </div>
       )}
 
-      {/* VARIANTS */}
       {step === 1 && (
         <div className="card">
-
-          {form.variants.map((v, i) => (
+          {form.variants.map((v,i)=>(
             <div className="row" key={i}>
-
-              <input
-                placeholder="Value"
-                onChange={e => updateVariant(i, "value", e.target.value)}
-              />
-
-              <select
-                onChange={e => updateVariant(i, "unit", e.target.value)}
-              >
-                <option>GM</option>
-                <option>KG</option>
-                <option>ML</option>
-                <option>L</option>
-              </select>
-
-              <input
-                placeholder="MRP"
-                onChange={e => updateVariant(i, "mrp", e.target.value)}
-              />
-
-              <input
-                placeholder="Selling Price"
-                onChange={e => updateVariant(i, "sellingPrice", e.target.value)}
-              />
-
+              <input value={v.value}
+                onChange={e=>updateVariant(i,"value",e.target.value)} />
+              <input value={v.mrp}
+                onChange={e=>updateVariant(i,"mrp",e.target.value)} />
+              <input value={v.sellingPrice}
+                onChange={e=>updateVariant(i,"sellingPrice",e.target.value)} />
               <input value={v.sku} readOnly />
-
-              <svg ref={el => (barcodeRefs.current[i] = el)} />
-
-              <button type="button" onClick={() => removeVariant(i)}>
-                X
-              </button>
-
+              <svg ref={el => barcodeRefs.current[i]=el} />
             </div>
           ))}
-
-          <button type="button" onClick={addVariant}>
-            + Add Variant
-          </button>
-
+          <button onClick={addVariant}>+ Add Variant</button>
         </div>
       )}
 
-      {/* MEDIA */}
-      {step === 2 && (
-        <div className="card">
-          <input type="file" multiple onChange={handleImageUpload} />
-
-          <div className="imgGrid">
-            {imagePreviews.map((img, i) => (
-              <img key={i} src={img.preview} />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* SEO */}
-      {step === 3 && (
-        <div className="card">
-          <input
-            value={seo.title}
-            onChange={e => setSeo({ ...seo, title: e.target.value })}
-          />
-
-          <textarea
-            value={seo.description}
-            onChange={e =>
-              setSeo({ ...seo, description: e.target.value })
-            }
-          />
-        </div>
-      )}
-
-      {/* ACTION */}
       <div className="actions">
-        {step > 0 && (
-          <button type="button" onClick={() => setStep(step - 1)}>
-            Back
-          </button>
-        )}
-
-        {step < 3 && (
-          <button type="button" onClick={() => setStep(step + 1)}>
-            Next
-          </button>
-        )}
-
+        {step > 0 && <button onClick={()=>setStep(step-1)}>Back</button>}
+        {step < 3 && <button onClick={()=>setStep(step+1)}>Next</button>}
         {step === 3 && (
-          <button type="button" onClick={handleSubmit}>
-            Send for Review
+          <button disabled={loading} onClick={handleSubmit}>
+            {loading ? "Saving..." : "Send for Review"}
           </button>
         )}
       </div>
 
       <style jsx>{`
-        .container { max-width: 1100px; margin: auto; padding: 20px; }
-        .card { background: #fff; padding: 15px; border-radius: 10px; margin-top: 10px; }
-        .row { display: grid; grid-template-columns: repeat(5, 1fr) auto; gap: 10px; margin-bottom: 10px; }
-        input, select, textarea { width: 100%; padding: 10px; }
-        .steps button { margin: 5px; padding: 8px 12px; }
-        .actions { margin-top: 20px; display: flex; gap: 10px; }
-        .imgGrid { display: flex; gap: 10px; flex-wrap: wrap; }
-        img { width: 80px; height: 80px; object-fit: cover; }
-        .error { color: red; margin: 10px 0; }
+        .container{max-width:1100px;margin:auto;padding:20px;}
+        .card{background:#fff;padding:15px;border-radius:10px;margin-top:10px;}
+        .row{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;}
+        input{padding:10px;width:100%;}
+        .steps button{margin:5px;padding:8px 12px;}
+        .steps .active{background:black;color:#fff;}
+        .actions{margin-top:20px;display:flex;gap:10px;}
+        .error{color:red;margin:10px 0;}
       `}</style>
 
     </div>
