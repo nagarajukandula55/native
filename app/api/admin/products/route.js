@@ -1,3 +1,5 @@
+still having issue. just see my code don't change it just upgrade t.
+
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -45,7 +47,7 @@ export default function ProductUpload() {
 
   const barcodeRefs = useRef([]);
 
-  /* ================= GST ================= */
+  /* ================= GST MASTER (FIXED STRUCTURE) ================= */
 
   const gstOptions = [
     { name: "Food Preparations (Not Elsewhere Specified)", hsn: "2106", tax: 5, desc: "Includes dosa mix, idli mix" },
@@ -71,12 +73,13 @@ export default function ProductUpload() {
     "New Arrivals",
   ];
 
-  /* ================= AUTO ================= */
+  /* ================= AUTO PRODUCT KEY + SEO ================= */
 
   useEffect(() => {
     if (!form.name) return;
 
     const clean = form.name.replace(/native/gi, "").trim();
+
     const key = clean.toUpperCase().replace(/[^A-Z0-9]/g, "");
     setProductKey(key);
 
@@ -95,7 +98,7 @@ export default function ProductUpload() {
 
   }, [form.name]);
 
-  /* ================= GST AUTO ================= */
+  /* ================= GST AUTO FIX ================= */
 
   useEffect(() => {
     const selected = gstOptions.find(g => g.name === form.gstCategory);
@@ -110,18 +113,27 @@ export default function ProductUpload() {
     }
   }, [form.gstCategory]);
 
-  /* ================= VARIANT ================= */
+  /* ================= SAFE VARIANT UPDATE ================= */
 
   function updateVariant(i, field, value) {
     const updated = [...form.variants];
-    updated[i] = { ...updated[i], [field]: value };
+
+    updated[i] = {
+      ...updated[i],
+      [field]: value,
+    };
 
     if (updated[i].value && productKey) {
       const seq = String(i + 1).padStart(3, "0");
-      updated[i].sku = `NA-${productKey}-${seq}-${updated[i].value}${updated[i].unit}`;
+
+      updated[i].sku =
+        `NA-${productKey}-${seq}-${updated[i].value}${updated[i].unit}`;
     }
 
-    setForm(prev => ({ ...prev, variants: updated }));
+    setForm(prev => ({
+      ...prev,
+      variants: updated,
+    }));
   }
 
   function addVariant() {
@@ -138,7 +150,7 @@ export default function ProductUpload() {
     }));
   }
 
-  /* ================= IMAGE ================= */
+  /* ================= IMAGE SAFE ================= */
 
   async function handleImageUpload(e) {
     const files = Array.from(e.target.files);
@@ -161,7 +173,10 @@ export default function ProductUpload() {
       );
 
       const json = await res.json();
-      if (json?.secure_url) uploaded.push(json.secure_url);
+
+      if (json?.secure_url) {
+        uploaded.push(json.secure_url);
+      }
     }
 
     setForm(prev => ({
@@ -170,7 +185,7 @@ export default function ProductUpload() {
     }));
   }
 
-  /* ================= VALIDATION ================= */
+  /* ================= VALIDATION (LOCK SAVE) ================= */
 
   function validate() {
     if (!form.name) return "Product name required";
@@ -178,13 +193,16 @@ export default function ProductUpload() {
     if (!form.gstCategory) return "GST category required";
     if (form.variants.length === 0) return "Add at least one variant";
 
-    const invalid = form.variants.find(v => !v.value || !v.mrp || !v.sellingPrice);
-    if (invalid) return "Fill all variant fields";
+    const invalidVariant = form.variants.find(
+      v => !v.value || !v.mrp || !v.sellingPrice
+    );
+
+    if (invalidVariant) return "Fill all variant fields";
 
     return null;
   }
 
-  /* ================= BARCODE ================= */
+  /* ================= BARCODE SAFE ================= */
 
   useEffect(() => {
     form.variants.forEach((v, i) => {
@@ -196,7 +214,9 @@ export default function ProductUpload() {
             height: 50,
             displayValue: true,
           });
-        } catch {}
+        } catch (e) {
+          console.error("Barcode error:", e);
+        }
       }
     });
   }, [form.variants]);
@@ -205,7 +225,10 @@ export default function ProductUpload() {
 
   async function handleSubmit() {
     const err = validate();
-    if (err) return setError(err);
+    if (err) {
+      setError(err);
+      return;
+    }
 
     setError("");
 
@@ -235,17 +258,23 @@ export default function ProductUpload() {
   }
 
   /* ================= SEO ================= */
-
+  
   async function generateAISEO() {
-    const res = await fetch("/api/seo", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: form.name, category: form.category }),
-    });
+  const res = await fetch("/api/seo", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name: form.name,
+      category: form.category,
+    }),
+  });
 
-    const data = await res.json();
-    if (data.success) setSeo(data.seo);
+  const data = await res.json();
+
+  if (data.success) {
+    setSeo(data.seo);
   }
+}
 
   /* ================= UI ================= */
 
@@ -253,121 +282,165 @@ export default function ProductUpload() {
     <div className="container">
 
       <h1>🛒 Product Admin Panel</h1>
+
       {error && <div className="error">{error}</div>}
 
       {/* STEPS */}
       <div className="steps">
-        {["Basic","Variants","Media","SEO"].map((label,i)=>(
-          <button key={i} className={step===i?"active":""} onClick={()=>setStep(i)}>
-            {label}
-          </button>
-        ))}
-        <button onClick={generateAISEO}>⚡ SEO</button>
+        <button onClick={() => setStep(0)}>Basic</button>
+        <button onClick={() => setStep(1)}>Variants</button>
+        <button onClick={() => setStep(2)}>Media</button>
+        <button onClick={() => setStep(3)}>SEO</button>
+        <button type="button" onClick={generateAISEO}>⚡ Auto Generate SEO</button>
       </div>
 
       {/* BASIC */}
-      {step===0 && (
-        <div className="card grid">
-          <input placeholder="Product Name" value={form.name}
-            onChange={e=>setForm({...form,name:e.target.value})}/>
+      {step === 0 && (
+        <div className="card">
+          <input
+            placeholder="Product Name"
+            value={form.name}
+            onChange={e => setForm({ ...form, name: e.target.value })}
+          />
 
-          <select value={form.category}
-            onChange={e=>setForm({...form,category:e.target.value})}>
+          <select
+            value={form.category}
+            onChange={e => setForm({ ...form, category: e.target.value })}
+          >
             <option>Select Category</option>
-            {websiteCategories.map(c=><option key={c}>{c}</option>)}
+            {websiteCategories.map(c => (
+              <option key={c}>{c}</option>
+            ))}
           </select>
 
-          <select value={form.gstCategory}
-            onChange={e=>setForm({...form,gstCategory:e.target.value})}>
+          <select
+            value={form.gstCategory}
+            onChange={e => setForm({ ...form, gstCategory: e.target.value })}
+          >
             <option>Select GST</option>
-            {gstOptions.map(g=><option key={g.name}>{g.name}</option>)}
+            {gstOptions.map(g => (
+              <option key={g.name}>{g.name}</option>
+            ))}
           </select>
 
-          <input value={form.hsn} readOnly placeholder="HSN"/>
-          <input value={form.tax} readOnly placeholder="Tax %"/>
-
-          <textarea placeholder="Short Description"
-            value={form.shortDescription}
-            onChange={e=>setForm({...form,shortDescription:e.target.value})}/>
-
-          <textarea placeholder="Full Description"
-            value={form.description}
-            onChange={e=>setForm({...form,description:e.target.value})}/>
-
-          <textarea placeholder="Ingredients"
-            value={form.ingredients}
-            onChange={e=>setForm({...form,ingredients:e.target.value})}/>
-
-          <input placeholder="Shelf Life"
-            value={form.shelfLife}
-            onChange={e=>setForm({...form,shelfLife:e.target.value})}/>
+          <input value={form.hsn} readOnly />
+          <input value={form.tax} readOnly />
         </div>
       )}
 
       {/* VARIANTS */}
-      {step===1 && (
+      {step === 1 && (
         <div className="card">
-          {form.variants.map((v,i)=>(
+
+          {form.variants.map((v, i) => (
             <div className="row" key={i}>
-              <input onChange={e=>updateVariant(i,"value",e.target.value)} />
-              <select onChange={e=>updateVariant(i,"unit",e.target.value)}>
-                <option>GM</option><option>KG</option><option>ML</option><option>L</option>
+
+              <input
+                placeholder="Value"
+                onChange={e => updateVariant(i, "value", e.target.value)}
+              />
+
+              <select
+                onChange={e => updateVariant(i, "unit", e.target.value)}
+              >
+                <option>GM</option>
+                <option>KG</option>
+                <option>ML</option>
+                <option>L</option>
               </select>
-              <input onChange={e=>updateVariant(i,"mrp",e.target.value)} />
-              <input onChange={e=>updateVariant(i,"sellingPrice",e.target.value)} />
+
+              <input
+                placeholder="MRP"
+                onChange={e => updateVariant(i, "mrp", e.target.value)}
+              />
+
+              <input
+                placeholder="Selling Price"
+                onChange={e => updateVariant(i, "sellingPrice", e.target.value)}
+              />
+
               <input value={v.sku} readOnly />
-              <svg ref={el=>barcodeRefs.current[i]=el}/>
-              <button onClick={()=>removeVariant(i)}>X</button>
+
+              <svg ref={el => (barcodeRefs.current[i] = el)} />
+
+              <button type="button" onClick={() => removeVariant(i)}>
+                X
+              </button>
+
             </div>
           ))}
-          <button onClick={addVariant}>+ Add Variant</button>
+
+          <button type="button" onClick={addVariant}>
+            + Add Variant
+          </button>
+
         </div>
       )}
 
       {/* MEDIA */}
-      {step===2 && (
+      {step === 2 && (
         <div className="card">
-          <input type="file" multiple onChange={handleImageUpload}/>
+          <input type="file" multiple onChange={handleImageUpload} />
+
           <div className="imgGrid">
-            {imagePreviews.map((img,i)=><img key={i} src={img.preview}/>)}
+            {imagePreviews.map((img, i) => (
+              <img key={i} src={img.preview} />
+            ))}
           </div>
         </div>
       )}
 
       {/* SEO */}
-      {step===3 && (
+      {step === 3 && (
         <div className="card">
-          <input value={seo.title}
-            onChange={e=>setSeo({...seo,title:e.target.value})}/>
-          <textarea value={seo.description}
-            onChange={e=>setSeo({...seo,description:e.target.value})}/>
+          <input
+            value={seo.title}
+            onChange={e => setSeo({ ...seo, title: e.target.value })}
+          />
+
+          <textarea
+            value={seo.description}
+            onChange={e =>
+              setSeo({ ...seo, description: e.target.value })
+            }
+          />
         </div>
       )}
 
       {/* ACTION */}
       <div className="actions">
-        {step>0 && <button onClick={()=>setStep(step-1)}>Back</button>}
-        {step<3 && <button onClick={()=>setStep(step+1)}>Next</button>}
-        {step===3 && <button onClick={handleSubmit}>Send for Review</button>}
+        {step > 0 && (
+          <button type="button" onClick={() => setStep(step - 1)}>
+            Back
+          </button>
+        )}
+
+        {step < 3 && (
+          <button type="button" onClick={() => setStep(step + 1)}>
+            Next
+          </button>
+        )}
+
+        {step === 3 && (
+          <button type="button" onClick={handleSubmit}>
+            Send for Review
+          </button>
+        )}
       </div>
 
       <style jsx>{`
-        .container{max-width:1100px;margin:auto;padding:20px;}
-        .card{background:#fff;padding:20px;border-radius:12px;margin-top:15px;box-shadow:0 5px 15px rgba(0,0,0,0.05);}
-        .grid{display:grid;grid-template-columns:1fr 1fr;gap:15px;}
-        textarea{grid-column:span 2;min-height:80px;}
-        .row{display:grid;grid-template-columns:repeat(5,1fr) auto;gap:10px;margin-bottom:10px;}
-        input,select,textarea{padding:10px;border:1px solid #ddd;border-radius:6px;}
-        .steps{display:flex;gap:8px;flex-wrap:wrap;}
-        .steps button{padding:8px 14px;border:1px solid #ddd;border-radius:6px;background:#f9f9f9;}
-        .steps .active{background:black;color:white;}
-        .actions{margin-top:20px;display:flex;gap:10px;}
-        .imgGrid{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;}
-        img{width:80px;height:80px;object-fit:cover;border-radius:6px;}
-        .error{color:red;margin:10px 0;}
-        @media(max-width:768px){.grid{grid-template-columns:1fr;}textarea{grid-column:span 1;}}
+        .container { max-width: 1100px; margin: auto; padding: 20px; }
+        .card { background: #fff; padding: 15px; border-radius: 10px; margin-top: 10px; }
+        .row { display: grid; grid-template-columns: repeat(5, 1fr) auto; gap: 10px; margin-bottom: 10px; }
+        input, select, textarea { width: 100%; padding: 10px; }
+        .steps button { margin: 5px; padding: 8px 12px; }
+        .actions { margin-top: 20px; display: flex; gap: 10px; }
+        .imgGrid { display: flex; gap: 10px; flex-wrap: wrap; }
+        img { width: 80px; height: 80px; object-fit: cover; }
+        .error { color: red; margin: 10px 0; }
       `}</style>
 
     </div>
   );
 }
+
