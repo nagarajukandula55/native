@@ -4,11 +4,8 @@ import { useState, useEffect, useRef } from "react";
 import JsBarcode from "jsbarcode";
 import QRCode from "qrcode";
 
-/* ================= COMPONENT ================= */
-
 export default function ProductUpload() {
-
-  /* ================= CORE (UNCHANGED) ================= */
+  /* ================= CORE ================= */
 
   const emptyVariant = {
     value: "",
@@ -44,33 +41,36 @@ export default function ProductUpload() {
     keywords: "",
   });
 
-  const [activeStep, setActiveStep] = useState(0);
+  const [status, setStatus] = useState("review"); // 🔥 REVIEW SYSTEM ADDED
+  const [step, setStep] = useState(0);
   const [error, setError] = useState("");
 
   const barcodeRefs = useRef([]);
 
-  /* ================= NEW: PRODUCT STATUS SYSTEM ================= */
-
-  const [status, setStatus] = useState("draft"); 
-  // draft → review → approved → rejected
-
-  /* ================= GST CONFIG ================= */
+  /* ================= GST ================= */
 
   const gstOptions = [
     { name: "Food Preparations (Not Elsewhere Specified)", hsn: "2106", tax: 5, desc: "Includes dosa mix, idli mix" },
     { name: "Flours & Meals (Cereal Based)", hsn: "1101", tax: 5, desc: "Cereal flours" },
-    { name: "Spices", hsn: "0910", tax: 5, desc: "Masalas & spices" },
+    { name: "Spices", hsn: "0910", tax: 5, desc: "Masalas" },
     { name: "Edible Oils", hsn: "1515", tax: 5, desc: "Vegetable oils" },
     { name: "Prepared / Preserved Foods", hsn: "2001", tax: 12, desc: "Pickles, chutneys" },
-    { name: "Ready to Eat / Packaged Food", hsn: "1904", tax: 12, desc: "Packaged foods" },
+    { name: "Ready to Eat / Packaged Food", hsn: "1904", tax: 12, desc: "Packaged food" },
     { name: "Namkeen / Snack Items", hsn: "2106", tax: 12, desc: "Snacks" },
   ];
 
   const websiteCategories = [
-    "Instant Mixes","Spices & Masalas","Cold Pressed Oils",
-    "Flours & Millets","Ready to Cook","Ready to Eat",
-    "Pickles & Chutneys","Snacks & Namkeen",
-    "Breakfast Essentials","Combo Packs","New Arrivals"
+    "Instant Mixes",
+    "Spices & Masalas",
+    "Cold Pressed Oils",
+    "Flours & Millets",
+    "Ready to Cook",
+    "Ready to Eat",
+    "Pickles & Chutneys",
+    "Snacks & Namkeen",
+    "Breakfast Essentials",
+    "Combo Packs",
+    "New Arrivals",
   ];
 
   /* ================= AUTO ================= */
@@ -83,7 +83,8 @@ export default function ProductUpload() {
 
     setProductKey(key);
 
-    const slugGen = form.name.toLowerCase()
+    const slugGen = form.name
+      .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/(^-|-$)/g, "");
 
@@ -91,16 +92,16 @@ export default function ProductUpload() {
 
     setSeo({
       title: `${form.name} | Buy Online`,
-      description: `Buy ${form.name} at best price.`,
-      keywords: `${form.name}, buy online`
+      description: `Buy ${form.name} at best price`,
+      keywords: `${form.name}, online buy`,
     });
-
   }, [form.name]);
 
   /* ================= GST AUTO ================= */
 
   useEffect(() => {
     const selected = gstOptions.find(g => g.name === form.gstCategory);
+
     if (selected) {
       setForm(prev => ({
         ...prev,
@@ -111,11 +112,11 @@ export default function ProductUpload() {
     }
   }, [form.gstCategory]);
 
-  /* ================= VARIANTS ================= */
+  /* ================= VARIANT SAFE UPDATE ================= */
 
   function updateVariant(i, field, value) {
     const updated = [...form.variants];
-    updated[i][field] = value;
+    updated[i] = { ...updated[i], [field]: value };
 
     if (updated[i].value && productKey) {
       const seq = String(i + 1).padStart(3, "0");
@@ -128,8 +129,25 @@ export default function ProductUpload() {
   function addVariant() {
     setForm(prev => ({
       ...prev,
-      variants: [...prev.variants, emptyVariant]
+      variants: [...prev.variants, { ...emptyVariant }],
     }));
+  }
+
+  function removeVariant(i) {
+    setForm(prev => ({
+      ...prev,
+      variants: prev.variants.filter((_, idx) => idx !== i),
+    }));
+  }
+
+  /* ================= VALIDATION ================= */
+
+  function validate() {
+    if (!form.name) return "Product name required";
+    if (!form.category) return "Category required";
+    if (!form.gstCategory) return "GST required";
+    if (form.variants.length === 0) return "Add variants";
+    return null;
   }
 
   /* ================= BARCODE ================= */
@@ -147,36 +165,48 @@ export default function ProductUpload() {
     });
   }, [form.variants]);
 
-  /* ================= VALIDATION ================= */
+  /* ================= IMAGE (SAFE) ================= */
 
-  function validateStep() {
-    if (activeStep === 0 && (!form.name || !form.category)) {
-      setError("Basic details missing");
-      return false;
+  async function handleImageUpload(e) {
+    const files = Array.from(e.target.files);
+
+    const previews = files.map(f => ({
+      preview: URL.createObjectURL(f),
+    }));
+
+    setImagePreviews(prev => [...prev, ...previews]);
+
+    const uploaded = [];
+
+    for (let file of files) {
+      const data = new FormData();
+      data.append("file", file);
+
+      const res = await fetch(
+        `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUD_NAME}/image/upload`,
+        {
+          method: "POST",
+          body: data,
+        }
+      );
+
+      const json = await res.json();
+      uploaded.push(json.secure_url);
     }
-    if (activeStep === 1 && form.variants.length === 0) {
-      setError("Add variants");
-      return false;
-    }
-    setError("");
-    return true;
+
+    setForm(prev => ({
+      ...prev,
+      images: [...prev.images, ...uploaded],
+    }));
   }
 
-  function nextStep() {
-    if (validateStep()) setActiveStep(p => p + 1);
-  }
-
-  function prevStep() {
-    setActiveStep(p => p - 1);
-  }
-
-  /* ================= SUBMIT (🔥 UPDATED WORKFLOW) ================= */
+  /* ================= SAVE (REVIEW FLOW) ================= */
 
   async function handleSubmit() {
-    if (!validateStep()) return;
+    const err = validate();
+    if (err) return setError(err);
 
-    /* 🔥 IMPORTANT: always send for REVIEW first */
-    const finalStatus = "review";
+    setError("");
 
     for (let v of form.variants) {
       await fetch("/api/admin/products", {
@@ -191,107 +221,128 @@ export default function ProductUpload() {
           productKey,
           slug,
           seo,
-          status: finalStatus   // 🔥 REVIEW FLOW LOCKED
+          status: "review", // 🔥 IMPORTANT
         }),
       });
     }
 
-    alert("Product sent for REVIEW (awaiting approval)");
-
-    window.location.href = "/admin/products"; 
+    alert("Sent for Review ✔");
   }
 
-  /* ================= PRINT (UNCHANGED) ================= */
-
-  async function printStickers() {
-    const win = window.open("", "_blank");
-
-    let html = `
-      <html>
-      <head>
-        <style>
-          body { font-family: Arial; }
-          .sheet { display:grid; grid-template-columns: repeat(3,1fr); gap:10px; }
-          .sticker { border:1px solid #000; padding:10px; text-align:center; }
-        </style>
-      </head>
-      <body><div class="sheet">
-    `;
-
-    for (let v of form.variants) {
-      const canvas = document.createElement("canvas");
-      JsBarcode(canvas, v.sku, { format: "CODE128" });
-
-      const qr = await QRCode.toDataURL(v.sku);
-
-      html += `
-        <div class="sticker">
-          <b>${form.name}</b><br/>
-          ${v.value}${v.unit}<br/>
-          <img src="${canvas.toDataURL()}" /><br/>
-          <small>${v.sku}</small><br/>
-          <img src="${qr}" width="60"/>
-        </div>
-      `;
-    }
-
-    html += "</div></body></html>";
-
-    win.document.write(html);
-    win.document.close();
-    win.print();
-  }
-
-  /* ================= UI (UNCHANGED STRUCTURE) ================= */
+  /* ================= UI CLEAN ================= */
 
   return (
-    <div className="wrap">
+    <div className="container">
 
-      <h1>🚀 Shopify Pro Locked Admin</h1>
+      <h1>🛒 Product Admin (Shopify Pro)</h1>
 
-      <p>Status: <b>{status.toUpperCase()}</b> (Auto → REVIEW on save)</p>
+      {error && <div className="error">{error}</div>}
 
-      {activeStep === 0 && (
-        <>
+      {/* STEP NAV */}
+      <div className="steps">
+        <button onClick={() => setStep(0)}>Basic</button>
+        <button onClick={() => setStep(1)}>Variants</button>
+        <button onClick={() => setStep(2)}>Media</button>
+        <button onClick={() => setStep(3)}>SEO</button>
+      </div>
+
+      {/* BASIC */}
+      {step === 0 && (
+        <div className="card">
           <input placeholder="Product Name"
             value={form.name}
-            onChange={e=>setForm({...form,name:e.target.value})}
-          />
+            onChange={e => setForm({ ...form, name: e.target.value })} />
 
-          <select onChange={e=>setForm({...form,category:e.target.value})}>
-            {websiteCategories.map(c=><option key={c}>{c}</option>)}
+          <select onChange={e => setForm({ ...form, category: e.target.value })}>
+            <option>Select Category</option>
+            {websiteCategories.map(c => <option key={c}>{c}</option>)}
           </select>
 
-          <select onChange={e=>setForm({...form,gstCategory:e.target.value})}>
-            {gstOptions.map(g=><option key={g.name}>{g.name}</option>)}
+          <select onChange={e => setForm({ ...form, gstCategory: e.target.value })}>
+            <option>Select GST</option>
+            {gstOptions.map(g => <option key={g.name}>{g.name}</option>)}
           </select>
 
           <input value={form.hsn} readOnly />
           <input value={form.tax} readOnly />
-        </>
+        </div>
       )}
 
-      {activeStep === 1 && (
-        <>
-          {form.variants.map((v,i)=>(
-            <div key={i}>
-              <input onChange={e=>updateVariant(i,"value",e.target.value)} />
+      {/* VARIANTS */}
+      {step === 1 && (
+        <div className="card">
+          {form.variants.map((v, i) => (
+            <div className="row" key={i}>
+              <input placeholder="Value"
+                onChange={e => updateVariant(i, "value", e.target.value)} />
+
+              <select onChange={e => updateVariant(i, "unit", e.target.value)}>
+                <option>GM</option>
+                <option>KG</option>
+                <option>ML</option>
+                <option>L</option>
+              </select>
+
+              <input placeholder="MRP"
+                onChange={e => updateVariant(i, "mrp", e.target.value)} />
+
+              <input placeholder="Selling"
+                onChange={e => updateVariant(i, "sellingPrice", e.target.value)} />
+
               <input value={v.sku} readOnly />
-              <svg ref={el=>barcodeRefs.current[i]=el}></svg>
+
+              <svg ref={el => barcodeRefs.current[i] = el}></svg>
+
+              <button type="button" onClick={() => removeVariant(i)}>X</button>
             </div>
           ))}
 
-          <button onClick={addVariant}>Add Variant</button>
-        </>
+          <button onClick={addVariant}>+ Add Variant</button>
+        </div>
       )}
 
-      <div>
-        {activeStep>0 && <button onClick={prevStep}>Back</button>}
-        {activeStep<1 && <button onClick={nextStep}>Next</button>}
-        {activeStep===1 && <button onClick={handleSubmit}>Send for Approval</button>}
+      {/* MEDIA */}
+      {step === 2 && (
+        <div className="card">
+          <input type="file" multiple onChange={handleImageUpload} />
+
+          <div className="imgGrid">
+            {imagePreviews.map((img, i) => (
+              <img key={i} src={img.preview} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* SEO */}
+      {step === 3 && (
+        <div className="card">
+          <input value={seo.title}
+            onChange={e => setSeo({ ...seo, title: e.target.value })} />
+
+          <textarea value={seo.description}
+            onChange={e => setSeo({ ...seo, description: e.target.value })} />
+        </div>
+      )}
+
+      {/* ACTIONS */}
+      <div className="actions">
+        {step > 0 && <button onClick={() => setStep(step - 1)}>Back</button>}
+        {step < 3 && <button onClick={() => setStep(step + 1)}>Next</button>}
+        {step === 3 && <button onClick={handleSubmit}>Send for Review</button>}
       </div>
 
-      <button onClick={printStickers}>Print Stickers</button>
+      <style jsx>{`
+        .container{max-width:1100px;margin:auto;padding:20px;}
+        .card{background:#fff;padding:15px;border-radius:10px;margin-top:10px;}
+        .row{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:10px;}
+        input,select,textarea{width:100%;padding:10px;}
+        .steps button{margin:5px;padding:8px 12px;}
+        .actions{margin-top:20px;display:flex;gap:10px;}
+        .imgGrid{display:flex;gap:10px;flex-wrap:wrap;}
+        img{width:80px;height:80px;object-fit:cover;}
+        .error{color:red;margin:10px 0;}
+      `}</style>
 
     </div>
   );
