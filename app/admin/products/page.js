@@ -30,8 +30,8 @@ export default function ProductUpload() {
   const [form, setForm] = useState(emptyForm);
   const [productKey, setProductKey] = useState("");
   const [slug, setSlug] = useState("");
+  const [imagePreviews, setImagePreviews] = useState([]);
 
-  /* 🔥 NEW STATES (ADDED ONLY) */
   const [seo, setSeo] = useState({
     title: "",
     description: "",
@@ -44,40 +44,40 @@ export default function ProductUpload() {
 
   const gstOptions = [
     {
-      name: "Flours & Meals (Cereal Based)",
-      hsn: "1101 / 1102 / 1106",
-      tax: 5,
-      desc: "Flour, meal and powder of cereals, pulses, millets",
-    },
-    {
       name: "Food Preparations (Not Elsewhere Specified)",
       hsn: "2106",
       tax: 5,
-      desc: "Includes dosa mix, idli mix, batter mix",
+      desc: "Food preparations not elsewhere specified (includes dosa mix, idli mix)",
+    },
+    {
+      name: "Flours & Meals (Cereal Based)",
+      hsn: "1101",
+      tax: 5,
+      desc: "Flours of cereals, pulses, millets",
     },
     {
       name: "Spices",
-      hsn: "0904 - 0910",
+      hsn: "0910",
       tax: 5,
-      desc: "Spices and masalas",
+      desc: "Spices including masalas",
     },
     {
       name: "Edible Oils",
-      hsn: "1507 - 1515",
+      hsn: "1515",
       tax: 5,
-      desc: "Cold pressed and vegetable oils",
+      desc: "Vegetable oils including cold pressed oils",
     },
     {
       name: "Prepared / Preserved Foods",
-      hsn: "2001 - 2008",
+      hsn: "2001",
       tax: 12,
       desc: "Pickles, chutneys, preserved foods",
     },
     {
       name: "Ready to Eat / Packaged Food",
-      hsn: "1904 / 2106",
+      hsn: "1904",
       tax: 12,
-      desc: "Packaged ready food",
+      desc: "Packaged ready to eat food",
     },
     {
       name: "Namkeen / Snack Items",
@@ -121,13 +121,13 @@ export default function ProductUpload() {
     /* SEO AUTO */
     setSeo({
       title: `${form.name} | Buy Online`,
-      description: `Buy ${form.name} at best price with premium quality.`,
-      keywords: `${form.name}, buy online`,
+      description: `Buy ${form.name} at best price. Premium quality product.`,
+      keywords: `${form.name}, buy ${form.name}, online`,
     });
 
   }, [form.name]);
 
-  /* ================= GST AUTO ================= */
+  /* ================= GST AUTO (FIXED) ================= */
 
   useEffect(() => {
     if (!form.gstCategory) return;
@@ -152,7 +152,8 @@ export default function ProductUpload() {
     const updated = [...form.variants];
     updated[i][field] = value;
 
-    if (updated[i].value) {
+    // SKU AUTO FIX
+    if (updated[i].value && productKey) {
       const seq = String(i + 1).padStart(3, "0");
       updated[i].sku = `NA-${productKey}-${seq}-${updated[i].value}${updated[i].unit}`;
     }
@@ -171,7 +172,8 @@ export default function ProductUpload() {
     });
   }
 
-  /* 🔥 BULK VARIANT GENERATOR */
+  /* ================= BULK VARIANTS ================= */
+
   function generateVariants() {
     const sizes = ["250GM", "500GM", "1KG"];
 
@@ -186,10 +188,61 @@ export default function ProductUpload() {
     setForm({ ...form, variants: newVariants });
   }
 
+  /* ================= IMAGE UPLOAD ================= */
+
+  async function handleImageUpload(e) {
+    const files = Array.from(e.target.files);
+
+    const previews = files.map((file) => ({
+      preview: URL.createObjectURL(file),
+      uploading: true,
+    }));
+
+    setImagePreviews((prev) => [...prev, ...previews]);
+
+    const uploaded = [];
+
+    for (let i = 0; i < files.length; i++) {
+      const data = new FormData();
+      data.append("file", files[i]);
+      data.append("upload_preset", process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET);
+
+      const res = await fetch(
+        `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUD_NAME}/image/upload`,
+        { method: "POST", body: data }
+      );
+
+      const json = await res.json();
+      uploaded.push(json.secure_url);
+
+      setImagePreviews((prev) => {
+        const updated = [...prev];
+        updated[prev.length - files.length + i] = {
+          preview: json.secure_url,
+          uploading: false,
+        };
+        return updated;
+      });
+    }
+
+    setForm((prev) => ({
+      ...prev,
+      images: [...prev.images, ...uploaded],
+    }));
+  }
+
+  function removeImage(index) {
+    setImagePreviews((prev) => prev.filter((_, i) => i !== index));
+    setForm((prev) => ({
+      ...prev,
+      images: prev.images.filter((_, i) => i !== index),
+    }));
+  }
+
   /* ================= SUBMIT ================= */
 
   async function handleSubmit(e) {
-    e?.preventDefault();
+    e.preventDefault();
 
     for (let v of form.variants) {
       await fetch("/api/admin/products", {
@@ -217,117 +270,90 @@ export default function ProductUpload() {
   return (
     <div className="container">
 
-      <div className="header">
-        <h1>Product Upload</h1>
-        <button onClick={handleSubmit}>Save</button>
-      </div>
+      <h1>Product Upload</h1>
 
-      <form>
+      <form onSubmit={handleSubmit}>
 
-        {/* STATUS */}
-        <div className="card">
-          <h3>Status</h3>
-          <select value={status} onChange={(e)=>setStatus(e.target.value)}>
-            <option value="draft">Draft</option>
-            <option value="active">Active</option>
-          </select>
-        </div>
+        <input placeholder="Product Name"
+          value={form.name}
+          onChange={(e)=>setForm({...form,name:e.target.value})}
+        />
 
-        {/* BASIC */}
-        <div className="card">
-          <h3>Basic Info</h3>
-
-          <input
-            placeholder="Product Name"
-            value={form.name}
-            onChange={(e)=>setForm({...form,name:e.target.value})}
-          />
-
-          <select onChange={(e)=>setForm({...form,category:e.target.value})}>
-            <option>Select Category</option>
-            {websiteCategories.map(c=> <option key={c}>{c}</option>)}
-          </select>
-        </div>
+        <select value={form.category}
+          onChange={(e)=>setForm({...form,category:e.target.value})}>
+          <option value="">Select Category</option>
+          {websiteCategories.map(c=> <option key={c} value={c}>{c}</option>)}
+        </select>
 
         {/* GST */}
-        <div className="card">
-          <h3>GST</h3>
+        <select value={form.gstCategory}
+          onChange={(e)=>setForm({...form,gstCategory:e.target.value})}>
+          <option value="">Select GST Category</option>
+          {gstOptions.map(g=>(
+            <option key={g.name} value={g.name}>
+              {g.name} ({g.tax}%)
+            </option>
+          ))}
+        </select>
 
-          <select onChange={(e)=>setForm({...form,gstCategory:e.target.value})}>
-            <option>Select GST</option>
-            {gstOptions.map(g=>(
-              <option key={g.name}>{g.name} ({g.tax}%)</option>
-            ))}
-          </select>
-
-          <input value={form.hsn} readOnly placeholder="HSN"/>
-          <input value={form.tax} readOnly placeholder="Tax"/>
-          <textarea value={form.gstDescription} readOnly/>
-        </div>
-
-        {/* BULK VARIANT */}
-        <div className="card">
-          <h3>Quick Variants</h3>
-          <button type="button" onClick={generateVariants}>
-            Auto Create 250g / 500g / 1kg
-          </button>
-        </div>
+        <input value={form.hsn} readOnly placeholder="HSN Code"/>
+        <input value={form.tax} readOnly placeholder="Tax %"/>
+        <textarea value={form.gstDescription} readOnly />
 
         {/* VARIANTS */}
-        <div className="card">
-          <h3>Variants</h3>
+        <h3>Variants</h3>
 
-          {form.variants.map((v,i)=>{
+        {form.variants.map((v,i)=>(
+          <div key={i} className="row">
+            <input placeholder="Value"
+              onChange={(e)=>updateVariant(i,"value",e.target.value)} />
 
-            const discount =
-              v.mrp && v.sellingPrice
-                ? Math.round(((v.mrp - v.sellingPrice)/v.mrp)*100)
-                : 0;
+            <select onChange={(e)=>updateVariant(i,"unit",e.target.value)}>
+              <option>GM</option><option>KG</option><option>ML</option><option>L</option>
+            </select>
 
-            return (
-              <div key={i} className="variant">
+            <input placeholder="MRP"
+              onChange={(e)=>updateVariant(i,"mrp",e.target.value)} />
 
-                <input placeholder="Value" onChange={(e)=>updateVariant(i,"value",e.target.value)}/>
-                <select onChange={(e)=>updateVariant(i,"unit",e.target.value)}>
-                  <option>GM</option><option>KG</option><option>ML</option><option>L</option>
-                </select>
-                <input placeholder="MRP" onChange={(e)=>updateVariant(i,"mrp",e.target.value)}/>
-                <input placeholder="Selling Price" onChange={(e)=>updateVariant(i,"sellingPrice",e.target.value)}/>
+            <input placeholder="Selling Price"
+              onChange={(e)=>updateVariant(i,"sellingPrice",e.target.value)} />
 
-                <input value={v.sku} readOnly/>
+            <input value={v.sku} readOnly />
 
-                <button type="button" onClick={()=>removeVariant(i)}>X</button>
+            <button type="button" onClick={()=>removeVariant(i)}>X</button>
+          </div>
+        ))}
 
-                <div className="meta">
-                  {v.sku}
-                  {discount>0 && <span>{discount}% OFF</span>}
-                </div>
+        <button type="button" onClick={generateVariants}>Auto Variants</button>
+        <button type="button" onClick={addVariant}>+ Add Variant</button>
 
-              </div>
-            );
-          })}
+        {/* IMAGE */}
+        <input type="file" multiple onChange={handleImageUpload} />
 
-          <button type="button" onClick={addVariant}>+ Add Variant</button>
+        <div className="imgGrid">
+          {imagePreviews.map((img,i)=>(
+            <div key={i}>
+              <img src={img.preview}/>
+              <button type="button" onClick={()=>removeImage(i)}>X</button>
+            </div>
+          ))}
         </div>
 
         {/* SEO */}
-        <div className="card">
-          <h3>SEO</h3>
+        <input value={seo.title} onChange={(e)=>setSeo({...seo,title:e.target.value})}/>
+        <textarea value={seo.description} onChange={(e)=>setSeo({...seo,description:e.target.value})}/>
+        <input value={seo.keywords} onChange={(e)=>setSeo({...seo,keywords:e.target.value})}/>
 
-          <input value={seo.title} onChange={(e)=>setSeo({...seo,title:e.target.value})}/>
-          <textarea value={seo.description} onChange={(e)=>setSeo({...seo,description:e.target.value})}/>
-          <input value={seo.keywords} onChange={(e)=>setSeo({...seo,keywords:e.target.value})}/>
-        </div>
+        <button>Add Product</button>
 
       </form>
 
       <style jsx>{`
-        .container{max-width:1000px;margin:auto;padding:20px;}
-        .header{display:flex;justify-content:space-between;margin-bottom:20px;}
-        .card{background:#fff;padding:20px;margin-bottom:20px;border-radius:10px;border:1px solid #eee;}
+        .container{max-width:900px;margin:auto;padding:20px;}
         input,select,textarea{width:100%;padding:10px;margin:8px 0;}
-        .variant{border:1px solid #eee;padding:10px;margin:10px 0;}
-        .meta{display:flex;gap:10px;}
+        .row{display:grid;grid-template-columns:1fr 1fr 1fr 1fr 2fr auto;gap:10px;}
+        .imgGrid{display:flex;gap:10px;flex-wrap:wrap;}
+        img{width:80px;height:80px;object-fit:cover;}
       `}</style>
 
     </div>
