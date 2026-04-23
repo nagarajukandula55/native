@@ -1,13 +1,9 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import jwt from "jsonwebtoken";
-import connectDB from "@/lib/mongodb";
+import connectDB from "@/lib/db";
 import Product from "@/models/Product";
-import { generateSKU } from "@/lib/skuGenerator";
-import Inventory from "@/models/Inventory";
 
-
-/* ================= GET PRODUCTS ================= */
 export async function GET() {
   try {
     await connectDB();
@@ -26,10 +22,7 @@ export async function GET() {
 
     const products = await Product.find().sort({ createdAt: -1 });
 
-    return NextResponse.json({
-      success: true,
-      products,
-    });
+    return NextResponse.json({ success: true, products });
 
   } catch (err) {
     console.error(err);
@@ -37,8 +30,6 @@ export async function GET() {
   }
 }
 
-
-/* ================= CREATE PRODUCT ================= */
 export async function POST(req) {
   try {
     await connectDB();
@@ -46,13 +37,13 @@ export async function POST(req) {
     const token = cookies().get("token")?.value;
 
     if (!token) {
-      return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ success: false }, { status: 401 });
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     if (!["admin", "super_admin", "vendor"].includes(decoded.role)) {
-      return NextResponse.json({ success: false, message: "Forbidden" }, { status: 403 });
+      return NextResponse.json({ success: false }, { status: 403 });
     }
 
     const body = await req.json();
@@ -60,39 +51,34 @@ export async function POST(req) {
     const {
       name,
       productKey,
-      variantValue,
-      variantUnit,
       slug,
+      variant,          // ✅ from your frontend
+      sku,
+      mrp,
+      sellingPrice,
+      status,
     } = body;
 
-    if (!name || !productKey || !variantValue || !variantUnit) {
+    if (!variant || !sku) {
       return NextResponse.json(
-        { success: false, message: "Missing required fields" },
+        { success: false, message: "Variant or SKU missing" },
         { status: 400 }
       );
     }
 
-    await Inventory.create({
-      sku,
-      stock: 0, // default
-    });
-
-    /* ================= VARIANT ================= */
-    const variant = `${variantValue}${variantUnit}`.toUpperCase();
-
-    /* ================= SKU GENERATION ================= */
-    const sku = await generateSKU(productKey, variant);
-
-    /* ================= UNIQUE SLUG ================= */
+    /* 🔥 FINAL SLUG WITH VARIANT */
     const finalSlug = `${slug}-${variant.toLowerCase()}`;
 
-    /* ================= CREATE ================= */
     const product = await Product.create({
       ...body,
-      sku,
       variant,
+      sku,
+      mrp,
+      sellingPrice,
       slug: finalSlug,
-      status: "review", // 🔥 ALWAYS REVIEW FIRST
+
+      status: status || "review",   // 🔥 REVIEW FLOW
+      isActive: false,             // 🔥 NOT LIVE UNTIL APPROVED
     });
 
     return NextResponse.json({
@@ -101,18 +87,15 @@ export async function POST(req) {
     });
 
   } catch (err) {
-    console.error(err);
+    console.error("POST ERROR:", err);
 
     if (err.code === 11000) {
       return NextResponse.json(
-        { success: false, message: "Variant already exists" },
+        { success: false, message: "Duplicate SKU / Variant" },
         { status: 400 }
       );
     }
 
-    return NextResponse.json(
-      { success: false, message: "Server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false }, { status: 500 });
   }
 }
