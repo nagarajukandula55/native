@@ -8,26 +8,33 @@ export async function GET(req) {
 
     const { searchParams } = new URL(req.url);
 
-    const status = searchParams.get("status"); // review / approved
-
     const page = parseInt(searchParams.get("page")) || 1;
     const limit = parseInt(searchParams.get("limit")) || 12;
     const skip = (page - 1) * limit;
 
-    const match = {};
+    const category = searchParams.get("category");
+    const search = searchParams.get("search");
 
-    // 🔥 CORE FIX
-    if (status) {
-      match.status = status;
-    } else {
-      match.status = "approved";
-      match.isActive = true;
+    /* ================= PUBLIC FILTER ONLY ================= */
+    const match = {
+      status: "approved",
+      isActive: true,
+    };
+
+    if (category) {
+      match.category = category;
     }
 
+    if (search) {
+      match.name = { $regex: search, $options: "i" };
+    }
+
+    /* ================= PIPELINE ================= */
     const pipeline = [
       { $match: match },
 
-      { $sort: { createdAt: -1 } },
+      /* show cheapest variant first */
+      { $sort: { sellingPrice: 1 } },
 
       {
         $group: {
@@ -38,23 +45,46 @@ export async function GET(req) {
           category: { $first: "$category" },
 
           slug: { $first: "$slug" },
-          images: { $first: "$images" },
+          image: { $first: { $arrayElemAt: ["$images", 0] } },
 
           price: { $first: "$sellingPrice" },
           mrp: { $first: "$mrp" },
 
           createdAt: { $first: "$createdAt" },
 
-          variants: {
-            $push: {
-              variant: "$variant",
-              sku: "$sku",
-              mrp: "$mrp",
-              sellingPrice: "$sellingPrice",
-            },
+          variantsCount: { $sum: 1 },
+        },
+      },
+
+      /* discount calculation */
+      {
+        $addFields: {
+          discount: {
+            $cond: [
+              { $and: ["$mrp", "$price"] },
+              {
+                $round: [
+                  {
+                    $multiply: [
+                      {
+                        $divide: [
+                          { $subtract: ["$mrp", "$price"] },
+                          "$mrp",
+                        ],
+                      },
+                      100,
+                    ],
+                  },
+                  0,
+                ],
+              },
+              0,
+            ],
           },
         },
       },
+
+      { $sort: { createdAt: -1 } },
 
       {
         $facet: {
@@ -73,7 +103,11 @@ export async function GET(req) {
     });
 
   } catch (err) {
-    console.error(err);
-    return NextResponse.json({ success: false }, { status: 500 });
+    console.error("PUBLIC PRODUCTS ERROR:", err);
+
+    return NextResponse.json(
+      { success: false, products: [] },
+      { status: 500 }
+    );
   }
 }
