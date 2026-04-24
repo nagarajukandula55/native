@@ -8,38 +8,19 @@ export async function POST(req) {
 
     const { productKey } = await req.json();
 
-    // ✅ VALIDATION
-    if (!productKey) {
-      return NextResponse.json(
-        { success: false, message: "productKey required" },
-        { status: 400 }
-      );
-    }
-
-    const result = await Product.updateMany(
+    await Product.updateMany(
       { productKey },
       {
         $set: {
           status: "rejected",
           isActive: false,
-          updatedAt: new Date(), // ✅ good practice
         },
       }
     );
 
-    console.log("Reject Result:", result); // ✅ DEBUG
-
-    return NextResponse.json({
-      success: true,
-      modifiedCount: result.modifiedCount,
-    });
+    return NextResponse.json({ success: true });
 
   } catch (err) {
-    console.error("REJECT ERROR:", err);
-
-    return NextResponse.json(
-      { success: false },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false });
   }
 }
