@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import connectDB from "@/lib/db"; // make sure path correct
+import connectDB from "@/lib/db";
 import Product from "@/models/Product";
 
 export async function POST(req) {
@@ -8,11 +8,22 @@ export async function POST(req) {
 
     const body = await req.json();
 
-    // 👉 Save product
+    console.log("Incoming Product:", body); // ✅ DEBUG
+
+    if (!body.name || !body.productKey) {
+      return NextResponse.json(
+        { success: false, message: "Missing required fields" },
+        { status: 400 }
+      );
+    }
+
     const newProduct = await Product.create({
       ...body,
-      isActive: false, // not live yet
+      status: body.status || "review", // ✅ IMPORTANT
+      isActive: false,
+      images: body.images || [], // ✅ SAFE
       createdAt: new Date(),
+      updatedAt: new Date(),
     });
 
     return NextResponse.json({
