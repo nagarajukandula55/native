@@ -150,38 +150,41 @@ export default function ProductUpload() {
 
   /* ================= IMAGE SAFE ================= */
 
-  async function handleImageUpload(e) {
-    const files = Array.from(e.target.files);
+async function handleImageUpload(e) {
+  const files = Array.from(e.target.files);
 
-    const previews = files.map(f => ({
-      preview: URL.createObjectURL(f),
-    }));
+  const previews = files.map(f => ({
+    preview: URL.createObjectURL(f),
+  }));
 
-    setImagePreviews(prev => [...prev, ...previews]);
+  setImagePreviews(prev => [...prev, ...previews]);
 
-    const uploaded = [];
+  const uploaded = [];
 
-    for (let file of files) {
-      const data = new FormData();
-      data.append("file", file);
+  for (let file of files) {
+    const data = new FormData();
+    data.append("file", file);
+    data.append("upload_preset", "native_upload"); // ✅ FIX
 
-      const res = await fetch(
-        `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUD_NAME}/image/upload`,
-        { method: "POST", body: data }
-      );
+    const res = await fetch(
+      `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUD_NAME}/image/upload`,
+      { method: "POST", body: data }
+    );
 
-      const json = await res.json();
+    const json = await res.json();
 
-      if (json?.secure_url) {
-        uploaded.push(json.secure_url);
-      }
+    console.log("Cloudinary:", json); // 🔥 DEBUG
+
+    if (json?.secure_url) {
+      uploaded.push(json.secure_url);
     }
-
-    setForm(prev => ({
-      ...prev,
-      images: [...prev.images, ...uploaded],
-    }));
   }
+
+  setForm(prev => ({
+    ...prev,
+    images: [...prev.images, ...uploaded],
+  }));
+}
 
   /* ================= VALIDATION ================= */
 
