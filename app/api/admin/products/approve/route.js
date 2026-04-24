@@ -8,17 +8,36 @@ export async function POST(req) {
 
     const { productKey } = await req.json();
 
-    await Product.updateMany(
+    // ✅ VALIDATION
+    if (!productKey) {
+      return NextResponse.json(
+        { success: false, message: "productKey required" },
+        { status: 400 }
+      );
+    }
+
+    const result = await Product.updateMany(
       { productKey },
       {
         status: "approved",
         isActive: true,
+        updatedAt: new Date(), // ✅ optional but good
       }
     );
 
-    return NextResponse.json({ success: true });
+    console.log("Approve Result:", result); // ✅ DEBUG
+
+    return NextResponse.json({
+      success: true,
+      modifiedCount: result.modifiedCount,
+    });
 
   } catch (err) {
-    return NextResponse.json({ success: false }, { status: 500 });
+    console.error("APPROVE ERROR:", err);
+
+    return NextResponse.json(
+      { success: false },
+      { status: 500 }
+    );
   }
 }
