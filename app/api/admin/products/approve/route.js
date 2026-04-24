@@ -1,43 +1,32 @@
-import { NextResponse } from "next/server";
-import connectDB from "@/lib/db";
-import Product from "@/models/Product";
-
 export async function POST(req) {
   try {
     await connectDB();
 
-    const { productKey } = await req.json();
+    const { productKey, action } = await req.json();
 
-    // ✅ VALIDATION
-    if (!productKey) {
-      return NextResponse.json(
-        { success: false, message: "productKey required" },
-        { status: 400 }
+    if (action === "approve") {
+      await Product.updateMany(
+        { productKey },
+        {
+          status: "approved",
+          isActive: true,
+        }
       );
     }
 
-    const result = await Product.updateMany(
-      { productKey },
-      {
-        status: "approved",
-        isActive: true,
-        updatedAt: new Date(), // ✅ optional but good
-      }
-    );
+    if (action === "reject") {
+      await Product.updateMany(
+        { productKey },
+        {
+          status: "rejected",
+          isActive: false,
+        }
+      );
+    }
 
-    console.log("Approve Result:", result); // ✅ DEBUG
-
-    return NextResponse.json({
-      success: true,
-      modifiedCount: result.modifiedCount,
-    });
+    return NextResponse.json({ success: true });
 
   } catch (err) {
-    console.error("APPROVE ERROR:", err);
-
-    return NextResponse.json(
-      { success: false },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false }, { status: 500 });
   }
 }
