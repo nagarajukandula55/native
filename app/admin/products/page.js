@@ -273,11 +273,79 @@ Download Nutrition CSV
 </div>
 )}
 
-{/* ACTION */}
-<div>
-<button onClick={()=>setStep(step-1)}>Back</button>
-<button onClick={()=>setStep(step+1)}>Next</button>
-<button onClick={handleSubmit}>Submit</button>
+{/* ================= PROGRESS BAR ================= */}
+
+<div style={{ marginBottom: 20 }}>
+
+  {/* Progress Line */}
+  <div style={{
+    height: 6,
+    background: "#eee",
+    borderRadius: 10,
+    overflow: "hidden",
+    marginBottom: 10
+  }}>
+    <div style={{
+      width: `${(step / 3) * 100}%`,
+      background: "#4CAF50",
+      height: "100%",
+      transition: "0.3s"
+    }} />
+  </div>
+
+  {/* Steps */}
+  <div style={{
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center"
+  }}>
+
+    {["Basic", "Variants", "Media", "SEO"].map((label, index) => (
+      <div
+        key={index}
+        onClick={() => setStep(index)}
+        style={{
+          cursor: "pointer",
+          textAlign: "center",
+          flex: 1
+        }}
+      >
+
+        {/* Circle */}
+        <div style={{
+          margin: "auto",
+          width: 32,
+          height: 32,
+          borderRadius: "50%",
+          background:
+            step === index
+              ? "#4CAF50"
+              : step > index
+              ? "#2e7d32"
+              : "#ccc",
+          color: "#fff",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontWeight: "bold"
+        }}>
+          {step > index ? "✓" : index + 1}
+        </div>
+
+        {/* Label */}
+        <div style={{
+          fontSize: 12,
+          marginTop: 5,
+          color: step === index ? "#4CAF50" : "#777"
+        }}>
+          {label}
+        </div>
+
+      </div>
+    ))}
+
+  </div>
+
 </div>
 
 </div>
