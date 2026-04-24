@@ -13,15 +13,14 @@ export async function GET(req) {
     const limit = parseInt(searchParams.get("limit")) || 12;
 
     const category = searchParams.get("category");
-    const minPrice = parseInt(searchParams.get("minPrice"));
-    const maxPrice = parseInt(searchParams.get("maxPrice"));
-    const sort = searchParams.get("sort");
     const search = searchParams.get("search");
 
     const skip = (page - 1) * limit;
 
     /* ================= MATCH STAGE ================= */
-    const matchStage = { isActive: true };
+    const matchStage = {
+      status: "review",   // ✅ FIXED HERE
+    };
 
     if (category) {
       matchStage.category = category;
@@ -35,89 +34,30 @@ export async function GET(req) {
     const pipeline = [
       { $match: matchStage },
 
-      /* 🔥 SORT VARIANTS BY PRICE FIRST */
-      { $sort: { sellingPrice: 1 } },
+      { $sort: { createdAt: -1 } },
 
-      /* 🔥 GROUP BY productKey */
       {
         $group: {
           _id: "$productKey",
           name: { $first: "$name" },
           productKey: { $first: "$productKey" },
           category: { $first: "$category" },
-
           slug: { $first: "$slug" },
           image: { $first: { $arrayElemAt: ["$images", 0] } },
-
           price: { $first: "$sellingPrice" },
           mrp: { $first: "$mrp" },
-
           createdAt: { $first: "$createdAt" },
-
           variantsCount: { $sum: 1 },
         },
       },
 
-      /* 🔥 ADD DISCOUNT */
-      {
-        $addFields: {
-          discount: {
-            $cond: [
-              { $and: ["$mrp", "$price"] },
-              {
-                $round: [
-                  {
-                    $multiply: [
-                      {
-                        $divide: [
-                          { $subtract: ["$mrp", "$price"] },
-                          "$mrp",
-                        ],
-                      },
-                      100,
-                    ],
-                  },
-                  0,
-                ],
-              },
-              0,
-            ],
-          },
-        },
-      },
-
-      /* ================= PRICE FILTER ================= */
-      ...(minPrice || maxPrice
-        ? [
-            {
-              $match: {
-                ...(minPrice ? { price: { $gte: minPrice } } : {}),
-                ...(maxPrice ? { price: { $lte: maxPrice } } : {}),
-              },
-            },
-          ]
-        : []),
-
-      /* ================= SORT ================= */
-      {
-        $sort:
-          sort === "price_asc"
-            ? { price: 1 }
-            : sort === "price_desc"
-            ? { price: -1 }
-            : { createdAt: -1 },
-      },
-
-      /* ================= FACET (DATA + COUNT) ================= */
       {
         $facet: {
           data: [
             { $skip: skip },
             { $limit: limit },
           ],
-          totalCount: [
-            { $count: "count" }
-          ],
+          totalCount: [{ $count: "count" }],
         },
       },
     ];
@@ -139,7 +79,7 @@ export async function GET(req) {
     });
 
   } catch (err) {
-    console.error("AGGREGATION ERROR:", err);
+    console.error("REVIEW ERROR:", err);
 
     return NextResponse.json(
       { success: false, products: [] },
