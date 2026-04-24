@@ -4,22 +4,23 @@ import Product from "@/models/Product";
 
 export async function POST(req) {
   try {
-    console.log("🔥 API HIT");
-
     await connectDB();
-    console.log("✅ DB CONNECTED");
 
     const body = await req.json();
-    console.log("📦 BODY RECEIVED:", body);
+
+    console.log("📦 Incoming Body:", body); // 🔥 DEBUG
+
+    // 🔥 HARD VALIDATION (prevents silent crash)
+    if (!body.name) throw new Error("Name missing");
+    if (!body.productKey) throw new Error("productKey missing");
+    if (!body.slug) throw new Error("slug missing");
+    if (!body.sku) throw new Error("sku missing");
 
     const newProduct = await Product.create({
       ...body,
-      status: body.status || "review",
       isActive: false,
       createdAt: new Date(),
     });
-
-    console.log("✅ SAVED:", newProduct._id);
 
     return NextResponse.json({
       success: true,
@@ -30,7 +31,10 @@ export async function POST(req) {
     console.error("❌ PRODUCT CREATE ERROR:", error);
 
     return NextResponse.json(
-      { success: false, error: error.message },
+      {
+        success: false,
+        message: error.message, // 🔥 IMPORTANT
+      },
       { status: 500 }
     );
   }
