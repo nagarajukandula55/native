@@ -6,9 +6,13 @@ export async function GET(req) {
   try {
     await connectDB();
 
-    const products = await Product.find({ status: "review" })
+    const products = await Product.find({
+      status: "review", // ✅ strict filter
+    })
       .sort({ createdAt: -1 })
       .lean();
+
+    console.log("Review Products Count:", products.length); // ✅ debug
 
     return NextResponse.json({
       success: true,
