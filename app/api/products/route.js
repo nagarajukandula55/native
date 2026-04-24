@@ -8,55 +8,57 @@ export async function GET(req) {
 
     const { searchParams } = new URL(req.url);
 
-    /* ================= PARAMS ================= */
+    const status = searchParams.get("status"); // review / approved
+
     const page = parseInt(searchParams.get("page")) || 1;
     const limit = parseInt(searchParams.get("limit")) || 12;
-
-    const category = searchParams.get("category");
-    const search = searchParams.get("search");
-
     const skip = (page - 1) * limit;
 
-    /* ================= MATCH STAGE ================= */
-    const matchStage = {
-      status: "review",   // ✅ FIXED HERE
-    };
+    const match = {};
 
-    if (category) {
-      matchStage.category = category;
+    // 🔥 CORE FIX
+    if (status) {
+      match.status = status;
+    } else {
+      match.status = "approved";
+      match.isActive = true;
     }
 
-    if (search) {
-      matchStage.name = { $regex: search, $options: "i" };
-    }
-
-    /* ================= PIPELINE ================= */
     const pipeline = [
-      { $match: matchStage },
+      { $match: match },
 
       { $sort: { createdAt: -1 } },
 
       {
         $group: {
           _id: "$productKey",
+
           name: { $first: "$name" },
           productKey: { $first: "$productKey" },
           category: { $first: "$category" },
+
           slug: { $first: "$slug" },
-          image: { $first: { $arrayElemAt: ["$images", 0] } },
+          images: { $first: "$images" },
+
           price: { $first: "$sellingPrice" },
           mrp: { $first: "$mrp" },
+
           createdAt: { $first: "$createdAt" },
-          variantsCount: { $sum: 1 },
+
+          variants: {
+            $push: {
+              variant: "$variant",
+              sku: "$sku",
+              mrp: "$mrp",
+              sellingPrice: "$sellingPrice",
+            },
+          },
         },
       },
 
       {
         $facet: {
-          data: [
-            { $skip: skip },
-            { $limit: limit },
-          ],
+          data: [{ $skip: skip }, { $limit: limit }],
           totalCount: [{ $count: "count" }],
         },
       },
@@ -64,26 +66,14 @@ export async function GET(req) {
 
     const result = await Product.aggregate(pipeline);
 
-    const products = result[0]?.data || [];
-    const total = result[0]?.totalCount[0]?.count || 0;
-
     return NextResponse.json({
       success: true,
-      products,
-      pagination: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-      },
+      products: result[0]?.data || [],
+      total: result[0]?.totalCount[0]?.count || 0,
     });
 
   } catch (err) {
-    console.error("REVIEW ERROR:", err);
-
-    return NextResponse.json(
-      { success: false, products: [] },
-      { status: 500 }
-    );
+    console.error(err);
+    return NextResponse.json({ success: false }, { status: 500 });
   }
 }
