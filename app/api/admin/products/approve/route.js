@@ -11,17 +11,14 @@ export async function POST(req) {
     await Product.updateMany(
       { productKey },
       {
-        $set: {
-          status: "approved",
-          isActive: true,
-        },
+        status: "approved",
+        isActive: true,
       }
     );
 
     return NextResponse.json({ success: true });
 
   } catch (err) {
-    console.error(err);
-    return NextResponse.json({ success: false });
+    return NextResponse.json({ success: false }, { status: 500 });
   }
 }
