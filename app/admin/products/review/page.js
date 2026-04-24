@@ -4,92 +4,173 @@ import { useEffect, useState } from "react";
 
 export default function ReviewPage() {
   const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  async function loadData() {
-    const res = await fetch("/api/products?status=review");
+  /* ================= FETCH ================= */
+  async function fetchProducts() {
+    setLoading(true);
+
+    const res = await fetch("/api/admin/products/review");
     const data = await res.json();
-    setProducts(data.products || []);
+
+    if (data.success) {
+      setProducts(data.products);
+    }
+
+    setLoading(false);
   }
 
   useEffect(() => {
-    loadData();
+    fetchProducts();
   }, []);
 
-  async function approve(productKey) {
+  /* ================= GROUP VARIANTS ================= */
+  const grouped = Object.values(
+    products.reduce((acc, p) => {
+      if (!acc[p.productKey]) {
+        acc[p.productKey] = {
+          ...p,
+          variants: [],
+        };
+      }
+
+      acc[p.productKey].variants.push({
+        id: p._id,
+        variant: p.variant,
+        sku: p.sku,
+        mrp: p.mrp,
+        sellingPrice: p.sellingPrice,
+      });
+
+      return acc;
+    }, {})
+  );
+
+  /* ================= ACTION ================= */
+  async function handleAction(productKey, action) {
     await fetch("/api/admin/products/approve", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ productKey }),
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ productKey, action }),
     });
 
-    loadData();
+    fetchProducts();
   }
 
-  async function reject(productKey) {
-    await fetch("/api/admin/products/reject", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ productKey }),
-    });
+  /* ================= UI ================= */
 
-    loadData();
-  }
+  if (loading) return <div style={{ padding: 20 }}>Loading...</div>;
 
   return (
     <div className="container">
+      <h1>🧾 Product Review Panel</h1>
 
-      <h1>🧑‍💼 Review Products</h1>
+      {grouped.length === 0 && <p>No products pending review</p>}
 
       <div className="grid">
-        {products.map((p) => (
+        {grouped.map((p) => (
           <div key={p.productKey} className="card">
 
-            <img src={p.images?.[0]} />
+            {/* IMAGE */}
+            <img src={p.images?.[0]} className="image" />
 
-            <h3>{p.name}</h3>
-            <p>{p.category}</p>
+            {/* BASIC */}
+            <h2>{p.name}</h2>
+            <p><b>Category:</b> {p.category}</p>
+            <p><b>HSN:</b> {p.hsn}</p>
+            <p><b>Tax:</b> {p.tax}%</p>
 
+            {/* DESCRIPTION */}
+            <p><b>Description:</b> {p.description || "-"}</p>
+            <p><b>Short:</b> {p.shortDescription || "-"}</p>
+            <p><b>Ingredients:</b> {p.ingredients || "-"}</p>
+            <p><b>Shelf Life:</b> {p.shelfLife || "-"}</p>
+
+            {/* VARIANTS */}
             <div className="variants">
+              <h3>Variants</h3>
+
               {p.variants.map((v, i) => (
-                <div key={i}>
-                  {v.variant} - ₹{v.sellingPrice}
+                <div key={i} className="variantRow">
+                  <span>{v.variant}</span>
+                  <span>₹{v.sellingPrice}</span>
+                  <span className="mrp">₹{v.mrp}</span>
+                  <span className="sku">{v.sku}</span>
                 </div>
               ))}
             </div>
 
+            {/* ACTION */}
             <div className="actions">
-              <button onClick={() => approve(p.productKey)}>
+              <button
+                className="approve"
+                onClick={() => handleAction(p.productKey, "approve")}
+              >
                 ✅ Approve
               </button>
 
-              <button onClick={() => reject(p.productKey)}>
+              <button
+                className="reject"
+                onClick={() => handleAction(p.productKey, "reject")}
+              >
                 ❌ Reject
               </button>
             </div>
-
           </div>
         ))}
       </div>
 
+      {/* STYLE */}
       <style jsx>{`
-        .container { padding: 20px; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(250px,1fr)); gap: 20px; }
+        .container {
+          max-width: 1200px;
+          margin: auto;
+          padding: 20px;
+        }
+
+        .grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+          gap: 20px;
+        }
 
         .card {
           border: 1px solid #eee;
-          padding: 12px;
+          padding: 15px;
           border-radius: 10px;
+          background: #fff;
         }
 
-        img {
+        .image {
           width: 100%;
-          height: 180px;
+          height: 200px;
           object-fit: cover;
+          border-radius: 8px;
         }
 
         .variants {
+          margin-top: 10px;
+        }
+
+        .variantRow {
+          display: flex;
+          justify-content: space-between;
           font-size: 14px;
-          margin-top: 8px;
+          margin-bottom: 5px;
+          border-bottom: 1px dashed #eee;
+          padding-bottom: 5px;
+        }
+
+        .mrp {
+          text-decoration: line-through;
+          color: #999;
+        }
+
+        .sku {
+          font-size: 11px;
+          color: #666;
         }
 
         .actions {
@@ -98,12 +179,24 @@ export default function ReviewPage() {
           gap: 10px;
         }
 
-        button {
-          padding: 6px 10px;
+        .approve {
+          background: green;
+          color: white;
+          border: none;
+          padding: 8px;
+          border-radius: 5px;
+          cursor: pointer;
+        }
+
+        .reject {
+          background: red;
+          color: white;
+          border: none;
+          padding: 8px;
+          border-radius: 5px;
           cursor: pointer;
         }
       `}</style>
-
     </div>
   );
 }
