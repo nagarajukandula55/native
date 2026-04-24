@@ -2,58 +2,75 @@
 
 import { useEffect, useState } from "react";
 
-export default function ReviewProducts() {
-
+export default function ReviewPage() {
   const [products, setProducts] = useState([]);
 
-  async function load() {
-    const res = await fetch("/api/admin/products?status=review");
+  async function loadProducts() {
+    const res = await fetch("/api/admin/products/review");
     const data = await res.json();
     setProducts(data.products || []);
   }
 
   useEffect(() => {
-    load();
+    loadProducts();
   }, []);
 
-  async function updateStatus(id, status) {
-    await fetch(`/api/admin/products/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status }),
+  async function handleAction(id, action) {
+    await fetch("/api/admin/products/update", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ id, action }),
     });
 
-    load();
+    loadProducts(); // refresh
   }
 
   return (
-    <div className="wrap">
+    <div className="container">
 
-      <h1>🧾 Review Products</h1>
+      <h1>🛠 Review Products</h1>
 
-      {products.map(p => (
-        <div key={p._id} className="card">
+      <div className="grid">
+        {products.map(p => (
+          <div key={p._id} className="card">
 
-          <h3>{p.name}</h3>
-          <p>{p.category}</p>
+            <img src={p.images?.[0]} />
 
-          <div className="actions">
-            <button onClick={() => updateStatus(p._id, "approved")}>
-              ✅ Approve
-            </button>
+            <h3>{p.name}</h3>
 
-            <button onClick={() => updateStatus(p._id, "rejected")}>
-              ❌ Reject
-            </button>
+            <p>₹{p.sellingPrice}</p>
+
+            <div className="actions">
+              <button
+                className="approve"
+                onClick={() => handleAction(p._id, "approve")}
+              >
+                Approve
+              </button>
+
+              <button
+                className="reject"
+                onClick={() => handleAction(p._id, "reject")}
+              >
+                Reject
+              </button>
+            </div>
+
           </div>
-
-        </div>
-      ))}
+        ))}
+      </div>
 
       <style jsx>{`
-        .wrap{padding:20px;}
-        .card{border:1px solid #eee;padding:15px;margin-bottom:10px;}
-        .actions{display:flex;gap:10px;}
+        .container { padding: 20px; max-width: 1100px; margin: auto; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px,1fr)); gap: 20px; }
+        .card { padding: 10px; border: 1px solid #eee; border-radius: 10px; background:#fff; }
+        img { width:100%; height:160px; object-fit:cover; border-radius:8px; }
+        .actions { display:flex; gap:10px; margin-top:10px; }
+        button { flex:1; padding:8px; border:none; cursor:pointer; }
+        .approve { background:green; color:#fff; }
+        .reject { background:red; color:#fff; }
       `}</style>
 
     </div>
