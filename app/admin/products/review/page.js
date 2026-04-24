@@ -3,136 +3,95 @@
 import { useEffect, useState } from "react";
 
 export default function ReviewPage() {
+
   const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
 
-  /* ================= FETCH ================= */
-  async function fetchProducts() {
-    setLoading(true);
-
+  async function loadProducts() {
     const res = await fetch("/api/admin/products/review");
     const data = await res.json();
 
     if (data.success) {
       setProducts(data.products);
     }
-
-    setLoading(false);
   }
 
   useEffect(() => {
-    fetchProducts();
+    loadProducts();
   }, []);
 
-  /* ================= GROUP VARIANTS ================= */
-  const grouped = Object.values(
-    products.reduce((acc, p) => {
-      if (!acc[p.productKey]) {
-        acc[p.productKey] = {
-          ...p,
-          variants: [],
-        };
-      }
-
-      acc[p.productKey].variants.push({
-        id: p._id,
-        variant: p.variant,
-        sku: p.sku,
-        mrp: p.mrp,
-        sellingPrice: p.sellingPrice,
-      });
-
-      return acc;
-    }, {})
-  );
-
-  /* ================= ACTION ================= */
-  async function handleAction(productKey, action) {
+  async function approve(productKey) {
     await fetch("/api/admin/products/approve", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ productKey, action }),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ productKey }),
     });
 
-    fetchProducts();
+    loadProducts();
   }
 
-  /* ================= UI ================= */
+  async function reject(productKey) {
+    await fetch("/api/admin/products/reject", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ productKey }),
+    });
 
-  if (loading) return <div style={{ padding: 20 }}>Loading...</div>;
+    loadProducts();
+  }
 
   return (
     <div className="container">
+
       <h1>🧾 Product Review Panel</h1>
 
-      {grouped.length === 0 && <p>No products pending review</p>}
+      {products.length === 0 && <p>No products for review</p>}
 
       <div className="grid">
-        {grouped.map((p) => (
-          <div key={p.productKey} className="card">
+        {products.map((p) => (
+          <div key={p._id} className="card">
 
             {/* IMAGE */}
-            <img src={p.images?.[0]} className="image" />
+            {p.images?.[0] && (
+              <img src={p.images[0]} />
+            )}
 
-            {/* BASIC */}
-            <h2>{p.name}</h2>
+            <h3>{p.name}</h3>
+
             <p><b>Category:</b> {p.category}</p>
+            <p><b>GST:</b> {p.gstCategory}</p>
             <p><b>HSN:</b> {p.hsn}</p>
             <p><b>Tax:</b> {p.tax}%</p>
 
-            {/* DESCRIPTION */}
-            <p><b>Description:</b> {p.description || "-"}</p>
-            <p><b>Short:</b> {p.shortDescription || "-"}</p>
-            <p><b>Ingredients:</b> {p.ingredients || "-"}</p>
-            <p><b>Shelf Life:</b> {p.shelfLife || "-"}</p>
+            <p><b>Variant:</b> {p.variant}</p>
+            <p><b>SKU:</b> {p.sku}</p>
 
-            {/* VARIANTS */}
-            <div className="variants">
-              <h3>Variants</h3>
+            <p><b>MRP:</b> ₹{p.mrp}</p>
+            <p><b>Selling:</b> ₹{p.sellingPrice}</p>
 
-              {p.variants.map((v, i) => (
-                <div key={i} className="variantRow">
-                  <span>{v.variant}</span>
-                  <span>₹{v.sellingPrice}</span>
-                  <span className="mrp">₹{v.mrp}</span>
-                  <span className="sku">{v.sku}</span>
-                </div>
-              ))}
-            </div>
+            <p><b>Description:</b> {p.description}</p>
+            <p><b>Ingredients:</b> {p.ingredients}</p>
+            <p><b>Shelf Life:</b> {p.shelfLife}</p>
 
-            {/* ACTION */}
+            {/* ACTIONS */}
             <div className="actions">
-              <button
-                className="approve"
-                onClick={() => handleAction(p.productKey, "approve")}
-              >
-                ✅ Approve
+              <button onClick={() => approve(p.productKey)} className="approve">
+                Approve
               </button>
 
-              <button
-                className="reject"
-                onClick={() => handleAction(p.productKey, "reject")}
-              >
-                ❌ Reject
+              <button onClick={() => reject(p.productKey)} className="reject">
+                Reject
               </button>
             </div>
+
           </div>
         ))}
       </div>
 
-      {/* STYLE */}
       <style jsx>{`
-        .container {
-          max-width: 1200px;
-          margin: auto;
-          padding: 20px;
-        }
-
+        .container { padding: 20px; }
         .grid {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+          grid-template-columns: repeat(auto-fill, minmax(280px,1fr));
           gap: 20px;
         }
 
@@ -143,34 +102,11 @@ export default function ReviewPage() {
           background: #fff;
         }
 
-        .image {
+        img {
           width: 100%;
-          height: 200px;
+          height: 180px;
           object-fit: cover;
-          border-radius: 8px;
-        }
-
-        .variants {
-          margin-top: 10px;
-        }
-
-        .variantRow {
-          display: flex;
-          justify-content: space-between;
-          font-size: 14px;
-          margin-bottom: 5px;
-          border-bottom: 1px dashed #eee;
-          padding-bottom: 5px;
-        }
-
-        .mrp {
-          text-decoration: line-through;
-          color: #999;
-        }
-
-        .sku {
-          font-size: 11px;
-          color: #666;
+          margin-bottom: 10px;
         }
 
         .actions {
@@ -182,21 +118,18 @@ export default function ReviewPage() {
         .approve {
           background: green;
           color: white;
-          border: none;
           padding: 8px;
-          border-radius: 5px;
-          cursor: pointer;
+          border: none;
         }
 
         .reject {
           background: red;
           color: white;
-          border: none;
           padding: 8px;
-          border-radius: 5px;
-          cursor: pointer;
+          border: none;
         }
       `}</style>
+
     </div>
   );
 }
