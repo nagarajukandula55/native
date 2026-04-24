@@ -3,74 +3,110 @@
 import { useEffect, useState } from "react";
 
 export default function ReviewPage() {
-  const [products, setProducts] = useState([]);
 
-  async function loadProducts() {
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  async function loadData() {
     const res = await fetch("/api/admin/products/review");
     const data = await res.json();
     setProducts(data.products || []);
+    setLoading(false);
   }
 
   useEffect(() => {
-    loadProducts();
+    loadData();
   }, []);
 
-  async function handleAction(id, action) {
-    await fetch("/api/admin/products/update", {
+  async function approve(productKey) {
+    await fetch("/api/admin/products/approve", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ id, action }),
+      body: JSON.stringify({ productKey }),
     });
 
-    loadProducts(); // refresh
+    loadData();
   }
+
+  async function reject(productKey) {
+    await fetch("/api/admin/products/reject", {
+      method: "POST",
+      body: JSON.stringify({ productKey }),
+    });
+
+    loadData();
+  }
+
+  if (loading) return <p>Loading...</p>;
 
   return (
     <div className="container">
 
-      <h1>🛠 Review Products</h1>
+      <h1>🧾 Product Review Panel</h1>
 
-      <div className="grid">
-        {products.map(p => (
-          <div key={p._id} className="card">
+      {products.map((p, index) => (
+        <div key={index} className="card">
 
-            <img src={p.images?.[0]} />
+          {/* IMAGE */}
+          <img src={p.images?.[0]} className="mainImg" />
 
-            <h3>{p.name}</h3>
+          {/* BASIC */}
+          <h2>{p.name}</h2>
+          <p><b>Category:</b> {p.category}</p>
+          <p><b>Slug:</b> {p.slug}</p>
 
-            <p>₹{p.sellingPrice}</p>
+          {/* GST */}
+          <p><b>HSN:</b> {p.hsn}</p>
+          <p><b>Tax:</b> {p.tax}%</p>
+          <p><b>GST Desc:</b> {p.gstDescription}</p>
 
-            <div className="actions">
-              <button
-                className="approve"
-                onClick={() => handleAction(p._id, "approve")}
-              >
-                Approve
-              </button>
+          {/* TEXT DETAILS */}
+          <p><b>Description:</b> {p.description}</p>
+          <p><b>Short Desc:</b> {p.shortDescription}</p>
+          <p><b>Ingredients:</b> {p.ingredients}</p>
+          <p><b>Shelf Life:</b> {p.shelfLife}</p>
 
-              <button
-                className="reject"
-                onClick={() => handleAction(p._id, "reject")}
-              >
-                Reject
-              </button>
-            </div>
+          {/* SEO */}
+          <p><b>SEO Title:</b> {p.seo?.title}</p>
+          <p><b>SEO Desc:</b> {p.seo?.description}</p>
 
+          {/* VARIANTS */}
+          <h3>Variants</h3>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Variant</th>
+                <th>SKU</th>
+                <th>MRP</th>
+                <th>Price</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>{p.variant}</td>
+                <td>{p.sku}</td>
+                <td>{p.mrp}</td>
+                <td>{p.sellingPrice}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          {/* ACTIONS */}
+          <div className="actions">
+            <button onClick={() => approve(p.productKey)}>✅ Approve</button>
+            <button onClick={() => reject(p.productKey)}>❌ Reject</button>
           </div>
-        ))}
-      </div>
+
+        </div>
+      ))}
 
       <style jsx>{`
-        .container { padding: 20px; max-width: 1100px; margin: auto; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px,1fr)); gap: 20px; }
-        .card { padding: 10px; border: 1px solid #eee; border-radius: 10px; background:#fff; }
-        img { width:100%; height:160px; object-fit:cover; border-radius:8px; }
-        .actions { display:flex; gap:10px; margin-top:10px; }
-        button { flex:1; padding:8px; border:none; cursor:pointer; }
-        .approve { background:green; color:#fff; }
-        .reject { background:red; color:#fff; }
+        .container { padding: 20px; max-width: 1100px; margin:auto; }
+        .card { border:1px solid #eee; padding:15px; margin-bottom:20px; border-radius:10px; }
+        .mainImg { width:150px; height:150px; object-fit:cover; }
+        table { width:100%; margin-top:10px; border-collapse:collapse; }
+        td,th { border:1px solid #ddd; padding:8px; }
+        .actions { margin-top:10px; display:flex; gap:10px; }
       `}</style>
 
     </div>
