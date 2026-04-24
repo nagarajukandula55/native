@@ -180,11 +180,14 @@ async function handleImageUpload(e) {
     }
   }
 
-  setForm(prev => ({
-    ...prev,
-    images: [...prev.images, ...uploaded],
-  }));
-}
+    const finalImages = [...form.images, ...uploaded];
+    
+    setForm(prev => ({
+      ...prev,
+      images: finalImages,
+    }));
+    
+    console.log("✅ Images saved to form:", finalImages);
 
   /* ================= VALIDATION ================= */
 
@@ -193,6 +196,8 @@ async function handleImageUpload(e) {
     if (!form.category) return "Category required";
     if (!form.gstCategory) return "GST category required";
     if (form.variants.length === 0) return "Add at least one variant";
+    if (!form.images || form.images.length === 0) {return "Upload at least 1 image";
+}
 
     const invalidVariant = form.variants.find(
       v => !v.value || !v.mrp || !v.sellingPrice
