@@ -5,8 +5,6 @@ import JsBarcode from "jsbarcode";
 
 export default function ProductUpload() {
 
-  /* ================= CORE ================= */
-
   const emptyVariant = {
     value: "",
     unit: "GM",
@@ -45,8 +43,6 @@ export default function ProductUpload() {
 
   const barcodeRefs = useRef([]);
 
-  /* ================= GST MASTER ================= */
-
   const gstOptions = [
     { name: "Food Preparations (Not Elsewhere Specified)", hsn: "2106", tax: 5, desc: "Includes dosa mix, idli mix" },
     { name: "Flours & Meals (Cereal Based)", hsn: "1101", tax: 5, desc: "Cereal flours" },
@@ -58,20 +54,11 @@ export default function ProductUpload() {
   ];
 
   const websiteCategories = [
-    "Instant Mixes",
-    "Spices & Masalas",
-    "Cold Pressed Oils",
-    "Flours & Millets",
-    "Ready to Cook",
-    "Ready to Eat",
-    "Pickles & Chutneys",
-    "Snacks & Namkeen",
-    "Breakfast Essentials",
-    "Combo Packs",
-    "New Arrivals",
+    "Instant Mixes","Spices & Masalas","Cold Pressed Oils",
+    "Flours & Millets","Ready to Cook","Ready to Eat",
+    "Pickles & Chutneys","Snacks & Namkeen",
+    "Breakfast Essentials","Combo Packs","New Arrivals",
   ];
-
-  /* ================= AUTO PRODUCT KEY + SEO ================= */
 
   useEffect(() => {
     if (!form.name) return;
@@ -80,8 +67,7 @@ export default function ProductUpload() {
     const key = clean.toUpperCase().replace(/[^A-Z0-9]/g, "");
     setProductKey(key);
 
-    const slugGen = form.name
-      .toLowerCase()
+    const slugGen = form.name.toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/(^-|-$)/g, "");
 
@@ -95,11 +81,8 @@ export default function ProductUpload() {
 
   }, [form.name]);
 
-  /* ================= GST AUTO FIX ================= */
-
   useEffect(() => {
     const selected = gstOptions.find(g => g.name === form.gstCategory);
-
     if (selected) {
       setForm(prev => ({
         ...prev,
@@ -110,27 +93,16 @@ export default function ProductUpload() {
     }
   }, [form.gstCategory]);
 
-  /* ================= VARIANTS ================= */
-
   function updateVariant(i, field, value) {
     const updated = [...form.variants];
-
-    updated[i] = {
-      ...updated[i],
-      [field]: value,
-    };
+    updated[i] = { ...updated[i], [field]: value };
 
     if (updated[i].value && productKey) {
       const seq = String(i + 1).padStart(3, "0");
-
-      updated[i].sku =
-        `NA-${productKey}-${seq}-${updated[i].value}${updated[i].unit}`;
+      updated[i].sku = `NA-${productKey}-${seq}-${updated[i].value}${updated[i].unit}`;
     }
 
-    setForm(prev => ({
-      ...prev,
-      variants: updated,
-    }));
+    setForm(prev => ({ ...prev, variants: updated }));
   }
 
   function addVariant() {
@@ -146,8 +118,6 @@ export default function ProductUpload() {
       variants: prev.variants.filter((_, idx) => idx !== i),
     }));
   }
-
-  /* ================= IMAGE ================= */
 
   async function handleImageUpload(e) {
     const files = Array.from(e.target.files);
@@ -178,17 +148,11 @@ export default function ProductUpload() {
       }
     }
 
-    const finalImages = [...form.images, ...uploaded];
-
     setForm(prev => ({
       ...prev,
-      images: finalImages,
+      images: [...prev.images, ...uploaded],
     }));
-
-    console.log("✅ Images saved:", finalImages);
   }
-
-  /* ================= VALIDATION ================= */
 
   function validate() {
     if (!form.name) return "Product name required";
@@ -205,21 +169,13 @@ export default function ProductUpload() {
     return null;
   }
 
-  /* ================= BARCODE ================= */
-
   useEffect(() => {
     form.variants.forEach((v, i) => {
       if (barcodeRefs.current[i] && v.sku) {
-        JsBarcode(barcodeRefs.current[i], v.sku, {
-          format: "CODE128",
-          width: 2,
-          height: 50,
-        });
+        JsBarcode(barcodeRefs.current[i], v.sku);
       }
     });
   }, [form.variants]);
-
-  /* ================= SAVE ================= */
 
   async function handleSubmit() {
     const err = validate();
@@ -228,21 +184,43 @@ export default function ProductUpload() {
     setError("");
 
     for (let v of form.variants) {
-      await fetch("/api/admin/products", {
+
+      const payload = {
+        name: form.name,
+        category: form.category,
+        gstCategory: form.gstCategory,
+        hsn: form.hsn,
+        tax: form.tax,
+        description: form.description,
+        shortDescription: form.shortDescription,
+        ingredients: form.ingredients,
+        shelfLife: form.shelfLife,
+        images: form.images,
+
+        variant: `${v.value}${v.unit}`,
+        sku: v.sku,
+        mrp: Number(v.mrp),
+        sellingPrice: Number(v.sellingPrice),
+
+        productKey,
+        slug,
+        seo,
+        status: "review",
+      };
+
+      const res = await fetch("/api/admin/products", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...form,
-          variant: `${v.value}${v.unit}`,
-          sku: v.sku,
-          mrp: v.mrp,
-          sellingPrice: v.sellingPrice,
-          productKey,
-          slug,
-          seo,
-          status: "review",
-        }),
+        body: JSON.stringify(payload),
       });
+
+      const data = await res.json();
+
+      if (!data.success) {
+        console.error("SAVE ERROR:", data);
+        setError("Failed to save product");
+        return;
+      }
     }
 
     alert("Product sent for review ✔");
@@ -250,8 +228,6 @@ export default function ProductUpload() {
     setImagePreviews([]);
     setStep(0);
   }
-
-  /* ================= SEO ================= */
 
   async function generateAISEO() {
     const res = await fetch("/api/seo", {
@@ -266,8 +242,6 @@ export default function ProductUpload() {
     const data = await res.json();
     if (data.success) setSeo(data.seo);
   }
-
-  /* ================= UI ================= */
 
   return (
     <div style={{ maxWidth: 1100, margin: "auto", padding: 20 }}>
@@ -285,7 +259,7 @@ export default function ProductUpload() {
 
       {step === 0 && (
         <div>
-          <input placeholder="Product Name"
+          <input placeholder="Product Name (e.g. Native Dosa Mix 500g)"
             value={form.name}
             onChange={e=>setForm({...form,name:e.target.value})}/>
         </div>
@@ -295,13 +269,16 @@ export default function ProductUpload() {
         <div>
           {form.variants.map((v,i)=>(
             <div key={i}>
-              <input onChange={e=>updateVariant(i,"value",e.target.value)}/>
-              <input onChange={e=>updateVariant(i,"mrp",e.target.value)}/>
-              <input onChange={e=>updateVariant(i,"sellingPrice",e.target.value)}/>
+              <input placeholder="Weight (e.g. 500)"
+                onChange={e=>updateVariant(i,"value",e.target.value)}/>
+              <input placeholder="MRP (₹)"
+                onChange={e=>updateVariant(i,"mrp",e.target.value)}/>
+              <input placeholder="Selling Price (₹)"
+                onChange={e=>updateVariant(i,"sellingPrice",e.target.value)}/>
               <input value={v.sku} readOnly/>
             </div>
           ))}
-          <button onClick={addVariant}>Add</button>
+          <button onClick={addVariant}>Add Variant</button>
         </div>
       )}
 
