@@ -5,293 +5,281 @@ import JsBarcode from "jsbarcode";
 
 export default function ProductUpload() {
 
-  const emptyVariant = {
-    value: "",
-    unit: "GM",
-    sku: "",
-    mrp: "",
-    sellingPrice: "",
-  };
+/* ================= CORE ================= */
 
-  const emptyForm = {
-    name: "",
-    category: "",
-    gstCategory: "",
-    gstDescription: "",
-    hsn: "",
-    tax: "",
-    description: "",
-    shortDescription: "",
-    ingredients: "",
-    shelfLife: "",
-    images: [],
-    variants: [emptyVariant],
-  };
+const emptyVariant = {
+  value: "",
+  unit: "GM",
+  sku: "",
+  mrp: "",
+  sellingPrice: "",
+};
 
-  const [form, setForm] = useState(emptyForm);
-  const [productKey, setProductKey] = useState("");
-  const [slug, setSlug] = useState("");
-  const [imagePreviews, setImagePreviews] = useState([]);
-  const [seo, setSeo] = useState({
-    title: "",
-    description: "",
-    keywords: "",
+const emptyForm = {
+  name: "",
+  category: "",
+  gstCategory: "",
+  gstDescription: "",
+  hsn: "",
+  tax: "",
+
+  description: "",
+  shortDescription: "",
+  ingredients: "",
+  shelfLife: "",
+
+  // 🔥 NEW FIELDS (COMPLIANCE)
+  manufacturerName: "",
+  manufacturerAddress: "",
+  fssaiLicense: "",
+  countryOfOrigin: "India",
+  packedDate: "",
+  expiryDate: "",
+  storageInstructions: "",
+  allergenInfo: "",
+
+  // 🔥 NUTRITION SYSTEM
+  nutritionInputs: [
+    { name: "", ratio: "" }
+  ],
+
+  images: [],
+  variants: [emptyVariant],
+};
+
+const [form, setForm] = useState(emptyForm);
+const [productKey, setProductKey] = useState("");
+const [slug, setSlug] = useState("");
+const [imagePreviews, setImagePreviews] = useState([]);
+
+const [seo, setSeo] = useState({
+  title: "",
+  description: "",
+  keywords: "",
+});
+
+const [step, setStep] = useState(0);
+const [error, setError] = useState("");
+
+const barcodeRefs = useRef([]);
+
+/* ================= GST ================= */
+
+const gstOptions = [
+  { name: "Food Preparations (Not Elsewhere Specified)", hsn: "2106", tax: 5, desc: "Includes dosa mix, idli mix" },
+];
+
+const websiteCategories = ["Instant Mixes","Spices & Masalas"];
+
+/* ================= AUTO ================= */
+
+useEffect(() => {
+  if (!form.name) return;
+
+  const key = form.name.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  setProductKey(key);
+
+  const slugGen = form.name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+  setSlug(slugGen);
+
+}, [form.name]);
+
+/* ================= VARIANTS ================= */
+
+function updateVariant(i, field, value) {
+  const updated = [...form.variants];
+  updated[i][field] = value;
+
+  if (updated[i].value && productKey) {
+    updated[i].sku = `NA-${productKey}-${i + 1}`;
+  }
+
+  setForm(prev => ({ ...prev, variants: updated }));
+}
+
+function addVariant() {
+  setForm(prev => ({
+    ...prev,
+    variants: [...prev.variants, emptyVariant],
+  }));
+}
+
+/* ================= NUTRITION ================= */
+
+function updateNutrition(i, field, value) {
+  const updated = [...form.nutritionInputs];
+  updated[i][field] = value;
+  setForm(prev => ({ ...prev, nutritionInputs: updated }));
+}
+
+function addNutrition() {
+  setForm(prev => ({
+    ...prev,
+    nutritionInputs: [...prev.nutritionInputs, { name: "", ratio: "" }],
+  }));
+}
+
+// 🔥 SIMPLE CALCULATION (dummy logic)
+function calculateNutrition() {
+  return form.nutritionInputs.map(n => ({
+    ingredient: n.name,
+    calories: Number(n.ratio) * 4,
+    protein: Number(n.ratio) * 0.2,
+  }));
+}
+
+// 🔥 DOWNLOAD CSV
+function downloadNutrition() {
+  const data = calculateNutrition();
+  let csv = "Ingredient,Calories,Protein\n";
+
+  data.forEach(d => {
+    csv += `${d.ingredient},${d.calories},${d.protein}\n`;
   });
 
-  const [step, setStep] = useState(0);
-  const [error, setError] = useState("");
+  const blob = new Blob([csv]);
+  const url = URL.createObjectURL(blob);
 
-  const barcodeRefs = useRef([]);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "nutrition.csv";
+  a.click();
+}
 
-  const gstOptions = [
-    { name: "Food Preparations (Not Elsewhere Specified)", hsn: "2106", tax: 5, desc: "Includes dosa mix, idli mix" },
-    { name: "Flours & Meals (Cereal Based)", hsn: "1101", tax: 5, desc: "Cereal flours" },
-    { name: "Spices", hsn: "0910", tax: 5, desc: "Masalas & spices" },
-    { name: "Edible Oils", hsn: "1515", tax: 5, desc: "Vegetable oils" },
-    { name: "Prepared / Preserved Foods", hsn: "2001", tax: 12, desc: "Pickles, chutneys" },
-    { name: "Ready to Eat / Packaged Food", hsn: "1904", tax: 12, desc: "Packaged food" },
-    { name: "Namkeen / Snack Items", hsn: "2106", tax: 12, desc: "Snacks" },
-  ];
+/* ================= IMAGE ================= */
 
-  const websiteCategories = [
-    "Instant Mixes","Spices & Masalas","Cold Pressed Oils",
-    "Flours & Millets","Ready to Cook","Ready to Eat",
-    "Pickles & Chutneys","Snacks & Namkeen",
-    "Breakfast Essentials","Combo Packs","New Arrivals",
-  ];
+async function handleImageUpload(e) {
+  const files = Array.from(e.target.files);
 
-  useEffect(() => {
-    if (!form.name) return;
+  const uploaded = [];
 
-    const clean = form.name.replace(/native/gi, "").trim();
-    const key = clean.toUpperCase().replace(/[^A-Z0-9]/g, "");
-    setProductKey(key);
+  for (let file of files) {
+    const data = new FormData();
+    data.append("file", file);
+    data.append("upload_preset", "native_upload");
 
-    const slugGen = form.name.toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/(^-|-$)/g, "");
-
-    setSlug(slugGen);
-
-    setSeo({
-      title: `${form.name} | Buy Online`,
-      description: `Buy ${form.name} at best price`,
-      keywords: `${form.name}, online, buy`,
-    });
-
-  }, [form.name]);
-
-  useEffect(() => {
-    const selected = gstOptions.find(g => g.name === form.gstCategory);
-    if (selected) {
-      setForm(prev => ({
-        ...prev,
-        hsn: selected.hsn,
-        tax: selected.tax,
-        gstDescription: selected.desc,
-      }));
-    }
-  }, [form.gstCategory]);
-
-  function updateVariant(i, field, value) {
-    const updated = [...form.variants];
-    updated[i] = { ...updated[i], [field]: value };
-
-    if (updated[i].value && productKey) {
-      const seq = String(i + 1).padStart(3, "0");
-      updated[i].sku = `NA-${productKey}-${seq}-${updated[i].value}${updated[i].unit}`;
-    }
-
-    setForm(prev => ({ ...prev, variants: updated }));
-  }
-
-  function addVariant() {
-    setForm(prev => ({
-      ...prev,
-      variants: [...prev.variants, { ...emptyVariant }],
-    }));
-  }
-
-  function removeVariant(i) {
-    setForm(prev => ({
-      ...prev,
-      variants: prev.variants.filter((_, idx) => idx !== i),
-    }));
-  }
-
-  async function handleImageUpload(e) {
-    const files = Array.from(e.target.files);
-
-    const previews = files.map(f => ({
-      preview: URL.createObjectURL(f),
-    }));
-
-    setImagePreviews(prev => [...prev, ...previews]);
-
-    const uploaded = [];
-
-    for (let file of files) {
-      const data = new FormData();
-      data.append("file", file);
-      data.append("upload_preset", "native_upload");
-
-      const res = await fetch(
-        `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUD_NAME}/image/upload`,
-        { method: "POST", body: data }
-      );
-
-      const json = await res.json();
-      console.log("Cloudinary:", json);
-
-      if (json?.secure_url) {
-        uploaded.push(json.secure_url);
-      }
-    }
-
-    setForm(prev => ({
-      ...prev,
-      images: [...prev.images, ...uploaded],
-    }));
-  }
-
-  function validate() {
-    if (!form.name) return "Product name required";
-    if (!form.category) return "Category required";
-    if (!form.gstCategory) return "GST category required";
-    if (!form.images.length) return "Upload at least 1 image";
-
-    const invalidVariant = form.variants.find(
-      v => !v.value || !v.mrp || !v.sellingPrice
+    const res = await fetch(
+      `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUD_NAME}/image/upload`,
+      { method: "POST", body: data }
     );
 
-    if (invalidVariant) return "Fill all variant fields";
-
-    return null;
+    const json = await res.json();
+    if (json?.secure_url) uploaded.push(json.secure_url);
   }
 
-  useEffect(() => {
-    form.variants.forEach((v, i) => {
-      if (barcodeRefs.current[i] && v.sku) {
-        JsBarcode(barcodeRefs.current[i], v.sku);
-      }
-    });
-  }, [form.variants]);
+  setForm(prev => ({
+    ...prev,
+    images: [...prev.images, ...uploaded],
+  }));
+}
 
-  async function handleSubmit() {
-    const err = validate();
-    if (err) return setError(err);
+/* ================= SAVE ================= */
 
-    setError("");
+async function handleSubmit() {
 
-    for (let v of form.variants) {
-
-      const payload = {
-        name: form.name,
-        category: form.category,
-        gstCategory: form.gstCategory,
-        hsn: form.hsn,
-        tax: form.tax,
-        description: form.description,
-        shortDescription: form.shortDescription,
-        ingredients: form.ingredients,
-        shelfLife: form.shelfLife,
-        images: form.images,
-
+  for (let v of form.variants) {
+    await fetch("/api/admin/products", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...form,
         variant: `${v.value}${v.unit}`,
         sku: v.sku,
-        mrp: Number(v.mrp),
-        sellingPrice: Number(v.sellingPrice),
-
+        mrp: v.mrp,
+        sellingPrice: v.sellingPrice,
         productKey,
         slug,
-        seo,
         status: "review",
-      };
-
-      const res = await fetch("/api/admin/products", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await res.json();
-
-      if (!data.success) {
-        console.error("SAVE ERROR:", data);
-        setError("Failed to save product");
-        return;
-      }
-    }
-
-    alert("Product sent for review ✔");
-    setForm(emptyForm);
-    setImagePreviews([]);
-    setStep(0);
-  }
-
-  async function generateAISEO() {
-    const res = await fetch("/api/seo", {
-      method: "POST",
-      headers: {"Content-Type":"application/json"},
-      body: JSON.stringify({
-        name: form.name,
-        category: form.category,
       }),
     });
-
-    const data = await res.json();
-    if (data.success) setSeo(data.seo);
   }
 
-  return (
-    <div style={{ maxWidth: 1100, margin: "auto", padding: 20 }}>
-      <h1>🛒 Product Admin Panel</h1>
+  alert("Saved");
+}
 
-      {error && <div style={{ color: "red" }}>{error}</div>}
+/* ================= UI ================= */
 
-      <div style={{ display: "flex", gap: 10 }}>
-        <button onClick={()=>setStep(0)}>Basic</button>
-        <button onClick={()=>setStep(1)}>Variants</button>
-        <button onClick={()=>setStep(2)}>Media</button>
-        <button onClick={()=>setStep(3)}>SEO</button>
-        <button onClick={generateAISEO}>⚡ SEO</button>
-      </div>
+return (
+<div style={{ padding: 20 }}>
 
-      {step === 0 && (
-        <div>
-          <input placeholder="Product Name (e.g. Native Dosa Mix 500g)"
-            value={form.name}
-            onChange={e=>setForm({...form,name:e.target.value})}/>
-        </div>
-      )}
+<h2>Product Panel</h2>
 
-      {step === 1 && (
-        <div>
-          {form.variants.map((v,i)=>(
-            <div key={i}>
-              <input placeholder="Weight (e.g. 500)"
-                onChange={e=>updateVariant(i,"value",e.target.value)}/>
-              <input placeholder="MRP (₹)"
-                onChange={e=>updateVariant(i,"mrp",e.target.value)}/>
-              <input placeholder="Selling Price (₹)"
-                onChange={e=>updateVariant(i,"sellingPrice",e.target.value)}/>
-              <input value={v.sku} readOnly/>
-            </div>
-          ))}
-          <button onClick={addVariant}>Add Variant</button>
-        </div>
-      )}
+{/* BASIC */}
+{step === 0 && (
+<div>
 
-      {step === 2 && (
-        <div>
-          <input type="file" multiple onChange={handleImageUpload}/>
-        </div>
-      )}
+<input placeholder="Product Name (e.g. Dosa Mix)"
+value={form.name}
+onChange={e=>setForm({...form,name:e.target.value})}/>
 
-      {step === 3 && (
-        <button onClick={handleSubmit}>Submit</button>
-      )}
+<input placeholder="Manufacturer Name"
+value={form.manufacturerName}
+onChange={e=>setForm({...form,manufacturerName:e.target.value})}/>
 
-    </div>
-  );
+<input placeholder="FSSAI License"
+value={form.fssaiLicense}
+onChange={e=>setForm({...form,fssaiLicense:e.target.value})}/>
+
+<input placeholder="Country of Origin"
+value={form.countryOfOrigin}
+onChange={e=>setForm({...form,countryOfOrigin:e.target.value})}/>
+
+</div>
+)}
+
+{/* VARIANTS */}
+{step === 1 && (
+<div>
+{form.variants.map((v,i)=>(
+<div key={i}>
+<input placeholder="Weight"
+onChange={e=>updateVariant(i,"value",e.target.value)}/>
+<input placeholder="MRP"
+onChange={e=>updateVariant(i,"mrp",e.target.value)}/>
+<input placeholder="Price"
+onChange={e=>updateVariant(i,"sellingPrice",e.target.value)}/>
+</div>
+))}
+<button onClick={addVariant}>Add Variant</button>
+</div>
+)}
+
+{/* MEDIA */}
+{step === 2 && (
+<input type="file" multiple onChange={handleImageUpload}/>
+)}
+
+{/* NUTRITION */}
+{step === 3 && (
+<div>
+
+<h4>Nutrition Builder</h4>
+
+{form.nutritionInputs.map((n,i)=>(
+<div key={i}>
+<input placeholder="Ingredient"
+onChange={e=>updateNutrition(i,"name",e.target.value)}/>
+<input placeholder="Ratio (%)"
+onChange={e=>updateNutrition(i,"ratio",e.target.value)}/>
+</div>
+))}
+
+<button onClick={addNutrition}>Add Ingredient</button>
+
+<button onClick={downloadNutrition}>
+Download Nutrition CSV
+</button>
+
+</div>
+)}
+
+{/* ACTION */}
+<div>
+<button onClick={()=>setStep(step-1)}>Back</button>
+<button onClick={()=>setStep(step+1)}>Next</button>
+<button onClick={handleSubmit}>Submit</button>
+</div>
+
+</div>
+);
 }
