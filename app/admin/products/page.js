@@ -407,7 +407,20 @@ export default function ProductUpload() {
         percent: total ? ((i.qty / total) * 100).toFixed(1) : 0
       }));
     }
+
+  /* ......   ai tag .......... */
   
+        const aiTags = c.tags || [];
+      
+      const finalTags = [...new Set([
+        ...generateSEOTags(),
+        ...aiTags
+      ])].slice(0, 30);
+      
+      setForm(prev => ({
+        ...prev,
+        tags: finalTags.join(", "),
+      }));
   
   /* ================= SAVE ================= */
 
