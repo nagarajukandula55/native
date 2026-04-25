@@ -56,3 +56,21 @@ Return JSON:
     return NextResponse.json({ success: false });
   }
 }
+
+if (!parsed.seo || !parsed.highlights) {
+  parsed = {
+    highlights: [
+      "High quality ingredients",
+      "No preservatives",
+      "Easy to prepare",
+      "Authentic taste",
+    ],
+    shortDescription: `${name} made with premium ingredients`,
+    description: `${name} is a high-quality product in ${category}`,
+    seo: {
+      title: `${name} | Buy Online`,
+      description: `Buy ${name} at best price`,
+      keywords: `${name}, ${category}, buy online`,
+    },
+  };
+}
