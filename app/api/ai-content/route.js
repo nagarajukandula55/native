@@ -4,31 +4,37 @@ export async function POST(req) {
   try {
     const body = await req.json();
 
-    const { name, category, subcategory, ingredients } = body;
+    const { name, brand, category, subcategory, ingredients } = body;
 
     /* ================= PROMPT ================= */
 
     const prompt = `
-Generate eCommerce product content.
-
-Name: ${name}
-Category: ${category}
-Subcategory: ${subcategory}
-Ingredients: ${ingredients}
-
-Return ONLY JSON:
-
-{
-  "highlights": ["", "", "", ""],
-  "shortDescription": "",
-  "description": "",
-  "seo": {
-    "title": "",
-    "description": "",
-    "keywords": ""
-  }
-}
-`;
+    You are an expert eCommerce copywriter.
+    
+    Brand: ${brand}
+    Product Name: ${name}
+    Category: ${category}
+    Subcategory: ${subcategory}
+    Ingredients: ${ingredients}
+    
+    IMPORTANT:
+    - Always include brand name in content
+    - Make it SEO optimized
+    - Avoid false claims
+    
+    Return ONLY JSON:
+    
+    {
+      "highlights": ["", "", "", ""],
+      "shortDescription": "",
+      "description": "",
+      "seo": {
+        "title": "",
+        "description": "",
+        "keywords": ""
+      }
+    }
+    `;
 
     /* ================= OPENAI ================= */
 
