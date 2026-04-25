@@ -118,8 +118,8 @@ export default function ProductUpload() {
     
       // break words
       const nameWords = cleanName.toLowerCase().split(" ");
-      const category = form.category?.toLowerCase();
-      const subcategory = form.subcategory?.toLowerCase();
+      const categoryname = form.category?.toLowerCase();
+      const subcategoryname = form.subcategory?.toLowerCase();
     
       // ingredients support (string safe)
       const ingredientWords = form.ingredients
@@ -128,8 +128,8 @@ export default function ProductUpload() {
     
       const autoTagsArray = [
         ...nameWords,
-        category,
-        subcategory,
+        categoryname,
+        subcategoryname,
         ...ingredientWords,
         "buy online",
         "best price",
@@ -143,8 +143,8 @@ export default function ProductUpload() {
     // build base keyword parts
     const base = displayName.toLowerCase();
     const nameOnly = cleanName.toLowerCase();
-    const category = form.category?.toLowerCase() || "";
-    const subcategory = form.subcategory?.toLowerCase() || "";
+    const categorylowerlower = form.category?.toLowerCase() || "";
+    const subcategorylowerlower = form.subcategory?.toLowerCase() || "";
     
     // ingredient names (safe)
     const ingredientNames = Array.isArray(form.ingredients)
@@ -167,8 +167,8 @@ export default function ProductUpload() {
       `instant ${nameOnly}`,
       `natural ${nameOnly}`,
       `organic ${nameOnly}`,
-      category,
-      subcategory,
+      categorylowerlower,
+      subcategorylowerlower,
       ...ingredientNames.map(i => `${i.trim()} ${nameOnly}`)
     ];
     
