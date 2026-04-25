@@ -2,17 +2,22 @@ import { NextResponse } from "next/server";
 
 export async function POST(req) {
   try {
-    const { name, category, subcategory, ingredients } = await req.json();
+    const body = await req.json();
+
+    const { name, category, subcategory, ingredients } = body;
+
+    /* ================= PROMPT ================= */
 
     const prompt = `
-Generate eCommerce content for:
+Generate eCommerce product content.
 
 Name: ${name}
 Category: ${category}
 Subcategory: ${subcategory}
 Ingredients: ${ingredients}
 
-Return JSON:
+Return ONLY JSON:
+
 {
   "highlights": ["", "", "", ""],
   "shortDescription": "",
@@ -24,6 +29,8 @@ Return JSON:
   }
 }
 `;
+
+    /* ================= OPENAI ================= */
 
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
@@ -38,13 +45,36 @@ Return JSON:
     });
 
     const data = await response.json();
-    const text = data.choices?.[0]?.message?.content || "{}";
 
-    let parsed;
+    const text = data?.choices?.[0]?.message?.content || "{}";
+
+    /* ✅ FIX: declare parsed BEFORE try */
+    let parsed = {};
+
     try {
       parsed = JSON.parse(text);
-    } catch {
-      parsed = {};
+    } catch (err) {
+      console.log("JSON parse failed, using fallback");
+    }
+
+    /* ================= FALLBACK ================= */
+
+    if (!parsed || !parsed.seo || !parsed.highlights) {
+      parsed = {
+        highlights: [
+          "High quality ingredients",
+          "No preservatives",
+          "Easy to prepare",
+          "Authentic taste",
+        ],
+        shortDescription: `${name} made with premium ingredients`,
+        description: `${name} is a quality product in ${category}`,
+        seo: {
+          title: `${name} | Buy Online`,
+          description: `Buy ${name} at best price`,
+          keywords: `${name}, ${category}, buy online`,
+        },
+      };
     }
 
     return NextResponse.json({
@@ -52,25 +82,12 @@ Return JSON:
       content: parsed,
     });
 
-  } catch {
-    return NextResponse.json({ success: false });
-  }
-}
+  } catch (err) {
+    console.error("AI CONTENT ERROR:", err);
 
-if (!parsed.seo || !parsed.highlights) {
-  parsed = {
-    highlights: [
-      "High quality ingredients",
-      "No preservatives",
-      "Easy to prepare",
-      "Authentic taste",
-    ],
-    shortDescription: `${name} made with premium ingredients`,
-    description: `${name} is a high-quality product in ${category}`,
-    seo: {
-      title: `${name} | Buy Online`,
-      description: `Buy ${name} at best price`,
-      keywords: `${name}, ${category}, buy online`,
-    },
-  };
+    return NextResponse.json(
+      { success: false },
+      { status: 500 }
+    );
+  }
 }
