@@ -383,12 +383,6 @@ export default function ProductUpload() {
       return [...new Set(tags.filter(Boolean))].slice(0, 25);
     }
 
-    /* ================= Name Change Global ================= */
-
-    const displayName = form.brand
-    ? `${form.brand} ${form.name.replace(/native/gi, "").trim()}`
-    : form.name;
-
   /* ================= Format Ingredients ================= */
   
     function formatIngredients(ingredients) {
