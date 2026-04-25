@@ -381,6 +381,17 @@ export default function ProductUpload() {
           {/* SEO */}
           <input value={seo.title} readOnly />
           <textarea value={seo.description} readOnly />
+
+          {/*Ingredients */}
+          <textarea
+            placeholder="Ingredients (comma separated)
+          Example: Rice, Urad Dal, Fenugreek Seeds, Salt"
+            value={form.ingredients}
+            onChange={e =>
+              setForm({ ...form, ingredients: e.target.value })
+            }
+            style={{ gridColumn: "span 2" }}
+          />
       
           {/* BUTTON */}
           <button
