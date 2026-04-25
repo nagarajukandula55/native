@@ -237,8 +237,6 @@ export default function ProductUpload() {
       return;
     }
 
-    const c = data.content || {};
-
     /* ✅ UPDATE FORM */
     setForm(prev => ({
       ...prev,
@@ -402,20 +400,7 @@ export default function ProductUpload() {
       }));
     }
 
-  /* ......   ai tag .......... */
-  
-        const aiTags = c.tags || [];
-      
-      const finalTags = [...new Set([
-        ...generateSEOTags(),
-        ...aiTags
-      ])].slice(0, 30);
-      
-      setForm(prev => ({
-        ...prev,
-        tags: finalTags.join(", "),
-      }));
-  
+ 
   /* ================= SAVE ================= */
 
   async function handleSubmit() {
