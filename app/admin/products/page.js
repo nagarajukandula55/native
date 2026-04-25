@@ -350,8 +350,8 @@ export default function ProductUpload() {
     
       const name = form.name.toLowerCase();
       const brand = form.brand?.toLowerCase() || "";
-      const category = form.category?.toLowerCase() || "";
-      const subcategory = form.subcategory?.toLowerCase() || "";
+      const categoryLower = form.category?.toLowerCase() || "";
+      const subcategoryLower = form.subcategory?.toLowerCase() || "";
     
       const ingredientNames = Array.isArray(form.ingredients)
         ? form.ingredients.map(i => i.name.toLowerCase())
@@ -370,8 +370,8 @@ export default function ProductUpload() {
         `best ${name}`,
         `${name} online`,
         `${name} india`,
-        `${category}`,
-        `${subcategory}`,
+        `${categoryLower}`,
+        `${subcategoryLower}`,
         `healthy ${name}`,
         `instant ${name}`,
         `homemade ${name}`,
