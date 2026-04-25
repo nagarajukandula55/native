@@ -3,9 +3,9 @@
 import { useState, useEffect, useRef } from "react";
 import JsBarcode from "jsbarcode";
 
-/* ================= CORE ================= */
-
 export default function ProductUpload() {
+
+  /* ================= CORE ================= */
 
   const emptyVariant = {
     value: "",
@@ -13,38 +13,52 @@ export default function ProductUpload() {
     sku: "",
     mrp: "",
     sellingPrice: "",
-  };
-
-  const emptyNutrition = {
-    name: "",
-    amount: "",
-    unit: "g",
+    stock: "",
   };
 
   const emptyForm = {
     name: "",
+    brand: "",
     category: "",
+    tags: "",
+
     gstCategory: "",
     gstDescription: "",
     hsn: "",
     tax: "",
+
     description: "",
     shortDescription: "",
     ingredients: "",
     shelfLife: "",
-    fssaiLicense: "",
-    manufacturer: "",
+
+    // ✅ COMPLIANCE
+    fssaiNumber: "",
+    manufacturerName: "",
+    manufacturerAddress: "",
+    batchNumber: "",
+    packingDate: "",
+    expiryDate: "",
     netQuantity: "",
+    vegType: "Veg",
     countryOfOrigin: "India",
+    storageInstructions: "",
+    allergenInfo: "",
+
+    // ✅ SHIPPING
+    weight: "",
+    length: "",
+    breadth: "",
+    height: "",
+
+    // ✅ SEO
     images: [],
-    nutrition: [emptyNutrition],
     variants: [emptyVariant],
   };
 
   const [form, setForm] = useState(emptyForm);
   const [productKey, setProductKey] = useState("");
   const [slug, setSlug] = useState("");
-  const [imagePreviews, setImagePreviews] = useState([]);
   const [seo, setSeo] = useState({
     title: "",
     description: "",
@@ -53,35 +67,27 @@ export default function ProductUpload() {
 
   const [step, setStep] = useState(0);
   const [error, setError] = useState("");
+  const [imagePreviews, setImagePreviews] = useState([]);
 
   const barcodeRefs = useRef([]);
 
-  /* ================= GST MASTER ================= */
+  /* ================= GST ================= */
 
   const gstOptions = [
-    { name: "Food Preparations", hsn: "2106", tax: 5, desc: "Dosa mix" },
-    { name: "Flours", hsn: "1101", tax: 5, desc: "Flour products" },
+    { name: "Food Preparations", hsn: "2106", tax: 5 },
+    { name: "Flours", hsn: "1101", tax: 5 },
     { name: "Spices", hsn: "0910", tax: 5 },
-    { name: "Oils", hsn: "1515", tax: 5 },
   ];
 
-  const websiteCategories = [
-    "Instant Mixes",
-    "Spices",
-    "Oils",
-    "Flours",
-  ];
-
-  /* ================= AUTO GENERATORS ================= */
+  /* ================= AUTO ================= */
 
   useEffect(() => {
     if (!form.name) return;
 
-    const clean = form.name.replace(/native/gi, "").trim();
-    const key = clean.toUpperCase().replace(/[^A-Z0-9]/g, "");
+    const key = form.name.toUpperCase().replace(/[^A-Z0-9]/g, "");
     setProductKey(key);
 
-    const slugGen = form.name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    const slugGen = form.name.toLowerCase().replace(/\s+/g, "-");
     setSlug(slugGen);
 
     setSeo({
@@ -93,13 +99,12 @@ export default function ProductUpload() {
   }, [form.name]);
 
   useEffect(() => {
-    const g = gstOptions.find(x => x.name === form.gstCategory);
-    if (g) {
+    const gst = gstOptions.find(g => g.name === form.gstCategory);
+    if (gst) {
       setForm(prev => ({
         ...prev,
-        hsn: g.hsn,
-        tax: g.tax,
-        gstDescription: g.desc,
+        hsn: gst.hsn,
+        tax: gst.tax,
       }));
     }
   }, [form.gstCategory]);
@@ -108,10 +113,11 @@ export default function ProductUpload() {
 
   function updateVariant(i, field, value) {
     const updated = [...form.variants];
+
     updated[i][field] = value;
 
     if (updated[i].value && productKey) {
-      updated[i].sku = `NA-${productKey}-${String(i + 1).padStart(3, "0")}-${updated[i].value}${updated[i].unit}`;
+      updated[i].sku = `NA-${productKey}-${i + 1}-${updated[i].value}${updated[i].unit}`;
     }
 
     setForm(prev => ({ ...prev, variants: updated }));
@@ -124,40 +130,17 @@ export default function ProductUpload() {
     }));
   }
 
-  /* ================= NUTRITION ================= */
-
-  function updateNutrition(i, field, value) {
-    const updated = [...form.nutrition];
-    updated[i][field] = value;
-    setForm(prev => ({ ...prev, nutrition: updated }));
-  }
-
-  function addNutrition() {
-    setForm(prev => ({
-      ...prev,
-      nutrition: [...prev.nutrition, { ...emptyNutrition }],
-    }));
-  }
-
-  function downloadNutrition() {
-    let csv = "Nutrient,Amount\n";
-    form.nutrition.forEach(n => {
-      csv += `${n.name},${n.amount}${n.unit}\n`;
-    });
-
-    const blob = new Blob([csv]);
-    const url = URL.createObjectURL(blob);
-
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "nutrition.csv";
-    a.click();
-  }
-
   /* ================= IMAGE ================= */
 
   async function handleImageUpload(e) {
     const files = Array.from(e.target.files);
+
+    const previews = files.map(f => ({
+      preview: URL.createObjectURL(f),
+    }));
+
+    setImagePreviews(prev => [...prev, ...previews]);
+
     const uploaded = [];
 
     for (let file of files) {
@@ -186,20 +169,17 @@ export default function ProductUpload() {
   function validate() {
     if (!form.name) return "Product name required";
     if (!form.category) return "Category required";
+    if (!form.fssaiNumber) return "FSSAI required";
     if (!form.images.length) return "Upload image";
+
+    const invalid = form.variants.find(
+      v => !v.value || !v.mrp || !v.sellingPrice
+    );
+
+    if (invalid) return "Variant incomplete";
 
     return null;
   }
-
-  /* ================= BARCODE ================= */
-
-  useEffect(() => {
-    form.variants.forEach((v, i) => {
-      if (barcodeRefs.current[i] && v.sku) {
-        JsBarcode(barcodeRefs.current[i], v.sku);
-      }
-    });
-  }, [form.variants]);
 
   /* ================= SAVE ================= */
 
@@ -225,102 +205,96 @@ export default function ProductUpload() {
       });
     }
 
-    alert("Submitted ✔");
+    alert("Saved ✔");
     setForm(emptyForm);
-    setStep(0);
   }
-
-  /* ================= PROGRESS ================= */
-
-  const progress = ((step + 1) / 4) * 100;
 
   /* ================= UI ================= */
 
   return (
     <div style={{ maxWidth: 1100, margin: "auto", padding: 20 }}>
 
-      <h1>🛒 Product Admin Panel</h1>
-
-      {/* PROGRESS BAR */}
-      <div style={{ height: 8, background: "#eee", marginBottom: 10 }}>
-        <div style={{
-          width: `${progress}%`,
-          background: "#4caf50",
-          height: "100%"
-        }} />
-      </div>
+      <h1>Product Admin</h1>
 
       {error && <div style={{ color: "red" }}>{error}</div>}
 
-      {/* NAV */}
-      <div>
-        <button onClick={()=>setStep(0)}>Basic</button>
-        <button onClick={()=>setStep(1)}>Variants</button>
-        <button onClick={()=>setStep(2)}>Nutrition</button>
-        <button onClick={()=>setStep(3)}>Media</button>
+      {/* PROGRESS */}
+      <div style={{ display: "flex", marginBottom: 10 }}>
+        {["Basic", "Variants", "Media", "Compliance"].map((s, i) => (
+          <div key={i} style={{
+            flex: 1,
+            padding: 8,
+            background: step >= i ? "green" : "#ddd",
+            color: "#fff"
+          }}>{s}</div>
+        ))}
       </div>
 
       {/* BASIC */}
       {step === 0 && (
         <div>
-          <input placeholder="Product Name (SEO auto generated)"
-            value={form.name}
-            onChange={e=>setForm({...form,name:e.target.value})}/>
+          <input placeholder="Product Name"
+            onChange={e => setForm({ ...form, name: e.target.value })} />
 
-          <input placeholder="FSSAI License"
-            onChange={e=>setForm({...form,fssaiLicense:e.target.value})}/>
+          <input placeholder="Brand"
+            onChange={e => setForm({ ...form, brand: e.target.value })} />
 
-          <textarea placeholder="Ingredients (important for compliance)"
-            onChange={e=>setForm({...form,ingredients:e.target.value})}/>
+          <input placeholder="Tags (comma separated)"
+            onChange={e => setForm({ ...form, tags: e.target.value })} />
         </div>
       )}
 
       {/* VARIANTS */}
       {step === 1 && (
         <div>
-          {form.variants.map((v,i)=>(
+          {form.variants.map((v, i) => (
             <div key={i}>
-              <input placeholder="Weight"
-                onChange={e=>updateVariant(i,"value",e.target.value)}/>
-              <input placeholder="MRP"
-                onChange={e=>updateVariant(i,"mrp",e.target.value)}/>
-              <input placeholder="Selling Price"
-                onChange={e=>updateVariant(i,"sellingPrice",e.target.value)}/>
-              <input value={v.sku} readOnly/>
-              <svg ref={el=>barcodeRefs.current[i]=el}/>
-            </div>
-          ))}
-          <button onClick={addVariant}>+ Add Variant</button>
-        </div>
-      )}
+              <input placeholder="Value"
+                onChange={e => updateVariant(i, "value", e.target.value)} />
 
-      {/* NUTRITION */}
-      {step === 2 && (
-        <div>
-          {form.nutrition.map((n,i)=>(
-            <div key={i}>
-              <input placeholder="Nutrient"
-                onChange={e=>updateNutrition(i,"name",e.target.value)}/>
-              <input placeholder="Amount"
-                onChange={e=>updateNutrition(i,"amount",e.target.value)}/>
+              <input placeholder="MRP"
+                onChange={e => updateVariant(i, "mrp", e.target.value)} />
+
+              <input placeholder="Selling Price"
+                onChange={e => updateVariant(i, "sellingPrice", e.target.value)} />
+
+              <input placeholder="Stock"
+                onChange={e => updateVariant(i, "stock", e.target.value)} />
+
+              <input value={v.sku} readOnly />
             </div>
           ))}
-          <button onClick={addNutrition}>+ Add Nutrient</button>
-          <button onClick={downloadNutrition}>⬇ Download</button>
+
+          <button onClick={addVariant}>Add Variant</button>
         </div>
       )}
 
       {/* MEDIA */}
+      {step === 2 && (
+        <input type="file" multiple onChange={handleImageUpload} />
+      )}
+
+      {/* COMPLIANCE */}
       {step === 3 && (
         <div>
-          <input type="file" multiple onChange={handleImageUpload}/>
+          <input placeholder="FSSAI Number"
+            onChange={e => setForm({ ...form, fssaiNumber: e.target.value })} />
+
+          <input placeholder="Manufacturer"
+            onChange={e => setForm({ ...form, manufacturerName: e.target.value })} />
+
+          <input placeholder="Batch Number"
+            onChange={e => setForm({ ...form, batchNumber: e.target.value })} />
+
+          <input type="date"
+            onChange={e => setForm({ ...form, expiryDate: e.target.value })} />
         </div>
       )}
 
       {/* ACTION */}
-      <div style={{ marginTop: 20 }}>
-        {step > 0 && <button onClick={()=>setStep(step-1)}>Back</button>}
-        {step < 3 && <button onClick={()=>setStep(step+1)}>Next</button>}
+      <div>
+        {step > 0 && <button onClick={() => setStep(step - 1)}>Back</button>}
+        {step < 3 && <button onClick={() => setStep(step + 1)}>Next</button>}
         {step === 3 && <button onClick={handleSubmit}>Submit</button>}
       </div>
 
