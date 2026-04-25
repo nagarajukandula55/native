@@ -75,6 +75,10 @@ export default function ProductUpload() {
 
   const barcodeRefs = useRef([]);
 
+  const displayName = form.brand
+    ? `${form.brand} ${form.name}`.trim()
+    : form.name;
+
   const categoryMap = {
     "Instant Mixes": ["Dosa Mix", "Idli Mix", "Ragi Mix"],
     "Spices & Masalas": ["Chilli Powder", "Garam Masala"],
@@ -91,38 +95,66 @@ export default function ProductUpload() {
 
   /* ================= AUTO ================= */
 
-  useEffect(() => {
-    if (!form.name) return;
-  
-    const slugGen = form.name
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/(^-|-$)/g, "");
-  
-    setSlug(slugGen);
-  
-    const words = form.name.toLowerCase().split(" ");
-  
-    const autoTags = [
-      ...words,
-      form.category?.toLowerCase(),
-      form.subcategory?.toLowerCase(),
-      "buy online",
-      "best price",
-    ];
-  
-    setForm(prev => ({
-      ...prev,
-      tags: autoTags.filter(Boolean).join(", "),
-    }));
-  
-    setSeo({
-      title: `${form.name} | Buy Online`,
-      description: `Buy ${form.name} online at best price`,
-      keywords: autoTags.join(", "),
-    });
-  
-  }, [form.name, form.category, form.subcategory]);
+    useEffect(() => {
+      if (!form.name) return;
+    
+      /* ================= CLEAN NAME ================= */
+      const cleanName = form.name.replace(/native/gi, "").trim();
+    
+      /* ================= DISPLAY NAME ================= */
+      const displayName = form.brand
+        ? `${form.brand} ${cleanName}`.trim()
+        : cleanName;
+    
+      /* ================= SLUG ================= */
+      const slugGen = displayName
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/(^-|-$)/g, "");
+    
+      setSlug(slugGen);
+    
+      /* ================= TAGS ================= */
+    
+      // break words
+      const nameWords = cleanName.toLowerCase().split(" ");
+      const category = form.category?.toLowerCase();
+      const subcategory = form.subcategory?.toLowerCase();
+    
+      // ingredients support (string safe)
+      const ingredientWords = form.ingredients
+        ? form.ingredients.toLowerCase().split(/[ ,]+/)
+        : [];
+    
+      const autoTagsArray = [
+        ...nameWords,
+        category,
+        subcategory,
+        ...ingredientWords,
+        "buy online",
+        "best price",
+        `${cleanName} online`,
+        `${cleanName} india`,
+        `${displayName.toLowerCase()}`,
+      ];
+    
+      // remove duplicates + small words
+      const finalTags = [...new Set(autoTagsArray.filter(w => w && w.length > 2))];
+    
+      setForm(prev => ({
+        ...prev,
+        tags: finalTags.join(", "),
+      }));
+    
+      /* ================= SEO ================= */
+    
+      setSeo({
+        title: `${displayName} | Buy Online`,
+        description: `Buy ${displayName} online at best price. Premium quality ${cleanName} from ${form.brand || "trusted brand"}.`,
+        keywords: finalTags.join(", "),
+      });
+    
+    }, [form.name, form.category, form.subcategory, form.ingredients, form.brand]);
 
   useEffect(() => {
     const gst = gstOptions.find(g => g.name === form.gstCategory);
@@ -277,6 +309,7 @@ export default function ProductUpload() {
   /* ================= SAVE ================= */
 
   async function handleSubmit() {
+    const tags = generateTags();
     const err = validate();
     if (err) return setError(err);
 
@@ -286,6 +319,9 @@ export default function ProductUpload() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...form,
+          displayName,
+          brand: form.brand,
+          tags,
           variant: `${v.value}${v.unit}`,
           sku: v.sku,
           mrp: v.mrp,
@@ -433,6 +469,16 @@ export default function ProductUpload() {
       
         </div>
       )}
+  
+      {/* Generate Tags */}
+      function generateTags() {
+        const words = `${form.name} ${form.category} ${form.ingredients}`
+          .toLowerCase()
+          .split(/[ ,]+/)
+          .filter(w => w.length > 3);
+      
+        return [...new Set(words)].slice(0, 10);
+      }
 
       {/* VARIANTS */}
       {step === 1 && (
