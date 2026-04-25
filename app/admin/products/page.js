@@ -306,6 +306,19 @@ export default function ProductUpload() {
     return null;
   }
 
+  /* ================= TAG GENERATOR ================= */
+
+    function generateTags() {
+      if (!form.name) return [];
+    
+      const words = `${form.name} ${form.category || ""} ${form.ingredients || ""}`
+        .toLowerCase()
+        .split(/[ ,]+/)
+        .filter(w => w && w.length > 3);
+    
+      return [...new Set(words)].slice(0, 15);
+    }
+  
   /* ================= SAVE ================= */
 
   async function handleSubmit() {
@@ -470,16 +483,6 @@ export default function ProductUpload() {
         </div>
       )}
   
-      {/* Generate Tags */}
-      function generateTags() {
-        const words = `${form.name} ${form.category} ${form.ingredients}`
-          .toLowerCase()
-          .split(/[ ,]+/)
-          .filter(w => w.length > 3);
-      
-        return [...new Set(words)].slice(0, 10);
-      }
-
       {/* VARIANTS */}
       {step === 1 && (
         <div>
