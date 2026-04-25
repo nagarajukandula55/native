@@ -5,349 +5,320 @@ import JsBarcode from "jsbarcode";
 
 export default function ProductUpload() {
 
-/* ================= CORE ================= */
+  /* ================= CORE ================= */
 
-const emptyVariant = {
-  value: "",
-  unit: "GM",
-  sku: "",
-  mrp: "",
-  sellingPrice: "",
-};
+  const emptyVariant = {
+    value: "",
+    unit: "GM",
+    sku: "",
+    mrp: "",
+    sellingPrice: "",
+  };
 
-const emptyForm = {
-  name: "",
-  category: "",
-  gstCategory: "",
-  gstDescription: "",
-  hsn: "",
-  tax: "",
+  const emptyForm = {
+    name: "",
+    category: "",
+    gstCategory: "",
+    gstDescription: "",
+    hsn: "",
+    tax: "",
 
-  description: "",
-  shortDescription: "",
-  ingredients: "",
-  shelfLife: "",
+    description: "",
+    shortDescription: "",
+    ingredients: "",
+    shelfLife: "",
 
-  // 🔥 NEW FIELDS (COMPLIANCE)
-  manufacturerName: "",
-  manufacturerAddress: "",
-  fssaiLicense: "",
-  countryOfOrigin: "India",
-  packedDate: "",
-  expiryDate: "",
-  storageInstructions: "",
-  allergenInfo: "",
+    // 🔥 NEW FIELDS
+    fssaiNumber: "",
+    manufacturerName: "",
+    manufacturerAddress: "",
+    countryOfOrigin: "India",
+    storageInstructions: "",
+    allergenInfo: "",
+    packedDate: "",
+    expiryDate: "",
 
-  // 🔥 NUTRITION SYSTEM
-  nutritionInputs: [
-    { name: "", ratio: "" }
-  ],
+    // 🔥 Nutrition (basic structure)
+    nutrition: {
+      energy: "",
+      protein: "",
+      carbs: "",
+      fat: "",
+    },
 
-  images: [],
-  variants: [emptyVariant],
-};
+    images: [],
+    variants: [emptyVariant],
+  };
 
-const [form, setForm] = useState(emptyForm);
-const [productKey, setProductKey] = useState("");
-const [slug, setSlug] = useState("");
-const [imagePreviews, setImagePreviews] = useState([]);
-
-const [seo, setSeo] = useState({
-  title: "",
-  description: "",
-  keywords: "",
-});
-
-const [step, setStep] = useState(0);
-const [error, setError] = useState("");
-
-const barcodeRefs = useRef([]);
-
-/* ================= GST ================= */
-
-const gstOptions = [
-  { name: "Food Preparations (Not Elsewhere Specified)", hsn: "2106", tax: 5, desc: "Includes dosa mix, idli mix" },
-];
-
-const websiteCategories = ["Instant Mixes","Spices & Masalas"];
-
-/* ================= AUTO ================= */
-
-useEffect(() => {
-  if (!form.name) return;
-
-  const key = form.name.toUpperCase().replace(/[^A-Z0-9]/g, "");
-  setProductKey(key);
-
-  const slugGen = form.name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
-  setSlug(slugGen);
-
-}, [form.name]);
-
-/* ================= VARIANTS ================= */
-
-function updateVariant(i, field, value) {
-  const updated = [...form.variants];
-  updated[i][field] = value;
-
-  if (updated[i].value && productKey) {
-    updated[i].sku = `NA-${productKey}-${i + 1}`;
-  }
-
-  setForm(prev => ({ ...prev, variants: updated }));
-}
-
-function addVariant() {
-  setForm(prev => ({
-    ...prev,
-    variants: [...prev.variants, emptyVariant],
-  }));
-}
-
-/* ================= NUTRITION ================= */
-
-function updateNutrition(i, field, value) {
-  const updated = [...form.nutritionInputs];
-  updated[i][field] = value;
-  setForm(prev => ({ ...prev, nutritionInputs: updated }));
-}
-
-function addNutrition() {
-  setForm(prev => ({
-    ...prev,
-    nutritionInputs: [...prev.nutritionInputs, { name: "", ratio: "" }],
-  }));
-}
-
-// 🔥 SIMPLE CALCULATION (dummy logic)
-function calculateNutrition() {
-  return form.nutritionInputs.map(n => ({
-    ingredient: n.name,
-    calories: Number(n.ratio) * 4,
-    protein: Number(n.ratio) * 0.2,
-  }));
-}
-
-// 🔥 DOWNLOAD CSV
-function downloadNutrition() {
-  const data = calculateNutrition();
-  let csv = "Ingredient,Calories,Protein\n";
-
-  data.forEach(d => {
-    csv += `${d.ingredient},${d.calories},${d.protein}\n`;
+  const [form, setForm] = useState(emptyForm);
+  const [productKey, setProductKey] = useState("");
+  const [slug, setSlug] = useState("");
+  const [imagePreviews, setImagePreviews] = useState([]);
+  const [seo, setSeo] = useState({
+    title: "",
+    description: "",
+    keywords: "",
   });
 
-  const blob = new Blob([csv]);
-  const url = URL.createObjectURL(blob);
+  const [step, setStep] = useState(0);
+  const [error, setError] = useState("");
 
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "nutrition.csv";
-  a.click();
-}
+  const barcodeRefs = useRef([]);
 
-/* ================= IMAGE ================= */
+  /* ================= GST ================= */
 
-async function handleImageUpload(e) {
-  const files = Array.from(e.target.files);
+  const gstOptions = [
+    { name: "Food Preparations", hsn: "2106", tax: 5 },
+    { name: "Flours", hsn: "1101", tax: 5 },
+    { name: "Spices", hsn: "0910", tax: 5 },
+    { name: "Oils", hsn: "1515", tax: 5 },
+    { name: "Pickles", hsn: "2001", tax: 12 },
+  ];
 
-  const uploaded = [];
+  const websiteCategories = [
+    "Instant Mixes",
+    "Spices & Masalas",
+    "Flours & Millets",
+    "Ready to Eat",
+  ];
 
-  for (let file of files) {
-    const data = new FormData();
-    data.append("file", file);
-    data.append("upload_preset", "native_upload");
+  /* ================= AUTO GENERATORS ================= */
 
-    const res = await fetch(
-      `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUD_NAME}/image/upload`,
-      { method: "POST", body: data }
-    );
+  useEffect(() => {
+    if (!form.name) return;
 
-    const json = await res.json();
-    if (json?.secure_url) uploaded.push(json.secure_url);
-  }
+    const key = form.name.replace(/[^A-Z0-9]/gi, "").toUpperCase();
+    setProductKey(key);
 
-  setForm(prev => ({
-    ...prev,
-    images: [...prev.images, ...uploaded],
-  }));
-}
+    const slugGen = form.name.toLowerCase().replace(/\s+/g, "-");
+    setSlug(slugGen);
 
-/* ================= SAVE ================= */
-
-async function handleSubmit() {
-
-  for (let v of form.variants) {
-    await fetch("/api/admin/products", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...form,
-        variant: `${v.value}${v.unit}`,
-        sku: v.sku,
-        mrp: v.mrp,
-        sellingPrice: v.sellingPrice,
-        productKey,
-        slug,
-        status: "review",
-      }),
+    setSeo({
+      title: `${form.name} | Buy Online`,
+      description: `Buy ${form.name} at best price`,
+      keywords: `${form.name}, buy online`,
     });
+  }, [form.name]);
+
+  useEffect(() => {
+    const selected = gstOptions.find(g => g.name === form.gstCategory);
+    if (selected) {
+      setForm(prev => ({
+        ...prev,
+        hsn: selected.hsn,
+        tax: selected.tax,
+      }));
+    }
+  }, [form.gstCategory]);
+
+  /* ================= VARIANTS ================= */
+
+  function updateVariant(i, field, value) {
+    const updated = [...form.variants];
+
+    updated[i] = { ...updated[i], [field]: value };
+
+    if (updated[i].value && productKey) {
+      const seq = String(i + 1).padStart(3, "0");
+      updated[i].sku = `NA-${productKey}-${seq}-${updated[i].value}${updated[i].unit}`;
+    }
+
+    setForm(prev => ({ ...prev, variants: updated }));
   }
 
-  alert("Saved");
-}
+  function addVariant() {
+    setForm(prev => ({
+      ...prev,
+      variants: [...prev.variants, { ...emptyVariant }],
+    }));
+  }
 
-/* ================= UI ================= */
+  /* ================= IMAGE ================= */
 
-return (
-<div style={{ padding: 20 }}>
+  async function handleImageUpload(e) {
+    const files = Array.from(e.target.files);
 
-<h2>Product Panel</h2>
+    const previews = files.map(f => ({
+      preview: URL.createObjectURL(f),
+    }));
 
-{/* BASIC */}
-{step === 0 && (
-<div>
+    setImagePreviews(prev => [...prev, ...previews]);
 
-<input placeholder="Product Name (e.g. Dosa Mix)"
-value={form.name}
-onChange={e=>setForm({...form,name:e.target.value})}/>
+    const uploaded = [];
 
-<input placeholder="Manufacturer Name"
-value={form.manufacturerName}
-onChange={e=>setForm({...form,manufacturerName:e.target.value})}/>
+    for (let file of files) {
+      const data = new FormData();
+      data.append("file", file);
+      data.append("upload_preset", "native_upload");
 
-<input placeholder="FSSAI License"
-value={form.fssaiLicense}
-onChange={e=>setForm({...form,fssaiLicense:e.target.value})}/>
+      const res = await fetch(
+        `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUD_NAME}/image/upload`,
+        { method: "POST", body: data }
+      );
 
-<input placeholder="Country of Origin"
-value={form.countryOfOrigin}
-onChange={e=>setForm({...form,countryOfOrigin:e.target.value})}/>
+      const json = await res.json();
+      if (json?.secure_url) uploaded.push(json.secure_url);
+    }
 
-</div>
-)}
+    setForm(prev => ({
+      ...prev,
+      images: [...prev.images, ...uploaded],
+    }));
+  }
 
-{/* VARIANTS */}
-{step === 1 && (
-<div>
-{form.variants.map((v,i)=>(
-<div key={i}>
-<input placeholder="Weight"
-onChange={e=>updateVariant(i,"value",e.target.value)}/>
-<input placeholder="MRP"
-onChange={e=>updateVariant(i,"mrp",e.target.value)}/>
-<input placeholder="Price"
-onChange={e=>updateVariant(i,"sellingPrice",e.target.value)}/>
-</div>
-))}
-<button onClick={addVariant}>Add Variant</button>
-</div>
-)}
+  /* ================= VALIDATION ================= */
 
-{/* MEDIA */}
-{step === 2 && (
-<input type="file" multiple onChange={handleImageUpload}/>
-)}
+  function validate() {
+    if (!form.name) return "Product name required";
+    if (!form.images.length) return "Upload image required";
+    if (!form.fssaiNumber) return "FSSAI required";
+    return null;
+  }
 
-{/* NUTRITION */}
-{step === 3 && (
-<div>
+  /* ================= BARCODE ================= */
 
-<h4>Nutrition Builder</h4>
+  useEffect(() => {
+    form.variants.forEach((v, i) => {
+      if (barcodeRefs.current[i] && v.sku) {
+        JsBarcode(barcodeRefs.current[i], v.sku);
+      }
+    });
+  }, [form.variants]);
 
-{form.nutritionInputs.map((n,i)=>(
-<div key={i}>
-<input placeholder="Ingredient"
-onChange={e=>updateNutrition(i,"name",e.target.value)}/>
-<input placeholder="Ratio (%)"
-onChange={e=>updateNutrition(i,"ratio",e.target.value)}/>
-</div>
-))}
+  /* ================= SAVE ================= */
 
-<button onClick={addNutrition}>Add Ingredient</button>
+  async function handleSubmit() {
+    const err = validate();
+    if (err) return setError(err);
 
-<button onClick={downloadNutrition}>
-Download Nutrition CSV
-</button>
+    for (let v of form.variants) {
+      await fetch("/api/admin/products", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...form,
+          variant: `${v.value}${v.unit}`,
+          sku: v.sku,
+          mrp: v.mrp,
+          sellingPrice: v.sellingPrice,
+          productKey,
+          slug,
+          seo,
+          status: "review",
+        }),
+      });
+    }
 
-</div>
-)}
+    alert("Submitted ✔");
+  }
 
-{/* ================= PROGRESS BAR ================= */}
+  /* ================= UI ================= */
 
-<div style={{ marginBottom: 20 }}>
+  return (
+    <div style={{ maxWidth: 1100, margin: "auto", padding: 20 }}>
 
-  {/* Progress Line */}
-  <div style={{
-    height: 6,
-    background: "#eee",
-    borderRadius: 10,
-    overflow: "hidden",
-    marginBottom: 10
-  }}>
-    <div style={{
-      width: `${(step / 3) * 100}%`,
-      background: "#4CAF50",
-      height: "100%",
-      transition: "0.3s"
-    }} />
-  </div>
+      <h1>🛒 Product Admin</h1>
 
-  {/* Steps */}
-  <div style={{
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center"
-  }}>
-
-    {["Basic", "Variants", "Media", "SEO"].map((label, index) => (
-      <div
-        key={index}
-        onClick={() => setStep(index)}
-        style={{
-          cursor: "pointer",
-          textAlign: "center",
-          flex: 1
-        }}
-      >
-
-        {/* Circle */}
-        <div style={{
-          margin: "auto",
-          width: 32,
-          height: 32,
-          borderRadius: "50%",
-          background:
-            step === index
-              ? "#4CAF50"
-              : step > index
-              ? "#2e7d32"
-              : "#ccc",
-          color: "#fff",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontWeight: "bold"
-        }}>
-          {step > index ? "✓" : index + 1}
+      {/* PROGRESS */}
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ height: 6, background: "#eee" }}>
+          <div style={{
+            width: `${(step / 4) * 100}%`,
+            background: "green",
+            height: "100%"
+          }} />
         </div>
-
-        {/* Label */}
-        <div style={{
-          fontSize: 12,
-          marginTop: 5,
-          color: step === index ? "#4CAF50" : "#777"
-        }}>
-          {label}
-        </div>
-
       </div>
-    ))}
 
-  </div>
+      {/* STEP NAV */}
+      <div style={{ display: "flex", gap: 10 }}>
+        {["Basic", "Variants", "Media", "Compliance", "SEO"].map((s, i) => (
+          <button key={i} onClick={() => setStep(i)}>{s}</button>
+        ))}
+      </div>
 
-</div>
+      {/* STEP 0 */}
+      {step === 0 && (
+        <div>
+          <input placeholder="Product Name (Eg: Dosa Mix)"
+            value={form.name}
+            onChange={e => setForm({ ...form, name: e.target.value })} />
 
-</div>
-);
+          <select onChange={e => setForm({ ...form, category: e.target.value })}>
+            <option>Select Category</option>
+            {websiteCategories.map(c => <option key={c}>{c}</option>)}
+          </select>
+
+          <select onChange={e => setForm({ ...form, gstCategory: e.target.value })}>
+            <option>Select GST</option>
+            {gstOptions.map(g => <option key={g.name}>{g.name}</option>)}
+          </select>
+        </div>
+      )}
+
+      {/* STEP 1 */}
+      {step === 1 && (
+        <div>
+          {form.variants.map((v, i) => (
+            <div key={i}>
+              <input placeholder="Weight (Eg: 500)"
+                onChange={e => updateVariant(i, "value", e.target.value)} />
+              <input placeholder="MRP"
+                onChange={e => updateVariant(i, "mrp", e.target.value)} />
+              <input placeholder="Selling Price"
+                onChange={e => updateVariant(i, "sellingPrice", e.target.value)} />
+              <input value={v.sku} readOnly />
+              <svg ref={el => barcodeRefs.current[i] = el} />
+            </div>
+          ))}
+          <button onClick={addVariant}>Add Variant</button>
+        </div>
+      )}
+
+      {/* STEP 2 */}
+      {step === 2 && (
+        <div>
+          <input type="file" multiple onChange={handleImageUpload} />
+        </div>
+      )}
+
+      {/* STEP 3 */}
+      {step === 3 && (
+        <div>
+          <input placeholder="FSSAI Number"
+            onChange={e => setForm({ ...form, fssaiNumber: e.target.value })} />
+
+          <input placeholder="Manufacturer Name"
+            onChange={e => setForm({ ...form, manufacturerName: e.target.value })} />
+
+          <textarea placeholder="Manufacturer Address"
+            onChange={e => setForm({ ...form, manufacturerAddress: e.target.value })} />
+
+          <input placeholder="Storage Instructions"
+            onChange={e => setForm({ ...form, storageInstructions: e.target.value })} />
+
+          <input placeholder="Allergen Info"
+            onChange={e => setForm({ ...form, allergenInfo: e.target.value })} />
+        </div>
+      )}
+
+      {/* STEP 4 */}
+      {step === 4 && (
+        <div>
+          <input value={seo.title}
+            onChange={e => setSeo({ ...seo, title: e.target.value })} />
+          <textarea value={seo.description}
+            onChange={e => setSeo({ ...seo, description: e.target.value })} />
+        </div>
+      )}
+
+      {/* ACTION */}
+      <div style={{ marginTop: 20 }}>
+        {step > 0 && <button onClick={() => setStep(step - 1)}>Back</button>}
+        {step < 4 && <button onClick={() => setStep(step + 1)}>Next</button>}
+        {step === 4 && <button onClick={handleSubmit}>Submit</button>}
+      </div>
+
+    </div>
+  );
 }
