@@ -137,46 +137,59 @@ export default function ProductUpload() {
 
 /* =============== AI Content ============== */
   
-  async function generateAIContent() {
-    try {
-      const res = await fetch("/api/ai-content", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: form.name,
-          category: form.category,
-          subcategory: form.subcategory,
-          ingredients: form.ingredients,
-        }),
-      });
-  
-      const data = await res.json();
-  
-      if (!data.success) {
-        alert("AI generation failed");
-        return;
-      }
-  
-      const c = data.content || {};
-  
-      setForm(prev => ({
-        ...prev,
-        highlights: c.highlights?.join(", ") || prev.highlights,
-        shortDescription: c.shortDescription || prev.shortDescription,
-        description: c.description || prev.description,
-      }));
-  
-      setSeo(prev => ({
-        title: c.seo?.title || prev.title || "",
-        description: c.seo?.description || prev.description || "",
-        keywords: c.seo?.keywords || prev.keywords || "",
-      }));
-  
-    } catch (err) {
-      console.error("AI ERROR:", err);
-      alert("Something went wrong while generating content");
+ async function generateAIContent() {
+  try {
+    /* ✅ VALIDATION FIRST */
+    if (!form.ingredients || !form.ingredients.trim()) {
+      alert("Please enter ingredients before generating content");
+      return;
     }
+
+    /* ✅ FORMAT INGREDIENTS */
+    const cleanedIngredients = formatIngredients(form.ingredients).join(", ");
+
+    const res = await fetch("/api/ai-content", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: form.name,
+        category: form.category,
+        subcategory: form.subcategory,
+        ingredients: cleanedIngredients,
+      }),
+    });
+
+    const data = await res.json();
+
+    console.log("AI RESPONSE:", data); // 🔥 Debug
+
+    if (!data.success) {
+      alert("AI generation failed");
+      return;
+    }
+
+    const c = data.content || {};
+
+    /* ✅ UPDATE FORM */
+    setForm(prev => ({
+      ...prev,
+      highlights: c.highlights?.join(", ") || prev.highlights || "",
+      shortDescription: c.shortDescription || prev.shortDescription || "",
+      description: c.description || prev.description || "",
+    }));
+
+    /* ✅ UPDATE SEO */
+    setSeo(prev => ({
+      title: c.seo?.title || prev.title || "",
+      description: c.seo?.description || prev.description || "",
+      keywords: c.seo?.keywords || prev.keywords || "",
+    }));
+
+  } catch (err) {
+    console.error("AI ERROR:", err);
+    alert("Something went wrong while generating content");
   }
+}
   
   /* ================= VARIANTS ================= */
 
@@ -197,6 +210,17 @@ export default function ProductUpload() {
       ...prev,
       variants: [...prev.variants, { ...emptyVariant }],
     }));
+  }
+
+  /* ================= Clean Ingredients ================= */
+
+    function formatIngredients(raw) {
+    if (!raw) return [];
+  
+    return raw
+      .split(",")
+      .map(i => i.trim())
+      .filter(Boolean);
   }
 
   /* ================= IMAGE ================= */
