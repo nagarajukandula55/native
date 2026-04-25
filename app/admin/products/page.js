@@ -32,6 +32,10 @@ export default function ProductUpload() {
     ingredients: "",
     shelfLife: "",
 
+    subcategory: "",
+    highlights: "",
+    productType: "Veg",
+
     // ✅ COMPLIANCE
     fssaiNumber: "",
     manufacturerName: "",
@@ -71,6 +75,12 @@ export default function ProductUpload() {
 
   const barcodeRefs = useRef([]);
 
+  const categoryMap = {
+    "Instant Mixes": ["Dosa Mix", "Idli Mix", "Ragi Mix"],
+    "Spices & Masalas": ["Chilli Powder", "Garam Masala"],
+    "Oils": ["Groundnut Oil", "Coconut Oil"],
+  };
+
   /* ================= GST ================= */
 
   const gstOptions = [
@@ -83,20 +93,36 @@ export default function ProductUpload() {
 
   useEffect(() => {
     if (!form.name) return;
-
-    const key = form.name.toUpperCase().replace(/[^A-Z0-9]/g, "");
-    setProductKey(key);
-
-    const slugGen = form.name.toLowerCase().replace(/\s+/g, "-");
+  
+    const slugGen = form.name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "");
+  
     setSlug(slugGen);
-
+  
+    const words = form.name.toLowerCase().split(" ");
+  
+    const autoTags = [
+      ...words,
+      form.category?.toLowerCase(),
+      form.subcategory?.toLowerCase(),
+      "buy online",
+      "best price",
+    ];
+  
+    setForm(prev => ({
+      ...prev,
+      tags: autoTags.filter(Boolean).join(", "),
+    }));
+  
     setSeo({
       title: `${form.name} | Buy Online`,
-      description: `Buy ${form.name} at best price`,
-      keywords: `${form.name}, buy online`,
+      description: `Buy ${form.name} online at best price`,
+      keywords: autoTags.join(", "),
     });
-
-  }, [form.name]);
+  
+  }, [form.name, form.category, form.subcategory]);
 
   useEffect(() => {
     const gst = gstOptions.find(g => g.name === form.gstCategory);
@@ -109,6 +135,36 @@ export default function ProductUpload() {
     }
   }, [form.gstCategory]);
 
+/* =============== AI Content ============== */
+  
+  async function generateAIContent() {
+  const res = await fetch("/api/ai-content", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name: form.name,
+      category: form.category,
+      subcategory: form.subcategory,
+      ingredients: form.ingredients,
+    }),
+  });
+
+  const data = await res.json();
+
+  if (data.success) {
+    const c = data.content;
+
+    setForm(prev => ({
+      ...prev,
+      highlights: c.highlights?.join(", "),
+      shortDescription: c.shortDescription,
+      description: c.description,
+    }));
+
+    setSeo(c.seo);
+  }
+}
+  
   /* ================= VARIANTS ================= */
 
   function updateVariant(i, field, value) {
@@ -232,15 +288,101 @@ export default function ProductUpload() {
 
       {/* BASIC */}
       {step === 0 && (
-        <div>
-          <input placeholder="Product Name"
-            onChange={e => setForm({ ...form, name: e.target.value })} />
-
-          <input placeholder="Brand"
-            onChange={e => setForm({ ...form, brand: e.target.value })} />
-
-          <input placeholder="Tags (comma separated)"
-            onChange={e => setForm({ ...form, tags: e.target.value })} />
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: 15,
+          padding: 20,
+          background: "#fff"
+        }}>
+      
+          {/* NAME */}
+          <input
+            placeholder="Product Name"
+            value={form.name}
+            onChange={e => setForm({ ...form, name: e.target.value })}
+          />
+      
+          {/* BRAND */}
+          <select
+            value={form.brand}
+            onChange={e => setForm({ ...form, brand: e.target.value })}
+          >
+            <option>Select Brand</option>
+            <option>Native</option>
+            <option>AN</option>
+          </select>
+      
+          {/* CATEGORY */}
+          <select
+            value={form.category}
+            onChange={e => setForm({ ...form, category: e.target.value, subcategory: "" })}
+          >
+            <option>Select Category</option>
+            {Object.keys(categoryMap).map(c => (
+              <option key={c}>{c}</option>
+            ))}
+          </select>
+      
+          {/* SUBCATEGORY */}
+          <select
+            value={form.subcategory}
+            onChange={e => setForm({ ...form, subcategory: e.target.value })}
+          >
+            <option>Select Subcategory</option>
+            {(categoryMap[form.category] || []).map(s => (
+              <option key={s}>{s}</option>
+            ))}
+          </select>
+      
+          {/* SHORT DESC */}
+          <textarea
+            placeholder="Short Description"
+            value={form.shortDescription}
+            onChange={e => setForm({ ...form, shortDescription: e.target.value })}
+            style={{ gridColumn: "span 2" }}
+          />
+      
+          {/* FULL DESC */}
+          <textarea
+            placeholder="Full Description"
+            value={form.description}
+            onChange={e => setForm({ ...form, description: e.target.value })}
+            style={{ gridColumn: "span 2" }}
+          />
+      
+          {/* HIGHLIGHTS */}
+          <textarea
+            placeholder="Highlights"
+            value={form.highlights}
+            onChange={e => setForm({ ...form, highlights: e.target.value })}
+            style={{ gridColumn: "span 2" }}
+          />
+      
+          {/* TAGS */}
+          <input value={form.tags} readOnly />
+      
+          {/* SLUG */}
+          <input value={slug} readOnly />
+      
+          {/* SEO */}
+          <input value={seo.title} readOnly />
+          <textarea value={seo.description} readOnly />
+      
+          {/* BUTTON */}
+          <button
+            type="button"
+            onClick={generateAIContent}
+            style={{
+              gridColumn: "span 2",
+              background: "black",
+              color: "white",
+              padding: 10
+            }}
+          >
+            ⚡ Generate Content
+          </button>
+      
         </div>
       )}
 
