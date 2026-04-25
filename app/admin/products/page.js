@@ -29,8 +29,8 @@ export default function ProductUpload() {
 
     description: "",
     shortDescription: "",
-    ingredients: "",
-    shelfLife: "",
+    ingredients: [],        // structured
+    ingredientsText: "",    // simple text (optional UI)
 
     subcategory: "",
     highlights: "",
@@ -137,22 +137,59 @@ export default function ProductUpload() {
         `${cleanName} india`,
         `${displayName.toLowerCase()}`,
       ];
+        
+    /* ================= TAGS ================= */
     
-      // remove duplicates + small words
-      const finalTags = [...new Set(autoTagsArray.filter(w => w && w.length > 2))];
+    // build base keyword parts
+    const base = displayName.toLowerCase();
+    const nameOnly = cleanName.toLowerCase();
+    const category = form.category?.toLowerCase() || "";
+    const subcategory = form.subcategory?.toLowerCase() || "";
     
-      setForm(prev => ({
-        ...prev,
-        tags: finalTags.join(", "),
-      }));
+    // ingredient names (safe)
+    const ingredientNames = Array.isArray(form.ingredients)
+      ? form.ingredients.map(i => i.name.toLowerCase())
+      : (form.ingredients || "").toLowerCase().split(",");
     
-      /* ================= SEO ================= */
+    // 🔥 SEO phrase generator
+    const seoTagsArray = [
+      base,
+      `${base} online`,
+      `buy ${base}`,
+      `buy ${base} online`,
+      `${base} india`,
+      `${base} best price`,
+      `${base} near me`,
+      `best ${nameOnly}`,
+      `${nameOnly} online`,
+      `${nameOnly} india`,
+      `healthy ${nameOnly}`,
+      `instant ${nameOnly}`,
+      `natural ${nameOnly}`,
+      `organic ${nameOnly}`,
+      category,
+      subcategory,
+      ...ingredientNames.map(i => `${i.trim()} ${nameOnly}`)
+    ];
     
-      setSeo({
-        title: `${displayName} | Buy Online`,
-        description: `Buy ${displayName} online at best price. Premium quality ${cleanName} from ${form.brand || "trusted brand"}.`,
-        keywords: finalTags.join(", "),
-      });
+    // remove duplicates + cleanup
+    const finalTags = [...new Set(
+      seoTagsArray.filter(w => w && w.length > 3)
+    )].slice(0, 25);
+    
+    // ✅ SAVE TAGS
+    setForm(prev => ({
+      ...prev,
+      tags: finalTags.join(", "),
+    }));
+    
+    /* ================= SEO ================= */
+    
+    setSeo({
+      title: `${displayName} | Buy Online`,
+      description: `Buy ${displayName} online at best price. Premium quality ${cleanName} from ${form.brand || "trusted brand"}.`,
+      keywords: finalTags.join(", "),
+    });
     
     }, [form.name, form.category, form.subcategory, form.ingredients, form.brand]);
 
@@ -187,7 +224,7 @@ export default function ProductUpload() {
         name: form.name,
         category: form.category,
         subcategory: form.subcategory,
-        ingredients: cleanedIngredients,
+        ingredients: formatIngredients(form.ingredients),
       }),
     });
 
@@ -308,16 +345,69 @@ export default function ProductUpload() {
 
   /* ================= TAG GENERATOR ================= */
 
-    function generateTags() {
+    function generateSEOTags() {
       if (!form.name) return [];
     
-      const words = `${form.name} ${form.category || ""} ${form.ingredients || ""}`
-        .toLowerCase()
-        .split(/[ ,]+/)
-        .filter(w => w && w.length > 3);
+      const name = form.name.toLowerCase();
+      const brand = form.brand?.toLowerCase() || "";
+      const category = form.category?.toLowerCase() || "";
+      const subcategory = form.subcategory?.toLowerCase() || "";
     
-      return [...new Set(words)].slice(0, 15);
+      const ingredientNames = Array.isArray(form.ingredients)
+        ? form.ingredients.map(i => i.name.toLowerCase())
+        : (form.ingredients || "").toLowerCase().split(",");
+    
+      const base = `${brand} ${name}`.trim();
+    
+      const tags = [
+        base,
+        `${base} online`,
+        `buy ${base}`,
+        `buy ${base} online`,
+        `${base} india`,
+        `${base} best price`,
+        `${base} near me`,
+        `best ${name}`,
+        `${name} online`,
+        `${name} india`,
+        `${category}`,
+        `${subcategory}`,
+        `healthy ${name}`,
+        `instant ${name}`,
+        `homemade ${name}`,
+        `natural ${name}`,
+        `organic ${name}`,
+        ...ingredientNames.map(i => `${i.trim()} ${name}`),
+      ];
+    
+      return [...new Set(tags.filter(Boolean))].slice(0, 25);
     }
+
+    /* ================= Name Change Global ================= */
+
+    const displayName = form.brand
+    ? `${form.brand} ${form.name.replace(/native/gi, "").trim()}`
+    : form.name;
+
+  /* ================= Format Ingredients ================= */
+  
+    function formatIngredients(ingredients) {
+      if (!Array.isArray(ingredients)) return "";
+    
+      return ingredients.map(i => i.name).join(", ");
+    }
+
+    /* ================= Calculate Ingredients ================= */
+  
+    function calculateIngredientPercentages(ingredients) {
+      const total = ingredients.reduce((sum, i) => sum + Number(i.qty || 0), 0);
+    
+      return ingredients.map(i => ({
+        ...i,
+        percent: total ? ((i.qty / total) * 100).toFixed(1) : 0
+      }));
+    }
+  
   
   /* ================= SAVE ================= */
 
@@ -385,7 +475,7 @@ export default function ProductUpload() {
           {/* NAME */}
           <input
             placeholder="Product Name"
-            value={form.name}
+            value={displayName}
             onChange={e => setForm({ ...form, name: e.target.value })}
           />
       
