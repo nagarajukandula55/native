@@ -380,6 +380,45 @@ export default function ProductUpload() {
       ? (profit / form.sellingPrice) * 100
       : 0;
 
+/* ================= IMAGE UPLOAD ================= */
+
+  async function handleImageUpload(e) {
+    const files = Array.from(e.target.files);
+  
+    if (!files.length) return;
+  
+    const uploaded = [];
+  
+    for (let file of files) {
+      const data = new FormData();
+      data.append("file", file);
+      data.append("upload_preset", "native_upload");
+  
+      try {
+        const res = await fetch(
+          `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUD_NAME}/image/upload`,
+          {
+            method: "POST",
+            body: data,
+          }
+        );
+  
+        const json = await res.json();
+  
+        if (json.secure_url) {
+          uploaded.push(json.secure_url);
+        }
+      } catch (err) {
+        console.error("Upload failed:", err);
+      }
+    }
+  
+    setForm(prev => ({
+      ...prev,
+      images: [...(prev.images || []), ...uploaded],
+    }));
+  }
+
   /* ================= UI ================= */
 
 return (
