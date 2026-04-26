@@ -82,6 +82,10 @@ export default function ProductUpload() {
 
   const barcodeRefs = useRef([]);
 
+  const displayName = form.brand
+    ? `${form.brand} ${form.name}`.trim()
+    : form.name;
+
   const categoryMap = {
     "Instant Mixes": ["Dosa Mix", "Idli Mix", "Ragi Mix"],
     "Spices & Masalas": ["Chilli Powder", "Garam Masala"],
@@ -94,22 +98,18 @@ export default function ProductUpload() {
     { name: "Spices", hsn: "0910", tax: 5 },
   ];
 
-  const displayName = form.brand
-    ? `${form.brand} ${form.name}`.trim()
-    : form.name;
-
-  /* ================= AUTO SEO ================= */
+  /* ================= AUTO ================= */
 
   useEffect(() => {
     if (!form.name) return;
 
     const cleanName = form.name.replace(/native/gi, "").trim();
 
-    const computedName = form.brand
+    const displayName = form.brand
       ? `${form.brand} ${cleanName}`.trim()
       : cleanName;
 
-    const slugGen = computedName
+    const slugGen = displayName
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/(^-|-$)/g, "");
@@ -120,12 +120,20 @@ export default function ProductUpload() {
       ? form.ingredients.map(i => i.name.toLowerCase())
       : [];
 
+    const base = displayName.toLowerCase();
+    const nameOnly = cleanName.toLowerCase();
+    const categorylower = form.category?.toLowerCase() || "";
+    const subcategorylower = form.subcategory?.toLowerCase() || "";
+
     const seoTagsArray = [
-      computedName.toLowerCase(),
-      `buy ${computedName.toLowerCase()}`,
-      form.category?.toLowerCase(),
-      form.subcategory?.toLowerCase(),
-      ...ingredientNames,
+      base,
+      `${base} online`,
+      `buy ${base}`,
+      `${base} india`,
+      `${base} best price`,
+      categorylower,
+      subcategorylower,
+      ...ingredientNames.map(i => `${i} ${nameOnly}`)
     ];
 
     const finalTags = [...new Set(seoTagsArray.filter(Boolean))];
@@ -136,14 +144,12 @@ export default function ProductUpload() {
     }));
 
     setSeo({
-      title: `${computedName} | Buy Online`,
-      description: `Buy ${computedName} online at best price.`,
+      title: `${displayName} | Buy Online`,
+      description: `Buy ${displayName} online at best price.`,
       keywords: finalTags.join(", "),
     });
 
   }, [form.name, form.category, form.subcategory, form.ingredients, form.brand]);
-
-  /* ================= GST ================= */
 
   useEffect(() => {
     const gst = gstOptions.find(g => g.name === form.gstCategory);
@@ -156,8 +162,6 @@ export default function ProductUpload() {
     }
   }, [form.gstCategory]);
 
-  /* ================= PRODUCT KEY ================= */
-
   useEffect(() => {
     if (form.name && !productKey) {
       setProductKey(Date.now().toString().slice(-6));
@@ -169,25 +173,19 @@ export default function ProductUpload() {
   function convertToGrams(qty, unit) {
     const value = parseFloat(qty) || 0;
     switch (unit) {
-      case "KG":
-        return value * 1000;
-      case "L":
-        return value * 1000;
-      case "ML":
-        return value;
-      default:
-        return value;
+      case "KG": return value * 1000;
+      case "L": return value * 1000;
+      case "ML": return value;
+      default: return value;
     }
   }
 
   function formatIngredients(ingredients) {
-    if (!Array.isArray(ingredients)) return "";
     return ingredients.map(i => i.name).join(", ");
   }
 
   function recalcIngredients(updated) {
     const totalWeight = parseFloat(form.totalWeight) || 0;
-
     return updated.map(i => {
       const grams = convertToGrams(i.qty, i.unit);
       return {
@@ -210,10 +208,7 @@ export default function ProductUpload() {
   function addIngredient() {
     setForm(prev => ({
       ...prev,
-      ingredients: [
-        ...prev.ingredients,
-        { name: "", qty: "", unit: "GM", percent: 0 }
-      ],
+      ingredients: [...prev.ingredients, { name: "", qty: "", unit: "GM", percent: 0 }],
     }));
   }
 
@@ -225,74 +220,63 @@ export default function ProductUpload() {
     }));
   }
 
-  const total = form.ingredients.reduce(
-    (sum, i) => sum + Number(i.percent || 0),
-    0
-  );
+  /* ================= AI CONTENT ================= */
 
-  /* ================= PRICING ================= */
+  async function generateAIContent() {
+    try {
+      if (!form.ingredients.length) return alert("Add ingredients");
 
-  const totalCost =
-    Number(form.baseCost || 0) +
-    Number(form.packagingCost || 0) +
-    Number(form.logisticsCost || 0) +
-    Number(form.marketingCost || 0);
-
-  const gstAmount =
-    (Number(form.sellingPrice || 0) * Number(form.tax || 0)) / 100;
-
-  const finalPrice = Number(form.sellingPrice || 0) + gstAmount;
-
-  const profit = Number(form.sellingPrice || 0) - totalCost;
-
-  const margin = form.sellingPrice
-    ? (profit / form.sellingPrice) * 100
-    : 0;
-
-  /* ================= IMAGE ================= */
-
-  async function handleImageUpload(e) {
-    const files = Array.from(e.target.files);
-
-    const uploaded = [];
-
-    for (let file of files) {
-      const data = new FormData();
-      data.append("file", file);
-      data.append("upload_preset", "native_upload");
-
-      const res = await fetch(
-        `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUD_NAME}/image/upload`,
-        { method: "POST", body: data }
+      const totalPercent = form.ingredients.reduce(
+        (sum, i) => sum + parseFloat(i.percent || 0), 0
       );
 
-      const json = await res.json();
-      if (json.secure_url) uploaded.push(json.secure_url);
+      if (Math.abs(totalPercent - 100) > 1) {
+        return alert("Ingredients must total ~100%");
+      }
+
+      const totalWeight = parseFloat(form.totalWeight) || 0;
+      const usedWeight = form.ingredients.reduce(
+        (sum, i) => sum + convertToGrams(i.qty, i.unit), 0
+      );
+
+      if (!totalWeight) return alert("Enter total weight");
+
+      if (Math.abs(usedWeight - totalWeight) > 1) {
+        return alert("Weight mismatch");
+      }
+
+      const res = await fetch("/api/ai-content", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: form.name,
+          category: form.category,
+          subcategory: form.subcategory,
+          ingredients: formatIngredients(form.ingredients),
+        }),
+      });
+
+      const data = await res.json();
+      if (!data.success) return alert("AI failed");
+
+      const c = data.content || data;
+
+      setForm(prev => ({
+        ...prev,
+        highlights: c.highlights?.join(", ") || "",
+        shortDescription: c.shortDescription || "",
+        description: c.description || "",
+      }));
+
+      setSeo({
+        title: c.seo?.title || "",
+        description: c.seo?.description || "",
+        keywords: c.seo?.keywords || "",
+      });
+
+    } catch {
+      alert("AI error");
     }
-
-    setForm(prev => ({
-      ...prev,
-      images: [...prev.images, ...uploaded],
-    }));
-  }
-
-  /* ================= VALIDATION ================= */
-
-  function validate() {
-    if (!form.name) return "Product name required";
-    if (!form.category) return "Category required";
-    if (!form.images.length) return "Upload image";
-    return null;
-  }
-
-  /* ================= SAVE ================= */
-
-  async function handleSubmit() {
-    const err = validate();
-    if (err) return setError(err);
-
-    alert("Saved ✔");
-    setForm(emptyForm);
   }
 
   /* ================= UI ================= */
@@ -303,6 +287,43 @@ export default function ProductUpload() {
       <h1>Product Admin</h1>
 
       {error && <div style={{ color: "red" }}>{error}</div>}
+
+      {/* STEP 0 */}
+      {step === 0 && (
+        <div>
+
+          <input
+            placeholder="Product Name"
+            value={form.name}
+            onChange={e => setForm({ ...form, name: e.target.value })}
+          />
+
+          {/* INGREDIENTS */}
+          {form.ingredients.map((ing, i) => (
+            <div key={i}>
+              <input
+                value={ing.name}
+                onChange={e => updateIngredient(i, "name", e.target.value)}
+              />
+            </div>
+          ))}
+
+          {/* ✅ FIXED POSITION */}
+          <div style={{ marginTop: 10, fontWeight: "bold" }}>
+            Used: {form.ingredients.reduce(
+              (sum, i) => sum + convertToGrams(i.qty, i.unit),
+              0
+            )} gm / {form.totalWeight || 0} gm
+          </div>
+
+          <button onClick={generateAIContent}>Generate AI</button>
+
+        </div>
+      )}
+
+    </div>
+  );
+}
 
 {/* BASIC */}
 {step === 0 && (
