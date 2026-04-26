@@ -543,195 +543,215 @@ async function generateAIContent() {
         ))}
       </div>
 
-      {/* BASIC */}
-      {step === 0 && (
-        <div style={{
+{/* BASIC */}
+{step === 0 && (
+  <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+
+    {/* ================= BASIC INFO ================= */}
+    <div style={{
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr",
+      gap: 15,
+      padding: 20,
+      background: "#fff",
+      borderRadius: 10
+    }}>
+
+      <h3 style={{ gridColumn: "span 2" }}>🧾 Basic Details</h3>
+
+      {/* NAME */}
+      <input
+        placeholder="Product Name"
+        value={displayName}
+        onChange={e => setForm({ ...form, name: e.target.value })}
+      />
+
+      {/* BRAND */}
+      <select
+        value={form.brand}
+        onChange={e => setForm({ ...form, brand: e.target.value })}
+      >
+        <option>Select Brand</option>
+        <option>Native</option>
+        <option>AN</option>
+      </select>
+
+      {/* CATEGORY */}
+      <select
+        value={form.category}
+        onChange={e => setForm({ ...form, category: e.target.value, subcategory: "" })}
+      >
+        <option>Select Category</option>
+        {Object.keys(categoryMap).map(c => (
+          <option key={c}>{c}</option>
+        ))}
+      </select>
+
+      {/* SUBCATEGORY */}
+      <select
+        value={form.subcategory}
+        onChange={e => setForm({ ...form, subcategory: e.target.value })}
+      >
+        <option>Select Subcategory</option>
+        {(categoryMap[form.category] || []).map(s => (
+          <option key={s}>{s}</option>
+        ))}
+      </select>
+
+      {/* SHORT DESC */}
+      <textarea
+        placeholder="Short Description"
+        value={form.shortDescription}
+        onChange={e => setForm({ ...form, shortDescription: e.target.value })}
+        style={{ gridColumn: "span 2" }}
+      />
+
+      {/* FULL DESC */}
+      <textarea
+        placeholder="Full Description"
+        value={form.description}
+        onChange={e => setForm({ ...form, description: e.target.value })}
+        style={{ gridColumn: "span 2" }}
+      />
+
+      {/* HIGHLIGHTS */}
+      <textarea
+        placeholder="Highlights"
+        value={form.highlights}
+        onChange={e => setForm({ ...form, highlights: e.target.value })}
+        style={{ gridColumn: "span 2" }}
+      />
+    </div>
+
+    {/* ================= AUTO GENERATED ================= */}
+    <div style={{
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr",
+      gap: 15,
+      padding: 20,
+      background: "#fff",
+      borderRadius: 10
+    }}>
+
+      <h3 style={{ gridColumn: "span 2" }}>⚙️ Auto Generated (Locked)</h3>
+
+      <input value={form.tags} readOnly style={{ background: "#f5f5f5" }} />
+      <input value={slug} readOnly style={{ background: "#f5f5f5" }} />
+
+      <input value={seo.title} readOnly style={{ background: "#f5f5f5" }} />
+      <textarea
+        value={seo.description}
+        readOnly
+        style={{ gridColumn: "span 2", background: "#f5f5f5" }}
+      />
+    </div>
+
+    {/* ================= INGREDIENT INPUT ================= */}
+    <div style={{
+      padding: 20,
+      background: "#fff",
+      borderRadius: 10
+    }}>
+
+      <h3>⚖️ Product Weight</h3>
+
+      <input
+        type="number"
+        placeholder="Total Weight (GM)"
+        value={form.totalWeight}
+        onChange={e => setForm({ ...form, totalWeight: e.target.value })}
+      />
+
+    </div>
+
+    {/* ================= INGREDIENTS ================= */}
+    <div style={{
+      background: "#fff",
+      padding: 20,
+      borderRadius: 10
+    }}>
+
+      <h3>🥗 Ingredients</h3>
+
+      {form.ingredients.map((ing, i) => (
+        <div key={i} style={{
           display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: 15,
-          padding: 20,
-          background: "#fff"
+          gridTemplateColumns: "2fr 1fr 1fr 1fr auto",
+          gap: 10,
+          marginBottom: 10,
+          alignItems: "center"
         }}>
-      
-          {/* NAME */}
+
+          {/* Name */}
           <input
-            placeholder="Product Name"
-            value={displayName}
-            onChange={e => setForm({ ...form, name: e.target.value })}
+            placeholder="Ingredient Name"
+            value={ing.name}
+            onChange={e => updateIngredient(i, "name", e.target.value)}
           />
-      
-          {/* BRAND */}
+
+          {/* Qty */}
+          <input
+            type="number"
+            placeholder="Qty"
+            value={ing.qty}
+            onChange={e => updateIngredient(i, "qty", e.target.value)}
+          />
+
+          {/* Unit */}
           <select
-            value={form.brand}
-            onChange={e => setForm({ ...form, brand: e.target.value })}
+            value={ing.unit}
+            onChange={e => updateIngredient(i, "unit", e.target.value)}
           >
-            <option>Select Brand</option>
-            <option>Native</option>
-            <option>AN</option>
+            <option>GM</option>
+            <option>KG</option>
+            <option>ML</option>
+            <option>L</option>
           </select>
-      
-          {/* CATEGORY */}
-          <select
-            value={form.category}
-            onChange={e => setForm({ ...form, category: e.target.value, subcategory: "" })}
-          >
-            <option>Select Category</option>
-            {Object.keys(categoryMap).map(c => (
-              <option key={c}>{c}</option>
-            ))}
-          </select>
-      
-          {/* SUBCATEGORY */}
-          <select
-            value={form.subcategory}
-            onChange={e => setForm({ ...form, subcategory: e.target.value })}
-          >
-            <option>Select Subcategory</option>
-            {(categoryMap[form.category] || []).map(s => (
-              <option key={s}>{s}</option>
-            ))}
-          </select>
-      
-          {/* SHORT DESC */}
-          <textarea
-            placeholder="Short Description"
-            value={form.shortDescription}
-            onChange={e => setForm({ ...form, shortDescription: e.target.value })}
-            style={{ gridColumn: "span 2" }}
-          />
-      
-          {/* FULL DESC */}
-          <textarea
-            placeholder="Full Description"
-            value={form.description}
-            onChange={e => setForm({ ...form, description: e.target.value })}
-            style={{ gridColumn: "span 2" }}
-          />
-      
-          {/* HIGHLIGHTS */}
-          <textarea
-            placeholder="Highlights"
-            value={form.highlights}
-            onChange={e => setForm({ ...form, highlights: e.target.value })}
-            style={{ gridColumn: "span 2" }}
-          />
-      
-          {/* TAGS */}
-          <input value={form.tags} readOnly />
-      
-          {/* SLUG */}
-          <input value={slug} readOnly />
-      
-          {/* SEO */}
-          <input value={seo.title} readOnly />
-          <textarea value={seo.description} readOnly />
 
-          {/*Ingredients */}
-          <textarea
-            placeholder="Ingredients (comma separated)
-          Example: Rice, Urad Dal, Fenugreek Seeds, Salt"
-            value={Array.isArray(form.ingredients) 
-                ? form.ingredients.map(i => i.name).join(", ") 
-                : form.ingredients}
-            onChange={e =>
-              setForm({ ...form, ingredients: e.target.value })
-            }
-            style={{ gridColumn: "span 2" }}
+          {/* Percent */}
+          <input
+            value={`${ing.percent || 0}%`}
+            readOnly
+            style={{ background: "#eee" }}
           />
 
-           <input
-              type="number"
-              placeholder="Total Weight (GM)"
-              value={form.totalWeight}
-              onChange={e => setForm({ ...form, totalWeight: e.target.value })}
-            />
-
-   {/* ================= INGREDIENTS UI ================= */}
-    
-            <div style={{
-              background: "#fff",
-              padding: 20,
-              borderRadius: 10,
-              marginTop: 20
-            }}>
-            
-              <h3>🥗 Ingredients</h3>
-            
-              {form.ingredients.map((ing, i) => (
-                <div key={i} style={{
-                  display: "grid",
-                  gridTemplateColumns: "2fr 1fr 1fr 1fr auto",
-                  gap: 10,
-                  marginBottom: 10
-                }}>
-            
-                  {/* Name */}
-                  <input
-                    placeholder="Ingredient Name (Rice, Dal...)"
-                    value={ing.name}
-                    onChange={e => updateIngredient(i, "name", e.target.value)}
-                  />
-            
-                  {/* Qty */}
-                  <input
-                    type="number"
-                    placeholder="Qty"
-                    value={ing.qty}
-                    onChange={e => updateIngredient(i, "qty", e.target.value)}
-                  />
-            
-                  {/* Unit */}
-                  <select
-                    value={ing.unit}
-                    onChange={e => updateIngredient(i, "unit", e.target.value)}
-                  >
-                    <option>GM</option>
-                    <option>KG</option>
-                    <option>ML</option>
-                    <option>L</option>
-                  </select>
-            
-                  {/* Percent */}
-                  <input
-                    value={`${ing.percent || 0}%`}
-                    readOnly
-                    style={{ background: "#eee" }}
-                  />
-        
-                  <div>Total: {total.toFixed(2)}%</div>
-            
-                  {/* Remove */}
-                  <button onClick={() => removeIngredient(i)}>X</button>
-                </div>
-              ))}
-            
-              <button onClick={addIngredient}>+ Add Ingredient</button>
-            
-            </div>
-
-                <div style={{ marginTop: 20 }}>
-                  <button
-                    type="button"
-                    onClick={generateAIContent}
-                    style={{
-                      width: "100%",
-                      background: "black",
-                      color: "white",
-                      padding: 12,
-                      fontWeight: "bold"
-                    }}
-                  >
-                    ⚡ Generate Content
-                  </button>
-                </div>
-      
+          {/* Remove */}
+          <button onClick={() => removeIngredient(i)}>X</button>
         </div>
-      )}
+      ))}
 
+      <button onClick={addIngredient}>+ Add Ingredient</button>
 
-   
+      {/* TOTAL DISPLAY */}
+      <div style={{
+        marginTop: 15,
+        fontWeight: "bold"
+      }}>
+        Total: {total.toFixed(2)}%
+      </div>
 
+    </div>
 
+    {/* ================= ACTION ================= */}
+    <div>
+      <button
+        type="button"
+        onClick={generateAIContent}
+        style={{
+          width: "100%",
+          background: "black",
+          color: "white",
+          padding: 14,
+          fontWeight: "bold",
+          borderRadius: 6
+        }}
+      >
+        ⚡ Generate Content
+      </button>
+    </div>
+
+  </div>
+)}
       {/* VARIANTS */}
       {step === 1 && (
         <div>
