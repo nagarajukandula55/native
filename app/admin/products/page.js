@@ -304,35 +304,6 @@ export default function ProductUpload() {
 
       {error && <div style={{ color: "red" }}>{error}</div>}
 
-      {/* ================= STEP SYSTEM ================= */}
-      {step === 0 && (
-        <div>
-          {/* KEEP YOUR STEP 0 EXACT AS YOU HAD (NOT REMOVED) */}
-        </div>
-      )}
-
-      {step === 1 && (
-        <div>
-          {/* KEEP YOUR STEP 1 EXACT */}
-        </div>
-      )}
-
-      {step === 2 && (
-        <div>
-          {/* KEEP YOUR STEP 2 EXACT */}
-        </div>
-      )}
-
-      {step === 3 && (
-        <div>
-          {/* KEEP YOUR STEP 3 EXACT */}
-        </div>
-      )}
-
-    </div>
-  );
-}
-
 {/* BASIC */}
 {step === 0 && (
   <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
@@ -518,7 +489,9 @@ export default function ProductUpload() {
     </div>
 
   </div>
-)}{step === 1 && (
+)}
+
+{step === 1 && (
   <div style={{ background: "#fff", padding: 20, borderRadius: 10 }}>
 
     <h2>💰 Step 1: Pricing Intelligence Engine</h2>
