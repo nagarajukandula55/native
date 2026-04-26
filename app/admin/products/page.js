@@ -130,7 +130,7 @@ export default function ProductUpload() {
         ...nameWords,
         categoryname,
         subcategoryname,
-        ...ingredientWords,
+        ...ingredientNames,
         "buy online",
         "best price",
         `${cleanName} online`,
