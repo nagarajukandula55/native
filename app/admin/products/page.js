@@ -200,7 +200,7 @@ useEffect(() => {
       }
 
     /* ✅ FORMAT INGREDIENTS */
-    const cleanedIngredients = formatIngredients(form.ingredients).join(", ");
+    const cleanedIngredients = formatIngredients(form.ingredients);
 
     const res = await fetch("/api/ai-content", {
       method: "POST",
