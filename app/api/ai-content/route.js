@@ -12,12 +12,20 @@ export async function POST(req) {
       ingredients = "",
     } = body;
 
+    /* ================= VALIDATION ================= */
+
+    if (!name || !category) {
+      return NextResponse.json(
+        { success: false, message: "Missing required fields" },
+        { status: 400 }
+      );
+    }
+
     /* ================= NORMALIZE INGREDIENTS ================= */
 
     let ingredientText = "";
 
     if (Array.isArray(ingredients)) {
-      // supports structured ingredients
       ingredientText = ingredients
         .map(i => i?.name || "")
         .filter(Boolean)
@@ -29,10 +37,11 @@ export async function POST(req) {
     /* ================= PROMPT ================= */
 
     const prompt = `
-You are a professional FMCG eCommerce SEO expert.
+You are a top-tier Indian eCommerce SEO expert for FMCG products.
 
-Generate HIGH-CONVERSION content for product listing.
+Generate HIGH-CONVERSION, SEO-OPTIMIZED product content.
 
+INPUT:
 Brand: ${brand}
 Product Name: ${name}
 Category: ${category}
@@ -40,30 +49,27 @@ Subcategory: ${subcategory}
 Ingredients: ${ingredientText}
 
 STRICT RULES:
-- Always include BRAND name naturally
-- Do NOT make medical or false claims
-- Keep tone premium but simple
-- Focus on benefits + usage + quality
-- SEO optimized for Indian market
+- Always include BRAND naturally
+- No medical/false claims
+- Tone: premium, simple, trustworthy
+- Target Indian buyers (Google search intent)
+- Use keywords like: buy, best, online, India
 
-RETURN ONLY VALID JSON:
+OUTPUT RULES:
+- Return ONLY VALID JSON (no markdown, no text)
+- Ensure JSON is parseable
 
+STRUCTURE:
 {
-  "highlights": [
-    "4-6 short bullet highlights"
-  ],
-  "shortDescription": "2-3 lines short selling description",
-  "description": "Detailed 5-8 line product description",
+  "highlights": ["5 strong selling bullet points"],
+  "shortDescription": "2-3 lines (max 160 chars)",
+  "description": "120-180 words SEO-rich description",
   "seo": {
-    "title": "SEO title with brand",
-    "description": "SEO meta description",
+    "title": "Max 60 chars",
+    "description": "Max 155 chars",
     "keywords": "comma separated keywords"
   },
-  "tags": [
-    "high ranking search keywords",
-    "buy ${name.toLowerCase()} online",
-    "best ${name.toLowerCase()} in india"
-  ]
+  "tags": ["10-20 high intent keywords"]
 }
 `;
 
@@ -77,11 +83,11 @@ RETURN ONLY VALID JSON:
       },
       body: JSON.stringify({
         model: "gpt-4o-mini",
-        temperature: 0.7,
+        temperature: 0.6,
         messages: [
           {
             role: "system",
-            content: "You generate strictly valid JSON only.",
+            content: "Return strictly valid JSON only. No markdown.",
           },
           {
             role: "user",
@@ -97,10 +103,9 @@ RETURN ONLY VALID JSON:
 
     /* ================= CLEAN RESPONSE ================= */
 
-    // remove ```json blocks if AI adds them
     text = text.replace(/```json|```/g, "").trim();
 
-    let parsed = {};
+    let parsed = null;
 
     try {
       parsed = JSON.parse(text);
@@ -108,9 +113,18 @@ RETURN ONLY VALID JSON:
       console.log("❌ JSON parse failed:", text);
     }
 
+    /* ================= HARD VALIDATION ================= */
+
+    const isValid =
+      parsed &&
+      typeof parsed === "object" &&
+      Array.isArray(parsed.highlights) &&
+      parsed.seo &&
+      parsed.description;
+
     /* ================= FALLBACK ================= */
 
-    if (!parsed || !parsed.seo || !parsed.highlights) {
+    if (!isValid) {
       const base = `${brand} ${name}`.trim();
 
       parsed = {
@@ -119,13 +133,14 @@ RETURN ONLY VALID JSON:
           "No added preservatives",
           "Easy to prepare",
           "Authentic taste",
+          "Suitable for daily use",
         ],
         shortDescription: `${base} made with carefully selected ingredients for authentic taste.`,
-        description: `${base} is a high-quality product in the ${category} category. Crafted for convenience and taste, it is perfect for daily use and delivers consistent results every time.`,
+        description: `${base} is a high-quality ${category} product designed for convenience and taste. Crafted using selected ingredients, it ensures consistent results and authentic flavor in every use. Perfect for daily cooking and easy preparation, it brings both quality and reliability to your kitchen.`,
         seo: {
           title: `${base} | Buy Online`,
           description: `Buy ${base} online at best price in India. Premium quality and authentic taste.`,
-          keywords: `${base}, ${name}, ${category}, buy online, best price`,
+          keywords: `${base}, ${name}, ${category}, buy online, best price, India`,
         },
         tags: [
           `${base}`,
@@ -133,11 +148,15 @@ RETURN ONLY VALID JSON:
           `${name.toLowerCase()} india`,
           `best ${name.toLowerCase()}`,
           `instant ${name.toLowerCase()}`,
+          `${category.toLowerCase()} online`,
         ],
       };
     }
 
-    /* ================= FINAL RESPONSE ================= */
+    /* ================= FINAL SANITIZATION ================= */
+
+    parsed.highlights = parsed.highlights.slice(0, 6);
+    parsed.tags = (parsed.tags || []).slice(0, 20);
 
     return NextResponse.json({
       success: true,
