@@ -646,6 +646,69 @@ async function generateAIContent() {
               onChange={e => setForm({ ...form, totalWeight: e.target.value })}
             />
 
+   {/* ================= INGREDIENTS UI ================= */}
+    
+            <div style={{
+              background: "#fff",
+              padding: 20,
+              borderRadius: 10,
+              marginTop: 20
+            }}>
+            
+              <h3>🥗 Ingredients</h3>
+            
+              {form.ingredients.map((ing, i) => (
+                <div key={i} style={{
+                  display: "grid",
+                  gridTemplateColumns: "2fr 1fr 1fr 1fr auto",
+                  gap: 10,
+                  marginBottom: 10
+                }}>
+            
+                  {/* Name */}
+                  <input
+                    placeholder="Ingredient Name (Rice, Dal...)"
+                    value={ing.name}
+                    onChange={e => updateIngredient(i, "name", e.target.value)}
+                  />
+            
+                  {/* Qty */}
+                  <input
+                    type="number"
+                    placeholder="Qty"
+                    value={ing.qty}
+                    onChange={e => updateIngredient(i, "qty", e.target.value)}
+                  />
+            
+                  {/* Unit */}
+                  <select
+                    value={ing.unit}
+                    onChange={e => updateIngredient(i, "unit", e.target.value)}
+                  >
+                    <option>GM</option>
+                    <option>KG</option>
+                    <option>ML</option>
+                    <option>L</option>
+                  </select>
+            
+                  {/* Percent */}
+                  <input
+                    value={`${ing.percent || 0}%`}
+                    readOnly
+                    style={{ background: "#eee" }}
+                  />
+        
+                  <div>Total: {total.toFixed(2)}%</div>
+            
+                  {/* Remove */}
+                  <button onClick={() => removeIngredient(i)}>X</button>
+                </div>
+              ))}
+            
+              <button onClick={addIngredient}>+ Add Ingredient</button>
+            
+            </div>
+
                 <div style={{ marginTop: 20 }}>
                   <button
                     type="button"
@@ -666,68 +729,7 @@ async function generateAIContent() {
       )}
 
 
-    {/* ================= INGREDIENTS UI ================= */}
-    
-    <div style={{
-      background: "#fff",
-      padding: 20,
-      borderRadius: 10,
-      marginTop: 20
-    }}>
-    
-      <h3>🥗 Ingredients</h3>
-    
-      {form.ingredients.map((ing, i) => (
-        <div key={i} style={{
-          display: "grid",
-          gridTemplateColumns: "2fr 1fr 1fr 1fr auto",
-          gap: 10,
-          marginBottom: 10
-        }}>
-    
-          {/* Name */}
-          <input
-            placeholder="Ingredient Name (Rice, Dal...)"
-            value={ing.name}
-            onChange={e => updateIngredient(i, "name", e.target.value)}
-          />
-    
-          {/* Qty */}
-          <input
-            type="number"
-            placeholder="Qty"
-            value={ing.qty}
-            onChange={e => updateIngredient(i, "qty", e.target.value)}
-          />
-    
-          {/* Unit */}
-          <select
-            value={ing.unit}
-            onChange={e => updateIngredient(i, "unit", e.target.value)}
-          >
-            <option>GM</option>
-            <option>KG</option>
-            <option>ML</option>
-            <option>L</option>
-          </select>
-    
-          {/* Percent */}
-          <input
-            value={`${ing.percent || 0}%`}
-            readOnly
-            style={{ background: "#eee" }}
-          />
-
-          <div>Total: {total.toFixed(2)}%</div>
-    
-          {/* Remove */}
-          <button onClick={() => removeIngredient(i)}>X</button>
-        </div>
-      ))}
-    
-      <button onClick={addIngredient}>+ Add Ingredient</button>
-    
-    </div>
+   
 
 
       {/* VARIANTS */}
