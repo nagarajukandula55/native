@@ -1384,4 +1384,4 @@ async function generateAIContent() {
     </div>
 
   </div>
-)}
+)};
