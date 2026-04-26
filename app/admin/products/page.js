@@ -1117,8 +1117,8 @@ export default function ProductUpload() {
         🚀 FINAL SUBMIT PRODUCT
       </button>
 
-        </div>
       )}
     </div>
-  );
+  </div>
+);
 }
