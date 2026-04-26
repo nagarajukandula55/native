@@ -1050,5 +1050,4 @@ export default function ProductUpload() {
     </div>
 
   </div>
-);
-}
+)}
