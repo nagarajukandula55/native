@@ -36,6 +36,16 @@ export default function ProductUpload() {
     productType: "Veg",
     totalWeight: "",
 
+    baseCost: "",
+    packagingCost: "",
+    logisticsCost: "",
+    marketingCost: "",
+    hsn: "",
+    tax: 0,
+    mrp: "",
+    sellingPrice: "",
+    totalWeight: "",
+
     // ✅ COMPLIANCE
     fssaiNumber: "",
     manufacturerName: "",
@@ -84,6 +94,8 @@ export default function ProductUpload() {
     "Spices & Masalas": ["Chilli Powder", "Garam Masala"],
     "Oils": ["Groundnut Oil", "Coconut Oil"],
   };
+
+  
 
   /* ================= GST ================= */
 
@@ -522,6 +534,27 @@ async function generateAIContent() {
     setForm(emptyForm);
   }
 
+  /* ================= 🔥 PUT CALC LOGIC HERE ================= */
+    const totalCost =
+      Number(form.baseCost || 0) +
+      Number(form.packagingCost || 0) +
+      Number(form.logisticsCost || 0) +
+      Number(form.marketingCost || 0);
+  
+    const gstAmount =
+      (Number(form.sellingPrice || 0) * Number(form.tax || 0)) / 100;
+  
+    const finalPrice =
+      Number(form.sellingPrice || 0) + gstAmount;
+  
+    const profit =
+      Number(form.sellingPrice || 0) - totalCost;
+  
+    const margin =
+      form.sellingPrice
+        ? (profit / form.sellingPrice) * 100
+        : 0;
+
   /* ================= UI ================= */
 
   return (
@@ -753,29 +786,122 @@ async function generateAIContent() {
   </div>
 )}
       {/* VARIANTS */}
-      {step === 1 && (
-        <div>
-          {form.variants.map((v, i) => (
-            <div key={i}>
-              <input placeholder="Value"
-                onChange={e => updateVariant(i, "value", e.target.value)} />
+{step === 1 && (
+  <div style={{ background: "#fff", padding: 20, borderRadius: 10 }}>
 
-              <input placeholder="MRP"
-                onChange={e => updateVariant(i, "mrp", e.target.value)} />
+    <h2>💰 Step 1: Pricing & Cost Engine</h2>
 
-              <input placeholder="Selling Price"
-                onChange={e => updateVariant(i, "sellingPrice", e.target.value)} />
+    {/* ================= GST SECTION ================= */}
+    <h3>🧾 GST Setup</h3>
 
-              <input placeholder="Stock"
-                onChange={e => updateVariant(i, "stock", e.target.value)} />
+    <select
+      value={form.gstCategory}
+      onChange={e => {
+        const gst = gstOptions.find(g => g.name === e.target.value);
 
-              <input value={v.sku} readOnly />
-            </div>
-          ))}
+        setForm(prev => ({
+          ...prev,
+          gstCategory: e.target.value,
+          hsn: gst?.hsn || "",
+          tax: gst?.tax || 0
+        }));
+      }}
+      style={{ width: "100%", padding: 10 }}
+    >
+      <option>Select GST Category</option>
+      {gstOptions.map(g => (
+        <option key={g.name}>{g.name}</option>
+      ))}
+    </select>
 
-          <button onClick={addVariant}>Add Variant</button>
-        </div>
-      )}
+    <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
+      <input value={form.hsn} readOnly placeholder="HSN Code" />
+      <input value={form.tax + "%"} readOnly placeholder="GST %" />
+    </div>
+
+    {/* ================= COST SECTION ================= */}
+    <h3 style={{ marginTop: 20 }}>🏭 Cost Breakdown</h3>
+
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+
+      <input
+        placeholder="Ingredient Cost"
+        value={form.baseCost}
+        onChange={e => setForm({ ...form, baseCost: e.target.value })}
+      />
+
+      <input
+        placeholder="Packaging Cost"
+        value={form.packagingCost}
+        onChange={e => setForm({ ...form, packagingCost: e.target.value })}
+      />
+
+      <input
+        placeholder="Logistics Cost"
+        value={form.logisticsCost}
+        onChange={e => setForm({ ...form, logisticsCost: e.target.value })}
+      />
+
+      <input
+        placeholder="Marketing Cost"
+        value={form.marketingCost}
+        onChange={e => setForm({ ...form, marketingCost: e.target.value })}
+      />
+    </div>
+
+    {/* ================= PRICING ================= */}
+    <h3 style={{ marginTop: 20 }}>💰 Pricing Engine</h3>
+
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+
+      <input
+        placeholder="MRP (Incl GST)"
+        value={form.mrp}
+        onChange={e => setForm({ ...form, mrp: e.target.value })}
+      />
+
+      <input
+        placeholder="Selling Price (Ex GST)"
+        value={form.sellingPrice}
+        onChange={e => setForm({ ...form, sellingPrice: e.target.value })}
+      />
+    </div>
+
+    {/* ================= SKU SECTION ================= */}
+    <h3 style={{ marginTop: 20 }}>🆔 SKU System</h3>
+
+    <input
+      placeholder="Auto SKU (NA system)"
+      value={
+        form.name && form.totalWeight
+          ? `NA-${form.name.toUpperCase()}-001-${form.totalWeight}GM`
+          : ""
+      }
+      readOnly
+    />
+
+    <small style={{ color: "gray" }}>
+      SKU auto-generates using product name + weight + serial
+    </small>
+
+    {/* ================= AUTO CALC ================= */}
+    <div style={{
+      marginTop: 20,
+      padding: 10,
+      background: "#f5f5f5",
+      borderRadius: 8
+    }}>
+
+      <p>💰 Total Cost: ₹{totalCost || 0}</p>
+      <p>🧾 GST Amount: ₹{gstAmount?.toFixed(2) || 0}</p>
+      <p>💵 Final Price (Incl GST): ₹{finalPrice?.toFixed(2) || 0}</p>
+      <p>📈 Profit: ₹{profit?.toFixed(2) || 0}</p>
+      <p>📊 Margin: {margin?.toFixed(2) || 0}%</p>
+
+    </div>
+
+  </div>
+)}
 
       {/* MEDIA */}
       {step === 2 && (
