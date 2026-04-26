@@ -222,6 +222,11 @@ useEffect(() => {
       return;
     }
 
+    const data = await res.json();
+
+    // ✅ MUST exist
+    const c = data.content || data;
+    
     /* ✅ UPDATE FORM */
     setForm(prev => ({
       ...prev,
