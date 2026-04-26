@@ -30,11 +30,11 @@ export default function ProductUpload() {
     description: "",
     shortDescription: "",
     ingredients: [{ name: "", qty: "", unit: "GM", percent: 0 }],
-    ingredientsText: "",    // simple text (optional UI)
 
     subcategory: "",
     highlights: "",
     productType: "Veg",
+    totalWeight: "",
 
     // ✅ COMPLIANCE
     fssaiNumber: "",
@@ -172,6 +172,10 @@ useEffect(() => {
     }
   }, [form.gstCategory]);
 
+  <div style={{ marginTop: 10, fontWeight: "bold" }}>
+      Used: {form.ingredients.reduce((sum, i) => sum + convertToGrams(i.qty, i.unit), 0)} gm / {form.totalWeight || 0} gm
+    </div>
+
   /*  ======= Product Key Safe  ========  */
   
   useEffect(() => {
@@ -200,6 +204,22 @@ async function generateAIContent() {
       alert("Ingredients must total ~100%");
       return;
     }
+
+    const totalWeight = parseFloat(form.totalWeight) || 0;
+
+      const usedWeight = form.ingredients.reduce((sum, i) => {
+        return sum + convertToGrams(i.qty, i.unit);
+      }, 0);
+      
+      if (!totalWeight) {
+        alert("Enter total weight");
+        return;
+      }
+      
+      if (Math.abs(usedWeight - totalWeight) > 1) {
+        alert(`Total ingredient weight (${usedWeight}g) must match product weight (${totalWeight}g)`);
+        return;
+      }
 
     /* ✅ FORMAT INGREDIENTS */
     const cleanedIngredients = formatIngredients(form.ingredients);
@@ -412,16 +432,16 @@ async function generateAIContent() {
     
     // recalculate percentages
     function recalcIngredients(updated) {
-      const totalGrams = updated.reduce((sum, i) => {
-        return sum + convertToGrams(i.qty, i.unit);
-      }, 0);
+      const totalWeight = parseFloat(form.totalWeight) || 0;
     
       return updated.map(i => {
         const grams = convertToGrams(i.qty, i.unit);
     
         return {
           ...i,
-          percent: totalGrams ? ((grams / totalGrams) * 100).toFixed(2) : 0,
+          percent: totalWeight
+            ? ((grams / totalWeight) * 100).toFixed(2)
+            : 0,
         };
       });
     }
@@ -619,22 +639,15 @@ async function generateAIContent() {
             style={{ gridColumn: "span 2" }}
           />
       
-          {/* BUTTON */}
-          <button
-            type="button"
-            onClick={generateAIContent}
-            style={{
-              gridColumn: "span 2",
-              background: "black",
-              color: "white",
-              padding: 10
-            }}
-          >
-            ⚡ Generate Content
-          </button>
-      
         </div>
       )}
+
+    <input
+        type="number"
+        placeholder="Total Weight (GM)"
+        value={form.totalWeight}
+        onChange={e => setForm({ ...form, totalWeight: e.target.value })}
+      />
 
     {/* ================= INGREDIENTS UI ================= */}
     
@@ -698,7 +711,23 @@ async function generateAIContent() {
       <button onClick={addIngredient}>+ Add Ingredient</button>
     
     </div>
-  
+
+      <div style={{ marginTop: 20 }}>
+        <button
+          type="button"
+          onClick={generateAIContent}
+          style={{
+            width: "100%",
+            background: "black",
+            color: "white",
+            padding: 12,
+            fontWeight: "bold"
+          }}
+        >
+          ⚡ Generate Content
+        </button>
+      </div>
+
       {/* VARIANTS */}
       {step === 1 && (
         <div>
