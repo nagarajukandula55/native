@@ -98,6 +98,25 @@ export default function ProductUpload() {
     { name: "Spices", hsn: "0910", tax: 5 },
   ];
 
+  /* ================= AUTO SAVE ================= */
+
+    useEffect(() => {
+      const saved = localStorage.getItem("product_draft");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setForm(parsed.form || emptyForm);
+        setSeo(parsed.seo || {});
+        setStep(parsed.step || 0);
+      }
+    }, []);
+    
+    useEffect(() => {
+      localStorage.setItem(
+        "product_draft",
+        JSON.stringify({ form, seo, step })
+      );
+    }, [form, seo, step]);
+
   /* ================= AUTO ================= */
 
   useEffect(() => {
@@ -283,6 +302,61 @@ export default function ProductUpload() {
     (sum, i) => sum + parseFloat(i.percent || 0),
     0
   );
+
+  {/* ================= PROGRESS BAR ================= */}
+    <div style={{
+      display: "flex",
+      marginBottom: 20,
+      borderRadius: 10,
+      overflow: "hidden"
+    }}>
+      {["Basic", "Pricing", "Media", "Compliance"].map((label, i) => (
+        <div
+          key={i}
+          style={{
+            flex: 1,
+            padding: 10,
+            textAlign: "center",
+            background: step >= i ? "#4caf50" : "#ddd",
+            color: step >= i ? "#fff" : "#333",
+            fontWeight: "bold",
+            fontSize: 12
+          }}
+        >
+          {label}
+        </div>
+      ))}
+    </div>
+
+  /* ================= STEP VALIDATION ================= */
+
+  function validateStep(currentStep) {
+    switch (currentStep) {
+  
+      case 0:
+        if (!form.name) return "Enter product name";
+        if (!form.category) return "Select category";
+        if (!form.totalWeight) return "Enter total weight";
+        if (!form.ingredients.length) return "Add ingredients";
+        return null;
+  
+      case 1:
+        if (!form.sellingPrice) return "Enter selling price";
+        if (Number(form.sellingPrice) <= 0) return "Invalid price";
+        return null;
+  
+      case 2:
+        if (!form.images.length) return "Upload at least 1 image";
+        return null;
+  
+      case 3:
+        if (!form.fssaiNumber) return "FSSAI required";
+        return null;
+  
+      default:
+        return null;
+    }
+  }
 
   /* ================= UI ================= */
 
@@ -1087,28 +1161,105 @@ return (
     </div>
 
     {/* ================= ACTION ================= */}
-    <div style={{ marginTop: 20, display: "flex", gap: 10 }}>
-
-      <button onClick={() => setStep(step - 1)}>
-        ⬅ Back
-      </button>
-
-      <button
-        onClick={handleSubmit}
-        style={{
-          background: "green",
-          color: "#fff",
-          padding: 10,
-          flex: 1,
-          fontWeight: "bold"
-        }}
-      >
-        🚀 FINAL SUBMIT PRODUCT
-      </button>
-    </div>
+      <div style={{ marginTop: 20, display: "flex", gap: 10 }}>
+      
+        {/* BACK BUTTON (SAFE) */}
+        <button
+          onClick={() => setStep(prev => Math.max(prev - 1, 0))}
+          style={{
+            padding: 10,
+            background: "#ddd",
+            border: "none",
+            borderRadius: 6,
+            cursor: "pointer"
+          }}
+        >
+          ⬅ Back
+        </button>
+      
+        {/* FINAL SUBMIT (WITH VALIDATION) */}
+        <button
+          onClick={() => {
+            const err = validateStep(3); // validate final step
+            if (err) {
+              setError(err);
+              return;
+            }
+      
+            setError("");
+            handleSubmit();
+          }}
+          style={{
+            background: "green",
+            color: "#fff",
+            padding: 10,
+            flex: 1,
+            fontWeight: "bold",
+            border: "none",
+            borderRadius: 6,
+            cursor: "pointer"
+          }}
+        >
+          🚀 FINAL SUBMIT PRODUCT
+        </button>
+      
+      </div>
 
   </div>
 )}
+
+  {/* ================= STEP NAVIGATION ================= */}
+    <div style={{
+      display: "flex",
+      justifyContent: "space-between",
+      marginTop: 20,
+      gap: 10
+    }}>
+    
+      {/* BACK BUTTON */}
+      {step > 0 && (
+        <button
+          onClick={() => setStep(prev => prev - 1)}
+          style={{
+            padding: 10,
+            background: "#ddd",
+            border: "none",
+            borderRadius: 6,
+            cursor: "pointer"
+          }}
+        >
+          ⬅ Back
+        </button>
+      )}
+    
+      {/* NEXT BUTTON */}
+      {step < 3 && (
+        <button
+          onClick={() => {
+            const err = validateStep(step);
+            if (err) {
+              setError(err);
+              return;
+            }
+        
+            setError("");
+            setStep(prev => prev + 1);
+          }}
+          style={{
+            padding: 10,
+            background: "black",
+            color: "#fff",
+            border: "none",
+            borderRadius: 6,
+            marginLeft: "auto",
+            cursor: "pointer"
+          }}
+        >
+          Next ➡
+        </button>
+      )}
+    
+    </div>
 
 </div>
 );
