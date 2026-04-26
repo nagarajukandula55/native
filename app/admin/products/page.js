@@ -638,16 +638,33 @@ async function generateAIContent() {
             }
             style={{ gridColumn: "span 2" }}
           />
+
+           <input
+              type="number"
+              placeholder="Total Weight (GM)"
+              value={form.totalWeight}
+              onChange={e => setForm({ ...form, totalWeight: e.target.value })}
+            />
+
+                <div style={{ marginTop: 20 }}>
+                  <button
+                    type="button"
+                    onClick={generateAIContent}
+                    style={{
+                      width: "100%",
+                      background: "black",
+                      color: "white",
+                      padding: 12,
+                      fontWeight: "bold"
+                    }}
+                  >
+                    ⚡ Generate Content
+                  </button>
+                </div>
       
         </div>
       )}
 
-    <input
-        type="number"
-        placeholder="Total Weight (GM)"
-        value={form.totalWeight}
-        onChange={e => setForm({ ...form, totalWeight: e.target.value })}
-      />
 
     {/* ================= INGREDIENTS UI ================= */}
     
@@ -712,21 +729,6 @@ async function generateAIContent() {
     
     </div>
 
-      <div style={{ marginTop: 20 }}>
-        <button
-          type="button"
-          onClick={generateAIContent}
-          style={{
-            width: "100%",
-            background: "black",
-            color: "white",
-            padding: 12,
-            fontWeight: "bold"
-          }}
-        >
-          ⚡ Generate Content
-        </button>
-      </div>
 
       {/* VARIANTS */}
       {step === 1 && (
