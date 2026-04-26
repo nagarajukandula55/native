@@ -358,6 +358,28 @@ export default function ProductUpload() {
     }
   }
 
+/* ================= PRICING CALCULATIONS ================= */
+
+  const totalCost =
+    Number(form.baseCost || 0) +
+    Number(form.packagingCost || 0) +
+    Number(form.logisticsCost || 0) +
+    Number(form.marketingCost || 0);
+  
+  const gstAmount =
+    (Number(form.sellingPrice || 0) * Number(form.tax || 0)) / 100;
+  
+  const finalPrice =
+    Number(form.sellingPrice || 0) + gstAmount;
+  
+  const profit =
+    Number(form.sellingPrice || 0) - totalCost;
+  
+  const margin =
+    form.sellingPrice
+      ? (profit / form.sellingPrice) * 100
+      : 0;
+
   /* ================= UI ================= */
 
 return (
