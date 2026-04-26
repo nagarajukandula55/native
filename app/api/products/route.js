@@ -29,13 +29,14 @@ export async function GET(req) {
       match.name = { $regex: search, $options: "i" };
     }
 
-    /* ================= AGGREGATION PIPELINE ================= */
+    /* ================= PIPELINE ================= */
     const pipeline = [
       { $match: match },
 
-      /* sort variants by price */
+      /* sort FIRST (important for correct grouping) */
       { $sort: { sellingPrice: 1 } },
 
+      /* ================= GROUP PRODUCT ================= */
       {
         $group: {
           _id: "$productKey",
@@ -45,18 +46,23 @@ export async function GET(req) {
           category: { $first: "$category" },
           slug: { $first: "$slug" },
 
-          image: {
-            $first: {
-              $arrayElemAt: ["$images", 0],
-            },
-          },
+          images: { $first: "$images" },
 
-          price: { $first: "$sellingPrice" },
+          /* PRICE RANGE SUPPORT (IMPORTANT) */
+          minPrice: { $min: "$sellingPrice" },
+          maxPrice: { $max: "$sellingPrice" },
           mrp: { $first: "$mrp" },
+
+          /* GST READY FIELDS */
+          tax: { $first: "$tax" },
+          gstCategory: { $first: "$gstCategory" },
 
           createdAt: { $first: "$createdAt" },
 
           variantsCount: { $sum: 1 },
+
+          /* future SKU tracking support */
+          skus: { $push: "$sku" },
         },
       },
 
@@ -68,7 +74,7 @@ export async function GET(req) {
               {
                 $and: [
                   { $gt: ["$mrp", 0] },
-                  { $gt: ["$price", 0] }
+                  { $gt: ["$minPrice", 0] }
                 ],
               },
               {
@@ -77,7 +83,7 @@ export async function GET(req) {
                     $multiply: [
                       {
                         $divide: [
-                          { $subtract: ["$mrp", "$price"] },
+                          { $subtract: ["$mrp", "$minPrice"] },
                           "$mrp",
                         ],
                       },
@@ -90,11 +96,15 @@ export async function GET(req) {
               0,
             ],
           },
+
+          /* FINAL DISPLAY PRICE (PUBLIC) */
+          displayPrice: "$minPrice",
         },
       },
 
       { $sort: { createdAt: -1 } },
 
+      /* ================= PAGINATION ================= */
       {
         $facet: {
           data: [{ $skip: skip }, { $limit: limit }],
@@ -109,6 +119,8 @@ export async function GET(req) {
       success: true,
       products: result?.[0]?.data || [],
       total: result?.[0]?.totalCount?.[0]?.count || 0,
+      page,
+      limit,
     });
 
   } catch (err) {
