@@ -95,104 +95,72 @@ export default function ProductUpload() {
 
   /* ================= AUTO ================= */
 
-    useEffect(() => {
-      if (!form.name) return;
-    
-      /* ================= CLEAN NAME ================= */
-      const cleanName = form.name.replace(/native/gi, "").trim();
-    
-      /* ================= DISPLAY NAME ================= */
-      const displayName = form.brand
-        ? `${form.brand} ${cleanName}`.trim()
-        : cleanName;
-    
-      /* ================= SLUG ================= */
-      const slugGen = displayName
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/(^-|-$)/g, "");
-    
-      setSlug(slugGen);
-    
-      /* ================= TAGS ================= */
-    
-      // break words
-      const nameWords = cleanName.toLowerCase().split(" ");
-      const categoryname = form.category?.toLowerCase();
-      const subcategoryname = form.subcategory?.toLowerCase();
-    
-      // ingredients support (string safe)
-      const ingredientsText = Array.isArray(form.ingredients)
-        ? form.ingredients.map(i => i.name).join(", ").toLowerCase()
-        : (form.ingredients || "").toLowerCase();
-    
-      const autoTagsArray = [
-        ...nameWords,
-        categoryname,
-        subcategoryname,
-        ...ingredientNames,
-        "buy online",
-        "best price",
-        `${cleanName} online`,
-        `${cleanName} india`,
-        `${displayName.toLowerCase()}`,
-      ];
-        
-    /* ================= TAGS ================= */
-    
-    // build base keyword parts
-    const base = displayName.toLowerCase();
-    const nameOnly = cleanName.toLowerCase();
-    const categorylowerlower = form.category?.toLowerCase() || "";
-    const subcategorylowerlower = form.subcategory?.toLowerCase() || "";
-    
-    // ingredient names (safe)
-    const ingredientNames = Array.isArray(form.ingredients)
-      ? form.ingredients.map(i => i.name.toLowerCase())
-      : (form.ingredients || "").toLowerCase().split(",");
-    
-    // 🔥 SEO phrase generator
-    const seoTagsArray = [
-      base,
-      `${base} online`,
-      `buy ${base}`,
-      `buy ${base} online`,
-      `${base} india`,
-      `${base} best price`,
-      `${base} near me`,
-      `best ${nameOnly}`,
-      `${nameOnly} online`,
-      `${nameOnly} india`,
-      `healthy ${nameOnly}`,
-      `instant ${nameOnly}`,
-      `natural ${nameOnly}`,
-      `organic ${nameOnly}`,
-      categorylowerlower,
-      subcategorylowerlower,
-      ...ingredientNames.map(i => `${i.trim()} ${nameOnly}`)
-    ];
-    
-    // remove duplicates + cleanup
-    const finalTags = [...new Set(
-      seoTagsArray.filter(w => w && w.length > 3)
-    )].slice(0, 25);
-    
-    // ✅ SAVE TAGS
-    setForm(prev => ({
-      ...prev,
-      tags: finalTags.join(", "),
-    }));
-    
-    /* ================= SEO ================= */
-    
-    setSeo({
-      title: `${displayName} | Buy Online`,
-      description: `Buy ${displayName} online at best price. Premium quality ${cleanName} from ${form.brand || "trusted brand"}.`,
-      keywords: finalTags.join(", "),
-    });
-    
-    }, [form.name, form.category, form.subcategory, form.ingredients, form.brand]);
+useEffect(() => {
+  if (!form.name) return;
 
+  const cleanName = form.name.replace(/native/gi, "").trim();
+
+  const displayName = form.brand
+    ? `${form.brand} ${cleanName}`.trim()
+    : cleanName;
+
+  const slugGen = displayName
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+
+  setSlug(slugGen);
+
+  const nameWords = cleanName.toLowerCase().split(" ");
+  const categoryname = form.category?.toLowerCase();
+  const subcategoryname = form.subcategory?.toLowerCase();
+
+  // ✅ FIX: moved up
+  const ingredientNames = Array.isArray(form.ingredients)
+    ? form.ingredients.map(i => i.name.toLowerCase())
+    : (form.ingredients || "").toLowerCase().split(",");
+
+  const base = displayName.toLowerCase();
+  const nameOnly = cleanName.toLowerCase();
+  const categorylower = form.category?.toLowerCase() || "";
+  const subcategorylower = form.subcategory?.toLowerCase() || "";
+
+  const seoTagsArray = [
+    base,
+    `${base} online`,
+    `buy ${base}`,
+    `buy ${base} online`,
+    `${base} india`,
+    `${base} best price`,
+    `${base} near me`,
+    `best ${nameOnly}`,
+    `${nameOnly} online`,
+    `${nameOnly} india`,
+    `healthy ${nameOnly}`,
+    `instant ${nameOnly}`,
+    `natural ${nameOnly}`,
+    `organic ${nameOnly}`,
+    categorylower,
+    subcategorylower,
+    ...ingredientNames.map(i => `${i.trim()} ${nameOnly}`)
+  ];
+
+  const finalTags = [...new Set(
+    seoTagsArray.filter(w => w && w.length > 3)
+  )].slice(0, 25);
+
+  setForm(prev => ({
+    ...prev,
+    tags: finalTags.join(", "),
+  }));
+
+  setSeo({
+    title: `${displayName} | Buy Online`,
+    description: `Buy ${displayName} online at best price. Premium quality ${cleanName} from ${form.brand || "trusted brand"}.`,
+    keywords: finalTags.join(", "),
+  });
+
+}, [form.name, form.category, form.subcategory, form.ingredients, form.brand]);
   useEffect(() => {
     const gst = gstOptions.find(g => g.name === form.gstCategory);
     if (gst) {
@@ -203,6 +171,15 @@ export default function ProductUpload() {
       }));
     }
   }, [form.gstCategory]);
+
+  /*  ======= Product Key Safe  ========  */
+  
+  useEffect(() => {
+  if (form.name && !productKey) {
+    setProductKey(Date.now().toString().slice(-6));
+  }
+}, [form.name]);
+  
 
 /* =============== AI Content ============== */
   
@@ -289,14 +266,14 @@ export default function ProductUpload() {
 
   /* ================= Clean Ingredients ================= */
 
-    function formatIngredients(raw) {
-    if (!raw) return [];
-  
-    return raw
-      .split(",")
-      .map(i => i.trim())
-      .filter(Boolean);
-  }
+    function formatIngredientsString(raw) {
+      if (!raw) return [];
+    
+      return raw
+        .split(",")
+        .map(i => i.trim())
+        .filter(Boolean);
+    }
 
   /* ================= IMAGE ================= */
 
@@ -489,7 +466,7 @@ export default function ProductUpload() {
   /* ================= SAVE ================= */
 
   async function handleSubmit() {
-    const tags = generateTags();
+    const tags = generateSEOTags();
     const err = validate();
     if (err) return setError(err);
 
@@ -626,7 +603,9 @@ export default function ProductUpload() {
           <textarea
             placeholder="Ingredients (comma separated)
           Example: Rice, Urad Dal, Fenugreek Seeds, Salt"
-            value={form.ingredients}
+            value={Array.isArray(form.ingredients) 
+                ? form.ingredients.map(i => i.name).join(", ") 
+                : form.ingredients}
             onChange={e =>
               setForm({ ...form, ingredients: e.target.value })
             }
