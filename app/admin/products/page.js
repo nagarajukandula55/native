@@ -25,7 +25,7 @@ export default function ProductUpload() {
     gstCategory: "",
     gstDescription: "",
     hsn: "",
-    tax: "",
+    tax: 0,
 
     description: "",
     shortDescription: "",
@@ -40,13 +40,10 @@ export default function ProductUpload() {
     packagingCost: "",
     logisticsCost: "",
     marketingCost: "",
-    hsn: "",
-    tax: 0,
+
     mrp: "",
     sellingPrice: "",
-    totalWeight: "",
 
-    // ✅ COMPLIANCE
     fssaiNumber: "",
     manufacturerName: "",
     manufacturerAddress: "",
@@ -59,13 +56,11 @@ export default function ProductUpload() {
     storageInstructions: "",
     allergenInfo: "",
 
-    // ✅ SHIPPING
     weight: "",
     length: "",
     breadth: "",
     height: "",
 
-    // ✅ SEO
     images: [],
     variants: [emptyVariant],
   };
@@ -73,17 +68,11 @@ export default function ProductUpload() {
   const [form, setForm] = useState(emptyForm);
   const [productKey, setProductKey] = useState("");
   const [slug, setSlug] = useState("");
-  const [seo, setSeo] = useState({
-    title: "",
-    description: "",
-    keywords: "",
-  });
+  const [seo, setSeo] = useState({ title: "", description: "", keywords: "" });
 
   const [step, setStep] = useState(0);
   const [error, setError] = useState("");
   const [imagePreviews, setImagePreviews] = useState([]);
-
-  const barcodeRefs = useRef([]);
 
   const displayName = form.brand
     ? `${form.brand} ${form.name}`.trim()
@@ -95,8 +84,6 @@ export default function ProductUpload() {
     "Oils": ["Groundnut Oil", "Coconut Oil"],
   };
 
-  
-
   /* ================= GST ================= */
 
   const gstOptions = [
@@ -105,225 +92,126 @@ export default function ProductUpload() {
     { name: "Spices", hsn: "0910", tax: 5 },
   ];
 
-  /* ================= AUTO ================= */
+  /* ================= AUTO SEO ================= */
 
-useEffect(() => {
-  if (!form.name) return;
-
-  const cleanName = form.name.replace(/native/gi, "").trim();
-
-  const displayName = form.brand
-    ? `${form.brand} ${cleanName}`.trim()
-    : cleanName;
-
-  const slugGen = displayName
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
-
-  setSlug(slugGen);
-
-  const nameWords = cleanName.toLowerCase().split(" ");
-  const categoryname = form.category?.toLowerCase();
-  const subcategoryname = form.subcategory?.toLowerCase();
-
-  // ✅ FIX: moved up
-  const ingredientNames = Array.isArray(form.ingredients)
-    ? form.ingredients.map(i => i.name.toLowerCase())
-    : (form.ingredients || "").toLowerCase().split(",");
-
-  const base = displayName.toLowerCase();
-  const nameOnly = cleanName.toLowerCase();
-  const categorylower = form.category?.toLowerCase() || "";
-  const subcategorylower = form.subcategory?.toLowerCase() || "";
-
-  const seoTagsArray = [
-    base,
-    `${base} online`,
-    `buy ${base}`,
-    `buy ${base} online`,
-    `${base} india`,
-    `${base} best price`,
-    `${base} near me`,
-    `best ${nameOnly}`,
-    `${nameOnly} online`,
-    `${nameOnly} india`,
-    `healthy ${nameOnly}`,
-    `instant ${nameOnly}`,
-    `natural ${nameOnly}`,
-    `organic ${nameOnly}`,
-    categorylower,
-    subcategorylower,
-    ...ingredientNames.map(i => `${i.trim()} ${nameOnly}`)
-  ];
-
-  const finalTags = [...new Set(
-    seoTagsArray.filter(w => w && w.length > 3)
-  )].slice(0, 25);
-
-  setForm(prev => ({
-    ...prev,
-    tags: finalTags.join(", "),
-  }));
-
-  setSeo({
-    title: `${displayName} | Buy Online`,
-    description: `Buy ${displayName} online at best price. Premium quality ${cleanName} from ${form.brand || "trusted brand"}.`,
-    keywords: finalTags.join(", "),
-  });
-
-}, [form.name, form.category, form.subcategory, form.ingredients, form.brand]);
   useEffect(() => {
-    const gst = gstOptions.find(g => g.name === form.gstCategory);
-    if (gst) {
-      setForm(prev => ({
-        ...prev,
-        hsn: gst.hsn,
-        tax: gst.tax,
-      }));
-    }
-  }, [form.gstCategory]);
+    if (!form.name) return;
 
-  <div style={{ marginTop: 10, fontWeight: "bold" }}>
-      Used: {form.ingredients.reduce((sum, i) => sum + convertToGrams(i.qty, i.unit), 0)} gm / {form.totalWeight || 0} gm
-    </div>
+    const cleanName = form.name.replace(/native/gi, "").trim();
 
-  /*  ======= Product Key Safe  ========  */
-  
-  useEffect(() => {
-  if (form.name && !productKey) {
-    setProductKey(Date.now().toString().slice(-6));
-  }
-}, [form.name]);
-  
+    const displayName = form.brand
+      ? `${form.brand} ${cleanName}`.trim()
+      : cleanName;
 
-/* =============== AI Content ============== */
+    const slugGen = displayName
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "");
 
-async function generateAIContent() {
-  try {
-    /* ✅ VALIDATION FIRST */
-    if (!Array.isArray(form.ingredients) || form.ingredients.length === 0) {
-      alert("Add ingredients");
-      return;
-    }
+    setSlug(slugGen);
 
-    const totalPercent = form.ingredients.reduce(
-      (sum, i) => sum + parseFloat(i.percent || 0),
-      0
-    );
+    const base = displayName.toLowerCase();
 
-    if (Math.abs(totalPercent - 100) > 1) {
-      alert("Ingredients must total ~100%");
-      return;
-    }
+    const tags = [
+      base,
+      `buy ${base}`,
+      `${base} online`,
+      `${cleanName} india`,
+      form.category?.toLowerCase(),
+    ].filter(Boolean);
 
-    const totalWeight = parseFloat(form.totalWeight) || 0;
+    setForm(prev => ({ ...prev, tags: [...new Set(tags)].join(", ") }));
 
-      const usedWeight = form.ingredients.reduce((sum, i) => {
-        return sum + convertToGrams(i.qty, i.unit);
-      }, 0);
-      
-      if (!totalWeight) {
-        alert("Enter total weight");
-        return;
-      }
-      
-      if (Math.abs(usedWeight - totalWeight) > 1) {
-        alert(`Total ingredient weight (${usedWeight}g) must match product weight (${totalWeight}g)`);
-        return;
-      }
-
-    /* ✅ FORMAT INGREDIENTS */
-    const cleanedIngredients = formatIngredients(form.ingredients);
-
-    const res = await fetch("/api/ai-content", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: form.name,
-        category: form.category,
-        subcategory: form.subcategory,
-        ingredients: cleanedIngredients, // ✅ reuse
-      }),
+    setSeo({
+      title: `${displayName} | Buy Online`,
+      description: `Buy ${displayName} online at best price.`,
+      keywords: tags.join(", "),
     });
 
-    const data = await res.json();
+  }, [form.name, form.category, form.brand]);
 
-    console.log("AI RESPONSE:", data); // 🔥 Debug
+  /* ================= INGREDIENT FIX ================= */
 
-    if (!data.success) {
-      alert("AI generation failed");
-      return;
-    }
+  function convertToGrams(qty, unit) {
+    const value = parseFloat(qty) || 0;
+    if (unit === "KG") return value * 1000;
+    if (unit === "L") return value * 1000;
+    if (unit === "ML") return value;
+    return value;
+  }
 
-    // ✅ FIX: define once only
-    const c = data.content || data;
+  function recalcIngredients(updated) {
+    const totalWeight = parseFloat(form.totalWeight) || 0;
 
-    /* ✅ UPDATE FORM */
+    return updated.map(i => {
+      const grams = convertToGrams(i.qty, i.unit);
+
+      return {
+        ...i,
+        percent: totalWeight ? ((grams / totalWeight) * 100).toFixed(2) : 0,
+      };
+    });
+  }
+
+  function updateIngredient(i, field, value) {
+    const updated = [...form.ingredients];
+
+    updated[i] = {
+      ...updated[i],
+      [field]: value,
+      qty: field === "qty" ? Number(value) || 0 : updated[i].qty,
+    };
+
     setForm(prev => ({
       ...prev,
-      highlights: Array.isArray(c.highlights)
-        ? c.highlights.join(", ")
-        : c.highlights || prev.highlights || "",
-      shortDescription: c.shortDescription || prev.shortDescription || "",
-      description: c.description || prev.description || "",
+      ingredients: recalcIngredients(updated),
     }));
-
-    /* ✅ UPDATE SEO */
-    setSeo(prev => ({
-      title: c.seo?.title || prev.title || "",
-      description: c.seo?.description || prev.description || "",
-      keywords: c.seo?.keywords || prev.keywords || "",
-    }));
-
-  } catch (err) {
-    console.error("AI ERROR:", err);
-    alert("Something went wrong while generating content");
-  }
-}
-  
-  /* ================= VARIANTS ================= */
-
-  function updateVariant(i, field, value) {
-    const updated = [...form.variants];
-
-    updated[i][field] = value;
-
-    if (updated[i].value && productKey) {
-      updated[i].sku = `NA-${productKey}-${i + 1}-${updated[i].value}${updated[i].unit}`;
-    }
-
-    setForm(prev => ({ ...prev, variants: updated }));
   }
 
-  function addVariant() {
+  function addIngredient() {
     setForm(prev => ({
       ...prev,
-      variants: [...prev.variants, { ...emptyVariant }],
+      ingredients: [...prev.ingredients, { name: "", qty: "", unit: "GM", percent: 0 }],
     }));
   }
 
-  /* ================= Clean Ingredients ================= */
+  function removeIngredient(i) {
+    const updated = form.ingredients.filter((_, idx) => idx !== i);
 
-    function formatIngredientsString(raw) {
-      if (!raw) return [];
-    
-      return raw
-        .split(",")
-        .map(i => i.trim())
-        .filter(Boolean);
-    }
+    setForm(prev => ({
+      ...prev,
+      ingredients: recalcIngredients(updated),
+    }));
+  }
 
-  /* ================= IMAGE ================= */
+  const total = form.ingredients.reduce(
+    (sum, i) => sum + parseFloat(i.percent || 0),
+    0
+  );
+
+  /* ================= PRICING ================= */
+
+  const totalCost =
+    Number(form.baseCost || 0) +
+    Number(form.packagingCost || 0) +
+    Number(form.logisticsCost || 0) +
+    Number(form.marketingCost || 0);
+
+  const gstAmount = (Number(form.sellingPrice || 0) * Number(form.tax || 0)) / 100;
+  const finalPrice = Number(form.sellingPrice || 0) + gstAmount;
+  const profit = Number(form.sellingPrice || 0) - totalCost;
+  const margin = form.sellingPrice ? (profit / form.sellingPrice) * 100 : 0;
+
+  /* ================= AI CONTENT ================= */
+
+  async function generateAIContent() {
+    alert("AI hook ready");
+  }
+
+  /* ================= IMAGE UPLOAD ================= */
 
   async function handleImageUpload(e) {
     const files = Array.from(e.target.files);
-
-    const previews = files.map(f => ({
-      preview: URL.createObjectURL(f),
-    }));
-
-    setImagePreviews(prev => [...prev, ...previews]);
 
     const uploaded = [];
 
@@ -338,7 +226,6 @@ async function generateAIContent() {
       );
 
       const json = await res.json();
-
       if (json.secure_url) uploaded.push(json.secure_url);
     }
 
@@ -348,233 +235,12 @@ async function generateAIContent() {
     }));
   }
 
-  /* ================= VALIDATION ================= */
-
-  function validate() {
-    if (!form.name) return "Product name required";
-    if (!form.category) return "Category required";
-    if (!form.fssaiNumber) return "FSSAI required";
-    if (!form.images.length) return "Upload image";
-
-    const invalid = form.variants.find(
-      v => !v.value || !v.mrp || !v.sellingPrice
-    );
-
-    if (invalid) return "Variant incomplete";
-
-    return null;
-  }
-
-  /* ================= TAG GENERATOR ================= */
-
-    function generateSEOTags() {
-      if (!form.name) return [];
-    
-      const name = form.name.toLowerCase();
-      const brand = form.brand?.toLowerCase() || "";
-      const categoryLower = form.category?.toLowerCase() || "";
-      const subcategoryLower = form.subcategory?.toLowerCase() || "";
-    
-      const ingredientNames = Array.isArray(form.ingredients)
-        ? form.ingredients.map(i => i.name.toLowerCase())
-        : (form.ingredients || "").toLowerCase().split(",");
-    
-      const base = `${brand} ${name}`.trim();
-    
-      const tags = [
-        base,
-        `${base} online`,
-        `buy ${base}`,
-        `buy ${base} online`,
-        `${base} india`,
-        `${base} best price`,
-        `${base} near me`,
-        `best ${name}`,
-        `${name} online`,
-        `${name} india`,
-        `${categoryLower}`,
-        `${subcategoryLower}`,
-        `healthy ${name}`,
-        `instant ${name}`,
-        `homemade ${name}`,
-        `natural ${name}`,
-        `organic ${name}`,
-        ...ingredientNames.map(i => `${i.trim()} ${name}`),
-      ];
-    
-      return [...new Set(tags.filter(Boolean))].slice(0, 25);
-    }
-
-  /* ================= Format Ingredients ================= */
-  
-    function formatIngredients(ingredients) {
-      if (!Array.isArray(ingredients)) return "";
-    
-      return ingredients.map(i => i.name).join(", ");
-    }
-
-    /* ================= Calculate Ingredients ================= */
-  
-    function calculateIngredientPercentages(ingredients) {
-      const total = ingredients.reduce((sum, i) => sum + Number(i.qty || 0), 0);
-    
-      return ingredients.map(i => ({
-        ...i,
-        percent: total ? ((i.qty / total) * 100).toFixed(1) : 0
-      }));
-    }
-
-  /* ================= INGREDIENTS ================= */
-
-    // convert everything to grams
-    function convertToGrams(qty, unit) {
-      const value = parseFloat(qty) || 0;
-    
-      switch (unit) {
-        case "KG":
-          return value * 1000;
-        case "L":
-          return value * 1000;
-        case "ML":
-          return value;
-        default:
-          return value; // GM
-      }
-    }
-    
-    // recalculate percentages
-    function recalcIngredients(updated) {
-      const totalWeight = parseFloat(form.totalWeight) || 0;
-    
-      return updated.map(i => {
-        const grams = convertToGrams(i.qty, i.unit);
-    
-        return {
-          ...i,
-          percent: totalWeight
-            ? ((grams / totalWeight) * 100).toFixed(2)
-            : 0,
-        };
-      });
-    }
-    
-    // update ingredient
-    function updateIngredient(i, field, value) {
-      const updated = [...form.ingredients];
-    
-      updated[i] = {
-        ...updated[i],
-        [field]: value,
-      };
-    
-      const recalculated = recalcIngredients(updated);
-    
-      setForm(prev => ({
-        ...prev,
-        ingredients: recalculated,
-      }));
-    }
-    
-    // add ingredient
-    function addIngredient() {
-      setForm(prev => ({
-        ...prev,
-        ingredients: [
-          ...prev.ingredients,
-          { name: "", qty: "", unit: "GM", percent: 0 }
-        ],
-      }));
-    }
-    
-    // remove ingredient
-    function removeIngredient(i) {
-      const updated = form.ingredients.filter((_, idx) => idx !== i);
-    
-      setForm(prev => ({
-        ...prev,
-        ingredients: recalcIngredients(updated),
-      }));
-    }
-
-  const total = form.ingredients.reduce(
-      (sum, i) => sum + parseFloat(i.percent || 0),
-      0
-    );
-
- 
-  /* ================= SAVE ================= */
-
-  async function handleSubmit() {
-    const tags = generateSEOTags();
-    const err = validate();
-    if (err) return setError(err);
-
-    for (let v of form.variants) {
-      await fetch("/api/admin/products", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...form,
-          displayName,
-          brand: form.brand,
-          tags,
-          variant: `${v.value}${v.unit}`,
-          sku: v.sku,
-          mrp: v.mrp,
-          sellingPrice: v.sellingPrice,
-          productKey,
-          slug,
-          seo,
-          status: "review",
-        }),
-      });
-    }
-
-    alert("Saved ✔");
-    setForm(emptyForm);
-  }
-
-  /* ================= 🔥 PUT CALC LOGIC HERE ================= */
-    const totalCost =
-      Number(form.baseCost || 0) +
-      Number(form.packagingCost || 0) +
-      Number(form.logisticsCost || 0) +
-      Number(form.marketingCost || 0);
-  
-    const gstAmount =
-      (Number(form.sellingPrice || 0) * Number(form.tax || 0)) / 100;
-  
-    const finalPrice =
-      Number(form.sellingPrice || 0) + gstAmount;
-  
-    const profit =
-      Number(form.sellingPrice || 0) - totalCost;
-  
-    const margin =
-      form.sellingPrice
-        ? (profit / form.sellingPrice) * 100
-        : 0;
-
   /* ================= UI ================= */
 
   return (
     <div style={{ maxWidth: 1100, margin: "auto", padding: 20 }}>
 
       <h1>Product Admin</h1>
-
-      {error && <div style={{ color: "red" }}>{error}</div>}
-
-      {/* PROGRESS */}
-      <div style={{ display: "flex", marginBottom: 10 }}>
-        {["Basic", "Variants", "Media", "Compliance"].map((s, i) => (
-          <div key={i} style={{
-            flex: 1,
-            padding: 8,
-            background: step >= i ? "green" : "#ddd",
-            color: "#fff"
-          }}>{s}</div>
-        ))}
-      </div>
 
 {/* BASIC */}
 {step === 0 && (
@@ -1384,4 +1050,5 @@ async function generateAIContent() {
     </div>
 
   </div>
-)};
+);
+}
