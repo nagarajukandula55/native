@@ -182,22 +182,24 @@ useEffect(() => {
   
 
 /* =============== AI Content ============== */
-  
- async function generateAIContent() {
+
+async function generateAIContent() {
   try {
     /* ✅ VALIDATION FIRST */
-      if (!form.ingredients || form.ingredients.length === 0) {
-        return "Add ingredients";
-      }
-      
-      const totalPercent = form.ingredients.reduce(
-        (sum, i) => sum + parseFloat(i.percent || 0),
-        0
-      );
-      
-      if (Math.abs(totalPercent - 100) > 1) {
-        return "Ingredients must total ~100%";
-      }
+    if (!Array.isArray(form.ingredients) || form.ingredients.length === 0) {
+      alert("Add ingredients");
+      return;
+    }
+
+    const totalPercent = form.ingredients.reduce(
+      (sum, i) => sum + parseFloat(i.percent || 0),
+      0
+    );
+
+    if (Math.abs(totalPercent - 100) > 1) {
+      alert("Ingredients must total ~100%");
+      return;
+    }
 
     /* ✅ FORMAT INGREDIENTS */
     const cleanedIngredients = formatIngredients(form.ingredients);
@@ -209,7 +211,7 @@ useEffect(() => {
         name: form.name,
         category: form.category,
         subcategory: form.subcategory,
-        ingredients: formatIngredients(form.ingredients),
+        ingredients: cleanedIngredients, // ✅ reuse
       }),
     });
 
@@ -222,15 +224,15 @@ useEffect(() => {
       return;
     }
 
-    const data = await res.json();
-
-    // ✅ MUST exist
+    // ✅ FIX: define once only
     const c = data.content || data;
-    
+
     /* ✅ UPDATE FORM */
     setForm(prev => ({
       ...prev,
-      highlights: c.highlights?.join(", ") || prev.highlights || "",
+      highlights: Array.isArray(c.highlights)
+        ? c.highlights.join(", ")
+        : c.highlights || prev.highlights || "",
       shortDescription: c.shortDescription || prev.shortDescription || "",
       description: c.description || prev.description || "",
     }));
