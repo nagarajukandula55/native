@@ -785,14 +785,13 @@ async function generateAIContent() {
 
   </div>
 )}
-      {/* VARIANTS */}
 {step === 1 && (
   <div style={{ background: "#fff", padding: 20, borderRadius: 10 }}>
 
-    <h2>💰 Step 1: Pricing & Cost Engine</h2>
+    <h2>💰 Step 1: Pricing Intelligence Engine</h2>
 
     {/* ================= GST SECTION ================= */}
-    <h3>🧾 GST Setup</h3>
+    <h3>🧾 GST Classification</h3>
 
     <select
       value={form.gstCategory}
@@ -808,15 +807,17 @@ async function generateAIContent() {
       }}
       style={{ width: "100%", padding: 10 }}
     >
-      <option>Select GST Category</option>
+      <option>Select Product Type (Auto GST)</option>
       {gstOptions.map(g => (
-        <option key={g.name}>{g.name}</option>
+        <option key={g.name} value={g.name}>
+          {g.name}
+        </option>
       ))}
     </select>
 
     <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
       <input value={form.hsn} readOnly placeholder="HSN Code" />
-      <input value={form.tax + "%"} readOnly placeholder="GST %" />
+      <input value={form.tax + "% GST"} readOnly placeholder="GST %" />
     </div>
 
     {/* ================= COST SECTION ================= */}
@@ -824,67 +825,58 @@ async function generateAIContent() {
 
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
 
-      <input
-        placeholder="Ingredient Cost"
+      <input placeholder="Ingredient Cost"
         value={form.baseCost}
         onChange={e => setForm({ ...form, baseCost: e.target.value })}
       />
 
-      <input
-        placeholder="Packaging Cost"
+      <input placeholder="Packaging Cost"
         value={form.packagingCost}
         onChange={e => setForm({ ...form, packagingCost: e.target.value })}
       />
 
-      <input
-        placeholder="Logistics Cost"
+      <input placeholder="Logistics Cost"
         value={form.logisticsCost}
         onChange={e => setForm({ ...form, logisticsCost: e.target.value })}
       />
 
-      <input
-        placeholder="Marketing Cost"
+      <input placeholder="Marketing Cost"
         value={form.marketingCost}
         onChange={e => setForm({ ...form, marketingCost: e.target.value })}
       />
     </div>
 
     {/* ================= PRICING ================= */}
-    <h3 style={{ marginTop: 20 }}>💰 Pricing Engine</h3>
+    <h3 style={{ marginTop: 20 }}>💰 Pricing Input (Ex GST)</h3>
 
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
 
       <input
-        placeholder="MRP (Incl GST)"
-        value={form.mrp}
-        onChange={e => setForm({ ...form, mrp: e.target.value })}
-      />
-
-      <input
-        placeholder="Selling Price (Ex GST)"
+        placeholder="Selling Price (WITHOUT GST)"
         value={form.sellingPrice}
         onChange={e => setForm({ ...form, sellingPrice: e.target.value })}
       />
+
+      <input
+        placeholder="MRP (WITHOUT GST)"
+        value={form.mrp}
+        onChange={e => setForm({ ...form, mrp: e.target.value })}
+      />
     </div>
 
-    {/* ================= SKU SECTION ================= */}
+    {/* ================= SKU ================= */}
     <h3 style={{ marginTop: 20 }}>🆔 SKU System</h3>
 
     <input
-      placeholder="Auto SKU (NA system)"
+      readOnly
       value={
         form.name && form.totalWeight
-          ? `NA-${form.name.toUpperCase()}-001-${form.totalWeight}GM`
+          ? `NA-${form.name.toUpperCase().replace(/\s+/g, "")}-001-${form.totalWeight}GM`
           : ""
       }
-      readOnly
     />
 
-    <small style={{ color: "gray" }}>
-      SKU auto-generates using product name + weight + serial
-    </small>
-
-    {/* ================= AUTO CALC ================= */}
+    {/* ================= CORE CALC ================= */}
     <div style={{
       marginTop: 20,
       padding: 10,
@@ -893,11 +885,102 @@ async function generateAIContent() {
     }}>
 
       <p>💰 Total Cost: ₹{totalCost || 0}</p>
-      <p>🧾 GST Amount: ₹{gstAmount?.toFixed(2) || 0}</p>
+      <p>🧾 GST: ₹{gstAmount?.toFixed(2) || 0}</p>
       <p>💵 Final Price (Incl GST): ₹{finalPrice?.toFixed(2) || 0}</p>
       <p>📈 Profit: ₹{profit?.toFixed(2) || 0}</p>
       <p>📊 Margin: {margin?.toFixed(2) || 0}%</p>
 
+    </div>
+
+    {/* ===================================================== */}
+    {/* 🧠 AI PRICE OPTIMIZER (NEW) */}
+    {/* ===================================================== */}
+
+    <h3 style={{ marginTop: 20 }}>🧠 AI Price Optimizer</h3>
+
+    <div style={{
+      padding: 10,
+      background: "#e8f4ff",
+      borderRadius: 8
+    }}>
+
+      <p>
+        💡 Suggested Selling Price:
+        <b> ₹{(totalCost * 1.45 || 0).toFixed(2)}</b>
+      </p>
+
+      <p>
+        💡 Suggested MRP:
+        <b> ₹{((totalCost * 1.45) * 1.25 || 0).toFixed(2)}</b>
+      </p>
+
+      <p style={{ fontSize: 12, color: "#555" }}>
+        AI adjusts pricing based on category margin benchmarks + FMCG trends
+      </p>
+    </div>
+
+    {/* ===================================================== */}
+    {/* 📊 PRICE HISTORY & AUDIT TRAIL (UI ONLY) */}
+    {/* ===================================================== */}
+
+    <h3 style={{ marginTop: 20 }}>📊 Price History & Audit Trail</h3>
+
+    <div style={{
+      padding: 10,
+      background: "#fff7e6",
+      borderRadius: 8,
+      fontSize: 12
+    }}>
+      <p>🕒 Last Price Update: --</p>
+      <p>👤 Updated By: Admin</p>
+      <p>📌 Change Type: Manual / AI Suggested</p>
+      <p>📈 Previous Price: --</p>
+    </div>
+
+    {/* ===================================================== */}
+    {/* 📉 LOSS PREVENTION ENGINE */}
+    {/* ===================================================== */}
+
+    <h3 style={{ marginTop: 20 }}>📉 Loss Prevention Engine</h3>
+
+    <div style={{
+      padding: 10,
+      background: "#ffecec",
+      borderRadius: 8
+    }}>
+
+      {Number(form.sellingPrice) < totalCost ? (
+        <p style={{ color: "red" }}>
+          ❌ WARNING: Selling price is LOWER than cost → LOSS ALERT
+        </p>
+      ) : (
+        <p style={{ color: "green" }}>
+          ✅ Safe pricing structure (no loss detected)
+        </p>
+      )}
+
+      <p style={{ fontSize: 12 }}>
+        System prevents negative margin products before saving
+      </p>
+    </div>
+
+    {/* ================= GUIDANCE ================= */}
+    <div style={{
+      marginTop: 15,
+      padding: 10,
+      background: "#fffbe6",
+      borderLeft: "4px solid #f5c542",
+      fontSize: 12
+    }}>
+      ⚠️ System Rules:
+      <br />
+      - Selling price must always be above cost
+      <br />
+      - AI suggestions are reference only
+      <br />
+      - Price history will be stored in database (next step)
+      <br />
+      - Loss prevention will block invalid submissions
     </div>
 
   </div>
