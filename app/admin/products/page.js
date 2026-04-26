@@ -281,49 +281,43 @@ export default function ProductUpload() {
 
   /* ================= UI ================= */
 
-  return (
-    <div style={{ maxWidth: 1100, margin: "auto", padding: 20 }}>
+return (
+  <div style={{ maxWidth: 1100, margin: "auto", padding: 20 }}>
 
-      <h1>Product Admin</h1>
+    <h1>Product Admin</h1>
 
-      {error && <div style={{ color: "red" }}>{error}</div>}
+    {error && <div style={{ color: "red" }}>{error}</div>}
 
-      {/* STEP 0 */}
-      {step === 0 && (
-        <div>
+    {/* STEP 0 */}
+    {step === 0 && (
+      <div>
+        <input
+          placeholder="Product Name"
+          value={form.name}
+          onChange={e => setForm({ ...form, name: e.target.value })}
+        />
 
-          <input
-            placeholder="Product Name"
-            value={form.name}
-            onChange={e => setForm({ ...form, name: e.target.value })}
-          />
-
-          {/* INGREDIENTS */}
-          {form.ingredients.map((ing, i) => (
-            <div key={i}>
-              <input
-                value={ing.name}
-                onChange={e => updateIngredient(i, "name", e.target.value)}
-              />
-            </div>
-          ))}
-
-          {/* ✅ FIXED POSITION */}
-          <div style={{ marginTop: 10, fontWeight: "bold" }}>
-            Used: {form.ingredients.reduce(
-              (sum, i) => sum + convertToGrams(i.qty, i.unit),
-              0
-            )} gm / {form.totalWeight || 0} gm
+        {form.ingredients.map((ing, i) => (
+          <div key={i}>
+            <input
+              value={ing.name}
+              onChange={e => updateIngredient(i, "name", e.target.value)}
+            />
           </div>
+        ))}
 
-          <button onClick={generateAIContent}>Generate AI</button>
-
+        <div style={{ marginTop: 10, fontWeight: "bold" }}>
+          Used: {form.ingredients.reduce(
+            (sum, i) => sum + convertToGrams(i.qty, i.unit),
+            0
+          )} gm / {form.totalWeight || 0} gm
         </div>
-      )}
 
-    </div>
-  );
-}
+        <button onClick={generateAIContent}>
+          Generate AI
+        </button>
+      </div>
+    )}
 
 {/* BASIC */}
 {step === 0 && (
