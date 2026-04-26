@@ -29,7 +29,7 @@ export default function ProductUpload() {
 
     description: "",
     shortDescription: "",
-    ingredients: [],        // structured
+    ingredients: [{ name: "", qty: "", unit: "GM", percent: 0 }],
     ingredientsText: "",    // simple text (optional UI)
 
     subcategory: "",
@@ -122,9 +122,9 @@ export default function ProductUpload() {
       const subcategoryname = form.subcategory?.toLowerCase();
     
       // ingredients support (string safe)
-      const ingredientWords = form.ingredients
-        ? form.ingredients.toLowerCase().split(/[ ,]+/)
-        : [];
+      const ingredientsText = Array.isArray(form.ingredients)
+        ? form.ingredients.map(i => i.name).join(", ").toLowerCase()
+        : (form.ingredients || "").toLowerCase();
     
       const autoTagsArray = [
         ...nameWords,
@@ -209,10 +209,18 @@ export default function ProductUpload() {
  async function generateAIContent() {
   try {
     /* ✅ VALIDATION FIRST */
-    if (!form.ingredients || !form.ingredients.trim()) {
-      alert("Please enter ingredients before generating content");
-      return;
-    }
+      if (!form.ingredients || form.ingredients.length === 0) {
+        return "Add ingredients";
+      }
+      
+      const totalPercent = form.ingredients.reduce(
+        (sum, i) => sum + parseFloat(i.percent || 0),
+        0
+      );
+      
+      if (Math.abs(totalPercent - 100) > 1) {
+        return "Ingredients must total ~100%";
+      }
 
     /* ✅ FORMAT INGREDIENTS */
     const cleanedIngredients = formatIngredients(form.ingredients).join(", ");
@@ -400,6 +408,83 @@ export default function ProductUpload() {
       }));
     }
 
+  /* ================= INGREDIENTS ================= */
+
+    // convert everything to grams
+    function convertToGrams(qty, unit) {
+      const value = parseFloat(qty) || 0;
+    
+      switch (unit) {
+        case "KG":
+          return value * 1000;
+        case "L":
+          return value * 1000;
+        case "ML":
+          return value;
+        default:
+          return value; // GM
+      }
+    }
+    
+    // recalculate percentages
+    function recalcIngredients(updated) {
+      const totalGrams = updated.reduce((sum, i) => {
+        return sum + convertToGrams(i.qty, i.unit);
+      }, 0);
+    
+      return updated.map(i => {
+        const grams = convertToGrams(i.qty, i.unit);
+    
+        return {
+          ...i,
+          percent: totalGrams ? ((grams / totalGrams) * 100).toFixed(2) : 0,
+        };
+      });
+    }
+    
+    // update ingredient
+    function updateIngredient(i, field, value) {
+      const updated = [...form.ingredients];
+    
+      updated[i] = {
+        ...updated[i],
+        [field]: value,
+      };
+    
+      const recalculated = recalcIngredients(updated);
+    
+      setForm(prev => ({
+        ...prev,
+        ingredients: recalculated,
+      }));
+    }
+    
+    // add ingredient
+    function addIngredient() {
+      setForm(prev => ({
+        ...prev,
+        ingredients: [
+          ...prev.ingredients,
+          { name: "", qty: "", unit: "GM", percent: 0 }
+        ],
+      }));
+    }
+    
+    // remove ingredient
+    function removeIngredient(i) {
+      const updated = form.ingredients.filter((_, idx) => idx !== i);
+    
+      setForm(prev => ({
+        ...prev,
+        ingredients: recalcIngredients(updated),
+      }));
+    }
+
+  const total = form.ingredients.reduce(
+      (sum, i) => sum + parseFloat(i.percent || 0),
+      0
+    );
+
  
   /* ================= SAVE ================= */
 
@@ -564,6 +649,69 @@ export default function ProductUpload() {
       
         </div>
       )}
+
+    {/* ================= INGREDIENTS UI ================= */}
+    
+    <div style={{
+      background: "#fff",
+      padding: 20,
+      borderRadius: 10,
+      marginTop: 20
+    }}>
+    
+      <h3>🥗 Ingredients</h3>
+    
+      {form.ingredients.map((ing, i) => (
+        <div key={i} style={{
+          display: "grid",
+          gridTemplateColumns: "2fr 1fr 1fr 1fr auto",
+          gap: 10,
+          marginBottom: 10
+        }}>
+    
+          {/* Name */}
+          <input
+            placeholder="Ingredient Name (Rice, Dal...)"
+            value={ing.name}
+            onChange={e => updateIngredient(i, "name", e.target.value)}
+          />
+    
+          {/* Qty */}
+          <input
+            type="number"
+            placeholder="Qty"
+            value={ing.qty}
+            onChange={e => updateIngredient(i, "qty", e.target.value)}
+          />
+    
+          {/* Unit */}
+          <select
+            value={ing.unit}
+            onChange={e => updateIngredient(i, "unit", e.target.value)}
+          >
+            <option>GM</option>
+            <option>KG</option>
+            <option>ML</option>
+            <option>L</option>
+          </select>
+    
+          {/* Percent */}
+          <input
+            value={`${ing.percent || 0}%`}
+            readOnly
+            style={{ background: "#eee" }}
+          />
+
+          <div>Total: {total.toFixed(2)}%</div>
+    
+          {/* Remove */}
+          <button onClick={() => removeIngredient(i)}>X</button>
+        </div>
+      ))}
+    
+      <button onClick={addIngredient}>+ Add Ingredient</button>
+    
+    </div>
   
       {/* VARIANTS */}
       {step === 1 && (
