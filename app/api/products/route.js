@@ -15,7 +15,7 @@ export async function GET(req) {
     const category = searchParams.get("category");
     const search = searchParams.get("search");
 
-    /* ================= PUBLIC FILTER ONLY ================= */
+    /* ================= MATCH FILTER ================= */
     const match = {
       status: "approved",
       isActive: true,
@@ -29,11 +29,11 @@ export async function GET(req) {
       match.name = { $regex: search, $options: "i" };
     }
 
-    /* ================= PIPELINE ================= */
+    /* ================= AGGREGATION PIPELINE ================= */
     const pipeline = [
       { $match: match },
 
-      /* show cheapest variant first */
+      /* sort variants by price */
       { $sort: { sellingPrice: 1 } },
 
       {
@@ -43,9 +43,13 @@ export async function GET(req) {
           name: { $first: "$name" },
           productKey: { $first: "$productKey" },
           category: { $first: "$category" },
-
           slug: { $first: "$slug" },
-          image: { $first: { $arrayElemAt: ["$images", 0] } },
+
+          image: {
+            $first: {
+              $arrayElemAt: ["$images", 0],
+            },
+          },
 
           price: { $first: "$sellingPrice" },
           mrp: { $first: "$mrp" },
@@ -56,12 +60,17 @@ export async function GET(req) {
         },
       },
 
-      /* discount calculation */
+      /* ================= SAFE DISCOUNT CALC ================= */
       {
         $addFields: {
           discount: {
             $cond: [
-              { $and: ["$mrp", "$price"] },
+              {
+                $and: [
+                  { $gt: ["$mrp", 0] },
+                  { $gt: ["$price", 0] }
+                ],
+              },
               {
                 $round: [
                   {
@@ -98,8 +107,8 @@ export async function GET(req) {
 
     return NextResponse.json({
       success: true,
-      products: result[0]?.data || [],
-      total: result[0]?.totalCount[0]?.count || 0,
+      products: result?.[0]?.data || [],
+      total: result?.[0]?.totalCount?.[0]?.count || 0,
     });
 
   } catch (err) {
