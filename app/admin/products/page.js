@@ -987,9 +987,198 @@ async function generateAIContent() {
 )}
 
       {/* MEDIA */}
-      {step === 2 && (
-        <input type="file" multiple onChange={handleImageUpload} />
-      )}
+        {step === 2 && (
+          <div style={{ background: "#fff", padding: 20, borderRadius: 10 }}>
+        
+            <h2>📸 Step 2: Media & Product Identity</h2>
+        
+            {/* ================= IMAGE UPLOAD ================= */}
+            <h3>🖼️ Product Images</h3>
+        
+            <input
+              type="file"
+              multiple
+              accept="image/*"
+              onChange={handleImageUpload}
+            />
+        
+            {/* PREVIEW GRID */}
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(4, 1fr)",
+              gap: 10,
+              marginTop: 15
+            }}>
+              {form.images.map((img, i) => (
+                <div key={i} style={{
+                  border: "1px solid #ddd",
+                  padding: 8,
+                  borderRadius: 8,
+                  position: "relative"
+                }}>
+        
+                  <img
+                    src={img}
+                    style={{ width: "100%", height: 100, objectFit: "cover" }}
+                  />
+        
+                  {/* PRIMARY SELECT */}
+                  <button
+                    onClick={() =>
+                      setForm(prev => ({
+                        ...prev,
+                        primaryImage: img
+                      }))
+                    }
+                    style={{
+                      position: "absolute",
+                      top: 5,
+                      left: 5,
+                      fontSize: 10,
+                      background: form.primaryImage === img ? "green" : "black",
+                      color: "#fff",
+                      border: "none",
+                      padding: "3px 6px",
+                      cursor: "pointer"
+                    }}
+                  >
+                    {form.primaryImage === img ? "Primary" : "Set Primary"}
+                  </button>
+        
+                </div>
+              ))}
+            </div>
+        
+            {/* ================= VIDEO UPLOAD ================= */}
+            <h3 style={{ marginTop: 25 }}>🎥 Product Video</h3>
+        
+            <input
+              type="file"
+              accept="video/*"
+              onChange={async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+        
+                const videoURL = URL.createObjectURL(file);
+        
+                setForm(prev => ({
+                  ...prev,
+                  video: videoURL
+                }));
+              }}
+            />
+        
+            {/* VIDEO PREVIEW */}
+            {form.video && (
+              <video
+                src={form.video}
+                controls
+                style={{
+                  width: "100%",
+                  marginTop: 10,
+                  borderRadius: 10
+                }}
+              />
+            )}
+        
+            {/* ================= AI VIDEO GENERATION ================= */}
+            <h3 style={{ marginTop: 25 }}>🤖 AI Video Generator</h3>
+        
+            <div style={{
+              padding: 15,
+              background: "#f0f7ff",
+              borderRadius: 10
+            }}>
+        
+              <p>
+                Generate product marketing video using images automatically
+              </p>
+        
+              <button
+                onClick={() => alert("AI Video generation will be connected later")}
+                style={{
+                  padding: 10,
+                  background: "black",
+                  color: "white",
+                  border: "none",
+                  cursor: "pointer"
+                }}
+              >
+                ⚡ Generate AI Video (Beta)
+              </button>
+            </div>
+        
+            {/* ================= PACKAGING VISUAL INFO ================= */}
+            <h3 style={{ marginTop: 25 }}>📦 Packaging Identity</h3>
+        
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: 10
+            }}>
+        
+              <select
+                value={form.packagingType}
+                onChange={e =>
+                  setForm({ ...form, packagingType: e.target.value })
+                }
+              >
+                <option>Packaging Type</option>
+                <option>Pouch</option>
+                <option>Box</option>
+                <option>Bottle</option>
+                <option>Jar</option>
+                <option>Sachet</option>
+              </select>
+        
+              <select
+                value={form.visibilityTag}
+                onChange={e =>
+                  setForm({ ...form, visibilityTag: e.target.value })
+                }
+              >
+                <option>Visibility Badge</option>
+                <option>New Launch</option>
+                <option>Bestseller</option>
+                <option>Premium</option>
+                <option>Value Pack</option>
+              </select>
+        
+            </div>
+        
+            {/* ================= SEO IMAGE INFO ================= */}
+            <h3 style={{ marginTop: 25 }}>🔎 Image SEO Metadata (Auto-ready)</h3>
+        
+            <textarea
+              placeholder="Auto-generated alt text (future AI hook)"
+              value={
+                form.images.map(img => `product image ${form.name}`).join(", ")
+              }
+              readOnly
+              style={{ width: "100%", height: 80 }}
+            />
+        
+            {/* ================= INFO BOX ================= */}
+            <div style={{
+              marginTop: 20,
+              padding: 10,
+              background: "#fffbe6",
+              borderLeft: "4px solid orange",
+              fontSize: 12
+            }}>
+              ⚠️ Rules:
+              <br />
+              - First selected image becomes primary display image
+              <br />
+              - Video improves conversion rate by 30–60%
+              <br />
+              - AI video generation will use images + description later
+              <br />
+              - Packaging + visibility affects ranking in search
+            </div>
+        
+          </div>
+        )}
 
       {/* COMPLIANCE */}
       {step === 3 && (
