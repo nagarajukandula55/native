@@ -8,22 +8,46 @@ export async function POST(req) {
 
     const body = await req.json();
 
-    console.log("📦 Incoming Body:", body); // 🔥 DEBUG
+    console.log("📦 Incoming Body:", body);
 
-    // 🔥 HARD VALIDATION (prevents silent crash)
-    if (!body.name) throw new Error("Name missing");
-    if (!body.productKey) throw new Error("productKey missing");
-    if (!body.slug) throw new Error("slug missing");
-    if (!body.sku) throw new Error("sku missing");
+    // ================= SAFE VALIDATION =================
+    const requiredFields = ["name", "productKey", "slug", "sku"];
 
-    const newProduct = await Product.create({
+    const missingFields = requiredFields.filter(
+      (field) => !body?.[field]
+    );
+
+    if (missingFields.length > 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: `Missing fields: ${missingFields.join(", ")}`,
+        },
+        { status: 400 }
+      );
+    }
+
+    // ================= CLEAN DATA =================
+    const productData = {
       ...body,
+
+      // ensure safe defaults
       isActive: false,
       createdAt: new Date(),
-    });
+
+      // prevent undefined overwrites
+      tags: body.tags || "",
+      images: body.images || [],
+      ingredients: body.ingredients || [],
+      variants: body.variants || [],
+    };
+
+    // ================= SAVE =================
+    const newProduct = await Product.create(productData);
 
     return NextResponse.json({
       success: true,
+      message: "Product created successfully",
       product: newProduct,
     });
 
@@ -33,7 +57,7 @@ export async function POST(req) {
     return NextResponse.json(
       {
         success: false,
-        message: error.message, // 🔥 IMPORTANT
+        message: error?.message || "Internal Server Error",
       },
       { status: 500 }
     );
