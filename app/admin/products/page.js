@@ -634,31 +634,43 @@ function removeIngredient(i) {
       }
     }, [form.productId, slug]);
 
-const handleSubmit = async () => {
-  try {
-    setError("");
+/* ============ Handle Submit ===========*/
 
-    const res = await fetch("/api/products", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(form),
-    });
-
-    const data = await res.json();
-
-    if (!data.success) {
-      setError(data.message || "Product submission failed");
-      return;
-    }
-
-    alert("✅ Product submitted successfully!");
-  } catch (err) {
-    console.error("Submit error:", err);
-    setError("Server error while submitting product");
-  }
-};
+      const handleSubmit = async () => {
+        try {
+          setError("");
+      
+          const res = await fetch("/api/products", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(form),
+          });
+      
+          // ✅ SAFE CHECK BEFORE JSON PARSE
+          const text = await res.text();
+      
+          let data;
+          try {
+            data = JSON.parse(text);
+          } catch (e) {
+            console.error("Invalid JSON from API:", text);
+            setError("Server returned invalid response");
+            return;
+          }
+      
+          if (!data.success) {
+            setError(data.message || "Product submission failed");
+            return;
+          }
+      
+          alert("Product submitted successfully!");
+        } catch (err) {
+          console.error("Submit error:", err);
+          setError("Network or server error");
+        }
+      };
 
 
   /* ================= UI ================= */
