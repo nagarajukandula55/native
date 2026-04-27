@@ -422,25 +422,18 @@ function removeIngredient(i) {
     
         const c = data.content || data;
     
-        setForm(prev => ({
-          ...prev,
-    
-          // 🔥 CORE COMPLIANCE FIELDS
-          allergenInfo: c.allergenInfo || c.allergen || "",
-          storageInstructions: c.storageInstructions || c.storage || "",
-          usageInstructions: c.usageInstructions || c.usage || "",
-          safetyInfo: c.safetyInfo || c.safety || "",
-    
-          // optional fallback improvements
-          manufacturerName: c.manufacturerName || prev.manufacturerName,
-          countryOfOrigin: c.countryOfOrigin || prev.countryOfOrigin,
-        }));
-    
-      } catch (err) {
-        console.error("AI compliance error:", err);
-        alert("AI compliance error");
-      }
-    }
+            setForm(prev => ({
+              ...prev,
+              storageInstructions: c.storageInstructions || "",
+              allergenInfo: c.allergenInfo || "",
+              usageInstructions: c.usageInstructions || "",
+              safetyInfo: c.safetyInfo || "",
+            }));
+        
+          } catch (err) {
+            alert("AI compliance error");
+          }
+        }
 
     async function generateMultiSEO() {
     const res = await fetch("/api/ai-seo-multi", {
