@@ -144,7 +144,7 @@ useEffect(() => {
     : [];
 
   const base = displayName.toLowerCase();
-  const nameOnly = displayName.toLowerCase(); // ✅ FIXED
+  const nameOnly = displayName.toLowerCase();
   const categorylower = form.category?.toLowerCase() || "";
   const subcategorylower = form.subcategory?.toLowerCase() || "";
 
@@ -174,7 +174,17 @@ useEffect(() => {
 
 }, [form.name, form.category, form.subcategory, form.ingredients, form.brand]);
 
-/*  ============ Barcode + QR ============== */
+
+/* ================= PRODUCT KEY ================= */
+
+useEffect(() => {
+  if (form.name && !productKey) {
+    setProductKey(Date.now().toString().slice(-6));
+  }
+}, [form.name, productKey]);
+
+
+/* ================= BARCODE + QR ================= */
 
 useEffect(() => {
   if (!form.productId) return;
@@ -186,174 +196,141 @@ useEffect(() => {
       return {
         ...prev,
         barcode: form.productId,
-        qrCode: `https://shopnative.in/product/${slug}`
+        qrCode: `https://shopnative.in/product/${slug}`,
       };
     });
   } catch (e) {
     console.error(e);
   }
-
 }, [form.productId, slug]);
 
+
+/* ================= BRAND SLUG + PRODUCT ID ================= */
+
 useEffect(() => {
-  if (form.name && !productKey) {
-    setProductKey(Date.now().toString().slice(-6));
+  if (!form.brand) return;
+
+  const brandSlug = form.brand.toLowerCase().replace(/\s+/g, "-");
+
+  const id = `${brandSlug}-${Date.now().toString().slice(-5)}`;
+
+  setForm(prev => ({
+    ...prev,
+    brandSlug,
+    productId: id,
+  }));
+}, [form.brand]);
+
+
+/* ================= PRICE WITH GST ================= */
+
+useEffect(() => {
+  const price =
+    Number(form.sellingPrice || 0) +
+    (Number(form.sellingPrice || 0) * Number(form.tax || 0)) / 100;
+
+  setForm(prev => ({
+    ...prev,
+    priceWithGST: price.toFixed(2),
+  }));
+}, [form.sellingPrice, form.tax]);
+
+
+/* ================= GST AUTO FILL ================= */
+
+useEffect(() => {
+  const gst = gstOptions.find(g => g.name === form.gstCategory);
+
+  if (gst) {
+    setForm(prev => ({
+      ...prev,
+      hsn: gst.hsn,
+      tax: gst.tax,
+    }));
   }
-}, [form.name, productKey]);
-      setProductKey(Date.now().toString().slice(-6));
-    }
-  }, [form.name]);
-
-/*  ==============  ================*/
-    useEffect(() => {
-      if (!form.productId) return;
-    
-      try {
-        setForm(prev => {
-          if (prev.barcode === form.productId) return prev;
-    
-          return {
-            ...prev,
-            barcode: form.productId,
-            qrCode: `https://shopnative.in/product/${slug}`
-          };
-        });
-      } catch (e) {
-        console.error(e);
-      }
-    
-    }, [form.productId, slug]);
-    
-    
-    useEffect(() => {
-      if (!form.brand) return;
-    
-      const brandSlug = form.brand.toLowerCase().replace(/\s+/g, "-"); // ✅ FIXED
-    
-      const id = `${brandSlug}-${Date.now().toString().slice(-5)}`;
-    
-      setForm(prev => ({
-        ...prev,
-        brandSlug: brandSlug,
-        productId: id
-      }));
-    
-    }, [form.brand]);
+}, [form.gstCategory]);
 
 
-  /* ================= FIXED BROKEN BLOCK ================= */
+/* ================= BARCODE RENDER ================= */
 
-    useEffect(() => {
-      if (!form.productId) return;
-    
-      try {
-        setForm(prev => {
-          if (prev.barcode === form.productId) return prev;
-    
-          return {
-            ...prev,
-            barcode: form.productId,
-            qrCode: `https://shopnative.in/product/${slug}`,
-          };
-        });
-      } catch (e) {
-        console.error(e);
-      }
-    }, [form.productId, slug]);
-    
-    
-    useEffect(() => {
-      const price =
-        Number(form.sellingPrice || 0) +
-        (Number(form.sellingPrice || 0) * Number(form.tax || 0)) / 100;
-    
-      setForm(prev => ({
-        ...prev,
-        priceWithGST: price.toFixed(2),
-      }));
-    }, [form.sellingPrice, form.tax]);
+useEffect(() => {
+  if (!form.productId) return;
 
-  /* ================= GST ================= */
+  const el = document.getElementById("barcode");
+  if (!el) return;
 
-  useEffect(() => {
-    const gst = gstOptions.find(g => g.name === form.gstCategory);
-
-    if (gst) {
-      setForm(prev => ({
-        ...prev,
-        hsn: gst.hsn,
-        tax: gst.tax,
-      }));
-    }
-  }, [form.gstCategory]);
-
-  /* ================= BARCODE ================= */
-
-  useEffect(() => {
-    if (!form.productId) return;
-
-    const el = document.getElementById("barcode");
-    if (!el) return;
-
-    try {
-      JsBarcode(el, form.productId);
-    } catch (e) {
-      console.error(e);
-    }
-
-  }, [form.productId]);
-
-  /* ================= HELPERS ================= */
-
-  function convertToGrams(qty, unit) {
-    const value = parseFloat(qty) || 0;
-    switch (unit) {
-      case "KG": return value * 1000;
-      case "L": return value * 1000;
-      case "ML": return value;
-      default: return value;
-    }
-  }
-
-  function formatIngredients(ingredients) {
-    return ingredients.map(i => i.name).join(", ");
-  }
-
-  function recalcIngredients(updated) {
-    const totalWeight = parseFloat(form.totalWeight) || 0;
-    return updated.map(i => {
-      const grams = convertToGrams(i.qty, i.unit);
-      return {
-        ...i,
-        percent: totalWeight ? ((grams / totalWeight) * 100).toFixed(2) : 0,
-      };
+  try {
+    JsBarcode(el, form.productId, {
+      format: "CODE128",
+      width: 2,
+      height: 50,
+      displayValue: true,
     });
+  } catch (e) {
+    console.error(e);
   }
+}, [form.productId]);
 
-  function updateIngredient(i, field, value) {
-    const updated = [...form.ingredients];
-    updated[i] = { ...updated[i], [field]: value };
 
-    setForm(prev => ({
-      ...prev,
-      ingredients: recalcIngredients(updated),
-    }));
+/* ================= HELPERS ================= */
+
+function convertToGrams(qty, unit) {
+  const value = parseFloat(qty) || 0;
+  switch (unit) {
+    case "KG": return value * 1000;
+    case "L": return value * 1000;
+    case "ML": return value;
+    default: return value;
   }
+}
 
-  function addIngredient() {
-    setForm(prev => ({
-      ...prev,
-      ingredients: [...prev.ingredients, { name: "", qty: "", unit: "GM", percent: 0 }],
-    }));
-  }
+function formatIngredients(ingredients) {
+  return ingredients.map(i => i.name).join(", ");
+}
 
-  function removeIngredient(i) {
-    const updated = form.ingredients.filter((_, idx) => idx !== i);
-    setForm(prev => ({
-      ...prev,
-      ingredients: recalcIngredients(updated),
-    }));
-  }
+function recalcIngredients(updated) {
+  const totalWeight = parseFloat(form.totalWeight) || 0;
+
+  return updated.map(i => {
+    const grams = convertToGrams(i.qty, i.unit);
+
+    return {
+      ...i,
+      percent: totalWeight
+        ? ((grams / totalWeight) * 100).toFixed(2)
+        : 0,
+    };
+  });
+}
+
+function updateIngredient(i, field, value) {
+  const updated = [...form.ingredients];
+  updated[i] = { ...updated[i], [field]: value };
+
+  setForm(prev => ({
+    ...prev,
+    ingredients: recalcIngredients(updated),
+  }));
+}
+
+function addIngredient() {
+  setForm(prev => ({
+    ...prev,
+    ingredients: [
+      ...prev.ingredients,
+      { name: "", qty: "", unit: "GM", percent: 0 },
+    ],
+  }));
+}
+
+function removeIngredient(i) {
+  const updated = form.ingredients.filter((_, idx) => idx !== i);
+
+  setForm(prev => ({
+    ...prev,
+    ingredients: recalcIngredients(updated),
+  }));
+}
 
   /* ================= AI CONTENT ================= */
 
