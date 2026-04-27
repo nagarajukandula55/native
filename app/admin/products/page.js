@@ -173,22 +173,24 @@ export default function ProductUpload() {
   });
 
 }, [form.name, form.category, form.subcategory, form.ingredients, form.brand]);
-      
-  const priceWithGST =
-        Number(form.sellingPrice || 0) +
-        (Number(form.sellingPrice || 0) * Number(form.tax || 0)) / 100;
-      
-          setForm(prev => ({
-            ...prev,
-            barcode: form.productId,
-            qrCode: `https://shopnative.in/product/${slug}`
-          }));
-      
-        } catch (e) {
-          console.error(e);
-        }
-      
-      }, [form.productId]);
+  
+  /*  ============ Price with GST ==============*/
+  
+    const priceWithGST =
+      Number(form.sellingPrice || 0) +
+      (Number(form.sellingPrice || 0) * Number(form.tax || 0)) / 100;
+    
+    setForm(prev => ({
+      ...prev,
+      barcode: form.productId,
+      qrCode: `https://shopnative.in/product/${slug}`
+    }));
+    
+    } catch (e) {
+      console.error(e);
+    }
+    
+    }, [form.productId]);
 
 
   useEffect(() => {
@@ -197,25 +199,26 @@ export default function ProductUpload() {
     }
   }, [form.name]);
 
+/*  ==============  ================*/
     useEffect(() => {
       if (!form.productId) return;
     
-      const el = document.getElementById("barcode");
-    
-      if (!el) return;
-    
       try {
-        JsBarcode(el, form.productId, {
-          format: "CODE128",
-          width: 2,
-          height: 50,
-          displayValue: true,
+        setForm(prev => {
+          if (prev.barcode === form.productId) return prev;
+    
+          return {
+            ...prev,
+            barcode: form.productId,
+            qrCode: `https://shopnative.in/product/${slug}`
+          };
         });
       } catch (e) {
         console.error(e);
       }
     
-    }, [form.productId]);
+    }, [form.productId, slug]);
+
 
     useEffect(() => {
     if (!form.brand) return;
@@ -608,10 +611,6 @@ useEffect(() => {
         }
       }));
     }
-
-    const priceWithGST =
-      Number(form.sellingPrice || 0) +
-      (Number(form.sellingPrice || 0) * Number(form.tax || 0)) / 100;
     
     useEffect(() => {
       if (!form.productId) return;
