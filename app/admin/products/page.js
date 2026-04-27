@@ -658,7 +658,6 @@ function generateProductIds(name, brand, weight) {
                 },
                 body: JSON.stringify(cleanPayload),
               });
-          });
       
           // ✅ SAFE CHECK BEFORE JSON PARSE
           const text = await res.text();
