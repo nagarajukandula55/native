@@ -419,6 +419,76 @@ export default function ProductUpload() {
     }));
   }
 
+    function generateNutrition() {
+      const totalWeight = Number(form.totalWeight || 0);
+    
+      if (!totalWeight) return;
+    
+      setForm(prev => ({
+        ...prev,
+        nutrition: {
+          energy: (totalWeight * 3.5).toFixed(0) + " kcal",
+          protein: (totalWeight * 0.1).toFixed(1) + " g",
+          carbs: (totalWeight * 0.6).toFixed(1) + " g",
+          fat: (totalWeight * 0.2).toFixed(1) + " g"
+        }
+      }));
+    }
+
+    function generateLocalSEO() {
+      const name = form.name || "";
+    
+      setForm(prev => ({
+        ...prev,
+        seoLocal: {
+          telugu: `${name} ఆన్లైన్ లో కొనండి`,
+          hindi: `${name} ऑनलाइन खरीदें`
+        }
+      }));
+    }
+
+  const priceWithGST =
+    Number(form.sellingPrice || 0) +
+    (Number(form.sellingPrice || 0) * Number(form.tax || 0)) / 100;
+
+  useEffect(() => {
+    if (!form.brand) return;
+  
+    const slug = form.brand.toLowerCase().replace(/\s+/g, "-");
+  
+    const id = `${slug}-${Date.now().toString().slice(-5)}`;
+  
+    setForm(prev => ({
+      ...prev,
+      brandSlug: slug,
+      productId: id
+    }));
+  
+  }, [form.brand]);
+
+  useEffect(() => {
+    if (!form.productId) return;
+  
+    try {
+      JsBarcode("#barcode", form.productId, {
+        format: "CODE128",
+        width: 2,
+        height: 50,
+        displayValue: true
+      });
+  
+      setForm(prev => ({
+        ...prev,
+        barcode: form.productId,
+        qrCode: `https://shopnative.in/product/${slug}`
+      }));
+  
+    } catch (e) {
+      console.error(e);
+    }
+  
+  }, [form.productId, slug]);
+
   /* ================= UI ================= */
 
 return (
@@ -1061,6 +1131,32 @@ return (
       style={{ marginTop: 10, width: "100%" }}
     />
 
+    {/* ================= MANUFACTURER TYPE + SHELF LIFE ================= */}
+      <h3 style={{ marginTop: 20 }}>🏭 Manufacturing Details</h3>
+      
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+      
+        <select
+          value={form.manufacturerType || "Manufacturer"}
+          onChange={e =>
+            setForm(prev => ({ ...prev, manufacturerType: e.target.value }))
+          }
+        >
+          <option>Manufacturer</option>
+          <option>Packer</option>
+          <option>Marketer</option>
+        </select>
+      
+        <input
+          placeholder="Shelf Life (e.g. 6 Months)"
+          value={form.shelfLife || ""}
+          onChange={e =>
+            setForm(prev => ({ ...prev, shelfLife: e.target.value }))
+          }
+        />
+      
+      </div>
+
     {/* ================= PRODUCT CLASSIFICATION ================= */}
     <h3 style={{ marginTop: 20 }}>🏷️ Product Classification</h3>
 
@@ -1113,6 +1209,23 @@ return (
       }
     />
 
+    {/* ================= NUTRITION ================= */}
+    <h3 style={{ marginTop: 20 }}>🥗 Nutrition Table</h3>
+    
+    <button
+      onClick={generateNutrition}
+      style={{ marginBottom: 10 }}
+    >
+      Auto Generate Nutrition
+    </button>
+    
+    <div style={{ background: "#f6f6f6", padding: 10, borderRadius: 8 }}>
+      <p>Energy: {form.nutrition?.energy}</p>
+      <p>Protein: {form.nutrition?.protein}</p>
+      <p>Carbs: {form.nutrition?.carbs}</p>
+      <p>Fat: {form.nutrition?.fat}</p>
+    </div>
+
     {/* ================= PRICING INTELLIGENCE ================= */}
     <h3 style={{ marginTop: 20 }}>💰 Pricing Intelligence Summary</h3>
 
@@ -1155,6 +1268,24 @@ return (
       SKU auto-managed (NA system + weight + serial)
     </small>
 
+{/* ================= PRODUCT ID + BARCODE + QR ================= */}
+    <h3 style={{ marginTop: 20 }}>🔗 Product Codes</h3>
+    
+    <input
+      readOnly
+      value={form.productId || ""}
+      placeholder="Auto Product ID"
+    />
+    
+    <svg id="barcode" style={{ marginTop: 10 }}></svg>
+    
+    <div style={{ marginTop: 10 }}>
+      <img
+        src={`https://api.qrserver.com/v1/create-qr-code/?data=${form.qrCode || ""}`}
+        width={120}
+      />
+    </div>
+
     {/* ================= SEO ================= */}
     <h3 style={{ marginTop: 20 }}>🌍 SEO + Marketplace Engine</h3>
 
@@ -1174,6 +1305,23 @@ return (
       placeholder="Keywords"
       value={seo.keywords || ""}
       readOnly
+    />
+
+    {/* ================= LOCAL SEO ================= */}
+    <h3 style={{ marginTop: 20 }}>🌍 Multi-Language SEO</h3>
+    
+    <button onClick={generateLocalSEO}>Generate Local SEO</button>
+    
+    <textarea
+      value={form.seoLocal?.telugu || ""}
+      readOnly
+      placeholder="Telugu SEO"
+    />
+    
+    <textarea
+      value={form.seoLocal?.hindi || ""}
+      readOnly
+      placeholder="Hindi SEO"
     />
 
     {/* ================= TRUST ================= */}
@@ -1239,30 +1387,65 @@ return (
         </button>
       
         {/* FINAL SUBMIT (WITH VALIDATION) */}
-        <button
-          onClick={() => {
-            const err = validateStep(3); // validate final step
-            if (err) {
-              setError(err);
-              return;
-            }
-      
-            setError("");
-            handleSubmit();
-          }}
-          style={{
-            background: "green",
-            color: "#fff",
-            padding: 10,
-            flex: 1,
-            fontWeight: "bold",
-            border: "none",
-            borderRadius: 6,
-            cursor: "pointer"
-          }}
-        >
-          🚀 FINAL SUBMIT PRODUCT
-        </button>
+          <button
+            onClick={() => {
+              // Step 3 validation
+              const err = validateStep(3);
+          
+              if (err) {
+                setError(err);
+                return;
+              }
+          
+              // 🔒 Extra critical validations (FINAL GATE)
+              if (!form.productId) {
+                setError("Product ID missing");
+                return;
+              }
+          
+              if (!form.primaryImage) {
+                setError("Primary image not selected");
+                return;
+              }
+          
+              if (!form.shelfLife) {
+                setError("Shelf life is required");
+                return;
+              }
+          
+              if (!form.manufacturerType) {
+                setError("Manufacturer type required");
+                return;
+              }
+          
+              if (!form.nutrition?.energy) {
+                setError("Generate nutrition before submit");
+                return;
+              }
+          
+              if (!form.barcode) {
+                setError("Barcode not generated");
+                return;
+              }
+          
+              // ✅ All good
+              setError("");
+          
+              handleSubmit();
+            }}
+            style={{
+              background: "green",
+              color: "#fff",
+              padding: 10,
+              flex: 1,
+              fontWeight: "bold",
+              border: "none",
+              borderRadius: 6,
+              cursor: "pointer"
+            }}
+          >
+            🚀 FINAL SUBMIT PRODUCT
+          </button>
       
       </div>
 
