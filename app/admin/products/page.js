@@ -29,7 +29,20 @@ export default function ProductUpload() {
 
     description: "",
     shortDescription: "",
-    ingredients: [{ name: "", qty: "", unit: "GM", percent: 0 }],
+    ingredients: [
+          {
+            name: String,
+            qty: Number,
+            unit: String,
+            percent: Number,
+          }
+        ],
+    nutrition: {
+          energy: Number,
+          protein: Number,
+          carbs: Number,
+          fat: Number,
+        },
 
     subcategory: "",
     highlights: "",
@@ -606,10 +619,10 @@ function generateProductIds(name, brand, weight) {
       setForm(prev => ({
         ...prev,
         nutrition: {
-          energy: totalWeight * 3.5,
-          protein: totalWeight * 0.1,
-          carbs: totalWeight * 0.6,
-          fat: totalWeight * 0.2
+          energy: Number((totalWeight * 3.5).toFixed(2)),
+          protein: Number((totalWeight * 0.1).toFixed(2)),
+          carbs: Number((totalWeight * 0.6).toFixed(2)),
+          fat: Number((totalWeight * 0.2).toFixed(2))
         }
       }));
     }
@@ -687,8 +700,8 @@ function generateProductIds(name, brand, weight) {
           ...form,
         
           slug,
-          productKey,
-          sku,
+          productKey: form.productKey,
+          sku: form.sku,
         
           ingredients: form.ingredients,
         
