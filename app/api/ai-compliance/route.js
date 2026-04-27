@@ -2,8 +2,10 @@ export async function POST(req) {
   return Response.json({
     success: true,
     data: {
-      storage: "Store in cool & dry place",
-      allergen: "Contains peanuts"
+      storageInstructions: "Store in cool & dry place",
+      allergenInfo: "Contains peanuts",
+      usageInstructions: "Use as directed on label",
+      safetyInfo: "Not suitable for infants"
     }
   });
 }
