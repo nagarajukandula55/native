@@ -98,6 +98,16 @@ export default function ProductUpload() {
     { name: "Spices", hsn: "0910", tax: 5 },
   ];
 
+  const gstIncludedPrice = form.sellingPrice
+  ? (Number(form.sellingPrice) * (1 + (form.tax || 0) / 100)).toFixed(2)
+  : 0;
+
+  const [seoMulti, setSeoMulti] = useState({
+    en: "",
+    te: "",
+    hi: ""
+  });
+
   /* ================= AUTO SAVE ================= */
 
     useEffect(() => {
@@ -298,10 +308,63 @@ export default function ProductUpload() {
     }
   }
 
-  const total = (form.ingredients || []).reduce(
-    (sum, i) => sum + parseFloat(i.percent || 0),
-    0
-  );
+    const total = (form.ingredients || []).reduce(
+      (sum, i) => sum + parseFloat(i.percent || 0),
+      0
+    );
+  
+    async function generateComplianceAI() {
+    try {
+      const res = await fetch("/api/ai-compliance", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: form.name,
+          category: form.category,
+          ingredients: form.ingredients.map(i => i.name),
+          productType: form.productType,
+        }),
+      });
+  
+      const data = await res.json();
+  
+      if (!data.success) {
+        alert("AI compliance generation failed");
+        return;
+      }
+  
+      setForm(prev => ({
+        ...prev,
+        allergenInfo: data.allergen || "",
+        storageInstructions: data.storage || "",
+        usageInstructions: data.usage || "",
+        safetyInfo: data.safety || "",
+      }));
+  
+    } catch (err) {
+      alert("AI compliance error");
+    }
+  }
+
+    async function generateMultiSEO() {
+    const res = await fetch("/api/ai-seo-multi", {
+      method: "POST",
+      body: JSON.stringify({
+        name: form.name,
+        category: form.category
+      })
+    });
+  
+    const data = await res.json();
+  
+    setSeoMulti({
+      en: data.en,
+      te: data.te,
+      hi: data.hi
+    });
+  }
 
   {/* ================= PROGRESS BAR ================= */}
     <div style={{
@@ -1080,11 +1143,10 @@ return (
 
     <h2>🚀 Step 3: MASTER PRODUCT ENGINE (Final Control Panel)</h2>
 
-    {/* ================= LEGAL + COMPLIANCE ================= */}
+    {/* ================= COMPLIANCE ================= */}
     <h3>📜 Compliance & Legal Identity</h3>
 
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-
       <input
         placeholder="FSSAI Number"
         value={form.fssaiNumber || ""}
@@ -1100,68 +1162,52 @@ return (
           setForm(prev => ({ ...prev, manufacturerName: e.target.value }))
         }
       />
-
-      <input
-        placeholder="Batch Number"
-        value={form.batchNumber || ""}
-        onChange={e =>
-          setForm(prev => ({ ...prev, batchNumber: e.target.value }))
-        }
-      />
-
-      <input
-        type="date"
-        value={form.expiryDate || ""}
-        onChange={e =>
-          setForm(prev => ({ ...prev, expiryDate: e.target.value }))
-        }
-      />
-
     </div>
 
-    <textarea
-      placeholder="Manufacturer Address"
-      value={form.manufacturerAddress || ""}
-      onChange={e =>
-        setForm(prev => ({
-          ...prev,
-          manufacturerAddress: e.target.value
-        }))
-      }
-      style={{ marginTop: 10, width: "100%" }}
-    />
+    <button
+      type="button"
+      onClick={generateComplianceAI}
+      style={{
+        marginTop: 10,
+        padding: 10,
+        width: "100%",
+        background: "black",
+        color: "white",
+        fontWeight: "bold"
+      }}
+    >
+      🤖 Auto Generate Compliance (AI)
+    </button>
 
-    {/* ================= MANUFACTURER TYPE + SHELF LIFE ================= */}
-      <h3 style={{ marginTop: 20 }}>🏭 Manufacturing Details</h3>
-      
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-      
-        <select
-          value={form.manufacturerType || "Manufacturer"}
-          onChange={e =>
-            setForm(prev => ({ ...prev, manufacturerType: e.target.value }))
-          }
-        >
-          <option>Manufacturer</option>
-          <option>Packer</option>
-          <option>Marketer</option>
-        </select>
-      
-        <input
-          placeholder="Shelf Life (e.g. 6 Months)"
-          value={form.shelfLife || ""}
-          onChange={e =>
-            setForm(prev => ({ ...prev, shelfLife: e.target.value }))
-          }
-        />
-      
-      </div>
+    {/* ================= MANUFACTURING ================= */}
+    <h3 style={{ marginTop: 20 }}>🏭 Manufacturing Details</h3>
 
-    {/* ================= PRODUCT CLASSIFICATION ================= */}
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+      <select
+        value={form.manufacturerType || ""}
+        onChange={e =>
+          setForm(prev => ({ ...prev, manufacturerType: e.target.value }))
+        }
+      >
+        <option value="">Select Type</option>
+        <option>Manufacturer</option>
+        <option>Packer</option>
+        <option>Marketer</option>
+      </select>
+
+      <input
+        placeholder="Shelf Life (e.g. 6 Months)"
+        value={form.shelfLife || ""}
+        onChange={e =>
+          setForm(prev => ({ ...prev, shelfLife: e.target.value }))
+        }
+      />
+    </div>
+
+    {/* ================= CLASSIFICATION ================= */}
     <h3 style={{ marginTop: 20 }}>🏷️ Product Classification</h3>
 
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-
       <select
         value={form.vegType || ""}
         onChange={e =>
@@ -1184,17 +1230,13 @@ return (
           }))
         }
       />
-
     </div>
 
     <textarea
       placeholder="Storage Instructions"
       value={form.storageInstructions || ""}
       onChange={e =>
-        setForm(prev => ({
-          ...prev,
-          storageInstructions: e.target.value
-        }))
+        setForm(prev => ({ ...prev, storageInstructions: e.target.value }))
       }
     />
 
@@ -1202,39 +1244,47 @@ return (
       placeholder="Allergen Information"
       value={form.allergenInfo || ""}
       onChange={e =>
-        setForm(prev => ({
-          ...prev,
-          allergenInfo: e.target.value
-        }))
+        setForm(prev => ({ ...prev, allergenInfo: e.target.value }))
       }
     />
 
+    <textarea
+      placeholder="Usage Instructions"
+      value={form.usageInstructions || ""}
+      onChange={e =>
+        setForm(prev => ({ ...prev, usageInstructions: e.target.value }))
+      }
+    />
+
+    <label style={{ marginTop: 10, display: "block" }}>
+      <input
+        type="checkbox"
+        checked={form.nonReturnable ?? true}
+        onChange={e =>
+          setForm(prev => ({ ...prev, nonReturnable: e.target.checked }))
+        }
+      />{" "}
+      Non-Returnable Product
+    </label>
+
     {/* ================= NUTRITION ================= */}
     <h3 style={{ marginTop: 20 }}>🥗 Nutrition Table</h3>
-    
-    <button
-      onClick={generateNutrition}
-      style={{ marginBottom: 10 }}
-    >
+
+    <button onClick={generateNutrition} style={{ marginBottom: 10 }}>
       Auto Generate Nutrition
     </button>
-    
+
     <div style={{ background: "#f6f6f6", padding: 10, borderRadius: 8 }}>
-      <p>Energy: {form.nutrition?.energy}</p>
-      <p>Protein: {form.nutrition?.protein}</p>
-      <p>Carbs: {form.nutrition?.carbs}</p>
-      <p>Fat: {form.nutrition?.fat}</p>
+      <p>Energy: {form.nutrition?.energy || "-"}</p>
+      <p>Protein: {form.nutrition?.protein || "-"}</p>
+      <p>Carbs: {form.nutrition?.carbs || "-"}</p>
+      <p>Fat: {form.nutrition?.fat || "-"}</p>
     </div>
 
-    {/* ================= PRICING INTELLIGENCE ================= */}
-    <h3 style={{ marginTop: 20 }}>💰 Pricing Intelligence Summary</h3>
+    {/* ================= PRICING ================= */}
+    <h3 style={{ marginTop: 20 }}>💰 Pricing Summary</h3>
 
-    <div style={{
-      background: "#f6f6f6",
-      padding: 10,
-      borderRadius: 8
-    }}>
-
+    <div style={{ background: "#f6f6f6", padding: 10, borderRadius: 8 }}>
       <p>🧾 Base Cost: ₹{form.baseCost || 0}</p>
       <p>📦 Packaging: ₹{form.packagingCost || 0}</p>
       <p>🚚 Logistics: ₹{form.logisticsCost || 0}</p>
@@ -1244,267 +1294,86 @@ return (
 
       <p>💰 MRP (Incl GST): ₹{form.mrp || 0}</p>
       <p>💵 Selling Price (Ex GST): ₹{form.sellingPrice || 0}</p>
-
-      <p style={{ fontWeight: "bold" }}>
-        📊 Margin Control: AUTO (backend hook ready)
-      </p>
-
+      <p>💵 Selling Price (Incl GST): ₹{gstIncludedPrice}</p>
     </div>
 
     {/* ================= SKU ================= */}
-    <h3 style={{ marginTop: 20 }}>🆔 Product Identity System</h3>
+    <h3 style={{ marginTop: 20 }}>🆔 SKU</h3>
 
     <input
       readOnly
       value={
         form.name && form.totalWeight
-          ? `NA-${(form.name || "").toUpperCase().replace(/\s+/g, "")}-001-${form.totalWeight}GM`
+          ? `NA-${form.name.toUpperCase().replace(/\s+/g, "")}-001-${form.totalWeight}GM`
           : ""
       }
-      placeholder="Auto SKU"
     />
 
-    <small style={{ color: "gray" }}>
-      SKU auto-managed (NA system + weight + serial)
-    </small>
-
-{/* ================= PRODUCT ID + BARCODE + QR ================= */}
+    {/* ================= PRODUCT ID ================= */}
     <h3 style={{ marginTop: 20 }}>🔗 Product Codes</h3>
-    
-    <input
-      readOnly
-      value={form.productId || ""}
-      placeholder="Auto Product ID"
-    />
-    
-    <svg id="barcode" style={{ marginTop: 10 }}></svg>
-    
+
+    <input readOnly value={form.productId || ""} />
+
+    <svg ref={el => (barcodeRefs.current[0] = el)} style={{ marginTop: 10 }} />
+
     <div style={{ marginTop: 10 }}>
       <img
-        src={`https://api.qrserver.com/v1/create-qr-code/?data=${form.qrCode || ""}`}
+        src={`https://api.qrserver.com/v1/create-qr-code/?data=${form.productId || ""}`}
         width={120}
       />
     </div>
 
     {/* ================= SEO ================= */}
-    <h3 style={{ marginTop: 20 }}>🌍 SEO + Marketplace Engine</h3>
+    <h3 style={{ marginTop: 20 }}>🌍 SEO</h3>
 
-    <input
-      placeholder="SEO Title"
-      value={seo.title || ""}
-      readOnly
-    />
-
-    <textarea
-      placeholder="SEO Description"
-      value={seo.description || ""}
-      readOnly
-    />
-
-    <input
-      placeholder="Keywords"
-      value={seo.keywords || ""}
-      readOnly
-    />
+    <input value={seo.title || ""} readOnly />
+    <textarea value={seo.description || ""} readOnly />
+    <input value={seo.keywords || ""} readOnly />
 
     {/* ================= LOCAL SEO ================= */}
     <h3 style={{ marginTop: 20 }}>🌍 Multi-Language SEO</h3>
-    
+
     <button onClick={generateLocalSEO}>Generate Local SEO</button>
-    
-    <textarea
-      value={form.seoLocal?.telugu || ""}
-      readOnly
-      placeholder="Telugu SEO"
-    />
-    
-    <textarea
-      value={form.seoLocal?.hindi || ""}
-      readOnly
-      placeholder="Hindi SEO"
-    />
 
-    {/* ================= TRUST ================= */}
-    <h3 style={{ marginTop: 20 }}>🛡️ Trust + Ranking Signals</h3>
+    <textarea value={form.seoLocal?.telugu || ""} readOnly />
+    <textarea value={form.seoLocal?.hindi || ""} readOnly />
 
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+    {/* ================= FINAL ACTION ================= */}
+    <div style={{ marginTop: 20, display: "flex", gap: 10 }}>
 
-      <label>
-        <input type="checkbox" readOnly checked />
-        AI Optimized Product Page
-      </label>
+      <button
+        onClick={() => setStep(prev => Math.max(prev - 1, 0))}
+        style={{ padding: 10 }}
+      >
+        ⬅ Back
+      </button>
 
-      <label>
-        <input type="checkbox" readOnly checked />
-        SEO Structured Content Ready
-      </label>
+      <button
+        onClick={() => {
+          const err = validateStep(3);
+          if (err) return setError(err);
 
-      <label>
-        <input type="checkbox" readOnly checked />
-        Pricing Engine Active
-      </label>
+          if (!form.productId) return setError("Product ID missing");
+          if (!form.primaryImage) return setError("Primary image required");
+          if (!form.shelfLife) return setError("Shelf life required");
+          if (!form.manufacturerType) return setError("Manufacturer type required");
+          if (!form.nutrition?.energy) return setError("Generate nutrition");
 
-      <label>
-        <input type="checkbox" readOnly checked />
-        Loss Prevention Enabled
-      </label>
+          setError("");
+          handleSubmit();
+        }}
+        style={{
+          background: "green",
+          color: "#fff",
+          padding: 10,
+          flex: 1,
+          fontWeight: "bold"
+        }}
+      >
+        🚀 FINAL SUBMIT PRODUCT
+      </button>
 
     </div>
-
-    {/* ================= LOSS ENGINE ================= */}
-    <div style={{
-      marginTop: 20,
-      padding: 10,
-      background: "#fff3f3",
-      borderLeft: "4px solid red"
-    }}>
-      ⚠️ LOSS CONTROL ENGINE (AUTO TRACKED)
-      <br />
-      • Cost vs Selling Price Validation
-      <br />
-      • Negative margin prevention
-      <br />
-      • GST-inclusive sanity check
-      <br />
-      • Price anomaly detection (backend hook ready)
-    </div>
-
-    {/* ================= ACTION ================= */}
-      <div style={{ marginTop: 20, display: "flex", gap: 10 }}>
-      
-        {/* BACK BUTTON (SAFE) */}
-        <button
-          onClick={() => setStep(prev => Math.max(prev - 1, 0))}
-          style={{
-            padding: 10,
-            background: "#ddd",
-            border: "none",
-            borderRadius: 6,
-            cursor: "pointer"
-          }}
-        >
-          ⬅ Back
-        </button>
-      
-        {/* FINAL SUBMIT (WITH VALIDATION) */}
-          <button
-            onClick={() => {
-              // Step 3 validation
-              const err = validateStep(3);
-          
-              if (err) {
-                setError(err);
-                return;
-              }
-          
-              // 🔒 Extra critical validations (FINAL GATE)
-              if (!form.productId) {
-                setError("Product ID missing");
-                return;
-              }
-          
-              if (!form.primaryImage) {
-                setError("Primary image not selected");
-                return;
-              }
-          
-              if (!form.shelfLife) {
-                setError("Shelf life is required");
-                return;
-              }
-          
-              if (!form.manufacturerType) {
-                setError("Manufacturer type required");
-                return;
-              }
-          
-              if (!form.nutrition?.energy) {
-                setError("Generate nutrition before submit");
-                return;
-              }
-          
-              if (!form.barcode) {
-                setError("Barcode not generated");
-                return;
-              }
-          
-              // ✅ All good
-              setError("");
-          
-              handleSubmit();
-            }}
-            style={{
-              background: "green",
-              color: "#fff",
-              padding: 10,
-              flex: 1,
-              fontWeight: "bold",
-              border: "none",
-              borderRadius: 6,
-              cursor: "pointer"
-            }}
-          >
-            🚀 FINAL SUBMIT PRODUCT
-          </button>
-      
-      </div>
 
   </div>
 )}
-
-  {/* ================= STEP NAVIGATION ================= */}
-    <div style={{
-      display: "flex",
-      justifyContent: "space-between",
-      marginTop: 20,
-      gap: 10
-    }}>
-    
-      {/* BACK BUTTON */}
-      {step > 0 && (
-        <button
-          onClick={() => setStep(prev => prev - 1)}
-          style={{
-            padding: 10,
-            background: "#ddd",
-            border: "none",
-            borderRadius: 6,
-            cursor: "pointer"
-          }}
-        >
-          ⬅ Back
-        </button>
-      )}
-    
-      {/* NEXT BUTTON */}
-      {step < 3 && (
-        <button
-          onClick={() => {
-            const err = validateStep(step);
-            if (err) {
-              setError(err);
-              return;
-            }
-        
-            setError("");
-            setStep(prev => prev + 1);
-          }}
-          style={{
-            padding: 10,
-            background: "black",
-            color: "#fff",
-            border: "none",
-            borderRadius: 6,
-            marginLeft: "auto",
-            cursor: "pointer"
-          }}
-        >
-          Next ➡
-        </button>
-      )}
-    
-    </div>
-
-</div>
-);
-}
