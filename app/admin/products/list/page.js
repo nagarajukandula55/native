@@ -3,76 +3,65 @@
 import { useState } from "react";
 import useSWR from "swr";
 
+const fetcher = (url) => fetch(url).then((res) => res.json());
+
 export default function AdminProductsList() {
-
   const [filter, setFilter] = useState("all");
-
-  // ================= SWR FETCH =================
-  const fetcher = (url) => fetch(url).then((res) => res.json());
 
   const { data, isLoading, mutate } = useSWR(
     "/api/admin/products",
     fetcher,
     {
-      refreshInterval: 5000, // 🔥 auto sync every 5 sec
+      refreshInterval: 5000,
     }
   );
 
   const products = data?.products || [];
 
-  // ================= UPDATE PRODUCT =================
-  async function updateProduct(id, action) {
-    try {
-      await fetch(`/api/admin/products/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action }),
-      });
+  /* ================= ACTION ================= */
 
-      mutate(); // 🔥 instant refresh
-    } catch (err) {
-      console.error(err);
-    }
+  async function updateProduct(id, action) {
+    await fetch(`/api/admin/products/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action }),
+    });
+
+    mutate(); // 🔥 instant refresh
   }
 
-  // ================= DELETE =================
   async function deleteProduct(id) {
     if (!confirm("Delete product?")) return;
 
-    try {
-      await fetch(`/api/admin/products/${id}`, {
-        method: "DELETE",
-      });
+    await fetch(`/api/admin/products/${id}`, {
+      method: "DELETE",
+    });
 
-      mutate(); // 🔥 instant refresh
-    } catch (err) {
-      console.error(err);
-    }
+    mutate(); // 🔥 instant refresh
   }
 
-  // ================= FILTER =================
+  /* ================= FILTER ================= */
+
   const filteredProducts = products.filter((p) => {
     if (filter === "all") return true;
     if (filter === "review") return p.status === "review";
     if (filter === "approved") return p.status === "approved";
-    if (filter === "listed") return p.isListed === true;
-    if (filter === "delisted") return p.isListed === false;
+    if (filter === "listed") return p.isListed;
+    if (filter === "delisted") return !p.isListed;
     return true;
   });
 
-  // ================= UI =================
   return (
     <div className="wrap">
-
       <h1>📦 Product Management</h1>
 
       {/* FILTERS */}
       <div className="filters">
-        <button onClick={() => setFilter("all")}>All</button>
-        <button onClick={() => setFilter("review")}>Review</button>
-        <button onClick={() => setFilter("approved")}>Approved</button>
-        <button onClick={() => setFilter("listed")}>Listed</button>
-        <button onClick={() => setFilter("delisted")}>Delisted</button>
+        {["all", "review", "approved", "listed", "delisted"].map((f) => (
+          <button key={f} onClick={() => setFilter(f)}>
+            {f}
+          </button>
+        ))}
       </div>
 
       {/* TABLE */}
@@ -81,7 +70,7 @@ export default function AdminProductsList() {
           <thead>
             <tr>
               <th>Product</th>
-              <th>Variant</th>
+              <th>SKU</th>
               <th>Price</th>
               <th>Status</th>
               <th>Listed</th>
@@ -91,83 +80,67 @@ export default function AdminProductsList() {
 
           <tbody>
             {isLoading ? (
-              <tr>
-                <td colSpan="6">Loading...</td>
-              </tr>
+              <tr><td colSpan="6">Loading...</td></tr>
             ) : filteredProducts.length === 0 ? (
-              <tr>
-                <td colSpan="6">No products</td>
-              </tr>
+              <tr><td colSpan="6">No products</td></tr>
             ) : (
               filteredProducts.map((p) => (
                 <tr key={p._id}>
-
-                  {/* PRODUCT */}
                   <td>
                     <b>{p.name}</b>
                     <br />
                     <small>{p.category}</small>
                   </td>
 
-                  {/* VARIANT */}
-                  <td>
-                    {p.variant?.value || "NA"} {p.variant?.unit || ""}
-                  </td>
+                  <td>{p.variant?.sku || "—"}</td>
 
-                  {/* PRICE */}
-                  <td>₹ {p.sellingPrice}</td>
+                  <td>₹ {p.variant?.sellingPrice || 0}</td>
 
-                  {/* STATUS */}
                   <td>
                     <span className={`status ${p.status}`}>
                       {p.status}
                     </span>
                   </td>
 
-                  {/* LIST */}
+                  <td>{p.isListed ? "✅" : "❌"}</td>
+
                   <td>
-                    {p.isListed ? "✅ Listed" : "❌ Hidden"}
-                  </td>
-
-                  {/* ACTIONS */}
-                  <td className="actions">
-
                     {p.status === "review" && (
                       <>
                         <button onClick={() => updateProduct(p._id, "approve")}>
-                          ✅ Approve
+                          Approve
                         </button>
-
                         <button onClick={() => updateProduct(p._id, "reject")}>
-                          ❌ Reject
+                          Reject
                         </button>
                       </>
                     )}
 
                     {p.status === "approved" && !p.isListed && (
                       <button onClick={() => updateProduct(p._id, "list")}>
-                        🚀 List
+                        List
                       </button>
                     )}
 
                     {p.isListed && (
                       <button onClick={() => updateProduct(p._id, "delist")}>
-                        ⛔ Delist
+                        Delist
                       </button>
                     )}
 
                     <button onClick={() => deleteProduct(p._id)}>
-                      🗑 Delete
+                      Delete
                     </button>
-
                   </td>
-
                 </tr>
               ))
             )}
           </tbody>
         </table>
       </div>
+    </div>
+  );
+}
 
       {/* STYLES */}
       <style jsx>{`
