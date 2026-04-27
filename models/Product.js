@@ -267,7 +267,14 @@ const ProductSchema = new mongoose.Schema(
   {
     timestamps: true,
   }
+
+    rejectedReason: String,
+    editRequired: {
+      type: Boolean,
+      default: false,
+    },
 );
+  
 
 /* ================= EXPORT ================= */
 
