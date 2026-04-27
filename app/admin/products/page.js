@@ -388,20 +388,22 @@ function removeIngredient(i) {
 /* ================= PRODUCT KEY ================= */
 
 function generateProductIds(name, brand, weight) {
-  const slug = `${(brand + " " + name)
-    String(value || "").toLowerCase())
+  const base = `${brand || ""} ${name || ""}`;
+
+  const slug = String(base)
+    .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "")}`;
+    .replace(/(^-|-$)/g, "");
 
   const productKey = Date.now().toString().slice(-6);
 
-  const sku = `NA-${name
+  const sku = `NA-${String(name || "")
     .toUpperCase()
     .replace(/\s+/g, "")}-${weight || "NA"}-${productKey}`;
 
   return { slug, productKey, sku };
 }
-
+  
   /* ================= AI CONTENT ================= */
 
   async function generateAIContent() {
