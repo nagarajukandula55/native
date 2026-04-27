@@ -56,6 +56,8 @@ export default function ProductUpload() {
     countryOfOrigin: "India",
     storageInstructions: "",
     allergenInfo: "",
+    usageInstructions: "",
+    safetyInfo: "",
 
     // SHIPPING
     weight: "",
@@ -396,40 +398,49 @@ function removeIngredient(i) {
       0
     );
   
-    async function generateComplianceAI() {
-    try {
-      const res = await fetch("/api/ai-compliance", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name: form.name,
-          category: form.category,
-          ingredients: form.ingredients.map(i => i.name),
-          productType: form.productType,
-        }),
-      });
-  
-      const data = await res.json();
-  
-      if (!data.success) {
-        alert("AI compliance generation failed");
-        return;
+   async function generateComplianceAI() {
+      try {
+        const res = await fetch("/api/ai-compliance", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            name: form.name,
+            category: form.category,
+            ingredients: form.ingredients.map(i => i.name),
+            productType: form.productType,
+          }),
+        });
+    
+        const data = await res.json();
+    
+        if (!data.success) {
+          alert("AI compliance generation failed");
+          return;
+        }
+    
+        const c = data.content || data;
+    
+        setForm(prev => ({
+          ...prev,
+    
+          // 🔥 CORE COMPLIANCE FIELDS
+          allergenInfo: c.allergenInfo || c.allergen || "",
+          storageInstructions: c.storageInstructions || c.storage || "",
+          usageInstructions: c.usageInstructions || c.usage || "",
+          safetyInfo: c.safetyInfo || c.safety || "",
+    
+          // optional fallback improvements
+          manufacturerName: c.manufacturerName || prev.manufacturerName,
+          countryOfOrigin: c.countryOfOrigin || prev.countryOfOrigin,
+        }));
+    
+      } catch (err) {
+        console.error("AI compliance error:", err);
+        alert("AI compliance error");
       }
-  
-      setForm(prev => ({
-        ...prev,
-        allergenInfo: data.allergen || "",
-        storageInstructions: data.storage || "",
-        usageInstructions: data.usage || "",
-        safetyInfo: data.safety || "",
-      }));
-  
-    } catch (err) {
-      alert("AI compliance error");
     }
-  }
 
     async function generateMultiSEO() {
     const res = await fetch("/api/ai-seo-multi", {
