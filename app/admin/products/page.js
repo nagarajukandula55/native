@@ -197,6 +197,40 @@ export default function ProductUpload() {
     }
   }, [form.name]);
 
+  useEffect(() => {
+    if (!form.productId) return;
+  
+    const el = document.getElementById("barcode");
+  
+    if (el) {
+      try {
+        JsBarcode(el, form.productId, {
+          format: "CODE128",
+          width: 2,
+          height: 50,
+          displayValue: true,
+        });
+      } catch (e) {
+        console.error("Barcode error:", e);
+      }
+    }
+  }, [form.productId]);
+
+    useEffect(() => {
+    if (!form.brand) return;
+  
+    const slug = form.brand.toLowerCase().replace(/\s+/g, "-");
+  
+    const id = `${slug}-${Date.now().toString().slice(-5)}`;
+  
+    setForm(prev => ({
+      ...prev,
+      brandSlug: slug,
+      productId: id
+    }));
+  
+  }, [form.brand]);
+
   /* ================= HELPERS ================= */
 
   function convertToGrams(qty, unit) {
@@ -513,32 +547,6 @@ export default function ProductUpload() {
   const priceWithGST =
     Number(form.sellingPrice || 0) +
     (Number(form.sellingPrice || 0) * Number(form.tax || 0)) / 100;
-
-  useEffect(() => {
-    if (!form.brand) return;
-  
-    const slug = form.brand.toLowerCase().replace(/\s+/g, "-");
-  
-    const id = `${slug}-${Date.now().toString().slice(-5)}`;
-  
-    setForm(prev => ({
-      ...prev,
-      brandSlug: slug,
-      productId: id
-    }));
-  
-  }, [form.brand]);
-
-  useEffect(() => {
-    if (!form.productId) return;
-  
-    try {
-      JsBarcode("#barcode", form.productId, {
-        format: "CODE128",
-        width: 2,
-        height: 50,
-        displayValue: true
-      });
   
       setForm(prev => ({
         ...prev,
