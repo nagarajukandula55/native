@@ -10,36 +10,111 @@ export async function POST(req) {
 
     console.log("📦 Incoming Body:", body);
 
-    // ================= SAFE VALIDATION =================
-    const requiredFields = ["name", "productKey", "slug", "sku"];
+    // ================= REQUIRED CORE CHECK =================
+    const requiredFields = ["name", "productKey", "slug"];
 
-    const missingFields = requiredFields.filter(
-      (field) => !body?.[field]
-    );
+    const missing = requiredFields.filter((f) => !body?.[f]);
 
-    if (missingFields.length > 0) {
+    if (missing.length) {
       return NextResponse.json(
         {
           success: false,
-          message: `Missing fields: ${missingFields.join(", ")}`,
+          message: `Missing fields: ${missing.join(", ")}`,
         },
         { status: 400 }
       );
     }
 
-    // ================= CLEAN DATA =================
+    // ================= NORMALIZE INGREDIENTS =================
+    const ingredients = (body.ingredients || []).map((i) => ({
+      name: i.name || "",
+      qty: Number(i.qty || 0),
+      unit: i.unit || "GM",
+      percent: Number(i.percent || 0),
+    }));
+
+    // ================= NORMALIZE NUTRITION =================
+    const nutrition = {
+      energy: Number(body.nutrition?.energy || 0),
+      protein: Number(body.nutrition?.protein || 0),
+      carbs: Number(body.nutrition?.carbs || 0),
+      fat: Number(body.nutrition?.fat || 0),
+    };
+
+    // ================= NORMALIZE VARIANTS =================
+    const variants = (body.variants || []).map((v) => ({
+      value: v.value || "",
+      unit: v.unit || "GM",
+      sku: v.sku || body.sku || `SKU-${Date.now()}`, // 🔥 FIX CRASH
+      mrp: Number(v.mrp || 0),
+      sellingPrice: Number(v.sellingPrice || 0),
+      stock: Number(v.stock || 0),
+      barcode: v.barcode || "",
+      qrCode: v.qrCode || "",
+    }));
+
+    // ================= FINAL CLEAN PRODUCT =================
     const productData = {
-      ...body,
+      name: body.name,
+      slug: body.slug,
+      productKey: body.productKey,
 
-      // ensure safe defaults
-      isActive: false,
-      createdAt: new Date(),
+      category: body.category,
+      brand: body.brand,
+      subcategory: body.subcategory,
 
-      // prevent undefined overwrites
-      tags: body.tags || "",
+      gstCategory: body.gstCategory,
+      gstDescription: body.gstDescription,
+      hsn: body.hsn,
+      tax: Number(body.tax || 0),
+
+      description: body.description,
+      shortDescription: body.shortDescription,
+
+      ingredients,
+      nutrition,
+      variants,
+
       images: body.images || [],
-      ingredients: body.ingredients || [],
-      variants: body.variants || [],
+      primaryImage: body.primaryImage || "",
+
+      productId: body.productId || body.productKey,
+
+      barcode: body.barcode || "",
+      qrCode: body.qrCode || "",
+
+      pricing: {
+        mrp: Number(body.mrp || 0),
+        sellingPrice: Number(body.sellingPrice || 0),
+        priceWithGST: Number(body.priceWithGST || 0),
+        baseCost: Number(body.baseCost || 0),
+        packagingCost: Number(body.packagingCost || 0),
+        logisticsCost: Number(body.logisticsCost || 0),
+        marketingCost: Number(body.marketingCost || 0),
+      },
+
+      seo: body.seo || {},
+      seoLocal: body.seoLocal || {},
+      tags: body.tags || "",
+
+      aiContent: body.aiContent || {},
+      aiSEO: body.aiSEO || {},
+
+      fssaiNumber: body.fssaiNumber || "",
+      manufacturerName: body.manufacturerName || "",
+      manufacturerAddress: body.manufacturerAddress || "",
+
+      countryOfOrigin: body.countryOfOrigin || "India",
+
+      storageInstructions: body.storageInstructions || "",
+      allergenInfo: body.allergenInfo || "",
+      usageInstructions: body.usageInstructions || "",
+      safetyInfo: body.safetyInfo || "",
+
+      status: "draft",
+      isActive: false,
+
+      createdAt: new Date(),
     };
 
     // ================= SAVE =================
@@ -57,7 +132,7 @@ export async function POST(req) {
     return NextResponse.json(
       {
         success: false,
-        message: error?.message || "Internal Server Error",
+        message: error.message || "Internal Server Error",
       },
       { status: 500 }
     );
