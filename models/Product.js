@@ -1,11 +1,15 @@
 import mongoose from "mongoose";
 
+/* ================= INGREDIENT ================= */
+
 const IngredientSchema = new mongoose.Schema({
   name: String,
   qty: Number,
   unit: String,
   percent: Number,
 });
+
+/* ================= VARIANT ================= */
 
 const VariantSchema = new mongoose.Schema({
   value: String,
@@ -25,12 +29,39 @@ const VariantSchema = new mongoose.Schema({
   qrCode: String,
 });
 
+/* ================= NUTRITION ================= */
+
 const NutritionSchema = new mongoose.Schema({
   energy: Number,
   protein: Number,
   carbs: Number,
   fat: Number,
 });
+
+/* ================= AI CONTENT ================= */
+
+const AIContentSchema = new mongoose.Schema({
+  title: String,
+  description: String,
+  highlights: [String],
+  seoKeywords: [String],
+  videoScript: String,
+
+  // 🔥 FUTURE: AI VIDEO GENERATOR SUPPORT
+  video: {
+    status: {
+      type: String,
+      enum: ["pending", "processing", "generated", "failed"],
+      default: "pending",
+    },
+    url: String,
+    thumbnail: String,
+    provider: String, // runway / heygen / custom
+    prompt: String,
+  },
+});
+
+/* ================= MAIN PRODUCT ================= */
 
 const ProductSchema = new mongoose.Schema(
   {
@@ -51,6 +82,7 @@ const ProductSchema = new mongoose.Schema(
       type: String,
       required: true,
       index: true,
+      unique: true,
     },
 
     category: {
@@ -82,11 +114,13 @@ const ProductSchema = new mongoose.Schema(
 
     shelfLife: String,
 
-    /* ================= COMPLIANCE ================= */
+    /* ================= LEGAL ================= */
 
     fssaiNumber: String,
+
     manufacturerName: String,
     manufacturerAddress: String,
+
     countryOfOrigin: {
       type: String,
       default: "India",
@@ -111,13 +145,38 @@ const ProductSchema = new mongoose.Schema(
 
     primaryImage: String,
 
-    /* ================= VARIANTS (FIXED STRUCTURE) ================= */
+    /* ================= VARIANTS (IMPORTANT FIX) ================= */
 
-    variants: [VariantSchema],
+    variants: {
+      type: [VariantSchema],
+      default: [],
+    },
 
-    /* ================= IDENTIFIERS ================= */
+    /* ================= PRIMARY VARIANT (FIX YOUR ERROR SOURCE) ================= */
 
-    productId: String,
+    variant: {
+      sku: {
+        type: String,
+        required: true,
+      },
+      value: String,
+      unit: String,
+      mrp: Number,
+      sellingPrice: Number,
+      stock: Number,
+      barcode: String,
+      qrCode: String,
+    },
+
+    /* ================= IDS ================= */
+
+    productId: {
+      type: String,
+      index: true,
+    },
+
+    barcode: String,
+    qrCode: String,
 
     /* ================= PRICING ================= */
 
@@ -145,15 +204,9 @@ const ProductSchema = new mongoose.Schema(
 
     tags: String,
 
-    seoLocal: {
-      telugu: String,
-      hindi: String,
-    },
-
     /* ================= AI ================= */
 
-    aiContent: Object,
-    aiSEO: Object,
+    ai: AIContentSchema,
 
     /* ================= STATUS ================= */
 
@@ -169,6 +222,26 @@ const ProductSchema = new mongoose.Schema(
       default: false,
       index: true,
     },
+
+    isListed: {
+      type: Boolean,
+      default: false,
+    },
+
+    isDeleted: {
+      type: Boolean,
+      default: false,
+    },
+
+    /* ================= TRACKING ================= */
+
+    createdBy: String,
+    updatedBy: String,
+    approvedBy: String,
+    deletedBy: String,
+
+    approvedAt: Date,
+    deletedAt: Date,
   },
   {
     timestamps: true,
