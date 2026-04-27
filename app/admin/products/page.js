@@ -152,8 +152,8 @@ export default function ProductUpload() {
 useEffect(() => {
   if (!displayName) return;
 
-  const slugGen = displayName
-    String(value || "").toLowerCase())
+  const slugGen = String(displayName || "")
+    .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
 
