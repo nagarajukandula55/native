@@ -167,6 +167,22 @@ export default function ProductUpload() {
 
     const finalTags = [...new Set(seoTagsArray.filter(Boolean))];
 
+      const priceWithGST =
+        Number(form.sellingPrice || 0) +
+        (Number(form.sellingPrice || 0) * Number(form.tax || 0)) / 100;
+      
+          setForm(prev => ({
+            ...prev,
+            barcode: form.productId,
+            qrCode: `https://shopnative.in/product/${slug}`
+          }));
+      
+        } catch (e) {
+          console.error(e);
+        }
+      
+      }, [form.productId]);
+
     setForm(prev => ({
       ...prev,
       tags: finalTags.join(", "),
@@ -231,6 +247,20 @@ export default function ProductUpload() {
     }));
   
   }, [form.brand]);
+
+  useEffect(() => {
+    if (!form.productId) return;
+  
+    try {
+      setForm(prev => ({
+        ...prev,
+        barcode: form.productId,
+        qrCode: `https://shopnative.in/product/${slug}`
+      }));
+    } catch (e) {
+      console.error(e);
+    }
+  }, [form.productId, slug]);
 
   /* ================= HELPERS ================= */
 
@@ -545,21 +575,6 @@ export default function ProductUpload() {
       }));
     }
 
-  const priceWithGST =
-    Number(form.sellingPrice || 0) +
-    (Number(form.sellingPrice || 0) * Number(form.tax || 0)) / 100;
-  
-      setForm(prev => ({
-        ...prev,
-        barcode: form.productId,
-        qrCode: `https://shopnative.in/product/${slug}`
-      }));
-  
-    } catch (e) {
-      console.error(e);
-    }
-  
-  }, [form.productId]);
 
   /* ================= UI ================= */
 
