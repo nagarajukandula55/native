@@ -197,12 +197,13 @@ export default function ProductUpload() {
     }
   }, [form.name]);
 
-  useEffect(() => {
-    if (!form.productId) return;
-  
-    const el = document.getElementById("barcode");
-  
-    if (el) {
+    useEffect(() => {
+      if (!form.productId) return;
+    
+      const el = document.getElementById("barcode");
+    
+      if (!el) return;
+    
       try {
         JsBarcode(el, form.productId, {
           format: "CODE128",
@@ -213,9 +214,8 @@ export default function ProductUpload() {
       } catch (e) {
         console.error(e);
       }
-    } // ✅ THIS WAS MISSING
-  
-  }, [form.productId]);
+    
+    }, [form.productId]);
 
     useEffect(() => {
     if (!form.brand) return;
