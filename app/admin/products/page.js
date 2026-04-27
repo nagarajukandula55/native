@@ -191,19 +191,37 @@ useEffect(() => {
 useEffect(() => {
   if (!form.productId) return;
 
-  try {
-    setForm(prev => {
-      if (prev.barcode === form.productId) return prev;
+  const el = document.getElementById("barcode");
+  if (!el) return;
 
-      return {
-        ...prev,
-        barcode: form.productId,
-        qrCode: `https://shopnative.in/product/${slug}`,
-      };
+  try {
+    JsBarcode(el, String(form.productId), {
+      format: "CODE128",
+      width: 2,
+      height: 60,
+      displayValue: true,
     });
   } catch (e) {
-    console.error(e);
+    console.error("Barcode error:", e);
   }
+}, [form.productId]);
+
+
+  useEffect(() => {
+  if (!form.productId || !slug) return;
+
+  setForm(prev => {
+    if (
+      prev.barcode === form.productId &&
+      prev.qrCode === `https://shopnative.in/product/${slug}`
+    ) return prev;
+
+    return {
+      ...prev,
+      barcode: form.productId,
+      qrCode: `https://shopnative.in/product/${slug}`
+    };
+  });
 }, [form.productId, slug]);
 
 
@@ -424,10 +442,10 @@ function removeIngredient(i) {
     
             setForm(prev => ({
               ...prev,
-              storageInstructions: c.storageInstructions || "",
-              allergenInfo: c.allergenInfo || "",
-              usageInstructions: c.usageInstructions || "",
-              safetyInfo: c.safetyInfo || "",
+                allergenInfo: data.allergen || "",
+                storageInstructions: data.storage || "",
+                usageInstructions: data.usage || "Not provided",
+                safetyInfo: data.safety || "Not provided",
             }));
         
           } catch (err) {
@@ -1404,8 +1422,9 @@ return (
     <textarea value={form.seoLocal?.hindi || ""} readOnly />
 
           {/* ================= FINAL ACTION ================= */}
-          <div style={{ marginTop: 20, display: "flex", gap: 10 }}>
-            
+        <div style={{ marginTop: 20, display: "flex", gap: 10 }}>
+
+            {/* BACK BUTTON */}
             <button
               onClick={() => setStep(prev => Math.max(prev - 1, 0))}
               style={{
@@ -1418,24 +1437,36 @@ return (
             >
               ⬅ Back
             </button>
-
+          
+            {/* FINAL SUBMIT BUTTON */}
             <button
-              onClick={() => {
-                const err = validateStep(3);
-                if (err) {
-                  setError(err);
-                  return;
+              onClick={async () => {
+                try {
+                  // ================= VALIDATION =================
+                  const err = validateStep(3);
+                  if (err) return setError(err);
+          
+                  if (!form.productId) return setError("Product ID missing");
+                  if (!form.images || form.images.length === 0)
+                    return setError("Upload at least 1 image");
+                  if (!form.totalWeight)
+                    return setError("Total weight missing");
+                  if (!form.fssaiNumber)
+                    return setError("FSSAI number required");
+                  if (!form.nutrition?.energy)
+                    return setError("Generate nutrition first");
+                  if (!form.barcode)
+                    return setError("Barcode missing");
+          
+                  setError("");
+          
+                  // ================= SUBMIT =================
+                  await handleSubmit();
+          
+                } catch (e) {
+                  console.error(e);
+                  setError("Something went wrong during submission");
                 }
-
-                if (!form.productId) return setError("Product ID missing");
-                if (!form.primaryImage) return setError("Select primary image");
-                if (!form.shelfLife) return setError("Shelf life required");
-                if (!form.manufacturerType) return setError("Manufacturer type required");
-                if (!form.nutrition?.energy) return setError("Generate nutrition");
-                if (!form.barcode) return setError("Barcode missing");
-
-                setError("");
-                handleSubmit();
               }}
               style={{
                 background: "green",
@@ -1450,9 +1481,10 @@ return (
             >
               🚀 FINAL SUBMIT PRODUCT
             </button>
-
+          
           </div>
-        </div>
+      
+      </div>
       )}
 
       {/* ================= GLOBAL STEP NAVIGATION ================= */}
