@@ -606,10 +606,10 @@ function generateProductIds(name, brand, weight) {
       setForm(prev => ({
         ...prev,
         nutrition: {
-          energy: (totalWeight * 3.5).toFixed(0) + " kcal",
-          protein: (totalWeight * 0.1).toFixed(1) + " g",
-          carbs: (totalWeight * 0.6).toFixed(1) + " g",
-          fat: (totalWeight * 0.2).toFixed(1) + " g"
+          energy: totalWeight * 3.5,
+          protein: totalWeight * 0.1,
+          carbs: totalWeight * 0.6,
+          fat: totalWeight * 0.2
         }
       }));
     }
@@ -686,6 +686,21 @@ function generateProductIds(name, brand, weight) {
           console.error("Submit error:", err);
           setError("Network or server error");
         }
+      };
+
+      const cleanPayload = {
+        ...form,
+      
+        ingredients: form.ingredients,
+      
+        nutrition: {
+          energy: Number(form.nutrition?.energy || 0),
+          protein: Number(form.nutrition?.protein || 0),
+          carbs: Number(form.nutrition?.carbs || 0),
+          fat: Number(form.nutrition?.fat || 0),
+        },
+      
+        variant: form.variants?.[0] || null,
       };
 
 
