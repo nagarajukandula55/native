@@ -240,7 +240,9 @@ useEffect(() => {
 useEffect(() => {
   if (!form.brand) return;
 
-  const brandSlug = form.brandString(value || "").toLowerCase()).replace(/\s+/g, "-");
+  const brandSlug = String(form.brand || "")
+    .toLowerCase()
+    .replace(/\s+/g, "-");
 
   const id = `${brandSlug}-${Date.now().toString().slice(-5)}`;
 
