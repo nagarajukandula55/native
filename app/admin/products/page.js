@@ -634,6 +634,32 @@ function removeIngredient(i) {
       }
     }, [form.productId, slug]);
 
+const handleSubmit = async () => {
+  try {
+    setError("");
+
+    const res = await fetch("/api/products", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(form),
+    });
+
+    const data = await res.json();
+
+    if (!data.success) {
+      setError(data.message || "Product submission failed");
+      return;
+    }
+
+    alert("✅ Product submitted successfully!");
+  } catch (err) {
+    console.error("Submit error:", err);
+    setError("Server error while submitting product");
+  }
+};
+
 
   /* ================= UI ================= */
 
