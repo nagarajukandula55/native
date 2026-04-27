@@ -1,36 +1,26 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import useSWR from "swr";
 
 export default function AdminProductsList() {
 
-  const [products, setProducts] = useState([]);
   const [filter, setFilter] = useState("all");
-  const [loading, setLoading] = useState(false);
 
-  /* ================= FETCH ================= */
+  // ================= SWR FETCH =================
+  const fetcher = (url) => fetch(url).then((res) => res.json());
 
-  async function fetchProducts() {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/admin/products");
-      const data = await res.json();
-
-      if (data.success) {
-        setProducts(data.products);
-      }
-    } catch (err) {
-      console.error(err);
+  const { data, isLoading, mutate } = useSWR(
+    "/api/admin/products",
+    fetcher,
+    {
+      refreshInterval: 5000, // 🔥 auto sync every 5 sec
     }
-    setLoading(false);
-  }
+  );
 
-  useEffect(() => {
-    fetchProducts();
-  }, []);
+  const products = data?.products || [];
 
-  /* ================= ACTION ================= */
-
+  // ================= UPDATE PRODUCT =================
   async function updateProduct(id, action) {
     try {
       await fetch(`/api/admin/products/${id}`, {
@@ -39,24 +29,28 @@ export default function AdminProductsList() {
         body: JSON.stringify({ action }),
       });
 
-      fetchProducts(); // refresh
+      mutate(); // 🔥 instant refresh
     } catch (err) {
       console.error(err);
     }
   }
 
+  // ================= DELETE =================
   async function deleteProduct(id) {
     if (!confirm("Delete product?")) return;
 
-    await fetch(`/api/admin/products/${id}`, {
-      method: "DELETE",
-    });
+    try {
+      await fetch(`/api/admin/products/${id}`, {
+        method: "DELETE",
+      });
 
-    fetchProducts();
+      mutate(); // 🔥 instant refresh
+    } catch (err) {
+      console.error(err);
+    }
   }
 
-  /* ================= FILTER ================= */
-
+  // ================= FILTER =================
   const filteredProducts = products.filter((p) => {
     if (filter === "all") return true;
     if (filter === "review") return p.status === "review";
@@ -66,8 +60,7 @@ export default function AdminProductsList() {
     return true;
   });
 
-  /* ================= UI ================= */
-
+  // ================= UI =================
   return (
     <div className="wrap">
 
@@ -97,14 +90,18 @@ export default function AdminProductsList() {
           </thead>
 
           <tbody>
-            {loading ? (
-              <tr><td colSpan="6">Loading...</td></tr>
+            {isLoading ? (
+              <tr>
+                <td colSpan="6">Loading...</td>
+              </tr>
             ) : filteredProducts.length === 0 ? (
-              <tr><td colSpan="6">No products</td></tr>
+              <tr>
+                <td colSpan="6">No products</td>
+              </tr>
             ) : (
               filteredProducts.map((p) => (
                 <tr key={p._id}>
-                  
+
                   {/* PRODUCT */}
                   <td>
                     <b>{p.name}</b>
@@ -113,7 +110,9 @@ export default function AdminProductsList() {
                   </td>
 
                   {/* VARIANT */}
-                  <td>{p.variant}</td>
+                  <td>
+                    {p.variant?.value || "NA"} {p.variant?.unit || ""}
+                  </td>
 
                   {/* PRICE */}
                   <td>₹ {p.sellingPrice}</td>
@@ -133,35 +132,30 @@ export default function AdminProductsList() {
                   {/* ACTIONS */}
                   <td className="actions">
 
-                    {/* APPROVE */}
                     {p.status === "review" && (
-                      <button onClick={() => updateProduct(p._id, "approve")}>
-                        ✅ Approve
-                      </button>
+                      <>
+                        <button onClick={() => updateProduct(p._id, "approve")}>
+                          ✅ Approve
+                        </button>
+
+                        <button onClick={() => updateProduct(p._id, "reject")}>
+                          ❌ Reject
+                        </button>
+                      </>
                     )}
 
-                    {/* REJECT */}
-                    {p.status === "review" && (
-                      <button onClick={() => updateProduct(p._id, "reject")}>
-                        ❌ Reject
-                      </button>
-                    )}
-
-                    {/* LIST */}
                     {p.status === "approved" && !p.isListed && (
                       <button onClick={() => updateProduct(p._id, "list")}>
                         🚀 List
                       </button>
                     )}
 
-                    {/* DELIST */}
                     {p.isListed && (
                       <button onClick={() => updateProduct(p._id, "delist")}>
                         ⛔ Delist
                       </button>
                     )}
 
-                    {/* DELETE */}
                     <button onClick={() => deleteProduct(p._id)}>
                       🗑 Delete
                     </button>
@@ -245,7 +239,6 @@ export default function AdminProductsList() {
         .status.rejected {
           background: #f8d7da;
         }
-
       `}</style>
 
     </div>
