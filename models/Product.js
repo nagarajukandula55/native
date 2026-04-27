@@ -260,6 +260,12 @@ const ProductSchema = new mongoose.Schema(
     approvedAt: Date,
     rejectedAt: Date,
 
+    rejectedReason: String,
+    editRequired: {
+      type: Boolean,
+      default: false,
+    },
+
     /* ================= HISTORY (IMPORTANT ADDITION) ================= */
 
     history: [HistorySchema],
@@ -267,12 +273,6 @@ const ProductSchema = new mongoose.Schema(
   {
     timestamps: true,
   }
-
-    rejectedReason: String,
-    editRequired: {
-      type: Boolean,
-      default: false,
-    },
 );
   
 
