@@ -127,9 +127,9 @@ export default function ProductUpload() {
       );
     }, [form, seo, step]);
 
-  /* ================= AUTO ================= */
+/* ================= AUTO ================= */
 
- useEffect(() => {
+useEffect(() => {
   if (!displayName) return;
 
   const slugGen = displayName
@@ -144,7 +144,7 @@ export default function ProductUpload() {
     : [];
 
   const base = displayName.toLowerCase();
-  const nameOnly = cleanName.toLowerCase();
+  const nameOnly = displayName.toLowerCase(); // ✅ FIXED
   const categorylower = form.category?.toLowerCase() || "";
   const subcategorylower = form.subcategory?.toLowerCase() || "";
 
@@ -173,28 +173,33 @@ export default function ProductUpload() {
   });
 
 }, [form.name, form.category, form.subcategory, form.ingredients, form.brand]);
-  
-  /*  ============ Price with GST ==============*/
-  
-    const priceWithGST =
-      Number(form.sellingPrice || 0) +
-      (Number(form.sellingPrice || 0) * Number(form.tax || 0)) / 100;
-    
-    setForm(prev => ({
-      ...prev,
-      barcode: form.productId,
-      qrCode: `https://shopnative.in/product/${slug}`
-    }));
-    
-    } catch (e) {
-      console.error(e);
-    }
-    
-    }, [form.productId]);
 
+/*  ============ Barcode + QR ============== */
 
-  useEffect(() => {
-    if (form.name && !productKey) {
+useEffect(() => {
+  if (!form.productId) return;
+
+  try {
+    setForm(prev => {
+      if (prev.barcode === form.productId) return prev;
+
+      return {
+        ...prev,
+        barcode: form.productId,
+        qrCode: `https://shopnative.in/product/${slug}`
+      };
+    });
+  } catch (e) {
+    console.error(e);
+  }
+
+}, [form.productId, slug]);
+
+useEffect(() => {
+  if (form.name && !productKey) {
+    setProductKey(Date.now().toString().slice(-6));
+  }
+}, [form.name, productKey]);
       setProductKey(Date.now().toString().slice(-6));
     }
   }, [form.name]);
@@ -218,56 +223,55 @@ export default function ProductUpload() {
       }
     
     }, [form.productId, slug]);
-
-
+    
+    
     useEffect(() => {
-    if (!form.brand) return;
-  
-    const slug = form.brand.toLowerCase().replace(/\s+/g, "-");
-  
-    const id = `${slug}-${Date.now().toString().slice(-5)}`;
-  
-    setForm(prev => ({
-      ...prev,
-      brandSlug: slug,
-      productId: id
-    }));
-  
-  }, [form.brand]);
+      if (!form.brand) return;
+    
+      const brandSlug = form.brand.toLowerCase().replace(/\s+/g, "-"); // ✅ FIXED
+    
+      const id = `${brandSlug}-${Date.now().toString().slice(-5)}`;
+    
+      setForm(prev => ({
+        ...prev,
+        brandSlug: brandSlug,
+        productId: id
+      }));
+    
+    }, [form.brand]);
 
 
   /* ================= FIXED BROKEN BLOCK ================= */
 
-  useEffect(() => {
-    if (!form.productId) return;
-
-    try {
-      setForm(prev => {
-        if (prev.barcode === form.productId) return prev;
-
-        return {
-          ...prev,
-          barcode: form.productId,
-          qrCode: `https://shopnative.in/product/${slug}`
-        };
-      });
-    } catch (e) {
-      console.error(e);
-    }
-
-  }, [form.productId, slug]);
-
-
-useEffect(() => {
-  const price =
-    Number(form.sellingPrice || 0) +
-    (Number(form.sellingPrice || 0) * Number(form.tax || 0)) / 100;
-
-  setForm(prev => ({
-    ...prev,
-    priceWithGST: price.toFixed(2)
-  }));
-}, [form.sellingPrice, form.tax]);
+    useEffect(() => {
+      if (!form.productId) return;
+    
+      try {
+        setForm(prev => {
+          if (prev.barcode === form.productId) return prev;
+    
+          return {
+            ...prev,
+            barcode: form.productId,
+            qrCode: `https://shopnative.in/product/${slug}`,
+          };
+        });
+      } catch (e) {
+        console.error(e);
+      }
+    }, [form.productId, slug]);
+    
+    
+    useEffect(() => {
+      const price =
+        Number(form.sellingPrice || 0) +
+        (Number(form.sellingPrice || 0) * Number(form.tax || 0)) / 100;
+    
+      setForm(prev => ({
+        ...prev,
+        priceWithGST: price.toFixed(2),
+      }));
+    }, [form.sellingPrice, form.tax]);
 
   /* ================= GST ================= */
 
