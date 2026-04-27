@@ -138,3 +138,23 @@ export async function POST(req) {
     );
   }
 }
+
+export async function GET() {
+  try {
+    await connectDB();
+
+    const products = await Product.find({})
+      .sort({ createdAt: -1 });
+
+    return NextResponse.json({
+      success: true,
+      products,
+    });
+
+  } catch (err) {
+    return NextResponse.json(
+      { success: false, message: err.message },
+      { status: 500 }
+    );
+  }
+}
