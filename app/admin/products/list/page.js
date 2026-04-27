@@ -12,7 +12,7 @@ export default function AdminProductsList() {
     "/api/admin/products",
     fetcher,
     {
-      refreshInterval: 5000,
+      refreshInterval: 5000, // realtime sync
     }
   );
 
@@ -21,23 +21,31 @@ export default function AdminProductsList() {
   /* ================= ACTION ================= */
 
   async function updateProduct(id, action) {
-    await fetch(`/api/admin/products/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action }),
-    });
+    try {
+      await fetch(`/api/admin/products/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
 
-    mutate(); // 🔥 instant refresh
+      mutate(); // instant refresh
+    } catch (err) {
+      console.error("Update error:", err);
+    }
   }
 
   async function deleteProduct(id) {
     if (!confirm("Delete product?")) return;
 
-    await fetch(`/api/admin/products/${id}`, {
-      method: "DELETE",
-    });
+    try {
+      await fetch(`/api/admin/products/${id}`, {
+        method: "DELETE",
+      });
 
-    mutate(); // 🔥 instant refresh
+      mutate();
+    } catch (err) {
+      console.error("Delete error:", err);
+    }
   }
 
   /* ================= FILTER ================= */
@@ -46,8 +54,8 @@ export default function AdminProductsList() {
     if (filter === "all") return true;
     if (filter === "review") return p.status === "review";
     if (filter === "approved") return p.status === "approved";
-    if (filter === "listed") return p.isListed;
-    if (filter === "delisted") return !p.isListed;
+    if (filter === "listed") return p.isListed === true;
+    if (filter === "delisted") return p.isListed === false;
     return true;
   });
 
@@ -58,7 +66,11 @@ export default function AdminProductsList() {
       {/* FILTERS */}
       <div className="filters">
         {["all", "review", "approved", "listed", "delisted"].map((f) => (
-          <button key={f} onClick={() => setFilter(f)}>
+          <button
+            key={f}
+            onClick={() => setFilter(f)}
+            className={filter === f ? "active" : ""}
+          >
             {f}
           </button>
         ))}
@@ -80,57 +92,83 @@ export default function AdminProductsList() {
 
           <tbody>
             {isLoading ? (
-              <tr><td colSpan="6">Loading...</td></tr>
+              <tr>
+                <td colSpan="6">Loading...</td>
+              </tr>
             ) : filteredProducts.length === 0 ? (
-              <tr><td colSpan="6">No products</td></tr>
+              <tr>
+                <td colSpan="6">No products</td>
+              </tr>
             ) : (
               filteredProducts.map((p) => (
                 <tr key={p._id}>
+                  {/* PRODUCT */}
                   <td>
                     <b>{p.name}</b>
                     <br />
                     <small>{p.category}</small>
                   </td>
 
-                  <td>{p.variant?.sku || "—"}</td>
+                  {/* SKU */}
+                  <td>{p.primaryVariant?.sku || "—"}</td>
 
-                  <td>₹ {p.variant?.sellingPrice || 0}</td>
+                  {/* PRICE */}
+                  <td>₹ {p.primaryVariant?.sellingPrice || 0}</td>
 
+                  {/* STATUS */}
                   <td>
                     <span className={`status ${p.status}`}>
                       {p.status}
                     </span>
                   </td>
 
+                  {/* LISTED */}
                   <td>{p.isListed ? "✅" : "❌"}</td>
 
-                  <td>
+                  {/* ACTIONS */}
+                  <td className="actions">
+
+                    {/* REVIEW ACTIONS */}
                     {p.status === "review" && (
                       <>
-                        <button onClick={() => updateProduct(p._id, "approve")}>
+                        <button
+                          className="approve"
+                          onClick={() => updateProduct(p._id, "approve")}
+                        >
                           Approve
                         </button>
-                        <button onClick={() => updateProduct(p._id, "reject")}>
+
+                        <button
+                          className="reject"
+                          onClick={() => updateProduct(p._id, "reject")}
+                        >
                           Reject
                         </button>
                       </>
                     )}
 
+                    {/* LIST */}
                     {p.status === "approved" && !p.isListed && (
                       <button onClick={() => updateProduct(p._id, "list")}>
                         List
                       </button>
                     )}
 
+                    {/* DELIST */}
                     {p.isListed && (
                       <button onClick={() => updateProduct(p._id, "delist")}>
                         Delist
                       </button>
                     )}
 
-                    <button onClick={() => deleteProduct(p._id)}>
+                    {/* DELETE */}
+                    <button
+                      className="delete"
+                      onClick={() => deleteProduct(p._id)}
+                    >
                       Delete
                     </button>
+
                   </td>
                 </tr>
               ))
@@ -138,11 +176,8 @@ export default function AdminProductsList() {
           </tbody>
         </table>
       </div>
-    </div>
-  );
-}
 
-      {/* STYLES */}
+      {/* STYLES (FIXED INSIDE RETURN) */}
       <style jsx>{`
         .wrap {
           max-width: 1200px;
@@ -164,6 +199,12 @@ export default function AdminProductsList() {
           border: 1px solid #ddd;
           background: #fff;
           cursor: pointer;
+          border-radius: 6px;
+        }
+
+        .filters .active {
+          background: #000;
+          color: #fff;
         }
 
         .tableWrap {
@@ -176,7 +217,8 @@ export default function AdminProductsList() {
           background: #fff;
         }
 
-        th, td {
+        th,
+        td {
           padding: 12px;
           border-bottom: 1px solid #eee;
           text-align: left;
@@ -193,6 +235,21 @@ export default function AdminProductsList() {
           cursor: pointer;
           border-radius: 4px;
           background: #eee;
+        }
+
+        .approve {
+          background: #28a745;
+          color: white;
+        }
+
+        .reject {
+          background: #dc3545;
+          color: white;
+        }
+
+        .delete {
+          background: #333;
+          color: white;
         }
 
         .status {
@@ -213,7 +270,6 @@ export default function AdminProductsList() {
           background: #f8d7da;
         }
       `}</style>
-
     </div>
   );
 }
