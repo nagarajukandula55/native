@@ -27,6 +27,9 @@ const ProductSchema = new mongoose.Schema(
       index: true,
     },
 
+    brand: String,
+    subcategory: String,
+
     /* ================= GST ================= */
 
     gstCategory: String,
@@ -42,30 +45,39 @@ const ProductSchema = new mongoose.Schema(
 
     description: String,
     shortDescription: String,
-    ingredients: String,
+
+    ingredients: [
+      {
+        name: String,
+        qty: String,
+        unit: String,
+        percent: String,
+      },
+    ],
+
     shelfLife: String,
 
     /* ================= LEGAL / FSSAI ================= */
 
+    fssaiNumber: String,
+
     manufacturerName: String,
-
     manufacturerAddress: String,
-
-    fssaiLicense: {
-      type: String,
-      index: true,
-    },
 
     countryOfOrigin: {
       type: String,
       default: "India",
     },
 
-    packedDate: Date,
+    batchNumber: String,
+
+    packingDate: Date,
     expiryDate: Date,
 
     storageInstructions: String,
     allergenInfo: String,
+    usageInstructions: String,
+    safetyInfo: String,
 
     /* ================= MEDIA ================= */
 
@@ -74,44 +86,50 @@ const ProductSchema = new mongoose.Schema(
       default: [],
     },
 
-    /* ================= VARIANT LEVEL (PER DOC) ================= */
+    primaryImage: String,
+
+    /* ================= VARIANT ================= */
 
     variant: {
-      type: String, // e.g. 500GM
-      required: true,
+      value: String,
+      unit: String,
+      sku: {
+        type: String,
+        required: true,
+        index: true,
+      },
+      mrp: Number,
+      sellingPrice: Number,
+      stock: Number,
     },
 
-    sku: {
+    productId: {
       type: String,
-      required: true,
-      unique: true,
       index: true,
     },
 
-    mrp: {
-      type: Number,
-      required: true,
+    barcode: String,
+    qrCode: String,
+
+    /* ================= PRICING ================= */
+
+    mrp: Number,
+    sellingPrice: Number,
+    priceWithGST: Number,
+
+    baseCost: Number,
+    packagingCost: Number,
+    logisticsCost: Number,
+    marketingCost: Number,
+
+    /* ================= NUTRITION (FIXED) ================= */
+
+    nutrition: {
+      energy: Number,
+      protein: Number,
+      carbs: Number,
+      fat: Number,
     },
-
-    sellingPrice: {
-      type: Number,
-      required: true,
-    },
-
-    /* ================= NUTRITION ================= */
-
-    nutrition: [
-      {
-        ingredient: String,
-        ratio: Number,
-
-        // calculated values
-        calories: Number,
-        protein: Number,
-        carbs: Number,
-        fat: Number,
-      },
-    ],
 
     /* ================= SEO ================= */
 
@@ -121,7 +139,9 @@ const ProductSchema = new mongoose.Schema(
       keywords: String,
     },
 
-    /* ================= STATUS FLOW ================= */
+    tags: String,
+
+    /* ================= STATUS ================= */
 
     status: {
       type: String,
@@ -149,11 +169,11 @@ const ProductSchema = new mongoose.Schema(
     },
   },
   {
-    timestamps: true, // auto createdAt & updatedAt
+    timestamps: true,
   }
 );
 
-/* ================= SAFE EXPORT ================= */
+/* ================= EXPORT ================= */
 
 export default mongoose.models.Product ||
   mongoose.model("Product", ProductSchema);
