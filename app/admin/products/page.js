@@ -651,17 +651,13 @@ function generateProductIds(name, brand, weight) {
         try {
           setError("");
       
-          const res = await fetch("/api/admin/products", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-                ...form,
-                slug: form.slug,
-                productKey: form.productKey,
-                sku: form.sku,
-              }),
+              const res = await fetch("/api/admin/products", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify(cleanPayload),
+              });
           });
       
           // ✅ SAFE CHECK BEFORE JSON PARSE
@@ -688,20 +684,31 @@ function generateProductIds(name, brand, weight) {
         }
       };
 
-      const cleanPayload = {
-        ...form,
-      
-        ingredients: form.ingredients,
-      
-        nutrition: {
-          energy: Number(form.nutrition?.energy || 0),
-          protein: Number(form.nutrition?.protein || 0),
-          carbs: Number(form.nutrition?.carbs || 0),
-          fat: Number(form.nutrition?.fat || 0),
-        },
-      
-        variant: form.variants?.[0] || null,
-      };
+        const cleanPayload = {
+          ...form,
+        
+          slug,
+          productKey,
+          sku,
+        
+          ingredients: form.ingredients,
+        
+          nutrition: {
+            energy: Number(form.nutrition?.energy || 0),
+            protein: Number(form.nutrition?.protein || 0),
+            carbs: Number(form.nutrition?.carbs || 0),
+            fat: Number(form.nutrition?.fat || 0),
+          },
+        
+          variant: form.variants?.[0] || {
+            value: "default",
+            unit: "GM",
+            sku: form.sku || "",
+            mrp: Number(form.mrp || 0),
+            sellingPrice: Number(form.sellingPrice || 0),
+            stock: 0
+          }
+        };
 
 
   /* ================= UI ================= */
