@@ -277,26 +277,45 @@ useEffect(() => {
 
 /* =================== Product Key ================ */
 
-  useEffect(() => {
-  if (!form.name) return;
-
-  const { slug, productKey, sku } = generateProductIds(
-    form.name,
-    form.brand,
-    form.totalWeight
-  );
-
-  setForm(prev => ({
-    ...prev,
-    slug,
-    productKey,
-    sku,
-    productId: productKey, // optional internal ID
-    barcode: productKey,
-    qrCode: `https://shopnative.in/product/${slug}`
-  }));
-
-}, [form.name, form.brand, form.totalWeight]);
+   useEffect(() => {
+    if (!form.name) return;
+  
+    const { slug, productKey, sku } = generateProductIds(
+      form.name,
+      form.brand,
+      form.totalWeight
+    );
+  
+    setForm(prev => ({
+      ...prev,
+  
+      slug,
+      productKey,
+      sku,
+  
+      productId: productKey,
+      barcode: productKey,
+      qrCode: `https://shopnative.in/product/${slug}`,
+  
+      // 🔥 CRITICAL FIX: sync variant SKU for Mongo validation
+      variants: prev.variants?.length
+        ? prev.variants.map(v => ({
+            ...v,
+            sku: v.sku || sku
+          }))
+        : [
+            {
+              value: "default",
+              unit: "GM",
+              sku: sku,
+              mrp: prev.mrp || 0,
+              sellingPrice: prev.sellingPrice || 0,
+              stock: 0
+            }
+          ]
+    }));
+  
+  }, [form.name, form.brand, form.totalWeight]);
 
 
 /* ================= HELPERS ================= */
@@ -712,13 +731,13 @@ function generateProductIds(name, brand, weight) {
             fat: Number(form.nutrition?.fat || 0),
           },
         
-          variant: form.variants?.[0] || {
-            value: "default",
-            unit: "GM",
-            sku: form.sku || "",
-            mrp: Number(form.mrp || 0),
-            sellingPrice: Number(form.sellingPrice || 0),
-            stock: 0
+          variant: {
+            value: form.variants?.[0]?.value || "default",
+            unit: form.variants?.[0]?.unit || "GM",
+            sku: form.variants?.[0]?.sku || form.sku || form.productKey,
+            mrp: Number(form.variants?.[0]?.mrp || form.mrp || 0),
+            sellingPrice: Number(form.variants?.[0]?.sellingPrice || form.sellingPrice || 0),
+            stock: Number(form.variants?.[0]?.stock || 0)
           }
         };
 
