@@ -129,45 +129,52 @@ export default function ProductUpload() {
 
   /* ================= AUTO ================= */
 
-  useEffect(() => {
-    if (!form.name) return;
+ useEffect(() => {
+  if (!displayName) return;
 
-    const cleanName = form.name.replace(/native/gi, "").trim();
+  const slugGen = displayName
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
 
-    const displayName = form.brand
-      ? `${form.brand} ${cleanName}`.trim()
-      : cleanName;
+  setSlug(slugGen);
 
-    const slugGen = displayName
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/(^-|-$)/g, "");
+  const ingredientNames = Array.isArray(form.ingredients)
+    ? form.ingredients.map(i => i.name.toLowerCase())
+    : [];
 
-    setSlug(slugGen);
+  const base = displayName.toLowerCase();
+  const nameOnly = cleanName.toLowerCase();
+  const categorylower = form.category?.toLowerCase() || "";
+  const subcategorylower = form.subcategory?.toLowerCase() || "";
 
-    const ingredientNames = Array.isArray(form.ingredients)
-      ? form.ingredients.map(i => i.name.toLowerCase())
-      : [];
+  const seoTagsArray = [
+    base,
+    `${base} online`,
+    `buy ${base}`,
+    `${base} india`,
+    `${base} best price`,
+    categorylower,
+    subcategorylower,
+    ...ingredientNames.map(i => `${i} ${nameOnly}`)
+  ];
 
-    const base = displayName.toLowerCase();
-    const nameOnly = cleanName.toLowerCase();
-    const categorylower = form.category?.toLowerCase() || "";
-    const subcategorylower = form.subcategory?.toLowerCase() || "";
+  const finalTags = [...new Set(seoTagsArray.filter(Boolean))];
 
-    const seoTagsArray = [
-      base,
-      `${base} online`,
-      `buy ${base}`,
-      `${base} india`,
-      `${base} best price`,
-      categorylower,
-      subcategorylower,
-      ...ingredientNames.map(i => `${i} ${nameOnly}`)
-    ];
+  setForm(prev => ({
+    ...prev,
+    tags: finalTags.join(", "),
+  }));
 
-    const finalTags = [...new Set(seoTagsArray.filter(Boolean))];
+  setSeo({
+    title: `${displayName} | Buy Online`,
+    description: `Buy ${displayName} online at best price.`,
+    keywords: finalTags.join(", "),
+  });
 
-      const priceWithGST =
+}, [form.name, form.category, form.subcategory, form.ingredients, form.brand]);
+      
+  const priceWithGST =
         Number(form.sellingPrice || 0) +
         (Number(form.sellingPrice || 0) * Number(form.tax || 0)) / 100;
       
@@ -182,19 +189,6 @@ export default function ProductUpload() {
         }
       
       }, [form.productId]);
-
-    setForm(prev => ({
-      ...prev,
-      tags: finalTags.join(", "),
-    }));
-
-    setSeo({
-      title: `${displayName} | Buy Online`,
-      description: `Buy ${displayName} online at best price.`,
-      keywords: finalTags.join(", "),
-    });
-
-  }, [form.name, form.category, form.subcategory, form.ingredients, form.brand]);
 
   useEffect(() => {
     const gst = gstOptions.find(g => g.name === form.gstCategory);
@@ -261,6 +255,48 @@ export default function ProductUpload() {
       console.error(e);
     }
   }, [form.productId, slug]);
+
+  useEffect(() => {
+    if (!form.productId || !slug) return;
+  
+    try {
+      setForm(prev => {
+        if (prev.barcode === form.productId) return prev;
+  
+        return {
+          ...prev,
+          barcode: form.productId,
+          qrCode: `https://shopnative.in/product/${slug}`
+        };
+      });
+    } catch (e) {
+      console.error(e);
+    }
+  
+  }, [form.productId, slug]);
+
+useEffect(() => {
+  const price =
+    Number(form.sellingPrice || 0) +
+    (Number(form.sellingPrice || 0) * Number(form.tax || 0)) / 100;
+
+  setForm(prev => ({
+    ...prev,
+    priceWithGST: price.toFixed(2)
+  }));
+}, [form.sellingPrice, form.tax]);
+
+useEffect(() => {
+  const gst = gstOptions.find(g => g.name === form.gstCategory);
+
+  if (gst) {
+    setForm(prev => ({
+      ...prev,
+      hsn: gst.hsn,
+      tax: gst.tax,
+    }));
+  }
+}, [form.gstCategory]);
 
   /* ================= HELPERS ================= */
 
