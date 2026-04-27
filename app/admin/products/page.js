@@ -58,6 +58,9 @@ export default function ProductUpload() {
     allergenInfo: "",
     usageInstructions: "",
     safetyInfo: "",
+    productKey: "",
+    slug: "",
+    sku: "",
 
     // SHIPPING
     weight: "",
@@ -70,7 +73,6 @@ export default function ProductUpload() {
   };
 
   const [form, setForm] = useState(emptyForm);
-  const [productKey, setProductKey] = useState("");
   const [slug, setSlug] = useState("");
   const [seo, setSeo] = useState({
     title: "",
@@ -176,16 +178,6 @@ useEffect(() => {
 
 }, [form.name, form.category, form.subcategory, form.ingredients, form.brand]);
 
-
-/* ================= PRODUCT KEY ================= */
-
-useEffect(() => {
-  if (form.name && !productKey) {
-    setProductKey(Date.now().toString().slice(-6));
-  }
-}, [form.name, productKey]);
-
-
 /* ================= BARCODE + QR ================= */
 
 useEffect(() => {
@@ -270,26 +262,28 @@ useEffect(() => {
   }
 }, [form.gstCategory]);
 
+/* =================== Product Key ================ */
 
-/* ================= BARCODE RENDER ================= */
+  useEffect(() => {
+  if (!form.name) return;
 
-useEffect(() => {
-  if (!form.productId) return;
+  const { slug, productKey, sku } = generateProductIds(
+    form.name,
+    form.brand,
+    form.totalWeight
+  );
 
-  const el = document.getElementById("barcode");
-  if (!el) return;
+  setForm(prev => ({
+    ...prev,
+    slug,
+    productKey,
+    sku,
+    productId: productKey, // optional internal ID
+    barcode: productKey,
+    qrCode: `https://shopnative.in/product/${slug}`
+  }));
 
-  try {
-    JsBarcode(el, form.productId, {
-      format: "CODE128",
-      width: 2,
-      height: 50,
-      displayValue: true,
-    });
-  } catch (e) {
-    console.error(e);
-  }
-}, [form.productId]);
+}, [form.name, form.brand, form.totalWeight]);
 
 
 /* ================= HELPERS ================= */
@@ -350,6 +344,23 @@ function removeIngredient(i) {
     ...prev,
     ingredients: recalcIngredients(updated),
   }));
+}
+
+/* ================= PRODUCT KEY ================= */
+
+function generateProductIds(name, brand, weight) {
+  const slug = `${(brand + " " + name)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "")}`;
+
+  const productKey = Date.now().toString().slice(-6);
+
+  const sku = `NA-${name
+    .toUpperCase()
+    .replace(/\s+/g, "")}-${weight || "NA"}-${productKey}`;
+
+  return { slug, productKey, sku };
 }
 
   /* ================= AI CONTENT ================= */
@@ -440,13 +451,13 @@ function removeIngredient(i) {
     
         const c = data.content || data;
     
-            setForm(prev => ({
-              ...prev,
-                allergenInfo: data.allergen || "",
-                storageInstructions: data.storage || "",
-                usageInstructions: data.usage || "Not provided",
-                safetyInfo: data.safety || "Not provided",
-            }));
+              setForm(prev => ({
+                ...prev,
+                allergenInfo: c.allergen || "",
+                storageInstructions: c.storage || "",
+                usageInstructions: c.usage || "",
+                safetyInfo: c.safety || "",
+              }));
         
           } catch (err) {
             alert("AI compliance error");
@@ -645,7 +656,12 @@ function removeIngredient(i) {
             headers: {
               "Content-Type": "application/json",
             },
-            body: JSON.stringify(form),
+            body: JSON.stringify({
+                ...form,
+                slug: form.slug,
+                productKey: form.productKey,
+                sku: form.sku,
+              }),
           });
       
           // ✅ SAFE CHECK BEFORE JSON PARSE
