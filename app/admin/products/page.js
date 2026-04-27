@@ -157,16 +157,18 @@ useEffect(() => {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
 
+  const safeLower = (v) => String(v || "").toLowerCase();
+
   setSlug(slugGen);
-
+  
   const ingredientNames = Array.isArray(form.ingredients)
-    ? form.ingredients.map(i => String(i?.name || "")String(value || "").toLowerCase()))
+    ? form.ingredients.map(i => safeLower(i?.name))
     : [];
-
-  const base = String(displayName || "")String(value || "").toLowerCase());
-  const nameOnly = displayNameString(value || "").toLowerCase());
-  const categorylower = form.category?String(value || "").toLowerCase()) || "";
-  const subcategorylower = form.subcategory?String(value || "").toLowerCase()) || "";
+  
+  const base = safeLower(displayName);
+  const nameOnly = safeLower(displayName);
+  const categorylower = safeLower(form.category);
+  const subcategorylower = safeLower(form.subcategory);
 
   const seoTagsArray = [
     base,
