@@ -211,9 +211,10 @@ export default function ProductUpload() {
           displayValue: true,
         });
       } catch (e) {
-        console.error("Barcode error:", e);
+        console.error(e);
       }
-    }
+    } // ✅ THIS WAS MISSING
+  
   }, [form.productId]);
 
     useEffect(() => {
@@ -558,7 +559,7 @@ export default function ProductUpload() {
       console.error(e);
     }
   
-  }, [form.productId, slug]);
+  }, [form.productId]);
 
   /* ================= UI ================= */
 
