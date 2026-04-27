@@ -796,22 +796,27 @@ return (
       borderRadius: 10
     }}>
 
-      <h3 style={{ gridColumn: "span 2" }}>🧾 Basic Details</h3>
-
-      <input
-        placeholder="Product Name"
-        value={displayName}
-        onChange={e => setForm({ ...form, name: e.target.value })}
-      />
-
-      <select
-        value={form.brand}
-        onChange={e => setForm({ ...form, brand: e.target.value })}
-      >
-        <option>Select Brand</option>
-        <option>Native</option>
-        <option>AN</option>
-      </select>
+        <h3 style={{ gridColumn: "span 2" }}>🧾 Basic Details</h3>
+        
+        <input
+          placeholder="Product Name"
+          value={form.name}
+          onChange={e => setForm({ ...form, name: e.target.value })}
+        />
+        
+        <select
+          value={form.brand}
+          onChange={e => setForm({ ...form, brand: e.target.value })}
+        >
+          <option value="">Select Brand</option>
+          <option value="Native">Native</option>
+          <option value="AN">AN</option>
+        </select>
+        
+        {/* Preview */}
+        <p style={{ gridColumn: "span 2", fontSize: 12 }}>
+          Preview: <b>{displayName}</b>
+        </p>
 
       <select
         value={form.category}
