@@ -38,7 +38,7 @@ const NutritionSchema = new mongoose.Schema({
   fat: Number,
 });
 
-/* ================= AI CONTENT ================= */
+/* ================= AI CONTENT + VIDEO ================= */
 
 const AIContentSchema = new mongoose.Schema({
   title: String,
@@ -47,7 +47,6 @@ const AIContentSchema = new mongoose.Schema({
   seoKeywords: [String],
   videoScript: String,
 
-  // 🔥 FUTURE: AI VIDEO GENERATOR SUPPORT
   video: {
     status: {
       type: String,
@@ -56,8 +55,38 @@ const AIContentSchema = new mongoose.Schema({
     },
     url: String,
     thumbnail: String,
-    provider: String, // runway / heygen / custom
+    provider: String,
     prompt: String,
+  },
+});
+
+/* ================= HISTORY (FULL AUDIT LOG) ================= */
+
+const HistorySchema = new mongoose.Schema({
+  action: {
+    type: String,
+    enum: [
+      "CREATE",
+      "UPDATE",
+      "STATUS_CHANGE",
+      "APPROVE",
+      "REJECT",
+      "LIST",
+      "DELIST",
+      "PRICE_UPDATE",
+    ],
+  },
+
+  before: Object,
+  after: Object,
+
+  reason: String,
+
+  changedBy: String,
+
+  timestamp: {
+    type: Date,
+    default: Date.now,
   },
 });
 
@@ -117,7 +146,6 @@ const ProductSchema = new mongoose.Schema(
     /* ================= LEGAL ================= */
 
     fssaiNumber: String,
-
     manufacturerName: String,
     manufacturerAddress: String,
 
@@ -145,16 +173,16 @@ const ProductSchema = new mongoose.Schema(
 
     primaryImage: String,
 
-    /* ================= VARIANTS (IMPORTANT FIX) ================= */
+    /* ================= VARIANTS ================= */
 
     variants: {
       type: [VariantSchema],
       default: [],
     },
 
-    /* ================= PRIMARY VARIANT (FIX YOUR ERROR SOURCE) ================= */
+    /* ================= PRIMARY VARIANT (FIX FOR SKU ERROR) ================= */
 
-    variant: {
+    primaryVariant: {
       sku: {
         type: String,
         required: true,
@@ -167,16 +195,6 @@ const ProductSchema = new mongoose.Schema(
       barcode: String,
       qrCode: String,
     },
-
-    /* ================= IDS ================= */
-
-    productId: {
-      type: String,
-      index: true,
-    },
-
-    barcode: String,
-    qrCode: String,
 
     /* ================= PRICING ================= */
 
@@ -220,7 +238,6 @@ const ProductSchema = new mongoose.Schema(
     isActive: {
       type: Boolean,
       default: false,
-      index: true,
     },
 
     isListed: {
@@ -233,20 +250,26 @@ const ProductSchema = new mongoose.Schema(
       default: false,
     },
 
-    /* ================= TRACKING ================= */
+    /* ================= WORKFLOW ================= */
 
     createdBy: String,
     updatedBy: String,
     approvedBy: String,
-    deletedBy: String,
+    rejectedBy: String,
 
     approvedAt: Date,
-    deletedAt: Date,
+    rejectedAt: Date,
+
+    /* ================= HISTORY (IMPORTANT ADDITION) ================= */
+
+    history: [HistorySchema],
   },
   {
     timestamps: true,
   }
 );
+
+/* ================= EXPORT ================= */
 
 export default mongoose.models.Product ||
   mongoose.model("Product", ProductSchema);
