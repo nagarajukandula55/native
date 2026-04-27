@@ -190,16 +190,6 @@ export default function ProductUpload() {
       
       }, [form.productId]);
 
-  useEffect(() => {
-    const gst = gstOptions.find(g => g.name === form.gstCategory);
-    if (gst) {
-      setForm(prev => ({
-        ...prev,
-        hsn: gst.hsn,
-        tax: gst.tax,
-      }));
-    }
-  }, [form.gstCategory]);
 
   useEffect(() => {
     if (form.name && !productKey) {
@@ -242,27 +232,16 @@ export default function ProductUpload() {
   
   }, [form.brand]);
 
-  useEffect(() => {
-    if (!form.productId) return;
-  
-    try {
-      setForm(prev => ({
-        ...prev,
-        barcode: form.productId,
-        qrCode: `https://shopnative.in/product/${slug}`
-      }));
-    } catch (e) {
-      console.error(e);
-    }
-  }, [form.productId, slug]);
+
+  /* ================= FIXED BROKEN BLOCK ================= */
 
   useEffect(() => {
-    if (!form.productId || !slug) return;
-  
+    if (!form.productId) return;
+
     try {
       setForm(prev => {
         if (prev.barcode === form.productId) return prev;
-  
+
         return {
           ...prev,
           barcode: form.productId,
@@ -272,8 +251,9 @@ export default function ProductUpload() {
     } catch (e) {
       console.error(e);
     }
-  
+
   }, [form.productId, slug]);
+
 
 useEffect(() => {
   const price =
@@ -286,17 +266,35 @@ useEffect(() => {
   }));
 }, [form.sellingPrice, form.tax]);
 
-useEffect(() => {
-  const gst = gstOptions.find(g => g.name === form.gstCategory);
+  /* ================= GST ================= */
 
-  if (gst) {
-    setForm(prev => ({
-      ...prev,
-      hsn: gst.hsn,
-      tax: gst.tax,
-    }));
-  }
-}, [form.gstCategory]);
+  useEffect(() => {
+    const gst = gstOptions.find(g => g.name === form.gstCategory);
+
+    if (gst) {
+      setForm(prev => ({
+        ...prev,
+        hsn: gst.hsn,
+        tax: gst.tax,
+      }));
+    }
+  }, [form.gstCategory]);
+
+  /* ================= BARCODE ================= */
+
+  useEffect(() => {
+    if (!form.productId) return;
+
+    const el = document.getElementById("barcode");
+    if (!el) return;
+
+    try {
+      JsBarcode(el, form.productId);
+    } catch (e) {
+      console.error(e);
+    }
+
+  }, [form.productId]);
 
   /* ================= HELPERS ================= */
 
