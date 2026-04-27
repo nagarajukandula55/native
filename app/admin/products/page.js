@@ -32,10 +32,10 @@ export default function ProductUpload() {
     shortDescription: "",
     ingredients: [
           {
-            name: String,
-            qty: Number,
-            unit: String,
-            percent: Number,
+            name: "",
+            qty: "",
+            unit: "GM",
+            percent: 0,
           }
         ],
     nutrition: {
@@ -153,20 +153,20 @@ useEffect(() => {
   if (!displayName) return;
 
   const slugGen = displayName
-    .toLowerCase()
+    String(value || "").toLowerCase())
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
 
   setSlug(slugGen);
 
   const ingredientNames = Array.isArray(form.ingredients)
-    ? form.ingredients.map(i => i.name.toLowerCase())
+    ? form.ingredients.map(i => String(i?.name || "")String(value || "").toLowerCase()))
     : [];
 
-  const base = displayName.toLowerCase();
-  const nameOnly = displayName.toLowerCase();
-  const categorylower = form.category?.toLowerCase() || "";
-  const subcategorylower = form.subcategory?.toLowerCase() || "";
+  const base = String(displayName || "")String(value || "").toLowerCase());
+  const nameOnly = displayNameString(value || "").toLowerCase());
+  const categorylower = form.category?String(value || "").toLowerCase()) || "";
+  const subcategorylower = form.subcategory?String(value || "").toLowerCase()) || "";
 
   const seoTagsArray = [
     base,
@@ -238,7 +238,7 @@ useEffect(() => {
 useEffect(() => {
   if (!form.brand) return;
 
-  const brandSlug = form.brand.toLowerCase().replace(/\s+/g, "-");
+  const brandSlug = form.brandString(value || "").toLowerCase()).replace(/\s+/g, "-");
 
   const id = `${brandSlug}-${Date.now().toString().slice(-5)}`;
 
@@ -385,7 +385,7 @@ function removeIngredient(i) {
 
 function generateProductIds(name, brand, weight) {
   const slug = `${(brand + " " + name)
-    .toLowerCase()
+    String(value || "").toLowerCase())
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "")}`;
 
