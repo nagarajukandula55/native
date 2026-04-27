@@ -640,7 +640,7 @@ function removeIngredient(i) {
         try {
           setError("");
       
-          const res = await fetch("/api/products", {
+          const res = await fetch("/api/admin/products", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
