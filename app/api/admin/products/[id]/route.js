@@ -18,14 +18,13 @@ async function getUser() {
   }
 }
 
-/* ================= UPDATE PRODUCT ================= */
+/* ================= PUT ================= */
 
 export async function PUT(req, { params }) {
   try {
     await connectDB();
 
     const user = await getUser();
-
     if (!user) {
       return NextResponse.json({ success: false }, { status: 401 });
     }
@@ -33,23 +32,24 @@ export async function PUT(req, { params }) {
     const body = await req.json();
 
     const product = await Product.findById(params.id);
-
     if (!product) {
       return NextResponse.json({ success: false }, { status: 404 });
     }
 
-    /* 🔥 ROLE CONTROL */
+    /* ================= ROLE CONTROL ================= */
+
     if (user.role === "vendor") {
-      // vendor can only edit own products
       if (product.createdBy?.toString() !== user.id) {
         return NextResponse.json({ success: false }, { status: 403 });
       }
 
-      // vendor cannot approve
-      body.status = "review";
+      // vendor cannot approve/reject/list
+      body.action = undefined;
+      product.status = "review";
     }
 
-    /* 🔥 APPROVAL LOGIC */
+    /* ================= ACTION HANDLING ================= */
+
     if (body.action === "approve" && user.role === "super_admin") {
       product.status = "approved";
       product.approvedBy = user.id;
@@ -68,7 +68,8 @@ export async function PUT(req, { params }) {
       product.isListed = false;
     }
 
-    /* 🔥 SAFE UPDATE (no overwrite of system fields) */
+    /* ================= SAFE FIELD UPDATE ================= */
+
     const safeFields = {
       name: body.name,
       category: body.category,
@@ -85,13 +86,19 @@ export async function PUT(req, { params }) {
       slug: body.slug,
     };
 
-    Object.keys(safeFields).forEach((key) => {
-      if (safeFields[key] !== undefined) {
-        product[key] = safeFields[key];
+    Object.entries(safeFields).forEach(([key, value]) => {
+      if (value !== undefined) {
+        product[key] = value;
       }
     });
 
+    /* ================= SYSTEM FIELDS ================= */
+
     product.updatedBy = user.id;
+    product.updatedAt = new Date();
+
+    /* ensure defaults */
+    product.isListed = product.isListed ?? false;
 
     await product.save();
 
@@ -104,38 +111,34 @@ export async function PUT(req, { params }) {
     console.error("UPDATE ERROR:", err);
 
     return NextResponse.json(
-      { success: false },
+      { success: false, message: err.message },
       { status: 500 }
     );
   }
 }
-
-/* ================= DELETE (SOFT DELETE) ================= */
 
 export async function DELETE(req, { params }) {
   try {
     await connectDB();
 
     const user = await getUser();
-
     if (!user) {
       return NextResponse.json({ success: false }, { status: 401 });
     }
 
     const product = await Product.findById(params.id);
-
     if (!product) {
       return NextResponse.json({ success: false }, { status: 404 });
     }
 
-    /* 🔥 ROLE CONTROL */
     if (user.role === "vendor") {
       if (product.createdBy?.toString() !== user.id) {
         return NextResponse.json({ success: false }, { status: 403 });
       }
     }
 
-    /* 🔥 SOFT DELETE INSTEAD OF HARD DELETE */
+    /* ================= SOFT DELETE ================= */
+
     product.isDeleted = true;
     product.deletedAt = new Date();
     product.deletedBy = user.id;
@@ -144,14 +147,14 @@ export async function DELETE(req, { params }) {
 
     return NextResponse.json({
       success: true,
-      message: "Product deleted safely",
+      message: "Product deleted",
     });
 
   } catch (err) {
     console.error("DELETE ERROR:", err);
 
     return NextResponse.json(
-      { success: false },
+      { success: false, message: err.message },
       { status: 500 }
     );
   }
