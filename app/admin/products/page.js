@@ -1338,107 +1338,111 @@ return (
     <textarea value={form.seoLocal?.telugu || ""} readOnly />
     <textarea value={form.seoLocal?.hindi || ""} readOnly />
 
-    {/* ================= FINAL ACTION ================= */}
-    <div style={{ marginTop: 20, display: "flex", gap: 10 }}>
+          {/* ================= FINAL ACTION ================= */}
+          <div style={{ marginTop: 20, display: "flex", gap: 10 }}>
+            
+            <button
+              onClick={() => setStep(prev => Math.max(prev - 1, 0))}
+              style={{
+                padding: 10,
+                background: "#ddd",
+                border: "none",
+                borderRadius: 6,
+                cursor: "pointer"
+              }}
+            >
+              ⬅ Back
+            </button>
 
-      <button
-        onClick={() => setStep(prev => Math.max(prev - 1, 0))}
-        style={{ padding: 10 }}
-      >
-        ⬅ Back
-      </button>
+            <button
+              onClick={() => {
+                const err = validateStep(3);
+                if (err) {
+                  setError(err);
+                  return;
+                }
 
-      <button
-        onClick={() => {
-          const err = validateStep(3);
-          if (err) return setError(err);
+                if (!form.productId) return setError("Product ID missing");
+                if (!form.primaryImage) return setError("Select primary image");
+                if (!form.shelfLife) return setError("Shelf life required");
+                if (!form.manufacturerType) return setError("Manufacturer type required");
+                if (!form.nutrition?.energy) return setError("Generate nutrition");
+                if (!form.barcode) return setError("Barcode missing");
 
-          if (!form.productId) return setError("Product ID missing");
-          if (!form.primaryImage) return setError("Primary image required");
-          if (!form.shelfLife) return setError("Shelf life required");
-          if (!form.manufacturerType) return setError("Manufacturer type required");
-          if (!form.nutrition?.energy) return setError("Generate nutrition");
+                setError("");
+                handleSubmit();
+              }}
+              style={{
+                background: "green",
+                color: "#fff",
+                padding: 10,
+                flex: 1,
+                fontWeight: "bold",
+                border: "none",
+                borderRadius: 6,
+                cursor: "pointer"
+              }}
+            >
+              🚀 FINAL SUBMIT PRODUCT
+            </button>
 
-          setError("");
-          handleSubmit();
-        }}
+          </div>
+        </div>
+      )}
+
+      {/* ================= GLOBAL STEP NAVIGATION ================= */}
+      <div
         style={{
-          background: "green",
-          color: "#fff",
-          padding: 10,
-          flex: 1,
-          fontWeight: "bold"
+          display: "flex",
+          justifyContent: "space-between",
+          marginTop: 20,
+          gap: 10
         }}
       >
-        🚀 FINAL SUBMIT PRODUCT
-      </button>
+        {/* BACK */}
+        {step > 0 && (
+          <button
+            onClick={() => setStep(prev => prev - 1)}
+            style={{
+              padding: 10,
+              background: "#ddd",
+              border: "none",
+              borderRadius: 6,
+              cursor: "pointer"
+            }}
+          >
+            ⬅ Back
+          </button>
+        )}
+
+        {/* NEXT */}
+        {step < 3 && (
+          <button
+            onClick={() => {
+              const err = validateStep(step);
+              if (err) {
+                setError(err);
+                return;
+              }
+
+              setError("");
+              setStep(prev => prev + 1);
+            }}
+            style={{
+              padding: 10,
+              background: "black",
+              color: "#fff",
+              border: "none",
+              borderRadius: 6,
+              marginLeft: "auto",
+              cursor: "pointer"
+            }}
+          >
+            Next ➡
+          </button>
+        )}
+      </div>
 
     </div>
-
-  </div>
-)}
-{/* ================= STEP NAVIGATION ================= */}
-<div
-  style={{
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginTop: 30,
-    gap: 10
-  }}
->
-
-  {/* LEFT SIDE (BACK) */}
-  <div>
-    {step > 0 && (
-      <button
-        type="button"
-        onClick={() => setStep(prev => Math.max(prev - 1, 0))}
-        style={{
-          padding: "10px 16px",
-          background: "#e0e0e0",
-          border: "none",
-          borderRadius: 6,
-          cursor: "pointer",
-          fontWeight: 500
-        }}
-      >
-        ⬅ Back
-      </button>
-    )}
-  </div>
-
-  {/* RIGHT SIDE (NEXT / FINISH) */}
-  <div style={{ marginLeft: "auto" }}>
-    {step < 3 && (
-      <button
-        type="button"
-        onClick={() => {
-          const err = validateStep(step);
-
-          if (err) {
-            setError(err);
-            return;
-          }
-
-          setError("");
-          setStep(prev => prev + 1);
-        }}
-        style={{
-          padding: "10px 18px",
-          background: "black",
-          color: "#fff",
-          border: "none",
-          borderRadius: 6,
-          cursor: "pointer",
-          fontWeight: "bold"
-        }}
-      >
-        Next ➡
-      </button>
-    )}
-  </div>
-
-</div>
-); 
+  );
 }
