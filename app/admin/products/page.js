@@ -575,6 +575,29 @@ export default function ProductUpload() {
       }));
     }
 
+    const priceWithGST =
+      Number(form.sellingPrice || 0) +
+      (Number(form.sellingPrice || 0) * Number(form.tax || 0)) / 100;
+    
+    useEffect(() => {
+      if (!form.productId) return;
+    
+      try {
+        setForm(prev => {
+          // prevent unnecessary re-render loop
+          if (prev.barcode === form.productId) return prev;
+    
+          return {
+            ...prev,
+            barcode: form.productId,
+            qrCode: `https://shopnative.in/product/${slug}`
+          };
+        });
+      } catch (e) {
+        console.error(e);
+      }
+    }, [form.productId, slug]);
+
 
   /* ================= UI ================= */
 
