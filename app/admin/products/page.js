@@ -664,6 +664,7 @@ function removeIngredient(i) {
 /* ============ Handle Submit ===========*/
 
   const handleSubmit = async () => {
+    console.log("🚀 handleSubmit started");
     try {
       setError("");
   
@@ -710,6 +711,7 @@ function removeIngredient(i) {
     };
   
       const res = await fetch("/api/admin/products", {
+        console.log("📡 CALLING API...");
         method: "POST",
         headers: {
           "Content-Type": "application/json",
