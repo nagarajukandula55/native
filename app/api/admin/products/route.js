@@ -177,7 +177,7 @@ export async function POST(req) {
       safetyInfo: body.safetyInfo || "",
 
       // STATUS
-      status: req.body.status || "draft",
+      status: body.status || "draft",
       isActive: false,
       isListed: false,
 
