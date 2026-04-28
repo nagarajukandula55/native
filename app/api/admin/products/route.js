@@ -181,13 +181,6 @@ export async function POST(req) {
       isActive: false,
       isListed: false,
 
-       if (!body.status) {
-           return NextResponse.json(
-             { success: false, message: "Status is required" },
-             { status: 400 }
-           );
-         }
-
       // WORKFLOW
       createdBy: body.createdBy || "admin",
 
