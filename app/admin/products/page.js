@@ -129,7 +129,7 @@ export default function ProductUpload() {
   });
 
   const primaryVariant = {
-    sku: finalSKU,
+    sku: form.sku,
     value: body.totalWeight,
     unit: "GM",
     mrp: Number(body.mrp || 0),
@@ -696,66 +696,74 @@ function removeIngredient(i) {
 
 /* ============ Handle Submit ===========*/
 
-const handleSubmit = async () => {
-  try {
-    setError("");
-
-    // ================= SAFETY CHECKS =================
-    if (!form.name) return setError("Product name missing");
-    if (!form.category) return setError("Category missing");
-    if (!form.productKey) return setError("ProductKey missing (regenerate)");
-    if (!form.sku) return setError("SKU missing (regenerate)");
-
-    const variant = form.variants?.[0] || {};
-
-    const cleanPayload = {
-      ...form,
-
-      // ================= CORE FIX =================
-      slug: slug,
-      productKey: form.productKey || "",
-      sku: form.sku || "",
-
-      // ================= INGREDIENTS =================
-      ingredients: Array.isArray(form.ingredients)
-        ? form.ingredients
-        : [],
-
-      // ================= NUTRITION FIX =================
-      nutrition: {
-        energy: Number(form.nutrition?.energy || 0),
-        protein: Number(form.nutrition?.protein || 0),
-        carbs: Number(form.nutrition?.carbs || 0),
-        fat: Number(form.nutrition?.fat || 0),
-      },
-
-      // ================= VARIANT FIX (IMPORTANT) =================
-      primaryVariant: {
-        value: variant.value || "default",
-        unit: variant.unit || "GM",
-      
-        sku: variant.sku || form.sku || form.productKey,
-      
-        mrp: Number(variant.mrp || form.mrp || 0),
-        sellingPrice: Number(variant.sellingPrice || form.sellingPrice || 0),
-        stock: Number(variant.stock || 0),
-        barcode: form.barcode || "",
-        qrCode: form.qrCode || "",
-      },
-
-      // cleanup unwanted undefined issues
-      tags: form.tags || "",
-      images: form.images || [],
-    };
-
-    const res = await fetch("/api/admin/products", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(cleanPayload),
-    });
-
+  const handleSubmit = async () => {
+    try {
+      setError("");
+  
+      // ================= SAFETY CHECKS =================
+      if (!form.name) return setError("Product name missing");
+      if (!form.category) return setError("Category missing");
+      if (!form.productKey) return setError("ProductKey missing (regenerate)");
+  
+      const cleanPayload = {
+        ...form,
+  
+        // ================= CORE =================
+        slug: slug,
+        productKey: form.productKey,
+  
+        // ❌ REMOVE SKU (backend will generate)
+        // sku: form.sku,
+  
+        // ================= INGREDIENTS =================
+        ingredients: Array.isArray(form.ingredients)
+          ? form.ingredients
+          : [],
+  
+        // ================= NUTRITION =================
+        nutrition: {
+          energy: Number(form.nutrition?.energy || 0),
+          protein: Number(form.nutrition?.protein || 0),
+          carbs: Number(form.nutrition?.carbs || 0),
+          fat: Number(form.nutrition?.fat || 0),
+        },
+  
+        // ❌ DO NOT SEND primaryVariant
+        // Backend will create it
+  
+        // ❌ DO NOT SEND variants
+        variants: [],
+  
+        // ================= CLEAN =================
+        tags: form.tags || "",
+        images: form.images || [],
+      };
+  
+      const res = await fetch("/api/admin/products", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(cleanPayload),
+      });
+  
+      const data = await res.json();
+  
+      if (!data.success) {
+        setError(data.message || "Product submission failed");
+        return;
+      }
+  
+      alert("Product submitted successfully!");
+  
+      setForm(emptyForm);
+      window.location.href = "/admin/products/list";
+  
+    } catch (err) {
+      console.error(err);
+      setError("Network or server error");
+    }
+  };
     const text = await res.text();
 
     let data;
