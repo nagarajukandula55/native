@@ -2,6 +2,45 @@ import { NextResponse } from "next/server";
 import connectDB from "@/lib/db";
 import Product from "@/models/Product";
 
+/* =====================================================
+   🔥 SKU GENERATOR (FINAL - DB BASED AUTO INCREMENT)
+===================================================== */
+async function generateSKU({ name, weight, unit = "GM" }) {
+  const cleanName = String(name || "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
+
+  const prefix = "NA";
+  const weightPart = `${weight || "NA"}${unit}`;
+
+  // 🔍 Match existing SKUs
+  const regex = new RegExp(`^${prefix}-${cleanName}-(\\d{3})-${weightPart}$`);
+
+  // 🔥 IMPORTANT: check PRIMARY VARIANT (your system uses this)
+  const products = await Product.find({
+    "primaryVariant.sku": { $regex: regex }
+  }).select("primaryVariant.sku");
+
+  let max = 0;
+
+  products.forEach(p => {
+    const sku = p.primaryVariant?.sku || "";
+    const match = sku.match(regex);
+
+    if (match) {
+      const num = parseInt(match[1]);
+      if (num > max) max = num;
+    }
+  });
+
+  const next = String(max + 1).padStart(3, "0");
+
+  return `${prefix}-${cleanName}-${next}-${weightPart}`;
+}
+
+/* =====================================================
+   🚀 POST CREATE PRODUCT
+===================================================== */
 export async function POST(req) {
   try {
     await connectDB();
@@ -10,7 +49,7 @@ export async function POST(req) {
 
     console.log("📦 Incoming Body:", body);
 
-    // ================= REQUIRED CORE CHECK =================
+    // ================= REQUIRED CHECK =================
     const requiredFields = ["name", "productKey", "slug"];
 
     const missing = requiredFields.filter((f) => !body?.[f]);
@@ -42,55 +81,40 @@ export async function POST(req) {
     };
 
     // =====================================================
-    // 🔥 STEP 5 — SKU ENGINE (FINAL & CORRECT)
+    // 🔥 FINAL SKU ENGINE (ONLY SOURCE OF TRUTH)
     // =====================================================
+    const unit = body.unit || "GM";
 
-    const nameKey = String(body.name || "")
-      .toUpperCase()
-      .replace(/[^A-Z0-9]/g, "");
-
-    const weight = String(body.totalWeight || "")
-      .replace(/[^0-9]/g, "") || "0";
-
-    // Find existing products with same name + weight
-    const existingProducts = await Product.find({
+    const finalSKU = await generateSKU({
       name: body.name,
-      "primaryVariant.value": body.totalWeight
+      weight: body.totalWeight,
+      unit,
     });
 
-    let maxSerial = 0;
-
-    existingProducts.forEach((p) => {
-      const match = p.primaryVariant?.sku?.match(/-(\d{3})-/);
-      if (match) {
-        const num = parseInt(match[1]);
-        if (num > maxSerial) maxSerial = num;
-      }
-    });
-
-    const serial = String(maxSerial + 1).padStart(3, "0");
-
-    const finalSKU = `NA-${nameKey}-${serial}-${weight}GM`;
-
     // =====================================================
-    // 🔥 PRIMARY VARIANT (MANDATORY FIX)
+    // 🔥 PRIMARY VARIANT (MANDATORY)
     // =====================================================
-
     const primaryVariant = {
       sku: finalSKU,
-      value: body.totalWeight,
-      unit: "GM",
+      value: body.totalWeight || "default",
+      unit: unit,
+
       mrp: Number(body.mrp || 0),
       sellingPrice: Number(body.sellingPrice || 0),
-      stock: 0,
+      stock: Number(body.stock || 0),
+
       barcode: body.barcode || "",
       qrCode: body.qrCode || "",
     };
 
     // =====================================================
+    // 🔥 OPTIONAL: KEEP VARIANT ARRAY (FUTURE SAFE)
+    // =====================================================
+    const variants = [primaryVariant];
+
+    // =====================================================
     // 🔥 FINAL PRODUCT OBJECT
     // =====================================================
-
     const productData = {
       // CORE
       name: body.name,
@@ -118,8 +142,8 @@ export async function POST(req) {
       images: body.images || [],
       primaryImage: body.primaryImage || "",
 
-      // 🔥 IMPORTANT
-      variants: [], // disable for now (safe)
+      // 🔥 VARIANTS (NOW SAFE)
+      variants,
       primaryVariant,
 
       // PRICING
@@ -185,8 +209,9 @@ export async function POST(req) {
   }
 }
 
-// ================= GET =================
-
+/* =====================================================
+   📦 GET PRODUCTS
+===================================================== */
 export async function GET() {
   try {
     await connectDB();
@@ -205,36 +230,4 @@ export async function GET() {
       { status: 500 }
     );
   }
-}
-
-async function generateSKU({ name, weight, unit = "GM" }) {
-  const cleanName = String(name || "")
-    .toUpperCase()
-    .replace(/[^A-Z0-9]/g, "");
-
-  const prefix = "NA";
-  const weightPart = `${weight || "NA"}${unit}`;
-
-  // 🔍 Find existing SKUs for same product + weight
-  const regex = new RegExp(`^${prefix}-${cleanName}-(\\d{3})-${weightPart}$`);
-
-  const products = await Product.find({
-    "variants.sku": { $regex: regex }
-  }).select("variants.sku");
-
-  let max = 0;
-
-  products.forEach(p => {
-    p.variants.forEach(v => {
-      const match = v.sku.match(regex);
-      if (match) {
-        const num = parseInt(match[1]);
-        if (num > max) max = num;
-      }
-    });
-  });
-
-  const next = String(max + 1).padStart(3, "0");
-
-  return `${prefix}-${cleanName}-${next}-${weightPart}`;
 }
