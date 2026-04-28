@@ -684,7 +684,7 @@ function removeIngredient(i) {
 
 /* ============ Handle Submit ===========*/
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (status = "draft") => {
     try {
       setError("");
   
