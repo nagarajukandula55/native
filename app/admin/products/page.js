@@ -716,15 +716,6 @@ function removeIngredient(i) {
         },
         body: JSON.stringify(cleanPayload),
       });
-  
-      // ✅ safer parsing (handles non-JSON errors)
-      const res = await fetch("/api/admin/products", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(cleanPayload),
-        });
         
         const data = await res.json(); // ✅ simpler & safer
         
