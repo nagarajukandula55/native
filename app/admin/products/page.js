@@ -711,11 +711,12 @@ function removeIngredient(i) {
     };
   
       const res = await fetch("/api/admin/products", {
-        console.log("📡 CALLING API...");
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
+
+        console.log("📡 CALLING API...");
         body: JSON.stringify(cleanPayload),
       });
 
