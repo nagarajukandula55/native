@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation";
 
 export default function ReviewPage() {
   const [products, setProducts] = useState([]);
-  const [rejectionMap, setRejectionMap] = useState({});
   const [loadingId, setLoadingId] = useState(null);
+  const [rejectionMap, setRejectionMap] = useState({});
+  const [autoMode, setAutoMode] = useState(false);
 
   const router = useRouter();
 
@@ -17,9 +18,7 @@ export default function ReviewPage() {
       const res = await fetch("/api/admin/products/review");
       const data = await res.json();
 
-      if (data.success) {
-        setProducts(data.products || []);
-      }
+      setProducts(data.products || []);
     } catch (err) {
       console.error("Load error:", err);
     }
@@ -29,58 +28,48 @@ export default function ReviewPage() {
     loadProducts();
   }, []);
 
-  /* ================= SAFE ID RESOLVER ================= */
+  /* ================= AUTONOMOUS MODE ================= */
 
-  function getProductId(p) {
-    return p.productId || p.productKey || p._id;
-  }
-
-  /* ================= APPROVE ================= */
-
-  async function approve(productId) {
-    if (!confirm("Approve this product?")) return;
-
-    setLoadingId(productId);
-
+  async function autoModerate(product) {
     try {
-      await fetch("/api/admin/products/action", {
+      await fetch("/api/admin/products/auto-action", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          productId,
-          action: "approve",
-        }),
+        body: JSON.stringify(product),
       });
 
       await loadProducts();
     } catch (err) {
       console.error(err);
     }
-
-    setLoadingId(null);
   }
 
-  /* ================= REJECT ================= */
+  useEffect(() => {
+    if (!autoMode) return;
 
-  async function reject(productId) {
-    const reason = rejectionMap[productId];
+    const interval = setInterval(() => {
+      products.forEach((p) => {
+        if (p.status === "review") {
+          autoModerate(p);
+        }
+      });
+    }, 5000);
 
-    if (!reason) {
-      alert("Select or enter rejection reason");
-      return;
-    }
+    return () => clearInterval(interval);
+  }, [autoMode, products]);
 
-    if (!confirm("Reject this product?")) return;
+  /* ================= ACTION ================= */
 
-    setLoadingId(productId);
-
+  async function action(productId, type, reason = "") {
     try {
+      setLoadingId(productId);
+
       await fetch("/api/admin/products/action", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          productId,
-          action: "reject",
+          productId, // ✅ FIXED
+          action: type,
           reason,
         }),
       });
@@ -93,162 +82,128 @@ export default function ReviewPage() {
     setLoadingId(null);
   }
 
+  /* ================= AI SCAN ================= */
+
+  async function runAIScan(product) {
+    try {
+      const res = await fetch("/api/ai/moderation-brain", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(product),
+      });
+
+      const data = await res.json();
+
+      alert(
+        `AI Verdict: ${data.result.verdict}\nScore: ${data.result.score}`
+      );
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
   return (
     <div style={{ padding: 20 }}>
 
-      <h2>🧾 Product Review Queue</h2>
+      {/* HEADER */}
+      <div style={{ display: "flex", justifyContent: "space-between" }}>
+        <h2>🧠 Amazon-Style Moderation Console</h2>
 
-      {products.length === 0 && (
-        <p style={{ color: "#777" }}>
-          No products waiting for review
-        </p>
-      )}
+        <button
+          onClick={() => setAutoMode(!autoMode)}
+          style={{
+            background: autoMode ? "green" : "black",
+            color: "#fff",
+            padding: 10,
+            borderRadius: 6,
+          }}
+        >
+          🤖 Auto Mode: {autoMode ? "ON" : "OFF"}
+        </button>
+      </div>
 
-      {products.length > 0 && (
-        <table width="100%" border="1" cellPadding="10">
-          <thead style={{ background: "#f5f5f5" }}>
+      {/* TABLE */}
+      <table width="100%" border="1" cellPadding="10" style={{ marginTop: 20 }}>
+
+        <thead style={{ background: "#f5f5f5" }}>
+          <tr>
+            <th>Product</th>
+            <th>Product ID</th>
+            <th>Price</th>
+            <th>Status</th>
+            <th>AI</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {products.length === 0 && (
             <tr>
-              <th>Product</th>
-              <th>Image</th>
-              <th>Product ID</th>
-              <th>Price</th>
-              <th>Status</th>
-              <th>Reason</th>
-              <th>Actions</th>
+              <td colSpan="6">No products</td>
             </tr>
-          </thead>
+          )}
 
-          <tbody>
-            {products.map((p) => {
-              const id = getProductId(p);
+          {products.map((p) => (
+            <tr key={p._id}>
 
-              return (
-                <tr key={id}>
+              {/* PRODUCT */}
+              <td>
+                <b>{p.name}</b>
+                <br />
+                <small>{p.category}</small>
+              </td>
 
-                  {/* PRODUCT */}
-                  <td>
-                    <b>{p.name}</b>
-                    <br />
-                    <small>{p.category}</small>
-                  </td>
+              {/* ✅ FIXED ID */}
+              <td>{p.productId}</td>
 
-                  {/* IMAGE */}
-                  <td>
-                    <img
-                      src={p.images?.[0] || "/no-image.png"}
-                      alt="product"
-                      width={60}
-                      height={60}
-                      style={{ objectFit: "cover", borderRadius: 6 }}
-                    />
-                  </td>
+              {/* PRICE */}
+              <td>₹{p.primaryVariant?.sellingPrice || 0}</td>
 
-                  {/* PRODUCT ID (NOT SKU) */}
-                  <td>
-                    <code>{id}</code>
-                  </td>
+              {/* STATUS */}
+              <td>{p.status}</td>
 
-                  {/* PRICE */}
-                  <td>₹ {p.primaryVariant?.sellingPrice || 0}</td>
+              {/* AI */}
+              <td>
+                <button onClick={() => runAIScan(p)}>
+                  Run AI
+                </button>
+              </td>
 
-                  {/* STATUS */}
-                  <td>
-                    <b>{p.status}</b>
-                  </td>
+              {/* ACTIONS */}
+              <td style={{ display: "flex", gap: 5 }}>
 
-                  {/* REASON */}
-                  <td>
-                    <select
-                      value={rejectionMap[id] || ""}
-                      onChange={(e) =>
-                        setRejectionMap((prev) => ({
-                          ...prev,
-                          [id]: e.target.value,
-                        }))
-                      }
-                      style={{ width: "100%" }}
-                    >
-                      <option value="">Select reason</option>
-                      <option value="Bad description">Bad description</option>
-                      <option value="Incorrect pricing">Incorrect pricing</option>
-                      <option value="Missing compliance info">
-                        Missing compliance info
-                      </option>
-                      <option value="Image issue">Image issue</option>
-                      <option value="Duplicate product">Duplicate product</option>
-                      <option value="Other">Other</option>
-                    </select>
+                <button
+                  onClick={() => action(p.productId, "approve")}
+                  disabled={loadingId === p.productId}
+                >
+                  Approve
+                </button>
 
-                    {rejectionMap[id] === "Other" && (
-                      <input
-                        placeholder="Custom reason"
-                        onChange={(e) =>
-                          setRejectionMap((prev) => ({
-                            ...prev,
-                            [id]: e.target.value,
-                          }))
-                        }
-                        style={{ marginTop: 5, width: "100%" }}
-                      />
-                    )}
-                  </td>
+                <button
+                  onClick={() => {
+                    const reason = prompt("Rejection reason:");
+                    action(p.productId, "reject", reason);
+                  }}
+                  disabled={loadingId === p.productId}
+                >
+                  Reject
+                </button>
 
-                  {/* ACTIONS */}
-                  <td style={{ display: "flex", gap: 6 }}>
+                <button
+                  onClick={() =>
+                    router.push(`/admin/products/view/${p.productId}`)
+                  }
+                >
+                  View
+                </button>
 
-                    <button
-                      onClick={() => approve(id)}
-                      disabled={loadingId === id}
-                      style={{
-                        background: "green",
-                        color: "#fff",
-                        border: "none",
-                        padding: 6,
-                        borderRadius: 4,
-                        cursor: "pointer",
-                      }}
-                    >
-                      {loadingId === id ? "..." : "Approve"}
-                    </button>
+              </td>
 
-                    <button
-                      onClick={() => reject(id)}
-                      disabled={loadingId === id}
-                      style={{
-                        background: "red",
-                        color: "#fff",
-                        border: "none",
-                        padding: 6,
-                        borderRadius: 4,
-                        cursor: "pointer",
-                      }}
-                    >
-                      Reject
-                    </button>
+            </tr>
+          ))}
+        </tbody>
 
-                    {/* FIXED VIEW ROUTE */}
-                    <button
-                      onClick={() => router.push(`/admin/products/view/${id}`)}
-                      style={{
-                        background: "black",
-                        color: "#fff",
-                        border: "none",
-                        padding: 6,
-                        borderRadius: 4,
-                        cursor: "pointer",
-                      }}
-                    >
-                      View
-                    </button>
-
-                  </td>
-
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      )}
+      </table>
 
     </div>
   );
