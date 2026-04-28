@@ -667,9 +667,9 @@ function removeIngredient(i) {
     try {
       setError("");
   
-      if (!form.name) return setError("Product name missing");
-      if (!form.category) return setError("Category missing");
-      if (!form.productKey) return setError("ProductKey missing");
+     // if (!form.name) return setError("Product name missing");
+     // if (!form.category) return setError("Category missing");
+    //  if (!form.productKey) return setError("ProductKey missing");
   
     const cleanPayload = {
       ...form,
