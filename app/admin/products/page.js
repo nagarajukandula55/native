@@ -722,16 +722,17 @@ const handleSubmit = async () => {
       },
 
       // ================= VARIANT FIX (IMPORTANT) =================
-      variant: {
+      primaryVariant: {
         value: variant.value || "default",
         unit: variant.unit || "GM",
-
-        // 🔥 THIS FIXES YOUR ERROR
+      
         sku: variant.sku || form.sku || form.productKey,
-
+      
         mrp: Number(variant.mrp || form.mrp || 0),
         sellingPrice: Number(variant.sellingPrice || form.sellingPrice || 0),
         stock: Number(variant.stock || 0),
+        barcode: form.barcode || "",
+        qrCode: form.qrCode || "",
       },
 
       // cleanup unwanted undefined issues
