@@ -18,7 +18,7 @@ const VariantSchema = new mongoose.Schema({
   sku: {
     type: String,
     required: true,
-    index: true,
+    unique: true, // 🔥 ensures no duplicate SKU in DB
   },
 
   mrp: Number,
