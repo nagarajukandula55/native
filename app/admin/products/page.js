@@ -1544,70 +1544,71 @@ return (
     <textarea value={form.seoLocal?.telugu || ""} readOnly />
     <textarea value={form.seoLocal?.hindi || ""} readOnly />
 
-          {/* ================= FINAL ACTION ================= */}
+    {/* ================= FINAL ACTION ================= */}
         <div style={{ marginTop: 20, display: "flex", gap: 10 }}>
-
-            {/* BACK BUTTON */}
-            <button
-              onClick={() => setStep(prev => Math.max(prev - 1, 0))}
-              style={{
-                padding: 10,
-                background: "#ddd",
-                border: "none",
-                borderRadius: 6,
-                cursor: "pointer"
-              }}
-            >
-              ⬅ Back
-                <button
-                  onClick={async () => {
-                    try {
-                      // ================= VALIDATION =================
-                      const err = validateStep(3);
-                      if (err) return setError(err);
-                
-                      if (!form.productId) return setError("Product ID missing");
-                      if (!form.images || form.images.length === 0)
-                        return setError("Upload at least 1 image");
-                      if (!form.totalWeight)
-                        return setError("Total weight missing");
-                      if (!form.fssaiNumber)
-                        return setError("FSSAI number required");
-                      if (!form.nutrition?.energy)
-                        return setError("Generate nutrition first");
-                      if (!form.barcode)
-                        return setError("Barcode missing");
-                
-                      setError("");
-                
-                      // ================= CREATE + SEND TO REVIEW =================
-                      await handleSubmit();
-                
-                      alert("✅ Product submitted for approval");
-                
-                    } catch (e) {
-                      console.error(e);
-                      setError("Something went wrong during submission");
-                    }
-                  }}
-                  style={{
-                    background: "green",
-                    color: "#fff",
-                    padding: 10,
-                    flex: 1,
-                    fontWeight: "bold",
-                    border: "none",
-                    borderRadius: 6,
-                    cursor: "pointer"
-                  }}
-                >
-                  🚀 SUBMIT FOR APPROVAL
-                </button>
-          
-          </div>
+        
+          {/* BACK BUTTON */}
+          <button
+            onClick={() => setStep(prev => Math.max(prev - 1, 0))}
+            style={{
+              padding: 10,
+              background: "#ddd",
+              border: "none",
+              borderRadius: 6,
+              cursor: "pointer"
+            }}
+          >
+            ⬅ Back
+          </button>
+        
+          {/* SUBMIT BUTTON */}
+          <button
+            onClick={async () => {
+              try {
+                const err = validateStep(3);
+                if (err) return setError(err);
+        
+                if (!form.productId) return setError("Product ID missing");
+                if (!form.images || form.images.length === 0)
+                  return setError("Upload at least 1 image");
+                if (!form.totalWeight)
+                  return setError("Total weight missing");
+                if (!form.fssaiNumber)
+                  return setError("FSSAI number required");
+                if (!form.nutrition?.energy)
+                  return setError("Generate nutrition first");
+                if (!form.barcode)
+                  return setError("Barcode missing");
+        
+                setError("");
+        
+                await handleSubmit();
+        
+                alert("✅ Product submitted for approval");
+        
+              } catch (e) {
+                console.error(e);
+                setError("Something went wrong during submission");
+              }
+            }}
+            style={{
+              background: "green",
+              color: "#fff",
+              padding: 10,
+              flex: 1,
+              fontWeight: "bold",
+              border: "none",
+              borderRadius: 6,
+              cursor: "pointer"
+            }}
+          >
+            🚀 SUBMIT FOR APPROVAL
+          </button>
+        
+        </div>
       
       </div>
-      )}
+  )}
 
       {/* ================= GLOBAL STEP NAVIGATION ================= */}
       <div
