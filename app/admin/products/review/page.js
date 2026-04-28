@@ -29,19 +29,25 @@ export default function ReviewPage() {
     loadProducts();
   }, []);
 
+  /* ================= SAFE ID RESOLVER ================= */
+
+  function getProductId(p) {
+    return p.productId || p.productKey || p._id;
+  }
+
   /* ================= APPROVE ================= */
 
-  async function approve(productKey) {
+  async function approve(productId) {
     if (!confirm("Approve this product?")) return;
 
-    setLoadingId(productKey);
+    setLoadingId(productId);
 
     try {
       await fetch("/api/admin/products/action", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          productId: productKey,
+          productId,
           action: "approve",
         }),
       });
@@ -56,8 +62,8 @@ export default function ReviewPage() {
 
   /* ================= REJECT ================= */
 
-  async function reject(productKey) {
-    const reason = rejectionMap[productKey];
+  async function reject(productId) {
+    const reason = rejectionMap[productId];
 
     if (!reason) {
       alert("Select or enter rejection reason");
@@ -66,14 +72,14 @@ export default function ReviewPage() {
 
     if (!confirm("Reject this product?")) return;
 
-    setLoadingId(productKey);
+    setLoadingId(productId);
 
     try {
       await fetch("/api/admin/products/action", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          productId: productKey,
+          productId,
           action: "reject",
           reason,
         }),
@@ -92,21 +98,19 @@ export default function ReviewPage() {
 
       <h2>🧾 Product Review Queue</h2>
 
-      {/* ================= EMPTY STATE ================= */}
       {products.length === 0 && (
         <p style={{ color: "#777" }}>
           No products waiting for review
         </p>
       )}
 
-      {/* ================= TABLE ================= */}
       {products.length > 0 && (
         <table width="100%" border="1" cellPadding="10">
           <thead style={{ background: "#f5f5f5" }}>
             <tr>
               <th>Product</th>
               <th>Image</th>
-              <th>SKU</th>
+              <th>Product ID</th>
               <th>Price</th>
               <th>Status</th>
               <th>Reason</th>
@@ -115,131 +119,133 @@ export default function ReviewPage() {
           </thead>
 
           <tbody>
-            {products.map((p) => (
-              <tr key={p._id}>
+            {products.map((p) => {
+              const id = getProductId(p);
 
-                {/* PRODUCT */}
-                <td>
-                  <b>{p.name}</b>
-                  <br />
-                  <small>{p.category}</small>
-                </td>
+              return (
+                <tr key={id}>
 
-                {/* IMAGE */}
-                <td>
-                  <img
-                    src={p.images?.[0] || "/no-image.png"}
-                    alt="product"
-                    width={60}
-                    height={60}
-                    style={{ objectFit: "cover", borderRadius: 6 }}
-                  />
-                </td>
+                  {/* PRODUCT */}
+                  <td>
+                    <b>{p.name}</b>
+                    <br />
+                    <small>{p.category}</small>
+                  </td>
 
-                {/* SKU */}
-                <td>{p.primaryVariant?.sku || "—"}</td>
+                  {/* IMAGE */}
+                  <td>
+                    <img
+                      src={p.images?.[0] || "/no-image.png"}
+                      alt="product"
+                      width={60}
+                      height={60}
+                      style={{ objectFit: "cover", borderRadius: 6 }}
+                    />
+                  </td>
 
-                {/* PRICE */}
-                <td>₹ {p.primaryVariant?.sellingPrice || 0}</td>
+                  {/* PRODUCT ID (NOT SKU) */}
+                  <td>
+                    <code>{id}</code>
+                  </td>
 
-                {/* STATUS */}
-                <td>
-                  <span style={{ fontWeight: "bold" }}>
-                    {p.status}
-                  </span>
-                </td>
+                  {/* PRICE */}
+                  <td>₹ {p.primaryVariant?.sellingPrice || 0}</td>
 
-                {/* REJECTION REASON INPUT */}
-                <td>
-                  <select
-                    value={rejectionMap[p.productKey] || ""}
-                    onChange={(e) =>
-                      setRejectionMap((prev) => ({
-                        ...prev,
-                        [p.productKey]: e.target.value,
-                      }))
-                    }
-                    style={{ width: "100%" }}
-                  >
-                    <option value="">Select reason</option>
-                    <option value="Bad description">Bad description</option>
-                    <option value="Incorrect pricing">Incorrect pricing</option>
-                    <option value="Missing compliance info">
-                      Missing compliance info
-                    </option>
-                    <option value="Image issue">Image issue</option>
-                    <option value="Duplicate product">Duplicate product</option>
-                    <option value="Other">Other</option>
-                  </select>
+                  {/* STATUS */}
+                  <td>
+                    <b>{p.status}</b>
+                  </td>
 
-                  {/* CUSTOM INPUT */}
-                  {rejectionMap[p.productKey] === "Other" && (
-                    <input
-                      placeholder="Custom reason"
+                  {/* REASON */}
+                  <td>
+                    <select
+                      value={rejectionMap[id] || ""}
                       onChange={(e) =>
                         setRejectionMap((prev) => ({
                           ...prev,
-                          [p.productKey]: e.target.value,
+                          [id]: e.target.value,
                         }))
                       }
-                      style={{ marginTop: 5, width: "100%" }}
-                    />
-                  )}
-                </td>
+                      style={{ width: "100%" }}
+                    >
+                      <option value="">Select reason</option>
+                      <option value="Bad description">Bad description</option>
+                      <option value="Incorrect pricing">Incorrect pricing</option>
+                      <option value="Missing compliance info">
+                        Missing compliance info
+                      </option>
+                      <option value="Image issue">Image issue</option>
+                      <option value="Duplicate product">Duplicate product</option>
+                      <option value="Other">Other</option>
+                    </select>
 
-                {/* ACTIONS */}
-                <td style={{ display: "flex", gap: 6 }}>
+                    {rejectionMap[id] === "Other" && (
+                      <input
+                        placeholder="Custom reason"
+                        onChange={(e) =>
+                          setRejectionMap((prev) => ({
+                            ...prev,
+                            [id]: e.target.value,
+                          }))
+                        }
+                        style={{ marginTop: 5, width: "100%" }}
+                      />
+                    )}
+                  </td>
 
-                  <button
-                    onClick={() => approve(p.productKey)}
-                    disabled={loadingId === p.productKey}
-                    style={{
-                      background: "green",
-                      color: "#fff",
-                      border: "none",
-                      padding: 6,
-                      borderRadius: 4,
-                      cursor: "pointer",
-                    }}
-                  >
-                    {loadingId === p.productKey ? "..." : "Approve"}
-                  </button>
+                  {/* ACTIONS */}
+                  <td style={{ display: "flex", gap: 6 }}>
 
-                  <button
-                    onClick={() => reject(p.productKey)}
-                    disabled={loadingId === p.productKey}
-                    style={{
-                      background: "red",
-                      color: "#fff",
-                      border: "none",
-                      padding: 6,
-                      borderRadius: 4,
-                      cursor: "pointer",
-                    }}
-                  >
-                    Reject
-                  </button>
+                    <button
+                      onClick={() => approve(id)}
+                      disabled={loadingId === id}
+                      style={{
+                        background: "green",
+                        color: "#fff",
+                        border: "none",
+                        padding: 6,
+                        borderRadius: 4,
+                        cursor: "pointer",
+                      }}
+                    >
+                      {loadingId === id ? "..." : "Approve"}
+                    </button>
 
-                  <button
-                    onClick={() =>
-                      router.push(`/admin/products/view/${p.productKey}`)
-                    }
-                    style={{
-                      background: "black",
-                      color: "#fff",
-                      border: "none",
-                      padding: 6,
-                      borderRadius: 4,
-                      cursor: "pointer",
-                    }}
-                  >
-                    View
-                  </button>
+                    <button
+                      onClick={() => reject(id)}
+                      disabled={loadingId === id}
+                      style={{
+                        background: "red",
+                        color: "#fff",
+                        border: "none",
+                        padding: 6,
+                        borderRadius: 4,
+                        cursor: "pointer",
+                      }}
+                    >
+                      Reject
+                    </button>
 
-                </td>
+                    {/* FIXED VIEW ROUTE */}
+                    <button
+                      onClick={() => router.push(`/admin/products/view/${id}`)}
+                      style={{
+                        background: "black",
+                        color: "#fff",
+                        border: "none",
+                        padding: 6,
+                        borderRadius: 4,
+                        cursor: "pointer",
+                      }}
+                    >
+                      View
+                    </button>
 
-              </tr>
-            ))}
+                  </td>
+
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       )}
