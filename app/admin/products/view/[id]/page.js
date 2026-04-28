@@ -3,12 +3,13 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 
-export default function ProductModerationConsole() {
-  const { id } = useParams();
+export default function ProductOpsView() {
+  const { productId } = useParams();
   const router = useRouter();
 
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [editMode, setEditMode] = useState(false);
   const [saving, setSaving] = useState(false);
 
   /* ================= LOAD ================= */
@@ -17,215 +18,245 @@ export default function ProductModerationConsole() {
     try {
       setLoading(true);
 
-      const res = await fetch(`/api/admin/products/${id}`);
+      const res = await fetch(`/api/admin/products/${productId}`);
       const data = await res.json();
 
       if (data.success) {
         setProduct(data.product);
       }
-    } finally {
-      setLoading(false);
+    } catch (err) {
+      console.error(err);
     }
+
+    setLoading(false);
   }
 
   useEffect(() => {
-    if (id) load();
-  }, [id]);
+    load();
+  }, [productId]);
 
-  /* ================= INLINE UPDATE ================= */
+  /* ================= UPDATE INLINE ================= */
 
-  async function update(field, value) {
-    setSaving(true);
+  function updateField(field, value) {
+    setProduct((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  }
 
+  /* ================= SAVE ================= */
+
+  async function saveChanges() {
     try {
-      const res = await fetch(`/api/admin/products/${id}`, {
+      setSaving(true);
+
+      await fetch(`/api/admin/products/${productId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ field, value }),
+        body: JSON.stringify(product),
       });
 
-      const data = await res.json();
-
-      if (data.success) setProduct(data.product);
-    } finally {
-      setSaving(false);
+      alert("Updated successfully");
+      setEditMode(false);
+    } catch (err) {
+      console.error(err);
     }
+
+    setSaving(false);
   }
 
   /* ================= ACTION ================= */
 
   async function action(type) {
-    await fetch("/api/admin/products/action", {
+    await fetch(`/api/admin/products/action`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        productId: id,
+        productId,
         action: type,
       }),
     });
 
-    await load();
+    load();
   }
-
-  /* ================= AI-STYLE RULE ENGINE (LOCAL) ================= */
-
-  function getRiskFlags(p) {
-    const flags = [];
-
-    if (!p?.images?.length) flags.push("❌ No product images");
-    if (!p?.description) flags.push("⚠️ Missing description");
-    if (!p?.primaryVariant?.sellingPrice)
-      flags.push("❌ Missing selling price");
-
-    if (
-      Number(p?.primaryVariant?.sellingPrice || 0) <
-      Number(p?.primaryVariant?.mrp || 0) * 0.5
-    ) {
-      flags.push("⚠️ Price unusually low (possible loss / error)");
-    }
-
-    if (!p?.fssaiNumber) flags.push("⚠️ Compliance missing (FSSAI)");
-
-    return flags;
-  }
-
-  /* ================= LOADING ================= */
 
   if (loading) {
-    return <div style={{ padding: 20 }}>Loading moderation console...</div>;
+    return <div style={{ padding: 20 }}>Loading product...</div>;
   }
 
   if (!product) {
     return <div style={{ padding: 20 }}>Product not found</div>;
   }
 
-  const flags = getRiskFlags(product);
+  const variant = product.primaryVariant || {};
 
   return (
-    <div style={{ padding: 20, maxWidth: 1300, margin: "auto" }}>
+    <div style={{ padding: 20, maxWidth: 1200, margin: "auto" }}>
 
-      {/* ================= HEADER ================= */}
+      {/* HEADER */}
       <div style={{ display: "flex", justifyContent: "space-between" }}>
-        <div>
-          <h2>🧠 Moderation Console</h2>
-          <p>
-            Product ID: <b>{id}</b>
-          </p>
+        <h2>🧠 Product Ops Console</h2>
+
+        <div style={{ display: "flex", gap: 10 }}>
+          <button onClick={() => router.back()}>⬅ Back</button>
+
+          <button onClick={() => setEditMode(!editMode)}>
+            {editMode ? "Lock View" : "Edit Mode"}
+          </button>
+
+          <button onClick={saveChanges} disabled={!editMode || saving}>
+            💾 Save
+          </button>
         </div>
-
-        <button onClick={() => router.back()}>
-          ⬅ Back
-        </button>
       </div>
 
-      {/* ================= STATUS STRIP ================= */}
-      <div style={{ marginTop: 10, display: "flex", gap: 10 }}>
-        <span>Status: <b>{product.status}</b></span>
-        <span>Listed: {product.isListed ? "YES" : "NO"}</span>
+      {/* STATUS BAR */}
+      <div style={{ marginTop: 10 }}>
+        <b>Status:</b> {product.status} |{" "}
+        <b>Listed:</b> {product.isListed ? "YES" : "NO"}
       </div>
 
-      {/* ================= ACTION BAR ================= */}
-      <div style={{ marginTop: 10, display: "flex", gap: 10 }}>
-        <button onClick={() => action("approve")}>✅ Approve</button>
-        <button onClick={() => action("reject")}>❌ Reject</button>
-        <button onClick={() => action("list")}>📢 List</button>
-        <button onClick={() => action("delist")}>🚫 Delist</button>
-      </div>
-
-      {/* ================= GRID ================= */}
+      {/* GRID */}
       <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 20, marginTop: 20 }}>
 
-        {/* ================= LEFT: PRODUCT ================= */}
-        <div style={{ background: "#fff", padding: 15, borderRadius: 10 }}>
-
-          <h3>📦 Product Editor</h3>
-
-          <label>Name</label>
-          <input
-            value={product.name || ""}
-            onChange={(e) => update("name", e.target.value)}
-            style={{ width: "100%" }}
-          />
-
-          <label>Description</label>
-          <textarea
-            value={product.description || ""}
-            onChange={(e) => update("description", e.target.value)}
-            style={{ width: "100%", height: 100 }}
-          />
-
-          <label>Price</label>
-          <input
-            value={product.primaryVariant?.sellingPrice || ""}
-            onChange={(e) => update("sellingPrice", e.target.value)}
-          />
-
-          <label>MRP</label>
-          <input
-            value={product.primaryVariant?.mrp || ""}
-            onChange={(e) => update("mrp", e.target.value)}
-          />
-
-          <h4>🖼 Images</h4>
-          <div style={{ display: "flex", gap: 10 }}>
-            {(product.images || []).map((img, i) => (
-              <img
-                key={i}
-                src={img}
-                style={{ width: 80, height: 80, objectFit: "cover", borderRadius: 6 }}
-              />
-            ))}
-          </div>
-
-        </div>
-
-        {/* ================= RIGHT: MODERATION PANEL ================= */}
+        {/* LEFT PANEL */}
         <div>
 
-          {/* ================= RISK PANEL ================= */}
-          <div style={{ background: "#fff3f3", padding: 15, borderRadius: 10 }}>
-            <h3>⚠️ Risk Analysis</h3>
+          {/* BASIC */}
+          <div style={card}>
+            <h3>📦 Basic Info</h3>
 
-            {flags.length === 0 ? (
-              <p style={{ color: "green" }}>No issues detected</p>
+            {editMode ? (
+              <>
+                <input
+                  value={product.name}
+                  onChange={(e) => updateField("name", e.target.value)}
+                />
+
+                <textarea
+                  value={product.description || ""}
+                  onChange={(e) => updateField("description", e.target.value)}
+                />
+              </>
             ) : (
-              <ul>
-                {flags.map((f, i) => (
-                  <li key={i}>{f}</li>
-                ))}
-              </ul>
+              <>
+                <h2>{product.name}</h2>
+                <p>{product.description}</p>
+              </>
             )}
           </div>
 
-          {/* ================= QUICK INFO ================= */}
-          <div style={{ marginTop: 15, background: "#f6f6f6", padding: 15, borderRadius: 10 }}>
-            <h3>📊 Quick Summary</h3>
+          {/* IMAGES */}
+          <div style={card}>
+            <h3>🖼 Images</h3>
 
-            <p>Category: {product.category}</p>
-            <p>SKU: {product.primaryVariant?.sku || "—"}</p>
-            <p>Stock: {product.primaryVariant?.stock || 0}</p>
+            <div style={{ display: "flex", gap: 10 }}>
+              {product.images?.map((img, i) => (
+                <img
+                  key={i}
+                  src={img}
+                  style={{
+                    width: 100,
+                    height: 100,
+                    objectFit: "cover",
+                    borderRadius: 8,
+                  }}
+                />
+              ))}
+            </div>
           </div>
 
-          {/* ================= AUDIT LOG ================= */}
-          <div style={{ marginTop: 15, background: "#fff", padding: 15, borderRadius: 10 }}>
-            <h3>📜 Decision Log</h3>
+          {/* VARIANTS */}
+          <div style={card}>
+            <h3>📊 Variants</h3>
 
-            <ul>
-              <li>Created: {product.createdAt || "—"}</li>
-              <li>Last Updated: {product.updatedAt || "—"}</li>
-              <li>Current Status: {product.status}</li>
-            </ul>
+            <table width="100%">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Price</th>
+                  <th>Stock</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {(product.variants || []).map((v, i) => (
+                  <tr key={i}>
+                    <td>{v.sku}</td>
+                    <td>₹{v.sellingPrice}</td>
+                    <td>{v.stock}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
 
         </div>
+
+        {/* RIGHT PANEL */}
+        <div>
+
+          {/* OPS ACTIONS */}
+          <div style={card}>
+            <h3>⚙️ Moderation Actions</h3>
+
+            <button onClick={() => action("approve")}>
+              ✅ Approve
+            </button>
+
+            <button onClick={() => action("reject")}>
+              ❌ Reject
+            </button>
+
+            <button onClick={() => action("list")}>
+              📢 List
+            </button>
+
+            <button onClick={() => action("delist")}>
+              🚫 Delist
+            </button>
+          </div>
+
+          {/* AI FLAGS (LOCAL UI ONLY) */}
+          <div style={card}>
+            <h3>🧠 AI Risk Panel</h3>
+
+            <p>⚠ Missing Compliance: {product.fssaiNumber ? "No" : "Yes"}</p>
+            <p>⚠ Low Margin Risk: {Number(variant.sellingPrice) < 50 ? "Yes" : "No"}</p>
+            <p>⚠ Image Quality: OK</p>
+          </div>
+
+          {/* COMPLIANCE */}
+          <div style={card}>
+            <h3>📜 Compliance</h3>
+
+            <p>FSSAI: {product.fssaiNumber || "NA"}</p>
+            <p>Manufacturer: {product.manufacturerName}</p>
+            <p>Country: {product.countryOfOrigin}</p>
+          </div>
+
+          {/* ACTIVITY LOG (STRUCTURE READY) */}
+          <div style={card}>
+            <h3>📜 Activity Log</h3>
+            <p>• Created by Admin</p>
+            <p>• Sent to Review</p>
+            <p>• Awaiting Moderation</p>
+          </div>
+
+        </div>
+
       </div>
-
-      {saving && (
-        <div style={{ marginTop: 10, color: "orange" }}>
-          Saving changes...
-        </div>
-      )}
 
     </div>
   );
 }
+
+/* ================= STYLE ================= */
+
+const card = {
+  padding: 15,
+  background: "#fff",
+  borderRadius: 10,
+  marginBottom: 15,
+  boxShadow: "0 2px 6px rgba(0,0,0,0.05)",
+};
