@@ -1134,10 +1134,6 @@ return (
         </p>
       )}
 
-      if (Number(form.sellingPrice) < totalCost) {
-        return setError("Cannot submit: Selling price below cost");
-      }
-
       <p style={{ fontSize: 12 }}>
         System prevents negative margin products before saving
       </p>
@@ -1579,6 +1575,9 @@ return (
                     return setError("Generate nutrition first");
                   if (!form.barcode)
                     return setError("Barcode missing");
+                  if (Number(form.sellingPrice) < totalCost) {
+                    return setError("Cannot submit: Selling price below cost");
+                  }
             
                   setError("");
             
