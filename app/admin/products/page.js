@@ -1513,31 +1513,19 @@ return (
       <p>💵 Selling Price (Incl GST): ₹{gstIncludedPrice}</p>
     </div>
 
-    {/* ================= SKU ================= */}
-    <h3 style={{ marginTop: 20 }}>🆔 SKU</h3>
-
-    <input
-      readOnly
-      value={
-        form.name && form.totalWeight
-          ? `NA-${form.name.toUpperCase().replace(/\s+/g, "")}-001-${form.totalWeight}GM`
-          : ""
-      }
-    />
-
     {/* ================= PRODUCT ID ================= */}
     <h3 style={{ marginTop: 20 }}>🔗 Product Codes</h3>
 
-    <input readOnly value={form.productId || ""} />
-
-    <svg id="barcode" style={{ marginTop: 10 }} /> style={{ marginTop: 10 }} />
-
-    <div style={{ marginTop: 10 }}>
-      <img
-        src={`https://api.qrserver.com/v1/create-qr-code/?data=${form.productId || ""}`}
-        width={120}
-      />
-    </div>
+      <input readOnly value={form.productId || ""} />
+      
+      <svg id="barcode" style={{ marginTop: 10 }} />
+      
+      <div style={{ marginTop: 10 }}>
+        <img
+          src={`https://api.qrserver.com/v1/create-qr-code/?data=${form.productId || ""}`}
+          width={120}
+        />
+      </div>
 
     {/* ================= SEO ================= */}
     <h3 style={{ marginTop: 20 }}>🌍 SEO</h3>
