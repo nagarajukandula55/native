@@ -1530,7 +1530,7 @@ return (
 
     <input readOnly value={form.productId || ""} />
 
-    <svg ref={el => (barcodeRefs.current[0] = el)} style={{ marginTop: 10 }} />
+    <svg id="barcode" style={{ marginTop: 10 }} /> style={{ marginTop: 10 }} />
 
     <div style={{ marginTop: 10 }}>
       <img
