@@ -671,7 +671,7 @@ function removeIngredient(i) {
       // ✅ SEND REAL VARIANT
       variants: [
         {
-          variants: form.variants.length ? form.variants : [...] || "default",
+          variants: form.totalWeight || "default",
           unit: form.unit || "GM",
     
           // ⚠️ leave sku empty → backend will generate
