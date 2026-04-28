@@ -127,18 +127,9 @@ export default function ProductUpload() {
     te: "",
     hi: ""
   });
-
-  const finalSKU =
-    body.sku ||
-    `NA-${String(body.name || "")
-      .toUpperCase()
-      .replace(/\s+/g, "")}-${body.totalWeight || "NA"}-001`;
-
-  const primaryVariant = {
-    sku: finalSKU, // ✅ ALWAYS backend generated
   
-    value: body.totalWeight || "default",
-    unit: "GM",
+    // 🔥 FIX THIS ↓ (important for ML/L support)
+    unit: body.unit || "GM",
   
     mrp: Number(body.mrp || 0),
     sellingPrice: Number(body.sellingPrice || 0),
@@ -147,7 +138,6 @@ export default function ProductUpload() {
     barcode: body.barcode || "",
     qrCode: body.qrCode || "",
   };
-
   /* ================= AUTO SAVE ================= */
 
     useEffect(() => {
