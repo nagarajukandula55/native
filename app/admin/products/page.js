@@ -127,7 +127,9 @@ export default function ProductUpload() {
     te: "",
     hi: ""
   });
-  
+
+  <input disabled={form.status !== "draft"} />
+
   /* ================= AUTO SAVE ================= */
 
     useEffect(() => {
@@ -1557,51 +1559,50 @@ return (
               }}
             >
               ⬅ Back
-            </button>
-          
-            {/* FINAL SUBMIT BUTTON */}
-            <button
-              onClick={async () => {
-                try {
-                  // ================= VALIDATION =================
-                  const err = validateStep(3);
-                  if (err) return setError(err);
-          
-                  if (!form.productId) return setError("Product ID missing");
-                  if (!form.images || form.images.length === 0)
-                    return setError("Upload at least 1 image");
-                  if (!form.totalWeight)
-                    return setError("Total weight missing");
-                  if (!form.fssaiNumber)
-                    return setError("FSSAI number required");
-                  if (!form.nutrition?.energy)
-                    return setError("Generate nutrition first");
-                  if (!form.barcode)
-                    return setError("Barcode missing");
-          
-                  setError("");
-          
-                  // ================= SUBMIT =================
-                  await handleSubmit();
-          
-                } catch (e) {
-                  console.error(e);
-                  setError("Something went wrong during submission");
-                }
-              }}
-              style={{
-                background: "green",
-                color: "#fff",
-                padding: 10,
-                flex: 1,
-                fontWeight: "bold",
-                border: "none",
-                borderRadius: 6,
-                cursor: "pointer"
-              }}
-            >
-              🚀 FINAL SUBMIT PRODUCT
-            </button>
+                <button
+                  onClick={async () => {
+                    try {
+                      // ================= VALIDATION =================
+                      const err = validateStep(3);
+                      if (err) return setError(err);
+                
+                      if (!form.productId) return setError("Product ID missing");
+                      if (!form.images || form.images.length === 0)
+                        return setError("Upload at least 1 image");
+                      if (!form.totalWeight)
+                        return setError("Total weight missing");
+                      if (!form.fssaiNumber)
+                        return setError("FSSAI number required");
+                      if (!form.nutrition?.energy)
+                        return setError("Generate nutrition first");
+                      if (!form.barcode)
+                        return setError("Barcode missing");
+                
+                      setError("");
+                
+                      // ================= CREATE + SEND TO REVIEW =================
+                      await handleSubmit();
+                
+                      alert("✅ Product submitted for approval");
+                
+                    } catch (e) {
+                      console.error(e);
+                      setError("Something went wrong during submission");
+                    }
+                  }}
+                  style={{
+                    background: "green",
+                    color: "#fff",
+                    padding: 10,
+                    flex: 1,
+                    fontWeight: "bold",
+                    border: "none",
+                    borderRadius: 6,
+                    cursor: "pointer"
+                  }}
+                >
+                  🚀 SUBMIT FOR APPROVAL
+                </button>
           
           </div>
       
