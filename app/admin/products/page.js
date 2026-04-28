@@ -39,11 +39,11 @@ export default function ProductUpload() {
           }
         ],
     nutrition: {
-          energy: Number,
-          protein: Number,
-          carbs: Number,
-          fat: Number,
-        },
+        energy: 0,
+        protein: 0,
+        carbs: 0,
+        fat: 0,
+      },
 
     subcategory: "",
     highlights: "",
@@ -128,16 +128,6 @@ export default function ProductUpload() {
     hi: ""
   });
   
-    // 🔥 FIX THIS ↓ (important for ML/L support)
-    unit: body.unit || "GM",
-  
-    mrp: Number(body.mrp || 0),
-    sellingPrice: Number(body.sellingPrice || 0),
-    stock: Number(body.stock || 0),
-  
-    barcode: body.barcode || "",
-    qrCode: body.qrCode || "",
-  };
   /* ================= AUTO SAVE ================= */
 
     useEffect(() => {
@@ -674,24 +664,6 @@ function removeIngredient(i) {
       }));
     }
     
-    useEffect(() => {
-      if (!form.productId) return;
-    
-      try {
-        setForm(prev => {
-          // prevent unnecessary re-render loop
-          if (prev.barcode === form.productId) return prev;
-    
-          return {
-            ...prev,
-            barcode: form.productId,
-            qrCode: `https://shopnative.in/product/${slug}`
-          };
-        });
-      } catch (e) {
-        console.error(e);
-      }
-    }, [form.productId, slug]);
 
 /* ============ Handle Submit ===========*/
 
@@ -703,21 +675,42 @@ function removeIngredient(i) {
       if (!form.category) return setError("Category missing");
       if (!form.productKey) return setError("ProductKey missing");
   
-      const cleanPayload = {
-        ...form,
-        slug: slug,
-        productKey: form.productKey,
-        ingredients: Array.isArray(form.ingredients) ? form.ingredients : [],
-        nutrition: {
-          energy: Number(form.nutrition?.energy || 0),
-          protein: Number(form.nutrition?.protein || 0),
-          carbs: Number(form.nutrition?.carbs || 0),
-          fat: Number(form.nutrition?.fat || 0),
-        },
-        variants: [],
-        tags: form.tags || "",
-        images: form.images || [],
-      };
+    const cleanPayload = {
+      ...form,
+    
+      slug: slug,
+      productKey: form.productKey,
+    
+      ingredients: Array.isArray(form.ingredients) ? form.ingredients : [],
+    
+      nutrition: {
+        energy: Number(form.nutrition?.energy || 0),
+        protein: Number(form.nutrition?.protein || 0),
+        carbs: Number(form.nutrition?.carbs || 0),
+        fat: Number(form.nutrition?.fat || 0),
+      },
+    
+      // ✅ SEND REAL VARIANT
+      variants: [
+        {
+          value: form.totalWeight || "default",
+          unit: form.unit || "GM",
+    
+          // ⚠️ leave sku empty → backend will generate
+          sku: "",
+    
+          mrp: Number(form.mrp || 0),
+          sellingPrice: Number(form.sellingPrice || 0),
+          stock: Number(form.stock || 0),
+    
+          barcode: form.barcode || "",
+          qrCode: form.qrCode || "",
+        }
+      ],
+    
+      tags: form.tags || "",
+      images: form.images || [],
+    };
   
       const res = await fetch("/api/admin/products", {
         method: "POST",
