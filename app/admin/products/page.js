@@ -724,6 +724,12 @@ function removeIngredient(i) {
       console.log("FULL RESPONSE:", data);
       
         if (!res.ok || !data.success) {
+          console.error("❌ API FAILED");
+          console.error("STATUS:", res.status);
+          console.error("RESPONSE:", data);
+        
+          alert("ERROR: " + (data.message || "Failed"));
+        
           setError(data.message || "Product submission failed");
           return;
         }
