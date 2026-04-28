@@ -198,7 +198,7 @@ export async function POST(req) {
 
   } catch (error) {
     console.error("❌ PRODUCT CREATE ERROR:", error);
-
+   console.log("✅ SAVED:", newProduct);
     return NextResponse.json(
       {
         success: false,
