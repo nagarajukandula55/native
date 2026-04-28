@@ -128,27 +128,6 @@ export default function ProductUpload() {
     hi: ""
   });
 
-  <input disabled={form.status !== "draft"} />
-
-  /* ================= AUTO SAVE ================= */
-
-    useEffect(() => {
-      const saved = localStorage.getItem("product_draft");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        setForm(parsed.form || emptyForm);
-        setSeo(parsed.seo || {});
-        setStep(parsed.step || 0);
-      }
-    }, []);
-    
-    useEffect(() => {
-      localStorage.setItem(
-        "product_draft",
-        JSON.stringify({ form, seo, step })
-      );
-    }, [form, seo, step]);
-
 /* ================= AUTO ================= */
 
 useEffect(() => {
@@ -684,7 +663,7 @@ function removeIngredient(i) {
 
 /* ============ Handle Submit ===========*/
 
-  const handleSubmit = async (status = "draft") => {
+  const handleSubmit = async () => {
     try {
       setError("");
   
@@ -722,6 +701,7 @@ function removeIngredient(i) {
     
           barcode: form.barcode || "",
           qrCode: form.qrCode || "",
+          status: "review",
         }
       ],
     
@@ -1582,7 +1562,6 @@ return (
         
                 setError("");
         
-                await handleSubmit("review");
         
                 alert("✅ Product submitted for approval");
         
