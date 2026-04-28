@@ -705,87 +705,66 @@ function removeIngredient(i) {
 
 /* ============ Handle Submit ===========*/
 
-    const handleSubmit = async () => {
-      try {
-        setError("");
-    
-        if (!form.name) return setError("Product name missing");
-        if (!form.category) return setError("Category missing");
-        if (!form.productKey) return setError("ProductKey missing");
-    
-        const cleanPayload = {
-          ...form,
-          slug: slug,
-          productKey: form.productKey,
-          ingredients: Array.isArray(form.ingredients) ? form.ingredients : [],
-          nutrition: {
-            energy: Number(form.nutrition?.energy || 0),
-            protein: Number(form.nutrition?.protein || 0),
-            carbs: Number(form.nutrition?.carbs || 0),
-            fat: Number(form.nutrition?.fat || 0),
-          },
-          variants: [],
-          tags: form.tags || "",
-          images: form.images || [],
-        };
-    
-        const res = await fetch("/api/admin/products", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(cleanPayload),
-        });
-    
-        const data = await res.json();
-    
-        if (!data.success) {
-          setError(data.message || "Product submission failed");
-          return;
-        }
-    
-        alert("Product submitted successfully!");
-    
-        setForm(emptyForm);
-        window.location.href = "/admin/products/list";
-    
-      } catch (err) {
-        console.error(err);
-        setError("Network or server error");
-      }
-    };
-    const text = await res.text();
-
-    let data;
+  const handleSubmit = async () => {
     try {
-      data = JSON.parse(text);
-    } catch (e) {
-      console.error("Invalid JSON:", text);
-      setError("Server returned invalid response");
-      return;
+      setError("");
+  
+      if (!form.name) return setError("Product name missing");
+      if (!form.category) return setError("Category missing");
+      if (!form.productKey) return setError("ProductKey missing");
+  
+      const cleanPayload = {
+        ...form,
+        slug: slug,
+        productKey: form.productKey,
+        ingredients: Array.isArray(form.ingredients) ? form.ingredients : [],
+        nutrition: {
+          energy: Number(form.nutrition?.energy || 0),
+          protein: Number(form.nutrition?.protein || 0),
+          carbs: Number(form.nutrition?.carbs || 0),
+          fat: Number(form.nutrition?.fat || 0),
+        },
+        variants: [],
+        tags: form.tags || "",
+        images: form.images || [],
+      };
+  
+      const res = await fetch("/api/admin/products", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(cleanPayload),
+      });
+  
+      // ✅ safer parsing (handles non-JSON errors)
+      const text = await res.text();
+  
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        console.error("Invalid JSON:", text);
+        setError("Server returned invalid response");
+        return;
+      }
+  
+      if (!data.success) {
+        setError(data.message || "Product submission failed");
+        return;
+      }
+  
+      // ✅ SUCCESS
+      alert("Product submitted successfully!");
+  
+      setForm(emptyForm);
+      window.location.href = "/admin/products/list";
+  
+    } catch (err) {
+      console.error(err);
+      setError("Network or server error");
     }
-
-    if (!data.success) {
-      setError(data.message || "Product submission failed");
-      return;
-    }
-
-    // ================= SUCCESS =================
-    alert("Product submitted successfully!");
-
-    // 🔥 RESET FORM
-    setForm(emptyForm);
-
-    // 🔥 OPTIONAL: redirect to product list
-    window.location.href = "/admin/products/list";
-
-  } catch (err) {
-    console.error(err);
-    setError("Network or server error");
-  }
-};
-
-
+  };
   /* ================= UI ================= */
 
 return (
