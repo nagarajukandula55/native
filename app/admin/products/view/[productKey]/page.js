@@ -1,265 +1,93 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 
-/* ================= VALIDATION ================= */
-function validateProduct(p) {
-  const errors = [];
-
-  if (!p.name) errors.push("Missing product name");
-  if (!p.images?.length) errors.push("No images");
-  if (!p.fssaiNumber) errors.push("Missing FSSAI");
-
-  const price = p.primaryVariant?.sellingPrice || 0;
-  const cost =
-    (p.baseCost || 0) +
-    (p.packagingCost || 0) +
-    (p.logisticsCost || 0) +
-    (p.marketingCost || 0);
-
-  if (price < cost) errors.push("Selling below cost");
-
-  return errors;
-}
-
-export default function ProductView({ params }) {
-  const { productKey } = params;
+export default function ProductViewPage() {
+  const { productId } = useParams();
 
   const [product, setProduct] = useState(null);
-  const [editMode, setEditMode] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [rejectionReason, setRejectionReason] = useState("");
+  const [loading, setLoading] = useState(true);
 
-  const router = useRouter();
+  async function fetchProduct() {
+    try {
+      setLoading(true);
 
-  /* ================= LOAD ================= */
-  async function loadProduct() {
-    const res = await fetch(`/api/admin/products/${productKey}`);
-    const data = await res.json();
+      const res = await fetch(`/api/admin/products/${productId}`);
+      const data = await res.json();
 
-    if (data.success) {
-      setProduct(data.product);
+      console.log("VIEW API RESPONSE:", data);
+
+      if (data?.product) {
+        setProduct(data.product);
+      } else {
+        setProduct(null);
+      }
+
+    } catch (err) {
+      console.error("View load error:", err);
+      setProduct(null);
+    } finally {
+      setLoading(false);
     }
   }
 
   useEffect(() => {
-    loadProduct();
-  }, []);
+    if (productId) fetchProduct();
+  }, [productId]);
 
-  /* ================= INLINE EDIT ================= */
-  function updateField(field, value) {
-    setProduct(prev => ({
-      ...prev,
-      [field]: value
-    }));
+  /* ================= LOADING ================= */
+
+  if (loading) {
+    return (
+      <div style={{ padding: 20 }}>
+        <h3>Loading product...</h3>
+      </div>
+    );
   }
 
-  function updateVariant(field, value) {
-    setProduct(prev => ({
-      ...prev,
-      primaryVariant: {
-        ...prev.primaryVariant,
-        [field]: value
-      }
-    }));
+  /* ================= NOT FOUND ================= */
+
+  if (!product) {
+    return (
+      <div style={{ padding: 20 }}>
+        <h3>❌ Product not found</h3>
+        <p>Check API or productId: {productId}</p>
+      </div>
+    );
   }
 
-  async function saveChanges() {
-    setLoading(true);
-
-    await fetch(`/api/admin/products/${productKey}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(product),
-    });
-
-    setEditMode(false);
-    setLoading(false);
-    loadProduct();
-  }
-
-  /* ================= ACTIONS ================= */
-
-  async function approve() {
-    setLoading(true);
-
-    await fetch("/api/admin/products/action", {
-      method: "POST",
-      body: JSON.stringify({
-        productId: product.productKey,
-        action: "approve",
-      }),
-    });
-
-    router.push("/admin/products/review");
-  }
-
-  async function reject() {
-    if (!rejectionReason) return alert("Enter reason");
-
-    setLoading(true);
-
-    await fetch("/api/admin/products/action", {
-      method: "POST",
-      body: JSON.stringify({
-        productId: product.productKey,
-        action: "reject",
-        reason: rejectionReason,
-      }),
-    });
-
-    router.push("/admin/products/review");
-  }
-
-  if (!product) return <p>Loading...</p>;
-
-  const errors = validateProduct(product);
+  /* ================= UI ================= */
 
   return (
-    <div className="wrap">
-      <h1>🧾 Moderation Panel</h1>
+    <div style={{ padding: 20 }}>
 
-      {/* ================= ERRORS ================= */}
-      {errors.length > 0 && (
-        <div className="alert">
-          {errors.map((e, i) => <p key={i}>⚠️ {e}</p>)}
+      <h2>📦 Product View</h2>
+
+      <div style={{ display: "grid", gap: 10 }}>
+
+        <h3>{product.name}</h3>
+
+        <p><b>Product ID:</b> {product.productId}</p>
+
+        <p><b>Category:</b> {product.category}</p>
+
+        <p><b>Status:</b> {product.status}</p>
+
+        <p><b>Price:</b> ₹{product.primaryVariant?.sellingPrice}</p>
+
+        <p><b>SKU (secondary):</b> {product.primaryVariant?.sku}</p>
+
+        <div>
+          <img
+            src={product.images?.[0] || "/no-image.png"}
+            width={200}
+            style={{ borderRadius: 8 }}
+          />
         </div>
-      )}
-
-      {/* ================= BASIC ================= */}
-      <div className="card">
-
-        <label>Name</label>
-        <input
-          value={product.name}
-          disabled={!editMode}
-          onChange={(e) => updateField("name", e.target.value)}
-        />
-
-        <label>Category</label>
-        <input
-          value={product.category}
-          disabled={!editMode}
-          onChange={(e) => updateField("category", e.target.value)}
-        />
-
-        <label>Price</label>
-        <input
-          value={product.primaryVariant?.sellingPrice || ""}
-          disabled={!editMode}
-          onChange={(e) => updateVariant("sellingPrice", e.target.value)}
-        />
 
       </div>
 
-      {/* ================= IMAGES ================= */}
-      <div className="card">
-        <h3>Images</h3>
-        <div className="gallery">
-          {(product.images || []).map((img, i) => (
-            <img key={i} src={img} />
-          ))}
-        </div>
-      </div>
-
-      {/* ================= ACTIVITY LOG ================= */}
-      <div className="card">
-        <h3>🧾 Activity Timeline</h3>
-
-        {(product.activityLog || []).length === 0 ? (
-          <p>No activity yet</p>
-        ) : (
-          <ul>
-            {product.activityLog.map((log, i) => (
-              <li key={i}>
-                <b>{log.action}</b> by {log.user} <br />
-                <small>{new Date(log.timestamp).toLocaleString()}</small>
-                {log.reason && <p>Reason: {log.reason}</p>}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
-      {/* ================= ACTIONS ================= */}
-      <div className="actions">
-
-        {!editMode ? (
-          <button onClick={() => setEditMode(true)}>✏️ Edit</button>
-        ) : (
-          <button onClick={saveChanges}>💾 Save</button>
-        )}
-
-        <button onClick={approve} className="approve">
-          Approve
-        </button>
-
-        <input
-          placeholder="Reject reason"
-          value={rejectionReason}
-          onChange={(e) => setRejectionReason(e.target.value)}
-        />
-
-        <button onClick={reject} className="reject">
-          Reject
-        </button>
-
-      </div>
-
-      <style jsx>{`
-        .wrap {
-          max-width: 900px;
-          margin: auto;
-          padding: 20px;
-        }
-
-        .card {
-          background: #fff;
-          padding: 15px;
-          border-radius: 10px;
-          margin-top: 15px;
-        }
-
-        input {
-          width: 100%;
-          margin-bottom: 10px;
-          padding: 6px;
-        }
-
-        .gallery {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 10px;
-        }
-
-        .gallery img {
-          width: 100%;
-          border-radius: 8px;
-        }
-
-        .actions {
-          display: flex;
-          gap: 10px;
-          margin-top: 20px;
-        }
-
-        .approve {
-          background: green;
-          color: white;
-        }
-
-        .reject {
-          background: red;
-          color: white;
-        }
-
-        .alert {
-          background: #ffecec;
-          padding: 10px;
-          border-radius: 8px;
-        }
-      `}</style>
     </div>
   );
 }
