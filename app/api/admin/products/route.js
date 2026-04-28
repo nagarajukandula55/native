@@ -42,6 +42,9 @@ async function generateSKU({ name, weight, unit = "GM" }) {
    🚀 POST CREATE PRODUCT
 ===================================================== */
 export async function POST(req) {
+  console.log("🔥 API HIT");
+
+export async function POST(req) {
   try {
     await connectDB();
 
