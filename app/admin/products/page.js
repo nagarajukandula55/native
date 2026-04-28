@@ -723,6 +723,7 @@ function removeIngredient(i) {
           setError(data.message || "Product submission failed");
           return;
         }
+      console.log("✅ SUCCESS:", data);
   
       // ✅ SUCCESS
       alert("Product submitted successfully!");
