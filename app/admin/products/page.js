@@ -128,6 +128,17 @@ export default function ProductUpload() {
     hi: ""
   });
 
+  const primaryVariant = {
+    sku: finalSKU,
+    value: body.totalWeight,
+    unit: "GM",
+    mrp: Number(body.mrp || 0),
+    sellingPrice: Number(body.sellingPrice || 0),
+    stock: 0,
+    barcode: body.barcode || "",
+    qrCode: body.qrCode || "",
+  };
+
   /* ================= AUTO SAVE ================= */
 
     useEffect(() => {
@@ -284,7 +295,7 @@ useEffect(() => {
 
 /* =================== Product Key ================ */
 
-   useEffect(() => {
+  useEffect(() => {
     if (!form.name) return;
   
     const { slug, productKey, sku } = generateProductIds(
@@ -296,30 +307,20 @@ useEffect(() => {
     setForm(prev => ({
       ...prev,
   
+      // ✅ CORE IDs
       slug,
       productKey,
-      sku,
-  
       productId: productKey,
+  
+      // ✅ BARCODE / QR
       barcode: productKey,
       qrCode: `https://shopnative.in/product/${slug}`,
   
-      // 🔥 CRITICAL FIX: sync variant SKU for Mongo validation
-      variants: prev.variants?.length
-        ? prev.variants.map(v => ({
-            ...v,
-            sku: v.sku || sku
-          }))
-        : [
-            {
-              value: "default",
-              unit: "GM",
-              sku: sku,
-              mrp: prev.mrp || 0,
-              sellingPrice: prev.sellingPrice || 0,
-              stock: 0
-            }
-          ]
+      // ⚠️ SKU = PREVIEW ONLY (backend will override)
+      sku,
+  
+      // ✅ DO NOT TOUCH VARIANTS HERE
+      variants: prev.variants || []
     }));
   
   }, [form.name, form.brand, form.totalWeight]);
@@ -387,22 +388,29 @@ function removeIngredient(i) {
 
 /* ================= PRODUCT KEY ================= */
 
-function generateProductIds(name, brand, weight) {
-  const base = `${brand || ""} ${name || ""}`;
-
-  const slug = String(base)
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
-
-  const productKey = Date.now().toString().slice(-6);
-
-  const sku = `NA-${String(name || "")
-    .toUpperCase()
-    .replace(/\s+/g, "")}-${weight || "NA"}-${productKey}`;
-
-  return { slug, productKey, sku };
-}
+  function generateProductIds(name, brand, weight) {
+    const clean = (v) => String(v || "").trim();
+  
+    const cleanName = clean(name);
+    const cleanBrand = clean(brand);
+  
+    const nameKey = cleanName.toUpperCase().replace(/[^A-Z0-9]/g, "");
+    const brandKey = cleanBrand.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  
+    const slug = `${cleanBrand} ${cleanName}`
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "");
+  
+    const unique = Date.now().toString().slice(-6);
+  
+    const productKey = `${brandKey}-${nameKey}-${unique}`;
+  
+    // ⚠️ PREVIEW ONLY (not final)
+    const sku = `NA-${nameKey}-XXX-${weight || "NA"}GM`;
+  
+    return { slug, productKey, sku };
+  }
   
   /* ================= AI CONTENT ================= */
 
