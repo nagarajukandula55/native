@@ -274,8 +274,16 @@ const ProductSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
-  
 
+    activity: [
+      {
+        action: String,
+        by: String,
+        time: { type: Date, default: Date.now },
+        note: String,
+      }
+    ]
+  
 /* ================= EXPORT ================= */
 
 export default mongoose.models.Product ||
