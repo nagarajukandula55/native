@@ -1585,6 +1585,7 @@ return (
                 await handleSubmit();
         
                 alert("✅ Product submitted for approval");
+                saveProduct("pending")}>Submit</button>
         
               } catch (e) {
                 console.error(e);
