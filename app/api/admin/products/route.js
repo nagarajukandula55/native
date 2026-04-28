@@ -25,15 +25,15 @@ export async function POST(req) {
       );
     }
 
-    // ================= NORMALIZE INGREDIENTS =================
+    // ================= INGREDIENTS =================
     const ingredients = (body.ingredients || []).map((i) => ({
-      name: i.name || "",
-      qty: Number(i.qty || 0),
-      unit: i.unit || "GM",
-      percent: Number(i.percent || 0),
+      name: String(i?.name || ""),
+      qty: Number(i?.qty || 0),
+      unit: i?.unit || "GM",
+      percent: Number(i?.percent || 0),
     }));
 
-    // ================= NORMALIZE NUTRITION =================
+    // ================= NUTRITION =================
     const nutrition = {
       energy: Number(body.nutrition?.energy || 0),
       protein: Number(body.nutrition?.protein || 0),
@@ -41,48 +41,79 @@ export async function POST(req) {
       fat: Number(body.nutrition?.fat || 0),
     };
 
-    // ================= NORMALIZE VARIANTS =================
-    const variants = (body.variants || []).map((v) => ({
-      value: v.value || "",
-      unit: v.unit || "GM",
-      sku: v.sku || body.sku || `SKU-${Date.now()}`, // 🔥 FIX CRASH
-      mrp: Number(v.mrp || 0),
-      sellingPrice: Number(v.sellingPrice || 0),
-      stock: Number(v.stock || 0),
-      barcode: v.barcode || "",
-      qrCode: v.qrCode || "",
+    // ================= VARIANTS =================
+    let variants = (body.variants || []).map((v) => ({
+      value: v?.value || "default",
+      unit: v?.unit || "GM",
+      sku: v?.sku || body.sku || `SKU-${Date.now()}`,
+      mrp: Number(v?.mrp || body.mrp || 0),
+      sellingPrice: Number(v?.sellingPrice || body.sellingPrice || 0),
+      stock: Number(v?.stock || 0),
+      barcode: v?.barcode || "",
+      qrCode: v?.qrCode || "",
     }));
 
-    // ================= FINAL CLEAN PRODUCT =================
+    // 🔥 SAFETY: ensure at least one variant
+    if (!variants.length) {
+      variants = [
+        {
+          value: "default",
+          unit: "GM",
+          sku: body.sku || `SKU-${Date.now()}`,
+          mrp: Number(body.mrp || 0),
+          sellingPrice: Number(body.sellingPrice || 0),
+          stock: 0,
+          barcode: body.barcode || "",
+          qrCode: body.qrCode || "",
+        },
+      ];
+    }
+
+    // ================= PRIMARY VARIANT (CRITICAL FIX) =================
+    const primaryVariant = {
+      sku: variants[0].sku,
+      value: variants[0].value,
+      unit: variants[0].unit,
+      mrp: variants[0].mrp,
+      sellingPrice: variants[0].sellingPrice,
+      stock: variants[0].stock,
+      barcode: variants[0].barcode || "",
+      qrCode: variants[0].qrCode || "",
+    };
+
+    // ================= FINAL PRODUCT =================
     const productData = {
+      // CORE
       name: body.name,
       slug: body.slug,
       productKey: body.productKey,
 
-      category: body.category,
-      brand: body.brand,
-      subcategory: body.subcategory,
+      category: body.category || "",
+      brand: body.brand || "",
+      subcategory: body.subcategory || "",
 
-      gstCategory: body.gstCategory,
-      gstDescription: body.gstDescription,
-      hsn: body.hsn,
+      // GST
+      gstCategory: body.gstCategory || "",
+      gstDescription: body.gstDescription || "",
+      hsn: body.hsn || "",
       tax: Number(body.tax || 0),
 
-      description: body.description,
-      shortDescription: body.shortDescription,
+      // CONTENT
+      description: body.description || "",
+      shortDescription: body.shortDescription || "",
 
       ingredients,
       nutrition,
-      variants,
 
+      // MEDIA
       images: body.images || [],
       primaryImage: body.primaryImage || "",
 
-      productId: body.productId || body.productKey,
+      // VARIANTS
+      variants,
+      primaryVariant, // ✅ FIXED
 
-      barcode: body.barcode || "",
-      qrCode: body.qrCode || "",
-
+      // PRICING
       pricing: {
         mrp: Number(body.mrp || 0),
         sellingPrice: Number(body.sellingPrice || 0),
@@ -93,17 +124,18 @@ export async function POST(req) {
         marketingCost: Number(body.marketingCost || 0),
       },
 
+      // SEO
       seo: body.seo || {},
       seoLocal: body.seoLocal || {},
       tags: body.tags || "",
 
-      aiContent: body.aiContent || {},
-      aiSEO: body.aiSEO || {},
+      // AI
+      ai: body.ai || {},
 
+      // COMPLIANCE
       fssaiNumber: body.fssaiNumber || "",
       manufacturerName: body.manufacturerName || "",
       manufacturerAddress: body.manufacturerAddress || "",
-
       countryOfOrigin: body.countryOfOrigin || "India",
 
       storageInstructions: body.storageInstructions || "",
@@ -111,8 +143,13 @@ export async function POST(req) {
       usageInstructions: body.usageInstructions || "",
       safetyInfo: body.safetyInfo || "",
 
+      // STATUS
       status: "draft",
       isActive: false,
+      isListed: false,
+
+      // WORKFLOW
+      createdBy: body.createdBy || "admin",
 
       createdAt: new Date(),
     };
