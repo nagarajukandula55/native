@@ -128,13 +128,22 @@ export default function ProductUpload() {
     hi: ""
   });
 
+  const finalSKU =
+    body.sku ||
+    `NA-${String(body.name || "")
+      .toUpperCase()
+      .replace(/\s+/g, "")}-${body.totalWeight || "NA"}-001`;
+
   const primaryVariant = {
-    sku: form.sku,
-    value: body.totalWeight,
+    sku: finalSKU, // ✅ ALWAYS backend generated
+  
+    value: body.totalWeight || "default",
     unit: "GM",
+  
     mrp: Number(body.mrp || 0),
     sellingPrice: Number(body.sellingPrice || 0),
-    stock: 0,
+    stock: Number(body.stock || 0),
+  
     barcode: body.barcode || "",
     qrCode: body.qrCode || "",
   };
@@ -696,31 +705,24 @@ function removeIngredient(i) {
 
 /* ============ Handle Submit ===========*/
 
-  const handleSubmit = async () => {
+    const handleSubmit = async () => {
     try {
       setError("");
   
-      // ================= SAFETY CHECKS =================
       if (!form.name) return setError("Product name missing");
       if (!form.category) return setError("Category missing");
-      if (!form.productKey) return setError("ProductKey missing (regenerate)");
+      if (!form.productKey) return setError("ProductKey missing");
   
       const cleanPayload = {
         ...form,
   
-        // ================= CORE =================
         slug: slug,
         productKey: form.productKey,
   
-        // ❌ REMOVE SKU (backend will generate)
-        // sku: form.sku,
-  
-        // ================= INGREDIENTS =================
         ingredients: Array.isArray(form.ingredients)
           ? form.ingredients
           : [],
   
-        // ================= NUTRITION =================
         nutrition: {
           energy: Number(form.nutrition?.energy || 0),
           protein: Number(form.nutrition?.protein || 0),
@@ -728,13 +730,8 @@ function removeIngredient(i) {
           fat: Number(form.nutrition?.fat || 0),
         },
   
-        // ❌ DO NOT SEND primaryVariant
-        // Backend will create it
-  
-        // ❌ DO NOT SEND variants
         variants: [],
   
-        // ================= CLEAN =================
         tags: form.tags || "",
         images: form.images || [],
       };
