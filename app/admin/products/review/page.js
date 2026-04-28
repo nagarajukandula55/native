@@ -1,52 +1,58 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 
 export default function ReviewPage() {
   const [products, setProducts] = useState([]);
-  const [rejectionMap, setRejectionMap] = useState({});
+  const [editing, setEditing] = useState({});
+  const [logs, setLogs] = useState({});
   const [loadingId, setLoadingId] = useState(null);
-  const [filter, setFilter] = useState("all");
 
-  const router = useRouter();
-
-  /* ================= LOAD ================= */
   async function loadProducts() {
-    try {
-      const res = await fetch("/api/admin/products/review");
-      const data = await res.json();
-
-      if (data.success) {
-        setProducts(data.products);
-      }
-    } catch (err) {
-      console.error(err);
-    }
+    const res = await fetch("/api/admin/products/review");
+    const data = await res.json();
+    if (data.success) setProducts(data.products);
   }
 
   useEffect(() => {
     loadProducts();
   }, []);
 
-  /* ================= ACTIONS ================= */
+  /* ================= ACTION ================= */
 
-  async function approve(productKey) {
-    if (!confirm("Approve this product?")) return;
-
-    setLoadingId(productKey);
+  async function action(productId, type, extra = {}) {
+    setLoadingId(productId);
 
     try {
       await fetch("/api/admin/products/action", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          productId: productKey,
-          action: "approve",
+          productId,
+          action: type,
+          ...extra,
         }),
       });
 
+      // ✅ refresh + optimistic feel
+      setProducts((prev) =>
+        prev.map((p) =>
+          p.productKey === productId
+            ? {
+                ...p,
+                status:
+                  type === "approve"
+                    ? "approved"
+                    : type === "reject"
+                    ? "rejected"
+                    : p.status,
+              }
+            : p
+        )
+      );
+
       loadProducts();
+
     } catch (err) {
       console.error(err);
     }
@@ -54,265 +60,215 @@ export default function ReviewPage() {
     setLoadingId(null);
   }
 
-  async function reject(productKey) {
-    const reason = rejectionMap[productKey];
+  /* ================= INLINE EDIT ================= */
 
-    if (!reason) {
-      alert("Please select rejection reason");
-      return;
-    }
-
-    if (!confirm("Reject this product?")) return;
-
-    setLoadingId(productKey);
-
-    try {
-      await fetch("/api/admin/products/action", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          productId: productKey,
-          action: "reject",
-          reason,
-        }),
-      });
-
-      loadProducts();
-    } catch (err) {
-      console.error(err);
-    }
-
-    setLoadingId(null);
+  function startEdit(p) {
+    setEditing({
+      ...editing,
+      [p.productKey]: {
+        name: p.name,
+        price: p.primaryVariant?.sellingPrice,
+      },
+    });
   }
 
-  /* ================= FILTER ================= */
+  async function saveEdit(productKey) {
+    const edit = editing[productKey];
 
-  const filteredProducts = products.filter((p) => {
-    if (filter === "all") return true;
-    if (filter === "review") return p.status === "review";
-    if (filter === "approved") return p.status === "approved";
-    if (filter === "rejected") return p.status === "rejected";
-    return true;
-  });
+    await fetch("/api/admin/products/update", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        productId: productKey,
+        updates: {
+          name: edit.name,
+          "primaryVariant.sellingPrice": Number(edit.price),
+        },
+      }),
+    });
 
-  /* ================= STATS ================= */
+    setEditing((prev) => {
+      const copy = { ...prev };
+      delete copy[productKey];
+      return copy;
+    });
 
-  const stats = {
-    total: products.length,
-    review: products.filter(p => p.status === "review").length,
-    approved: products.filter(p => p.status === "approved").length,
-    rejected: products.filter(p => p.status === "rejected").length,
-  };
+    loadProducts();
+  }
+
+  /* ================= UI ================= */
 
   return (
-    <div className="container">
-      <h1>🧾 Product Review Engine</h1>
+    <div className="wrap">
+      <h1>🧾 Product Moderation Panel</h1>
 
-      {/* ================= DASHBOARD ================= */}
-      <div className="stats">
-        <div>Total: {stats.total}</div>
-        <div>🟡 Review: {stats.review}</div>
-        <div>🟢 Approved: {stats.approved}</div>
-        <div>🔴 Rejected: {stats.rejected}</div>
-      </div>
+      <div className="grid">
+        {products.map((p) => {
+          const isEditing = editing[p.productKey];
 
-      {/* ================= FILTER ================= */}
-      <div className="filters">
-        {["all", "review", "approved", "rejected"].map((f) => (
-          <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={filter === f ? "active" : ""}
-          >
-            {f}
-          </button>
-        ))}
-      </div>
-
-      {/* ================= GRID ================= */}
-      {filteredProducts.length === 0 ? (
-        <p>No products found</p>
-      ) : (
-        <div className="grid">
-          {filteredProducts.map((p) => (
+          return (
             <div key={p._id} className="card">
 
               {/* IMAGE */}
-              <img
-                src={p.images?.[0] || "/no-image.png"}
-                alt={p.name}
-              />
+              <img src={p.images?.[0] || "/no-image.png"} />
 
-              {/* BASIC */}
-              <h3>{p.name}</h3>
-
-              <p><b>Category:</b> {p.category}</p>
-              <p><b>SKU:</b> {p.primaryVariant?.sku || "-"}</p>
-              <p><b>Price:</b> ₹{p.primaryVariant?.sellingPrice || 0}</p>
-
-              {/* STATUS */}
-              <span className={`status ${p.status}`}>
-                {p.status}
-              </span>
-
-              {/* ================= REJECTION ================= */}
-              {p.status === "review" && (
-                <div className="reasons">
-                  <select
-                    value={rejectionMap[p.productKey] || ""}
-                    onChange={(e) =>
-                      setRejectionMap({
-                        ...rejectionMap,
-                        [p.productKey]: e.target.value,
-                      })
-                    }
-                  >
-                    <option value="">Select reason</option>
-                    <option value="Bad description">Bad description</option>
-                    <option value="Incorrect pricing">Incorrect pricing</option>
-                    <option value="Missing legal info">Missing legal info</option>
-                    <option value="Image quality issue">Image issue</option>
-                    <option value="Duplicate product">Duplicate</option>
-                    <option value="Other">Other</option>
-                  </select>
-
-                  {rejectionMap[p.productKey] === "Other" && (
-                    <input
-                      placeholder="Custom reason"
-                      onChange={(e) =>
-                        setRejectionMap({
-                          ...rejectionMap,
-                          [p.productKey]: e.target.value,
-                        })
-                      }
-                    />
-                  )}
-                </div>
+              {/* NAME */}
+              {isEditing ? (
+                <input
+                  value={isEditing.name}
+                  onChange={(e) =>
+                    setEditing({
+                      ...editing,
+                      [p.productKey]: {
+                        ...isEditing,
+                        name: e.target.value,
+                      },
+                    })
+                  }
+                />
+              ) : (
+                <h3>{p.name}</h3>
               )}
 
+              {/* PRICE */}
+              {isEditing ? (
+                <input
+                  type="number"
+                  value={isEditing.price}
+                  onChange={(e) =>
+                    setEditing({
+                      ...editing,
+                      [p.productKey]: {
+                        ...isEditing,
+                        price: e.target.value,
+                      },
+                    })
+                  }
+                />
+              ) : (
+                <p>₹ {p.primaryVariant?.sellingPrice}</p>
+              )}
+
+              <p><b>SKU:</b> {p.primaryVariant?.sku}</p>
+
+              <p>
+                <b>Status:</b>{" "}
+                <span className={`status ${p.status}`}>
+                  {p.status}
+                </span>
+              </p>
+
               {/* ================= ACTIONS ================= */}
+
               <div className="actions">
+
+                {isEditing ? (
+                  <>
+                    <button onClick={() => saveEdit(p.productKey)}>
+                      💾 Save
+                    </button>
+                    <button onClick={() => setEditing({})}>
+                      ❌ Cancel
+                    </button>
+                  </>
+                ) : (
+                  <button onClick={() => startEdit(p)}>
+                    ✏ Edit
+                  </button>
+                )}
 
                 {p.status === "review" && (
                   <>
                     <button
-                      disabled={loadingId === p.productKey}
-                      onClick={() => approve(p.productKey)}
                       className="approve"
+                      onClick={() => action(p.productKey, "approve")}
                     >
-                      {loadingId === p.productKey ? "..." : "Approve"}
+                      ✅ Approve
                     </button>
 
                     <button
-                      disabled={loadingId === p.productKey}
-                      onClick={() => reject(p.productKey)}
                       className="reject"
+                      onClick={() => {
+                        const reason = prompt("Enter rejection reason");
+                        if (!reason) return;
+                        action(p.productKey, "reject", { reason });
+                      }}
                     >
-                      Reject
+                      ❌ Reject
                     </button>
                   </>
                 )}
 
-                <button
-                  onClick={() =>
-                    router.push(`/admin/products/view/${p.productKey}`)
-                  }
-                  className="view"
-                >
-                  View
-                </button>
+                {p.status === "approved" && !p.isListed && (
+                  <button onClick={() => action(p.productKey, "list")}>
+                    📤 List
+                  </button>
+                )}
+
+                {p.isListed && (
+                  <button onClick={() => action(p.productKey, "delist")}>
+                    📥 Delist
+                  </button>
+                )}
 
               </div>
+
+              {/* ================= ACTIVITY LOG ================= */}
+
+              <div className="log">
+                <h4>📜 Activity</h4>
+                {(p.activity || []).slice(0, 3).map((l, i) => (
+                  <p key={i}>
+                    {l.action} • {new Date(l.time).toLocaleString()}
+                  </p>
+                ))}
+              </div>
+
             </div>
-          ))}
-        </div>
-      )}
+          );
+        })}
+      </div>
 
       {/* ================= STYLES ================= */}
+
       <style jsx>{`
-        .container {
+        .wrap {
           padding: 20px;
-          max-width: 1200px;
+          max-width: 1300px;
           margin: auto;
-        }
-
-        h1 {
-          margin-bottom: 20px;
-        }
-
-        .stats {
-          display: flex;
-          gap: 15px;
-          margin-bottom: 15px;
-          font-weight: bold;
-        }
-
-        .filters button {
-          margin-right: 10px;
-          padding: 8px 12px;
-          border: 1px solid #ddd;
-          background: #fff;
-          cursor: pointer;
-          border-radius: 6px;
-        }
-
-        .filters .active {
-          background: black;
-          color: white;
         }
 
         .grid {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+          grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
           gap: 20px;
         }
 
         .card {
-          background: white;
+          background: #fff;
+          border-radius: 12px;
           padding: 15px;
-          border-radius: 10px;
-          border: 1px solid #eee;
-          box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+          box-shadow: 0 4px 10px rgba(0,0,0,0.06);
         }
 
         img {
           width: 100%;
           height: 180px;
           object-fit: cover;
-          border-radius: 8px;
-        }
-
-        .status {
-          display: inline-block;
-          margin-top: 10px;
-          padding: 4px 8px;
-          border-radius: 6px;
-          font-size: 12px;
-        }
-
-        .status.review {
-          background: #fff3cd;
-        }
-
-        .status.approved {
-          background: #d4edda;
-        }
-
-        .status.rejected {
-          background: #f8d7da;
+          border-radius: 10px;
         }
 
         .actions {
           display: flex;
-          gap: 10px;
+          flex-wrap: wrap;
+          gap: 8px;
           margin-top: 10px;
         }
 
         button {
-          flex: 1;
-          padding: 8px;
-          border: none;
+          padding: 6px 10px;
           border-radius: 6px;
+          border: none;
           cursor: pointer;
         }
 
@@ -326,15 +282,28 @@ export default function ReviewPage() {
           color: white;
         }
 
-        .view {
-          background: black;
-          color: white;
+        .status.review {
+          color: orange;
         }
 
-        select, input {
-          width: 100%;
+        .status.approved {
+          color: green;
+        }
+
+        .status.rejected {
+          color: red;
+        }
+
+        .log {
           margin-top: 10px;
+          font-size: 12px;
+          color: #555;
+        }
+
+        input {
+          width: 100%;
           padding: 6px;
+          margin-top: 5px;
           border-radius: 6px;
           border: 1px solid #ccc;
         }
