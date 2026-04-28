@@ -676,7 +676,7 @@ function removeIngredient(i) {
     
       slug: slug,
       productKey: form.productKey,
-    
+      status: "review",    
       ingredients: Array.isArray(form.ingredients) ? form.ingredients : [],
     
       nutrition: {
@@ -701,7 +701,7 @@ function removeIngredient(i) {
     
           barcode: form.barcode || "",
           qrCode: form.qrCode || "",
-          status: "review",
+
         }
       ],
     
@@ -718,27 +718,26 @@ function removeIngredient(i) {
       });
   
       // ✅ safer parsing (handles non-JSON errors)
-      const text = await res.text();
-  
-      let data;
-      try {
-        data = JSON.parse(text);
-      } catch (e) {
-        console.error("Invalid JSON:", text);
-        setError("Server returned invalid response");
-        return;
-      }
-  
-      if (!data.success) {
-        setError(data.message || "Product submission failed");
-        return;
-      }
+      const res = await fetch("/api/admin/products", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(cleanPayload),
+        });
+        
+        const data = await res.json(); // ✅ simpler & safer
+        
+        if (!res.ok || !data.success) {
+          setError(data.message || "Product submission failed");
+          return;
+        }
   
       // ✅ SUCCESS
       alert("Product submitted successfully!");
   
       setForm(emptyForm);
-      window.location.href = "/admin/products/list";
+      router.push("/admin/products/list");
   
     } catch (err) {
       console.error(err);
