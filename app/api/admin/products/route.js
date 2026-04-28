@@ -41,47 +41,56 @@ export async function POST(req) {
       fat: Number(body.nutrition?.fat || 0),
     };
 
-    // ================= VARIANTS =================
-    let variants = (body.variants || []).map((v) => ({
-      value: v?.value || "default",
-      unit: v?.unit || "GM",
-      sku: v?.sku || body.sku || `SKU-${Date.now()}`,
-      mrp: Number(v?.mrp || body.mrp || 0),
-      sellingPrice: Number(v?.sellingPrice || body.sellingPrice || 0),
-      stock: Number(v?.stock || 0),
-      barcode: v?.barcode || "",
-      qrCode: v?.qrCode || "",
-    }));
+    // =====================================================
+    // 🔥 STEP 5 — SKU ENGINE (FINAL & CORRECT)
+    // =====================================================
 
-    // 🔥 SAFETY: ensure at least one variant
-    if (!variants.length) {
-      variants = [
-        {
-          value: "default",
-          unit: "GM",
-          sku: body.sku || `SKU-${Date.now()}`,
-          mrp: Number(body.mrp || 0),
-          sellingPrice: Number(body.sellingPrice || 0),
-          stock: 0,
-          barcode: body.barcode || "",
-          qrCode: body.qrCode || "",
-        },
-      ];
-    }
+    const nameKey = String(body.name || "")
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, "");
 
-    // ================= PRIMARY VARIANT (CRITICAL FIX) =================
+    const weight = String(body.totalWeight || "")
+      .replace(/[^0-9]/g, "") || "0";
+
+    // Find existing products with same name + weight
+    const existingProducts = await Product.find({
+      name: body.name,
+      "primaryVariant.value": body.totalWeight
+    });
+
+    let maxSerial = 0;
+
+    existingProducts.forEach((p) => {
+      const match = p.primaryVariant?.sku?.match(/-(\d{3})-/);
+      if (match) {
+        const num = parseInt(match[1]);
+        if (num > maxSerial) maxSerial = num;
+      }
+    });
+
+    const serial = String(maxSerial + 1).padStart(3, "0");
+
+    const finalSKU = `NA-${nameKey}-${serial}-${weight}GM`;
+
+    // =====================================================
+    // 🔥 PRIMARY VARIANT (MANDATORY FIX)
+    // =====================================================
+
     const primaryVariant = {
-      sku: variants[0].sku,
-      value: variants[0].value,
-      unit: variants[0].unit,
-      mrp: variants[0].mrp,
-      sellingPrice: variants[0].sellingPrice,
-      stock: variants[0].stock,
-      barcode: variants[0].barcode || "",
-      qrCode: variants[0].qrCode || "",
+      sku: finalSKU,
+      value: body.totalWeight,
+      unit: "GM",
+      mrp: Number(body.mrp || 0),
+      sellingPrice: Number(body.sellingPrice || 0),
+      stock: 0,
+      barcode: body.barcode || "",
+      qrCode: body.qrCode || "",
     };
 
-    // ================= FINAL PRODUCT =================
+    // =====================================================
+    // 🔥 FINAL PRODUCT OBJECT
+    // =====================================================
+
     const productData = {
       // CORE
       name: body.name,
@@ -109,9 +118,9 @@ export async function POST(req) {
       images: body.images || [],
       primaryImage: body.primaryImage || "",
 
-      // VARIANTS
-      variants,
-      primaryVariant, // ✅ FIXED
+      // 🔥 IMPORTANT
+      variants: [], // disable for now (safe)
+      primaryVariant,
 
       // PRICING
       pricing: {
@@ -175,6 +184,8 @@ export async function POST(req) {
     );
   }
 }
+
+// ================= GET =================
 
 export async function GET() {
   try {
