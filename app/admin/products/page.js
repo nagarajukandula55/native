@@ -225,8 +225,6 @@ useEffect(() => {
     .toLowerCase()
     .replace(/\s+/g, "-");
 
-  const id = `${brandSlug}-${Date.now().toString().slice(-5)}`;
-
   setForm(prev => ({
     ...prev,
     brandSlug,
@@ -299,7 +297,7 @@ useEffect(() => {
       qrCode: `https://shopnative.in/product/${slug}`,
   
       // ✅ THIS IS THE REAL FIX
-      sku: finalSKU,
+      sku: "",
   
       // ⚠️ keep variants intact
       variants: prev.variants?.map(v => ({
@@ -422,6 +420,8 @@ function removeIngredient(i) {
         return alert("Weight mismatch");
       }
 
+      const [aiLoading, setAiLoading] = useState(false);
+
       const res = await fetch("/api/ai-content", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -482,6 +482,8 @@ function removeIngredient(i) {
           alert("AI compliance generation failed");
           return;
         }
+
+        const [aiLoading, setAiLoading] = useState(false);
     
         const c = data.content || data;
     
@@ -515,31 +517,6 @@ function removeIngredient(i) {
       hi: data.hi
     });
   }
-
-  {/* ================= PROGRESS BAR ================= */}
-    <div style={{
-      display: "flex",
-      marginBottom: 20,
-      borderRadius: 10,
-      overflow: "hidden"
-    }}>
-      {["Basic", "Pricing", "Media", "Compliance"].map((label, i) => (
-        <div
-          key={i}
-          style={{
-            flex: 1,
-            padding: 10,
-            textAlign: "center",
-            background: step >= i ? "#4caf50" : "#ddd",
-            color: step >= i ? "#fff" : "#333",
-            fontWeight: "bold",
-            fontSize: 12
-          }}
-        >
-          {label}
-        </div>
-      ))}
-    </div>
 
   /* ================= STEP VALIDATION ================= */
 
@@ -615,6 +592,10 @@ function removeIngredient(i) {
             body: data,
           }
         );
+       
+        if (!json.secure_url) {
+              alert("Image upload failed for one file");
+            }
   
         const json = await res.json();
   
@@ -690,7 +671,7 @@ function removeIngredient(i) {
       // ✅ SEND REAL VARIANT
       variants: [
         {
-          value: form.totalWeight || "default",
+          variants: form.variants.length ? form.variants : [...] || "default",
           unit: form.unit || "GM",
     
           // ⚠️ leave sku empty → backend will generate
@@ -730,7 +711,11 @@ function removeIngredient(i) {
           console.error("STATUS:", res.status);
           console.error("RESPONSE:", data);
         
-          alert("ERROR: " + (data.message || "Failed"));
+          console.error("FULL ERROR RESPONSE:", {
+            status: res.status,
+            data,
+            payload: cleanPayload
+          });
         
           setError(data.message || "Product submission failed");
           return;
@@ -835,6 +820,32 @@ return (
         onChange={e => setForm({ ...form, highlights: e.target.value })}
         style={{ gridColumn: "span 2" }}
       />
+
+      {/* ================= PROGRESS BAR ================= */}
+        <div style={{
+          display: "flex",
+          marginBottom: 20,
+          borderRadius: 10,
+          overflow: "hidden"
+        }}>
+          {["Basic", "Pricing", "Media", "Compliance"].map((label, i) => (
+            <div
+              key={i}
+              style={{
+                flex: 1,
+                padding: 10,
+                textAlign: "center",
+                background: step >= i ? "#4caf50" : "#ddd",
+                color: step >= i ? "#fff" : "#333",
+                fontWeight: "bold",
+                fontSize: 12
+              }}
+            >
+              {label}
+            </div>
+          ))}
+        </div>
+        
     </div>
 
     {/* ================= AUTO GENERATED ================= */}
@@ -1122,6 +1133,10 @@ return (
           ✅ Safe pricing structure (no loss detected)
         </p>
       )}
+
+      if (Number(form.sellingPrice) < totalCost) {
+        return setError("Cannot submit: Selling price below cost");
+      }
 
       <p style={{ fontSize: 12 }}>
         System prevents negative margin products before saving
