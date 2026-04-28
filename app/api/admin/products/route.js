@@ -206,3 +206,35 @@ export async function GET() {
     );
   }
 }
+
+async function generateSKU({ name, weight, unit = "GM" }) {
+  const cleanName = String(name || "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
+
+  const prefix = "NA";
+  const weightPart = `${weight || "NA"}${unit}`;
+
+  // 🔍 Find existing SKUs for same product + weight
+  const regex = new RegExp(`^${prefix}-${cleanName}-(\\d{3})-${weightPart}$`);
+
+  const products = await Product.find({
+    "variants.sku": { $regex: regex }
+  }).select("variants.sku");
+
+  let max = 0;
+
+  products.forEach(p => {
+    p.variants.forEach(v => {
+      const match = v.sku.match(regex);
+      if (match) {
+        const num = parseInt(match[1]);
+        if (num > max) max = num;
+      }
+    });
+  });
+
+  const next = String(max + 1).padStart(3, "0");
+
+  return `${prefix}-${cleanName}-${next}-${weightPart}`;
+}
