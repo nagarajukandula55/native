@@ -709,7 +709,7 @@ function removeIngredient(i) {
       images: form.images || [],
     };
   
-      const res = await fetch("/api/admin/products", {
+      const res = await fetch("/api/admin/products/list", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
