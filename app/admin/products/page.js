@@ -285,31 +285,46 @@ useEffect(() => {
 /* =================== Product Key ================ */
 
   useEffect(() => {
-    if (!form.name) return;
+    if (!form.name || !form.totalWeight) return;
   
-    const { slug, productKey, sku } = generateProductIds(
-      form.name,
-      form.brand,
-      form.totalWeight
-    );
+    const cleanName = String(form.name)
+      .toUpperCase()
+      .replace(/\s+/g, "");
+  
+    const cleanBrand = String(form.brand || "")
+      .toUpperCase()
+      .replace(/\s+/g, "");
+  
+    const slug = `${form.brand || ""} ${form.name}`
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "");
+  
+    const unique = Date.now().toString().slice(-6);
+  
+    const productKey = `${cleanBrand}-${cleanName}-${unique}`;
+  
+    // ✅ FINAL SKU (NO XXX)
+    const finalSKU = `NA-${cleanName}-001-${form.totalWeight}GM`;
   
     setForm(prev => ({
       ...prev,
   
-      // ✅ CORE IDs
       slug,
       productKey,
       productId: productKey,
   
-      // ✅ BARCODE / QR
       barcode: productKey,
       qrCode: `https://shopnative.in/product/${slug}`,
   
-      // ⚠️ SKU = PREVIEW ONLY (backend will override)
-      sku,
+      // ✅ THIS IS THE REAL FIX
+      sku: finalSKU,
   
-      // ✅ DO NOT TOUCH VARIANTS HERE
-      variants: prev.variants || []
+      // ⚠️ keep variants intact
+      variants: prev.variants?.map(v => ({
+        ...v,
+        sku: v.sku || finalSKU
+      })) || []
     }));
   
   }, [form.name, form.brand, form.totalWeight]);
@@ -697,7 +712,7 @@ function removeIngredient(i) {
           unit: form.unit || "GM",
     
           // ⚠️ leave sku empty → backend will generate
-          sku: "",
+          sku: form.sku,
     
           mrp: Number(form.mrp || 0),
           sellingPrice: Number(form.sellingPrice || 0),
