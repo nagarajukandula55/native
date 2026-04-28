@@ -715,11 +715,10 @@ function removeIngredient(i) {
         headers: {
           "Content-Type": "application/json",
         },
-
-        console.log("📡 CALLING API...");
         body: JSON.stringify(cleanPayload),
       });
-
+      
+      console.log("📡 CALLING API...");
       console.log("STATUS CODE:", res.status);
       
         const data = await res.json(); // ✅ simpler & safer
