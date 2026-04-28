@@ -1,13 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function ReviewPage() {
   const [products, setProducts] = useState([]);
   const [rejectionMap, setRejectionMap] = useState({});
   const [loadingId, setLoadingId] = useState(null);
-  const [selected, setSelected] = useState(null);
+  const [filter, setFilter] = useState("all");
 
+  const router = useRouter();
+
+  /* ================= LOAD ================= */
   async function loadProducts() {
     try {
       const res = await fetch("/api/admin/products/review");
@@ -24,45 +28,6 @@ export default function ReviewPage() {
   useEffect(() => {
     loadProducts();
   }, []);
-
-  /* ================= FLAGS ================= */
-
-  function getFlags(p) {
-    const flags = [];
-
-    const price = p.primaryVariant?.sellingPrice || 0;
-    const cost =
-      Number(p.baseCost || 0) +
-      Number(p.packagingCost || 0) +
-      Number(p.logisticsCost || 0) +
-      Number(p.marketingCost || 0);
-
-    if (price < cost) flags.push("LOSS");
-    if (!p.fssaiNumber) flags.push("NO FSSAI");
-    if (!p.images?.length) flags.push("NO IMAGE");
-    if (!p.nutrition?.energy) flags.push("NO NUTRITION");
-
-    return flags;
-  }
-
-  function getRiskScore(p) {
-    let score = 100;
-
-    if (!p.fssaiNumber) score -= 30;
-    if (!p.images?.length) score -= 20;
-    if (!p.nutrition?.energy) score -= 20;
-
-    const price = p.primaryVariant?.sellingPrice || 0;
-    const cost =
-      Number(p.baseCost || 0) +
-      Number(p.packagingCost || 0) +
-      Number(p.logisticsCost || 0) +
-      Number(p.marketingCost || 0);
-
-    if (price < cost) score -= 40;
-
-    return score;
-  }
 
   /* ================= ACTIONS ================= */
 
@@ -120,235 +85,258 @@ export default function ReviewPage() {
     setLoadingId(null);
   }
 
+  /* ================= FILTER ================= */
+
+  const filteredProducts = products.filter((p) => {
+    if (filter === "all") return true;
+    if (filter === "review") return p.status === "review";
+    if (filter === "approved") return p.status === "approved";
+    if (filter === "rejected") return p.status === "rejected";
+    return true;
+  });
+
+  /* ================= STATS ================= */
+
+  const stats = {
+    total: products.length,
+    review: products.filter(p => p.status === "review").length,
+    approved: products.filter(p => p.status === "approved").length,
+    rejected: products.filter(p => p.status === "rejected").length,
+  };
+
   return (
     <div className="container">
-      <h1>🧾 Product Review Panel</h1>
+      <h1>🧾 Product Review Engine</h1>
 
-      {products.length === 0 && <p>No products for review</p>}
+      {/* ================= DASHBOARD ================= */}
+      <div className="stats">
+        <div>Total: {stats.total}</div>
+        <div>🟡 Review: {stats.review}</div>
+        <div>🟢 Approved: {stats.approved}</div>
+        <div>🔴 Rejected: {stats.rejected}</div>
+      </div>
 
-      <div className="grid">
-        {products.map((p) => {
-          const flags = getFlags(p);
-          const score = getRiskScore(p);
+      {/* ================= FILTER ================= */}
+      <div className="filters">
+        {["all", "review", "approved", "rejected"].map((f) => (
+          <button
+            key={f}
+            onClick={() => setFilter(f)}
+            className={filter === f ? "active" : ""}
+          >
+            {f}
+          </button>
+        ))}
+      </div>
 
-          return (
+      {/* ================= GRID ================= */}
+      {filteredProducts.length === 0 ? (
+        <p>No products found</p>
+      ) : (
+        <div className="grid">
+          {filteredProducts.map((p) => (
             <div key={p._id} className="card">
 
               {/* IMAGE */}
-              <img src={p.images?.[0] || "/no-image.png"} />
+              <img
+                src={p.images?.[0] || "/no-image.png"}
+                alt={p.name}
+              />
 
-              {/* NAME */}
+              {/* BASIC */}
               <h3>{p.name}</h3>
 
-              {/* FLAGS */}
-              <div className="flags">
-                {flags.map((f, i) => (
-                  <span key={i} className={`flag ${f.toLowerCase()}`}>
-                    {f}
-                  </span>
-                ))}
-              </div>
-
-              {/* BASIC INFO */}
               <p><b>Category:</b> {p.category}</p>
-              <p><b>SKU:</b> {p.primaryVariant?.sku}</p>
-              <p><b>Price:</b> ₹{p.primaryVariant?.sellingPrice}</p>
+              <p><b>SKU:</b> {p.primaryVariant?.sku || "-"}</p>
+              <p><b>Price:</b> ₹{p.primaryVariant?.sellingPrice || 0}</p>
 
-              {/* RISK */}
-              <p>
-                <b>Risk:</b>{" "}
-                <span
-                  style={{
-                    color:
-                      score > 80
-                        ? "green"
-                        : score > 50
-                        ? "orange"
-                        : "red",
-                  }}
-                >
-                  {score}/100
-                </span>
-              </p>
+              {/* STATUS */}
+              <span className={`status ${p.status}`}>
+                {p.status}
+              </span>
 
-              {/* REJECTION */}
-              <select
-                value={rejectionMap[p.productKey] || ""}
-                onChange={(e) =>
-                  setRejectionMap({
-                    ...rejectionMap,
-                    [p.productKey]: e.target.value,
-                  })
-                }
-              >
-                <option value="">Select reason</option>
-                <option value="Bad description">Bad description</option>
-                <option value="Incorrect pricing">Incorrect pricing</option>
-                <option value="Missing legal info">Missing legal info</option>
-                <option value="Image issue">Image issue</option>
-                <option value="Duplicate">Duplicate</option>
-                <option value="Other">Other</option>
-              </select>
+              {/* ================= REJECTION ================= */}
+              {p.status === "review" && (
+                <div className="reasons">
+                  <select
+                    value={rejectionMap[p.productKey] || ""}
+                    onChange={(e) =>
+                      setRejectionMap({
+                        ...rejectionMap,
+                        [p.productKey]: e.target.value,
+                      })
+                    }
+                  >
+                    <option value="">Select reason</option>
+                    <option value="Bad description">Bad description</option>
+                    <option value="Incorrect pricing">Incorrect pricing</option>
+                    <option value="Missing legal info">Missing legal info</option>
+                    <option value="Image quality issue">Image issue</option>
+                    <option value="Duplicate product">Duplicate</option>
+                    <option value="Other">Other</option>
+                  </select>
 
-              {rejectionMap[p.productKey] === "Other" && (
-                <input
-                  placeholder="Enter reason"
-                  onChange={(e) =>
-                    setRejectionMap({
-                      ...rejectionMap,
-                      [p.productKey]: e.target.value,
-                    })
-                  }
-                />
+                  {rejectionMap[p.productKey] === "Other" && (
+                    <input
+                      placeholder="Custom reason"
+                      onChange={(e) =>
+                        setRejectionMap({
+                          ...rejectionMap,
+                          [p.productKey]: e.target.value,
+                        })
+                      }
+                    />
+                  )}
+                </div>
               )}
 
-              {/* ACTIONS */}
+              {/* ================= ACTIONS ================= */}
               <div className="actions">
 
-                <button
-                  disabled={loadingId === p.productKey || score < 50}
-                  onClick={() => approve(p.productKey)}
-                  className="approve"
-                >
-                  {loadingId === p.productKey ? "..." : "Approve"}
-                </button>
+                {p.status === "review" && (
+                  <>
+                    <button
+                      disabled={loadingId === p.productKey}
+                      onClick={() => approve(p.productKey)}
+                      className="approve"
+                    >
+                      {loadingId === p.productKey ? "..." : "Approve"}
+                    </button>
+
+                    <button
+                      disabled={loadingId === p.productKey}
+                      onClick={() => reject(p.productKey)}
+                      className="reject"
+                    >
+                      Reject
+                    </button>
+                  </>
+                )}
 
                 <button
-                  disabled={loadingId === p.productKey}
-                  onClick={() => reject(p.productKey)}
-                  className="reject"
+                  onClick={() =>
+                    router.push(`/admin/products/view/${p.productKey}`)
+                  }
+                  className="view"
                 >
-                  Reject
-                </button>
-
-                <button onClick={() => setSelected(p)} className="view">
                   View
                 </button>
 
               </div>
             </div>
-          );
-        })}
-      </div>
-
-      {/* MODAL */}
-      {selected && (
-        <div className="modal">
-          <div className="modalContent">
-
-            <h2>{selected.name}</h2>
-
-            <p>{selected.description}</p>
-
-            <p>
-              <b>Ingredients:</b>{" "}
-              {selected.ingredients?.map(i => i.name).join(", ")}
-            </p>
-
-            <p>
-              <b>FSSAI:</b>{" "}
-              {selected.fssaiNumber || "Missing"}
-            </p>
-
-            <div className="gallery">
-              {(selected.images || []).map((img, i) => (
-                <img key={i} src={img} />
-              ))}
-            </div>
-
-            <button onClick={() => setSelected(null)}>Close</button>
-
-          </div>
+          ))}
         </div>
       )}
 
+      {/* ================= STYLES ================= */}
       <style jsx>{`
         .container {
           padding: 20px;
+          max-width: 1200px;
+          margin: auto;
+        }
+
+        h1 {
+          margin-bottom: 20px;
+        }
+
+        .stats {
+          display: flex;
+          gap: 15px;
+          margin-bottom: 15px;
+          font-weight: bold;
+        }
+
+        .filters button {
+          margin-right: 10px;
+          padding: 8px 12px;
+          border: 1px solid #ddd;
+          background: #fff;
+          cursor: pointer;
+          border-radius: 6px;
+        }
+
+        .filters .active {
+          background: black;
+          color: white;
         }
 
         .grid {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+          grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
           gap: 20px;
         }
 
         .card {
-          background: #fff;
-          border: 1px solid #eee;
-          border-radius: 10px;
+          background: white;
           padding: 15px;
+          border-radius: 10px;
+          border: 1px solid #eee;
+          box-shadow: 0 2px 6px rgba(0,0,0,0.05);
         }
 
         img {
           width: 100%;
-          height: 160px;
+          height: 180px;
           object-fit: cover;
           border-radius: 8px;
         }
 
-        .flags {
-          display: flex;
-          gap: 5px;
-          flex-wrap: wrap;
-          margin: 5px 0;
+        .status {
+          display: inline-block;
+          margin-top: 10px;
+          padding: 4px 8px;
+          border-radius: 6px;
+          font-size: 12px;
         }
 
-        .flag {
-          font-size: 10px;
-          padding: 3px 6px;
-          border-radius: 5px;
-          font-weight: bold;
+        .status.review {
+          background: #fff3cd;
         }
 
-        .flag.loss { background: #ffd6d6; color: red; }
-        .flag.no { background: #eee; }
+        .status.approved {
+          background: #d4edda;
+        }
+
+        .status.rejected {
+          background: #f8d7da;
+        }
 
         .actions {
-          display: flex;
-          gap: 5px;
-          margin-top: 10px;
-        }
-
-        button {
-          flex: 1;
-          padding: 6px;
-          border: none;
-          border-radius: 6px;
-          cursor: pointer;
-        }
-
-        .approve { background: green; color: #fff; }
-        .reject { background: red; color: #fff; }
-        .view { background: black; color: #fff; }
-
-        .modal {
-          position: fixed;
-          inset: 0;
-          background: rgba(0,0,0,0.6);
-          display: flex;
-          justify-content: center;
-          align-items: center;
-        }
-
-        .modalContent {
-          background: white;
-          padding: 20px;
-          border-radius: 10px;
-          max-width: 600px;
-          width: 100%;
-        }
-
-        .gallery {
           display: flex;
           gap: 10px;
           margin-top: 10px;
         }
 
-        .gallery img {
-          width: 80px;
-          height: 80px;
-          object-fit: cover;
+        button {
+          flex: 1;
+          padding: 8px;
+          border: none;
+          border-radius: 6px;
+          cursor: pointer;
+        }
+
+        .approve {
+          background: green;
+          color: white;
+        }
+
+        .reject {
+          background: red;
+          color: white;
+        }
+
+        .view {
+          background: black;
+          color: white;
+        }
+
+        select, input {
+          width: 100%;
+          margin-top: 10px;
+          padding: 6px;
+          border-radius: 6px;
+          border: 1px solid #ccc;
         }
       `}</style>
     </div>
