@@ -716,9 +716,13 @@ function removeIngredient(i) {
         },
         body: JSON.stringify(cleanPayload),
       });
-        
+
+      console.log("STATUS CODE:", res.status);
+      
         const data = await res.json(); // ✅ simpler & safer
-        
+
+      console.log("FULL RESPONSE:", data);
+      
         if (!res.ok || !data.success) {
           setError(data.message || "Product submission failed");
           return;
