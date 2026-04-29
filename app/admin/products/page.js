@@ -783,218 +783,193 @@ return (
 
 {/* BASIC */}
 {step === 0 && (
-  <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-
-    {/* ================= BASIC INFO ================= */}
-    <div style={{
-      display: "grid",
-      gridTemplateColumns: "1fr 1fr",
-      gap: 15,
-      padding: 20,
-      background: "#fff",
-      borderRadius: 10
-    }}>
-
-        <h3 style={{ gridColumn: "span 2" }}>🧾 Basic Details</h3>
-        
-        <input
-          placeholder="Product Name"
-          value={form.name}
-          onChange={e => setForm({ ...form, name: e.target.value })}
-        />
-        
-        <select
-          value={form.brand}
-          onChange={e => setForm({ ...form, brand: e.target.value })}
-        >
-          <option value="">Select Brand</option>
-          <option value="Native">Native</option>
-          <option value="AN">AN</option>
-        </select>
-        
-        {/* Preview */}
-        <p style={{ gridColumn: "span 2", fontSize: 12 }}>
-          Preview: <b>{displayName}</b>
-        </p>
-
-      <select
-        value={form.category}
-        onChange={e =>
-          setForm({ ...form, category: e.target.value, subcategory: "" })
-        }
-      >
-        <option>Select Category</option>
-        {Object.keys(categoryMap).map(c => (
-          <option key={c}>{c}</option>
-        ))}
-      </select>
-
-      <select
-        value={form.subcategory}
-        onChange={e => setForm({ ...form, subcategory: e.target.value })}
-      >
-        <option>Select Subcategory</option>
-        {(categoryMap[form.category] || []).map(s => (
-          <option key={s}>{s}</option>
-        ))}
-      </select>
-
-      <textarea
-        placeholder="Short Description"
-        value={form.shortDescription}
-        onChange={e => setForm({ ...form, shortDescription: e.target.value })}
-        style={{ gridColumn: "span 2" }}
-      />
-
-      <textarea
-        placeholder="Full Description"
-        value={form.description}
-        onChange={e => setForm({ ...form, description: e.target.value })}
-        style={{ gridColumn: "span 2" }}
-      />
-
-      <textarea
-        placeholder="Highlights"
-        value={form.highlights}
-        onChange={e => setForm({ ...form, highlights: e.target.value })}
-        style={{ gridColumn: "span 2" }}
-      />
-
-      {/* ================= PROGRESS BAR ================= */}
+  <>
+      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+  
+        {/* ================= BASIC INFO ================= */}
         <div style={{
-          display: "flex",
-          marginBottom: 20,
-          borderRadius: 10,
-          overflow: "hidden"
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: 15,
+          padding: 20,
+          background: "#fff",
+          borderRadius: 10
         }}>
-          {["Basic", "Pricing", "Media", "Compliance"].map((label, i) => (
+  
+          <h3 style={{ gridColumn: "span 2" }}>🧾 Basic Details</h3>
+  
+          <input
+            placeholder="Product Name"
+            value={form.name}
+            onChange={e => setForm({ ...form, name: e.target.value })}
+          />
+  
+          <select
+            value={form.brand}
+            onChange={e => setForm({ ...form, brand: e.target.value })}
+          >
+            <option value="">Select Brand</option>
+            <option value="Native">Native</option>
+            <option value="AN">AN</option>
+          </select>
+  
+          {/* Preview */}
+          <p style={{ gridColumn: "span 2", fontSize: 12 }}>
+            Preview: <b>{displayName}</b>
+          </p>
+  
+          <select
+            value={form.category}
+            onChange={e =>
+              setForm({ ...form, category: e.target.value, subcategory: "" })
+            }
+          >
+            <option>Select Category</option>
+            {Object.keys(categoryMap).map(c => (
+              <option key={c}>{c}</option>
+            ))}
+          </select>
+  
+          <select
+            value={form.subcategory}
+            onChange={e => setForm({ ...form, subcategory: e.target.value })}
+          >
+            <option>Select Subcategory</option>
+            {(categoryMap[form.category] || []).map(s => (
+              <option key={s}>{s}</option>
+            ))}
+          </select>
+  
+          <textarea
+            placeholder="Short Description"
+            value={form.shortDescription}
+            onChange={e => setForm({ ...form, shortDescription: e.target.value })}
+            style={{ gridColumn: "span 2" }}
+          />
+  
+          <textarea
+            placeholder="Full Description"
+            value={form.description}
+            onChange={e => setForm({ ...form, description: e.target.value })}
+            style={{ gridColumn: "span 2" }}
+          />
+  
+          <textarea
+            placeholder="Highlights"
+            value={form.highlights}
+            onChange={e => setForm({ ...form, highlights: e.target.value })}
+            style={{ gridColumn: "span 2" }}
+          />
+  
+        {/* ================= AUTO GENERATED ================= */}
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: 15,
+          padding: 20,
+          background: "#fff",
+          borderRadius: 10
+        }}>
+  
+          <h3 style={{ gridColumn: "span 2" }}>⚙️ Auto Generated (Locked)</h3>
+  
+          <input value={form.tags || ""} readOnly style={{ background: "#f5f5f5" }} />
+          <input value={slug || ""} readOnly style={{ background: "#f5f5f5" }} />
+  
+          <input value={seo.title || ""} readOnly style={{ background: "#f5f5f5" }} />
+  
+          <textarea
+            value={seo.description || ""}
+            readOnly
+            style={{ gridColumn: "span 2", background: "#f5f5f5" }}
+          />
+        </div>
+  
+        {/* ================= INGREDIENT INPUT ================= */}
+        <div style={{ padding: 20, background: "#fff", borderRadius: 10 }}>
+          <h3>⚖️ Product Weight</h3>
+  
+          <input
+            type="number"
+            placeholder="Total Weight (GM)"
+            value={form.totalWeight}
+            onChange={e => setForm({ ...form, totalWeight: e.target.value })}
+          />
+        </div>
+  
+        {/* ================= INGREDIENTS ================= */}
+        <div style={{ background: "#fff", padding: 20, borderRadius: 10 }}>
+          <h3>🥗 Ingredients</h3>
+  
+          {(form.ingredients || []).map((ing, i) => (
             <div
               key={i}
               style={{
-                flex: 1,
-                padding: 10,
-                textAlign: "center",
-                background: step >= i ? "#4caf50" : "#ddd",
-                color: step >= i ? "#fff" : "#333",
-                fontWeight: "bold",
-                fontSize: 12
+                display: "grid",
+                gridTemplateColumns: "2fr 1fr 1fr 1fr auto",
+                gap: 10,
+                marginBottom: 10,
+                alignItems: "center"
               }}
             >
-              {label}
+              <input
+                placeholder="Ingredient Name"
+                value={ing.name}
+                onChange={e => updateIngredient(i, "name", e.target.value)}
+              />
+  
+              <input
+                type="number"
+                placeholder="Qty"
+                value={ing.qty}
+                onChange={e => updateIngredient(i, "qty", e.target.value)}
+              />
+  
+              <select
+                value={ing.unit}
+                onChange={e => updateIngredient(i, "unit", e.target.value)}
+              >
+                <option>GM</option>
+                <option>KG</option>
+                <option>ML</option>
+                <option>L</option>
+              </select>
+  
+              <input
+                value={`${ing.percent ?? 0}%`}
+                readOnly
+                style={{ background: "#eee" }}
+              />
+  
+              <button onClick={() => removeIngredient(i)}>X</button>
             </div>
           ))}
+  
+          <button onClick={addIngredient}>+ Add Ingredient</button>
+  
         </div>
-        
-    </div>
-
-    {/* ================= AUTO GENERATED ================= */}
-    <div style={{
-      display: "grid",
-      gridTemplateColumns: "1fr 1fr",
-      gap: 15,
-      padding: 20,
-      background: "#fff",
-      borderRadius: 10
-    }}>
-
-      <h3 style={{ gridColumn: "span 2" }}>⚙️ Auto Generated (Locked)</h3>
-
-      <input value={form.tags || ""} readOnly style={{ background: "#f5f5f5" }} />
-      <input value={slug || ""} readOnly style={{ background: "#f5f5f5" }} />
-
-      <input value={seo.title || ""} readOnly style={{ background: "#f5f5f5" }} />
-
-      <textarea
-        value={seo.description || ""}
-        readOnly
-        style={{ gridColumn: "span 2", background: "#f5f5f5" }}
-      />
-    </div>
-
-    {/* ================= INGREDIENT INPUT ================= */}
-    <div style={{ padding: 20, background: "#fff", borderRadius: 10 }}>
-      <h3>⚖️ Product Weight</h3>
-
-      <input
-        type="number"
-        placeholder="Total Weight (GM)"
-        value={form.totalWeight}
-        onChange={e => setForm({ ...form, totalWeight: e.target.value })}
-      />
-    </div>
-
-    {/* ================= INGREDIENTS ================= */}
-    <div style={{ background: "#fff", padding: 20, borderRadius: 10 }}>
-      <h3>🥗 Ingredients</h3>
-
-      {(form.ingredients || []).map((ing, i) => (
-        <div
-          key={i}
-          style={{
-            display: "grid",
-            gridTemplateColumns: "2fr 1fr 1fr 1fr auto",
-            gap: 10,
-            marginBottom: 10,
-            alignItems: "center"
-          }}
-        >
-          <input
-            placeholder="Ingredient Name"
-            value={ing.name}
-            onChange={e => updateIngredient(i, "name", e.target.value)}
-          />
-
-          <input
-            type="number"
-            placeholder="Qty"
-            value={ing.qty}
-            onChange={e => updateIngredient(i, "qty", e.target.value)}
-          />
-
-          <select
-            value={ing.unit}
-            onChange={e => updateIngredient(i, "unit", e.target.value)}
+  
+        {/* ================= ACTION ================= */}
+        <div>
+          <button
+            type="button"
+            onClick={generateAIContent}
+            style={{
+              width: "100%",
+              background: "black",
+              color: "white",
+              padding: 14,
+              fontWeight: "bold",
+              borderRadius: 6
+            }}
           >
-            <option>GM</option>
-            <option>KG</option>
-            <option>ML</option>
-            <option>L</option>
-          </select>
-
-          <input
-            value={`${ing.percent ?? 0}%`}
-            readOnly
-            style={{ background: "#eee" }}
-          />
-
-          <button onClick={() => removeIngredient(i)}>X</button>
+            ⚡ Generate Content
+          </button>
         </div>
-      ))}
-
-      <button onClick={addIngredient}>+ Add Ingredient</button>
-        
+  
       </div>
-  </div>
-
-    <div>
-      <button
-        type="button"
-        onClick={generateAIContent}
-        style={{
-          width: "100%",
-          background: "black",
-          color: "white",
-          padding: 14,
-          fontWeight: "bold",
-          borderRadius: 6
-        }
-      >
-        ⚡ Generate Content
-      </button>
-    </div>
-
-  </div>
-)}
+    </>
+  )}
 
 {step === 1 && (
   <div style={{ background: "#fff", padding: 20, borderRadius: 10 }}>
