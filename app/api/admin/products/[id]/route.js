@@ -8,7 +8,7 @@ export async function GET(req, { params }) {
   try {
     await dbConnect();
 
-    const { id } = params;
+    const id = params?.id;
 
     if (!id) {
       return NextResponse.json(
@@ -17,7 +17,6 @@ export async function GET(req, { params }) {
       );
     }
 
-    // 🔥 REMOVE lean first for debugging full structure
     const product = await Product.findById(id).exec();
 
     if (!product) {
@@ -29,7 +28,7 @@ export async function GET(req, { params }) {
 
     return NextResponse.json({
       success: true,
-      product: product.toObject(), // ensures full nested structure
+      product: product.toObject(),
     });
 
   } catch (err) {
