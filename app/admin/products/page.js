@@ -128,6 +128,13 @@ export default function ProductUpload() {
     hi: ""
   });
 
+  const total = Array.isArray(form.ingredients)
+  ? form.ingredients.reduce(
+      (sum, i) => sum + Number(i.percent || 0),
+      0
+    )
+  : 0;
+
 /* ================= AUTO ================= */
 
 useEffect(() => {
