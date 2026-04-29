@@ -1,27 +1,25 @@
+import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db";
 import Product from "@/models/Product";
 
-export async function GET(req, { params }) {
-  await dbConnect();
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
-  const { id } = params;
-
+export async function GET() {
   try {
-    const product = await Product.findById(id); // 🔥 THIS IS THE FIX
+    await dbConnect();
 
-    if (!product) {
-      return Response.json(
-        { success: false, message: "Product not found" },
-        { status: 404 }
-      );
-    }
+    const products = await Product.find({
+      status: "review",
+      isDeleted: false,
+    }).lean();
 
-    return Response.json({
+    return NextResponse.json({
       success: true,
-      product,
+      products,
     });
   } catch (err) {
-    return Response.json(
+    return NextResponse.json(
       { success: false, message: err.message },
       { status: 500 }
     );
