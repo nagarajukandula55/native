@@ -413,31 +413,39 @@ function removeIngredient(i) {
   
   /* ================= AI CONTENT ================= */
 
-  async function generateAIContent() {
+  const generateAIContent = async () => {
     try {
-      if (!form.ingredients.length) return alert("Add ingredients");
-
+      if (!form.ingredients || form.ingredients.length === 0) {
+        return alert("Add ingredients");
+      }
+  
       const totalPercent = form.ingredients.reduce(
-        (sum, i) => sum + parseFloat(i.percent || 0), 0
+        (sum, i) => sum + parseFloat(i.percent || 0),
+        0
       );
-
+  
       if (Math.abs(totalPercent - 100) > 1) {
         return alert("Ingredients must total ~100%");
       }
-
-      const totalWeight = parseFloat(form.totalWeight) || 0;
+  
+      const totalWeight = parseFloat(form.totalWeight || 0);
+  
+      if (!totalWeight) {
+        return alert("Enter total weight");
+      }
+  
       const usedWeight = form.ingredients.reduce(
-        (sum, i) => sum + convertToGrams(i.qty, i.unit), 0
+        (sum, i) => sum + convertToGrams(i.qty, i.unit),
+        0
       );
-
-      if (!totalWeight) return alert("Enter total weight");
-
+  
       if (Math.abs(usedWeight - totalWeight) > 1) {
         return alert("Weight mismatch");
       }
-
-      const [aiLoading, setAiLoading] = useState(false);
-
+  
+      // 🔥 DEBUG START
+      console.log("🚀 Calling AI API...");
+  
       const res = await fetch("/api/ai-content", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -448,34 +456,38 @@ function removeIngredient(i) {
           ingredients: formatIngredients(form.ingredients),
         }),
       });
-
+  
       const data = await res.json();
-      if (!data.success) return alert("AI failed");
-
-      const c = data.content || data;
-
+  
+      console.log("📦 AI RESPONSE:", data);
+  
+      if (!res.ok || !data.success) {
+        console.error("❌ AI API ERROR:", data);
+        return alert(data.message || "AI generation failed");
+      }
+  
+      const c = data.content;
+  
       setForm(prev => ({
         ...prev,
-        highlights: c.highlights?.join(", ") || "",
-        shortDescription: c.shortDescription || "",
-        description: c.description || "",
+        highlights: c?.highlights?.join(", ") || "",
+        shortDescription: c?.shortDescription || "",
+        description: c?.description || "",
       }));
-
+  
       setSeo({
-        title: c.seo?.title || "",
-        description: c.seo?.description || "",
-        keywords: c.seo?.keywords || "",
+        title: c?.seo?.title || "",
+        description: c?.seo?.description || "",
+        keywords: c?.seo?.keywords || "",
       });
-
-    } catch {
-      alert("AI error");
+  
+      console.log("✅ AI Content Generated Successfully");
+  
+    } catch (err) {
+      console.error("🔥 AI ERROR:", err);
+      alert("AI error - check console");
     }
-  }
-
-    const total = (form.ingredients || []).reduce(
-      (sum, i) => sum + parseFloat(i.percent || 0),
-      0
-    );
+  };
   
    async function generateComplianceAI() {
       try {
