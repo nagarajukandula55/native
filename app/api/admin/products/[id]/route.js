@@ -3,13 +3,12 @@ import dbConnect from "@/lib/db";
 import Product from "@/models/Product";
 
 export const dynamic = "force-dynamic";
-export const revalidate = 0;
 
 export async function GET(req, { params }) {
   try {
     await dbConnect();
 
-    const product = await Product.findById(params.id).lean();
+    const product = await Product.findById(params.productId).lean();
 
     if (!product) {
       return NextResponse.json(
@@ -18,10 +17,12 @@ export async function GET(req, { params }) {
       );
     }
 
+    // 🔥 RETURN EVERYTHING (NO FILTERING)
     return NextResponse.json({
       success: true,
-      product,
+      product
     });
+
   } catch (err) {
     return NextResponse.json(
       { success: false, message: err.message },
