@@ -1580,7 +1580,9 @@ return (
                 fontWeight: "bold",
                 border: "none",
                 borderRadius: 6,
-                cursor: "pointer"
+                opacity: submitting ? 0.6 : 1,
+                cursor: submitting ? "not-allowed" : "pointer"
+                
               }}
             >
               🚀 SUBMIT FOR APPROVAL
