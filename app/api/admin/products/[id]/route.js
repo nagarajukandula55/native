@@ -9,7 +9,16 @@ export async function GET(req, { params }) {
   try {
     await dbConnect();
 
-    const product = await Product.findById(params.id).lean();
+    const { id } = params;
+
+    if (!id) {
+      return NextResponse.json(
+        { success: false, message: "Missing product id" },
+        { status: 400 }
+      );
+    }
+
+    const product = await Product.findById(id).lean();
 
     if (!product) {
       return NextResponse.json(
@@ -22,9 +31,12 @@ export async function GET(req, { params }) {
       success: true,
       product,
     });
+
   } catch (err) {
+    console.error("PRODUCT API ERROR:", err);
+
     return NextResponse.json(
-      { success: false, message: err.message },
+      { success: false, message: err.message || "Server error" },
       { status: 500 }
     );
   }
