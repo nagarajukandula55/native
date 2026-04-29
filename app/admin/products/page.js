@@ -82,6 +82,10 @@ export default function ProductUpload() {
     breadth: "",
     height: "",
 
+    primaryImage: "",
+    packagingType: "",
+    visibilityTag: "",
+
     images: [],
     variants: [emptyVariant],
   };
@@ -99,6 +103,7 @@ export default function ProductUpload() {
   const [step, setStep] = useState(0);
   const [error, setError] = useState("");
   const [imagePreviews, setImagePreviews] = useState([]);
+  const [submitting, setSubmitting] = useState(false);
 
   const barcodeRefs = useRef([]);
 
@@ -134,6 +139,29 @@ export default function ProductUpload() {
       0
     )
   : 0;
+
+  const baseCost = Number(form.baseCost || 0);
+  const packagingCost = Number(form.packagingCost || 0);
+  const logisticsCost = Number(form.logisticsCost || 0);
+  const marketingCost = Number(form.marketingCost || 0);
+  
+  const totalCost =
+    baseCost + packagingCost + logisticsCost + marketingCost;
+  
+  const sellingPrice = Number(form.sellingPrice || 0);
+  const mrp = Number(form.mrp || 0);
+  
+  const gstRate = Number(form.tax || 0);
+  
+  const gstAmount = (sellingPrice * gstRate) / 100;
+  
+  const finalPrice = sellingPrice + gstAmount;
+  
+  const profit = sellingPrice - totalCost;
+  
+  const margin = sellingPrice
+    ? (profit / sellingPrice) * 100
+    : 0;
 
 /* ================= AUTO ================= */
 
@@ -391,112 +419,79 @@ function removeIngredient(i) {
     ingredients: recalcIngredients(updated),
   }));
 }
-
-/* ================= PRODUCT KEY ================= */
-
-  function generateProductIds(name, brand, weight) {
-    const clean = (v) => String(v || "").trim();
-  
-    const cleanName = clean(name);
-    const cleanBrand = clean(brand);
-  
-    const nameKey = cleanName.toUpperCase().replace(/[^A-Z0-9]/g, "");
-    const brandKey = cleanBrand.toUpperCase().replace(/[^A-Z0-9]/g, "");
-  
-    const slug = `${cleanBrand} ${cleanName}`
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/(^-|-$)/g, "");
-  
-    const unique = Date.now().toString().slice(-6);
-  
-    const productKey = `${brandKey}-${nameKey}-${unique}`;
-  
-    // ⚠️ PREVIEW ONLY (not final)
-    const sku = `NA-${nameKey}-XXX-${weight || "NA"}GM`;
-  
-    return { slug, productKey, sku };
-  }
   
   /* ================= AI CONTENT ================= */
 
-  const generateAIContent = async () => {
-    try {
-      if (!form.ingredients || form.ingredients.length === 0) {
-        return alert("Add ingredients");
+    const generateAIContent = async () => {
+      try {
+        if (!form.ingredients || form.ingredients.length === 0) {
+          return alert("Add ingredients");
+        }
+    
+        const totalPercent = form.ingredients.reduce(
+          (sum, i) => sum + Number(i.percent || 0),
+          0
+        );
+    
+        if (Math.abs(totalPercent - 100) > 1) {
+          return alert("Ingredients must total ~100%");
+        }
+    
+        const totalWeight = Number(form.totalWeight || 0);
+        if (!totalWeight) return alert("Enter total weight");
+    
+        const usedWeight = form.ingredients.reduce(
+          (sum, i) => sum + convertToGrams(i.qty, i.unit),
+          0
+        );
+    
+        if (Math.abs(usedWeight - totalWeight) > 1) {
+          return alert("Weight mismatch");
+        }
+    
+        console.log("🚀 Calling AI API...");
+    
+        const res = await fetch("/api/ai-content", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: form.name,
+            category: form.category,
+            subcategory: form.subcategory,
+            ingredients: formatIngredients(form.ingredients),
+          }),
+        });
+    
+        const data = await res.json();
+    
+        console.log("📦 AI RESPONSE:", data);
+    
+        if (!res.ok || !data.success) {
+          return alert(data.message || "AI generation failed");
+        }
+    
+        const c = data.content || {};
+    
+        setForm(prev => ({
+          ...prev,
+          highlights: c.highlights?.join(", ") || "",
+          shortDescription: c.shortDescription || "",
+          description: c.description || "",
+        }));
+    
+        setSeo({
+          title: c.seo?.title || "",
+          description: c.seo?.description || "",
+          keywords: c.seo?.keywords || "",
+        });
+    
+      } catch (err) {
+        console.error("🔥 AI ERROR:", err);
+        alert("AI error");
       }
+    };
   
-      const totalPercent = form.ingredients.reduce(
-        (sum, i) => sum + parseFloat(i.percent || 0),
-        0
-      );
-  
-      if (Math.abs(totalPercent - 100) > 1) {
-        return alert("Ingredients must total ~100%");
-      }
-  
-      const totalWeight = parseFloat(form.totalWeight || 0);
-  
-      if (!totalWeight) {
-        return alert("Enter total weight");
-      }
-  
-      const usedWeight = form.ingredients.reduce(
-        (sum, i) => sum + convertToGrams(i.qty, i.unit),
-        0
-      );
-  
-      if (Math.abs(usedWeight - totalWeight) > 1) {
-        return alert("Weight mismatch");
-      }
-  
-      // 🔥 DEBUG START
-      console.log("🚀 Calling AI API...");
-  
-      const res = await fetch("/api/ai-content", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: form.name,
-          category: form.category,
-          subcategory: form.subcategory,
-          ingredients: formatIngredients(form.ingredients),
-        }),
-      });
-  
-      const data = await res.json();
-  
-      console.log("📦 AI RESPONSE:", data);
-  
-      if (!res.ok || !data.success) {
-        console.error("❌ AI API ERROR:", data);
-        return alert(data.message || "AI generation failed");
-      }
-  
-      const c = data.content;
-  
-      setForm(prev => ({
-        ...prev,
-        highlights: c?.highlights?.join(", ") || "",
-        shortDescription: c?.shortDescription || "",
-        description: c?.description || "",
-      }));
-  
-      setSeo({
-        title: c?.seo?.title || "",
-        description: c?.seo?.description || "",
-        keywords: c?.seo?.keywords || "",
-      });
-  
-      console.log("✅ AI Content Generated Successfully");
-  
-    } catch (err) {
-      console.error("🔥 AI ERROR:", err);
-      alert("AI error - check console");
-    }
-  };
-  
-   async function generateComplianceAI() {
+    async function generateComplianceAI() {
       try {
         const res = await fetch("/api/ai-compliance", {
           method: "POST",
@@ -506,7 +501,7 @@ function removeIngredient(i) {
           body: JSON.stringify({
             name: form.name,
             category: form.category,
-            ingredients: form.ingredients.map(i => i.name),
+            ingredients: form.ingredients?.map(i => i?.name) || [],
             productType: form.productType,
           }),
         });
@@ -517,23 +512,22 @@ function removeIngredient(i) {
           alert("AI compliance generation failed");
           return;
         }
-
-        const [aiLoading, setAiLoading] = useState(false);
     
         const c = data.content || data;
     
-              setForm(prev => ({
-                ...prev,
-                allergenInfo: c.allergen || "",
-                storageInstructions: c.storage || "",
-                usageInstructions: c.usage || "",
-                safetyInfo: c.safety || "",
-              }));
-        
-          } catch (err) {
-            alert("AI compliance error");
-          }
-        }
+        setForm(prev => ({
+          ...prev,
+          allergenInfo: c.allergen || "",
+          storageInstructions: c.storage || "",
+          usageInstructions: c.usage || "",
+          safetyInfo: c.safety || "",
+        }));
+    
+      } catch (err) {
+        console.error(err);
+        alert("AI compliance error");
+      }
+    }
 
     async function generateMultiSEO() {
     const res = await fetch("/api/ai-seo-multi", {
@@ -980,7 +974,13 @@ return (
       <button onClick={addIngredient}>+ Add Ingredient</button>
 
       <div style={{ marginTop: 15, fontWeight: "bold" }}>
-        Total: {total.toFixed(2)}%
+          const total =
+            Array.isArray(form.ingredients)
+              ? form.ingredients.reduce(
+                  (sum, i) => sum + Number(i.percent || 0),
+                  0
+                )
+              : 0;
       </div>
     </div>
 
@@ -1089,11 +1089,13 @@ return (
 
     <input
       readOnly
-      value={
-        form.name && form.totalWeight
-          ? `NA-${form.name.toUpperCase().replace(/\s+/g, "")}-001-${form.totalWeight}GM`
-          : ""
-      }
+     value={
+          form.name && form.totalWeight
+            ? `NA-${String(form.name)
+                .toUpperCase()
+                .replace(/[^A-Z0-9]/g, "")}-001-${form.totalWeight}GM`
+            : ""
+        }
     />
 
     {/* ================= CORE CALC ================= */}
@@ -1104,7 +1106,7 @@ return (
       borderRadius: 8
     }}>
 
-      <p>💰 Total Cost: ₹{totalCost || 0}</p>
+      <p>💰 Total Cost: ₹{Number(totalCost || 0).toFixed(2)}</p>
       <p>🧾 GST: ₹{gstAmount?.toFixed(2) || 0}</p>
       <p>💵 Final Price (Incl GST): ₹{finalPrice?.toFixed(2) || 0}</p>
       <p>📈 Profit: ₹{profit?.toFixed(2) || 0}</p>
@@ -1126,12 +1128,12 @@ return (
 
       <p>
         💡 Suggested Selling Price:
-        <b> ₹{(totalCost * 1.45 || 0).toFixed(2)}</b>
+        <b> ₹{(Number(totalCost || 0) * 1.45).toFixed(2)}</b>
       </p>
 
       <p>
         💡 Suggested MRP:
-        <b> ₹{((totalCost * 1.45) * 1.25 || 0).toFixed(2)}</b>
+        <b> ₹{((Number(totalCost || 0) * 1.45) * 1.25).toFixed(2)}</b>
       </p>
 
       <p style={{ fontSize: 12, color: "#555" }}>
@@ -1169,7 +1171,7 @@ return (
       borderRadius: 8
     }}>
 
-      {Number(form.sellingPrice) < totalCost ? (
+      {Number(sellingPrice) < Number(totalCost) ? (
         <p style={{ color: "red" }}>
           ❌ WARNING: Selling price is LOWER than cost → LOSS ALERT
         </p>
@@ -1228,7 +1230,7 @@ return (
       gap: 10,
       marginTop: 15
     }}>
-      {(form.images || []).map((img, i) => (
+      {(form.images || []).filter(Boolean).map((img, i) => (
         <div key={i} style={{ position: "relative" }}>
 
           <img
@@ -1242,99 +1244,31 @@ return (
             }}
           />
 
-          <button
-            onClick={() =>
-              setForm(prev => ({
-                ...prev,
-                primaryImage: img
-              }))
-            }
-            style={{
-              position: "absolute",
-              top: 5,
-              left: 5,
-              fontSize: 10,
-              background: form.primaryImage === img ? "green" : "black",
-              color: "#fff",
-              border: "none",
-              padding: "3px 6px"
-            }}
-          >
-            {form.primaryImage === img ? "Primary" : "Set"}
-          </button>
+            <button
+              onClick={() =>
+                setForm(prev => ({
+                  ...prev,
+                  primaryImage: img
+                }))
+              }
+              style={{
+                position: "absolute",
+                top: 5,
+                left: 5,
+                fontSize: 10,
+                background:
+                  form.primaryImage === img ? "green" : "black",
+                color: "#fff",
+                border: "none",
+                padding: "3px 6px"
+              }}
+            >
+              {form.primaryImage === img ? "Primary" : "Set"}
+            </button>
 
         </div>
       ))}
     </div>
-
-    {/* ================= VIDEO ================= */}
-    <h3 style={{ marginTop: 25 }}>🎥 AI Product Video Generator</h3>
-
-    <select
-      value={form.videoStyle || ""}
-      onChange={e =>
-        setForm(prev => ({ ...prev, videoStyle: e.target.value }))
-      }
-    >
-      <option>Select Video Style</option>
-      <option>Premium Brand Ad</option>
-      <option>Homemade Style</option>
-      <option>Healthy Lifestyle</option>
-      <option>Street Food Style</option>
-      <option>Minimal Product Showcase</option>
-    </select>
-
-    <textarea
-      placeholder="AI Prompt (auto generated but editable)"
-      value={
-        form.videoPrompt ||
-        `Create a high quality marketing video for ${form.name || ""} using product images. Highlight taste, quality and ingredients.`
-      }
-      onChange={e =>
-        setForm(prev => ({ ...prev, videoPrompt: e.target.value }))
-      }
-      style={{ width: "100%", height: 80, marginTop: 10 }}
-    />
-
-    <button
-      type="button"
-      onClick={() => {
-        setForm(prev => ({
-          ...prev,
-          videoStatus: "GENERATING"
-        }));
-
-        alert("AI video generation triggered (backend hook ready)");
-      }}
-      style={{
-        marginTop: 10,
-        width: "100%",
-        padding: 12,
-        background: "black",
-        color: "white",
-        fontWeight: "bold"
-      }}
-    >
-      🤖 Generate AI Video
-    </button>
-
-    {/* STATUS */}
-    <div style={{ marginTop: 10 }}>
-      Status: {form.videoStatus || "NOT GENERATED"}
-    </div>
-
-    {/* GENERATED VIDEO PREVIEW */}
-    {form.aiVideo && (
-      <video
-        src={form.aiVideo}
-        controls
-        style={{
-          width: "100%",
-          marginTop: 15,
-          borderRadius: 10
-        }}
-      />
-    )}
 
     {/* ================= PACKAGING ================= */}
     <h3 style={{ marginTop: 25 }}>📦 Product Identity</h3>
@@ -1602,10 +1536,13 @@ return (
         
           {/* SUBMIT BUTTON */}
             <button
+              disabled={submitting}
               onClick={async () => {
+                if (submitting) return;
                 try {
-                  console.log("🚀 SUBMIT BUTTON CLICKED");
-            
+
+                  setSubmitting(true);
+                  
                   const err = validateStep(3);
                   if (err) return setError(err);
             
@@ -1618,7 +1555,7 @@ return (
                     return setError("FSSAI number required");
                   if (!form.nutrition?.energy)
                     return setError("Generate nutrition first");
-                  if (!form.barcode)
+                  if (!form.productId)
                     return setError("Barcode missing");
                   if (Number(form.sellingPrice) < totalCost) {
                     return setError("Cannot submit: Selling price below cost");
@@ -1632,6 +1569,7 @@ return (
                 } catch (e) {
                   console.error(e);
                   setError("Something went wrong during submission");
+                  setSubmitting(false);
                 }
               }}
               style={{
