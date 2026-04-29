@@ -218,19 +218,22 @@ useEffect(() => {
 
 /* ================= BRAND SLUG + PRODUCT ID ================= */
 
-useEffect(() => {
-  if (!form.brand) return;
-
-  const brandSlug = String(form.brand || "")
-    .toLowerCase()
-    .replace(/\s+/g, "-");
-
-  setForm(prev => ({
-    ...prev,
-    brandSlug,
-    productId: id,
-  }));
-}, [form.brand]);
+  useEffect(() => {
+    if (!form.brand || !form.name) return;
+  
+    const productId = generateProductId(form.brand, form.name);
+  
+    const brandSlug = String(form.brand)
+      .toLowerCase()
+      .replace(/\s+/g, "-");
+  
+    setForm(prev => ({
+      ...prev,
+      brandSlug,
+      productId,          // ✅ FIXED
+      barcode: productId, // ✅ SAME SOURCE OF TRUTH
+    }));
+  }, [form.brand, form.name]);
 
 
 /* ================= PRICE WITH GST ================= */
@@ -263,38 +266,61 @@ useEffect(() => {
 
 /* =================== Product Key ================ */
 
-  useEffect(() => {
-    if (!form.name || !form.totalWeight) return;
-  
-    const cleanName = String(form.name)
+useEffect(() => {
+  if (!form.name || !form.brand) return;
+
+  const clean = (v) =>
+    String(v || "")
+      .trim()
       .toUpperCase()
-      .replace(/\s+/g, "");
+      .replace(/[^A-Z0-9]/g, "");
+
+  const cleanName = clean(form.name);
+  const cleanBrand = clean(form.brand);
+
+  const unique = Date.now().toString().slice(-6);
+
+  // ================= PRODUCT ID (PRIMARY ID - NEVER CHANGE) =================
+  const productId = `${cleanBrand}-${cleanName}-${unique}`;
+
+  // ================= PRODUCT KEY (INTERNAL TRACE) =================
+    const productKey = `${cleanBrand}-${cleanName}-${unique}`;
   
-    const cleanBrand = String(form.brand || "")
-      .toUpperCase()
-      .replace(/\s+/g, "");
-  
-    const slug = `${form.brand || ""} ${form.name}`
+    // ================= SLUG =================
+    const slug = `${form.brand || ""} ${form.name || ""}`
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/(^-|-$)/g, "");
   
-    const unique = Date.now().toString().slice(-6);
+    // ================= SKU =================
+    const finalSKU = `NA-${cleanName}-001-${form.totalWeight || "NA"}GM`;
   
-    const productKey = `${cleanBrand}-${cleanName}-${unique}`;
-  
-    // ✅ FINAL SKU (NO XXX)
-    const finalSKU = `NA-${cleanName}-001-${form.totalWeight}GM`;
-  
-    setForm(prev => ({
+    setForm((prev) => ({
       ...prev,
   
-      slug,
-      productKey,
-      productId: productKey,
+      // 🔐 MASTER ID
+      productId,
   
-      barcode: productKey,
+      // internal
+      productKey,
+  
+      // SEO
+      slug,
+  
+      // barcode always same as productId
+      barcode: productId,
+  
       qrCode: `https://shopnative.in/product/${slug}`,
+  
+      // SKU only for variant fallback
+      sku: "",
+  
+      variants: prev.variants?.map((v) => ({
+        ...v,
+        sku: v.sku || finalSKU,
+      })) || [],
+    }));
+  }, [form.name, form.brand, form.totalWeight]);
   
       // ✅ THIS IS THE REAL FIX
       sku: "",
@@ -307,6 +333,20 @@ useEffect(() => {
     }));
   
   }, [form.name, form.brand, form.totalWeight]);
+
+  function generateProductId(brand, name) {
+    const clean = (v) =>
+      String(v || "")
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, "");
+  
+    const brandKey = clean(brand);
+    const nameKey = clean(name);
+  
+    const unique = Date.now().toString().slice(-6);
+  
+    return `${brandKey}-${nameKey}-${unique}`;
+  }
 
 
 /* ================= HELPERS ================= */
@@ -657,6 +697,7 @@ function removeIngredient(i) {
       ...form,
     
       slug: slug,
+      productId: form.productId,
       productKey: form.productKey,
       status: "review",    
       ingredients: Array.isArray(form.ingredients) ? form.ingredients : [],
@@ -681,7 +722,7 @@ function removeIngredient(i) {
           sellingPrice: Number(form.sellingPrice || 0),
           stock: Number(form.stock || 0),
     
-          barcode: form.barcode || "",
+          barcode: form.productId || "",
           qrCode: form.qrCode || "",
 
         }
