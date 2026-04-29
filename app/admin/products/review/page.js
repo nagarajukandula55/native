@@ -30,7 +30,7 @@ export default function ReviewPage() {
     loadProducts();
   }, []);
 
-  /* ================= AI MODERATION (LOCAL ENGINE) ================= */
+  /* ================= AI SCORE ================= */
 
   function aiScore(p) {
     let score = 100;
@@ -40,22 +40,23 @@ export default function ReviewPage() {
     if (!p.primaryVariant?.sellingPrice) score -= 20;
     if (p.primaryVariant?.sellingPrice < 10) score -= 15;
 
-    const risk =
-      score >= 85 ? "LOW" :
-      score >= 60 ? "MEDIUM" :
-      "HIGH";
-
-    return { score, risk };
+    return {
+      score,
+      risk:
+        score >= 85 ? "LOW" :
+        score >= 60 ? "MEDIUM" :
+        "HIGH",
+    };
   }
 
-  /* ================= ACTIVITY LOG ================= */
+  /* ================= LOG ================= */
 
-  function pushLog(action, productId) {
+  function pushLog(action, id) {
     setLog((prev) => [
       {
         time: new Date().toLocaleTimeString(),
         action,
-        productId,
+        id,
       },
       ...prev,
     ]);
@@ -63,61 +64,58 @@ export default function ReviewPage() {
 
   /* ================= ACTIONS ================= */
 
-  async function approve(productId) {
+  async function approve(id) {
     if (!confirm("Approve product?")) return;
 
-    setLoadingId(productId);
+    setLoadingId(id);
 
     await fetch("/api/admin/products/action", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ productId, action: "approve" }),
+      body: JSON.stringify({ productId: id, action: "approve" }),
     });
 
-    pushLog("APPROVED", productId);
+    pushLog("APPROVED", id);
     await loadProducts();
     setLoadingId(null);
   }
 
-  async function reject(productId) {
+  async function reject(id) {
     if (!confirm("Reject product?")) return;
 
-    setLoadingId(productId);
+    setLoadingId(id);
 
     await fetch("/api/admin/products/action", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        productId,
+        productId: id,
         action: "reject",
         reason: "Manual review rejection",
       }),
     });
 
-    pushLog("REJECTED", productId);
+    pushLog("REJECTED", id);
     await loadProducts();
     setLoadingId(null);
   }
 
   /* ================= INLINE UPDATE ================= */
 
-  async function updateField(productId, field, value) {
+  async function updateField(id, field, value) {
     const updated = products.map((p) =>
-      p.productId === productId
-        ? { ...p, [field]: value }
-        : p
+      p._id === id ? { ...p, [field]: value } : p
     );
 
     setProducts(updated);
 
-    // optional backend sync hook
     await fetch("/api/admin/products/update-inline", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ productId, field, value }),
+      body: JSON.stringify({ productId: id, field, value }),
     });
 
-    pushLog(`UPDATED ${field}`, productId);
+    pushLog(`UPDATED ${field}`, id);
   }
 
   /* ================= UI ================= */
@@ -127,13 +125,12 @@ export default function ReviewPage() {
 
       <h2>🧠 AI Product Moderation Console</h2>
 
-      {/* ================= TABLE ================= */}
       <div style={{ overflowX: "auto" }}>
         <table width="100%" border="1" cellPadding="10" style={{ background: "#fff" }}>
           <thead style={{ background: "#111", color: "#fff" }}>
             <tr>
               <th>Product</th>
-              <th>Product ID</th>
+              <th>Product Key</th>
               <th>Image</th>
               <th>Price</th>
               <th>AI Score</th>
@@ -144,18 +141,18 @@ export default function ReviewPage() {
 
           <tbody>
             {products.map((p) => {
+              const id = p._id; // 🔥 FIXED
               const ai = aiScore(p);
 
               return (
-                <tr key={p.productId}>
+                <tr key={id}>
 
-                  {/* PRODUCT */}
                   <td>
-                    {editRow === p.productId ? (
+                    {editRow === id ? (
                       <input
                         value={p.name}
                         onChange={(e) =>
-                          updateField(p.productId, "name", e.target.value)
+                          updateField(id, "name", e.target.value)
                         }
                       />
                     ) : (
@@ -165,12 +162,10 @@ export default function ReviewPage() {
                     <small>{p.category}</small>
                   </td>
 
-                  {/* PRODUCT ID */}
                   <td>
-                    <code>{p.productId}</code>
+                    <code>{p.productKey}</code>
                   </td>
 
-                  {/* IMAGE */}
                   <td>
                     <img
                       src={p.images?.[0] || "/no-image.png"}
@@ -180,15 +175,14 @@ export default function ReviewPage() {
                     />
                   </td>
 
-                  {/* PRICE INLINE EDIT */}
                   <td>
-                    {editRow === p.productId ? (
+                    {editRow === id ? (
                       <input
                         type="number"
                         value={p.primaryVariant?.sellingPrice || 0}
                         onChange={(e) =>
                           updateField(
-                            p.productId,
+                            id,
                             "primaryVariant.sellingPrice",
                             Number(e.target.value)
                           )
@@ -199,45 +193,40 @@ export default function ReviewPage() {
                     )}
                   </td>
 
-                  {/* AI SCORE */}
                   <td>
-                    <div>
-                      <b>{ai.score}/100</b>
-                      <br />
-                      <span
-                        style={{
-                          color:
-                            ai.risk === "HIGH"
-                              ? "red"
-                              : ai.risk === "MEDIUM"
-                              ? "orange"
-                              : "green",
-                        }}
-                      >
-                        {ai.risk} RISK
-                      </span>
-                    </div>
+                    <b>{ai.score}/100</b>
+                    <br />
+                    <span
+                      style={{
+                        color:
+                          ai.risk === "HIGH"
+                            ? "red"
+                            : ai.risk === "MEDIUM"
+                            ? "orange"
+                            : "green",
+                      }}
+                    >
+                      {ai.risk} RISK
+                    </span>
                   </td>
 
-                  {/* STATUS */}
                   <td>
                     <b>{p.status}</b>
                   </td>
 
-                  {/* ACTIONS */}
                   <td style={{ display: "flex", gap: 6 }}>
 
                     <button
-                      onClick={() => approve(p.productId)}
-                      disabled={loadingId === p.productId}
+                      onClick={() => approve(id)}
+                      disabled={loadingId === id}
                       style={{ background: "green", color: "#fff" }}
                     >
                       Approve
                     </button>
 
                     <button
-                      onClick={() => reject(p.productId)}
-                      disabled={loadingId === p.productId}
+                      onClick={() => reject(id)}
+                      disabled={loadingId === id}
                       style={{ background: "red", color: "#fff" }}
                     >
                       Reject
@@ -245,7 +234,7 @@ export default function ReviewPage() {
 
                     <button
                       onClick={() =>
-                        router.push(`/admin/products/view/${p.productId}`)
+                        router.push(`/admin/products/view/${id}`)
                       }
                       style={{ background: "black", color: "#fff" }}
                     >
@@ -254,9 +243,7 @@ export default function ReviewPage() {
 
                     <button
                       onClick={() =>
-                        setEditRow(
-                          editRow === p.productId ? null : p.productId
-                        )
+                        setEditRow(editRow === id ? null : id)
                       }
                     >
                       Edit
@@ -271,14 +258,13 @@ export default function ReviewPage() {
         </table>
       </div>
 
-      {/* ================= ACTIVITY LOG ================= */}
+      {/* LOG */}
       <div style={{ marginTop: 30 }}>
         <h3>📜 Activity Log</h3>
-
         <div style={{ background: "#fff", padding: 10 }}>
           {log.map((l, i) => (
             <div key={i} style={{ fontSize: 12 }}>
-              [{l.time}] {l.action} → {l.productId}
+              [{l.time}] {l.action} → {l.id}
             </div>
           ))}
         </div>
