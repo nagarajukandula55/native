@@ -987,7 +987,7 @@ return (
           padding: 14,
           fontWeight: "bold",
           borderRadius: 6
-        }}
+        }
       >
         ⚡ Generate Content
       </button>
