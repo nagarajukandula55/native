@@ -12,7 +12,7 @@ export default function AdminProductsList() {
     "/api/admin/products",
     fetcher,
     {
-      refreshInterval: 5000, // realtime sync
+      refreshInterval: 5000,
     }
   );
 
@@ -28,7 +28,7 @@ export default function AdminProductsList() {
         body: JSON.stringify({ action }),
       });
 
-      mutate(); // instant refresh
+      mutate();
     } catch (err) {
       console.error("Update error:", err);
     }
@@ -51,12 +51,18 @@ export default function AdminProductsList() {
   /* ================= FILTER ================= */
 
   const filteredProducts = products.filter((p) => {
-    if (filter === "all") return true;
-    if (filter === "review") return p.status === "review";
-    if (filter === "approved") return p.status === "approved";
-    if (filter === "listed") return p.isListed === true;
-    if (filter === "delisted") return p.isListed === false;
-    return true;
+    switch (filter) {
+      case "review":
+        return p.status === "review";
+      case "approved":
+        return p.status === "approved";
+      case "listed":
+        return p.isListed === true;
+      case "delisted":
+        return p.isListed === false;
+      default:
+        return true;
+    }
   });
 
   return (
@@ -102,6 +108,7 @@ export default function AdminProductsList() {
             ) : (
               filteredProducts.map((p) => (
                 <tr key={p._id}>
+
                   {/* PRODUCT */}
                   <td>
                     <b>{p.name}</b>
@@ -128,7 +135,7 @@ export default function AdminProductsList() {
                   {/* ACTIONS */}
                   <td className="actions">
 
-                    {/* REVIEW ACTIONS */}
+                    {/* REVIEW */}
                     {p.status === "review" && (
                       <>
                         <button
@@ -147,14 +154,14 @@ export default function AdminProductsList() {
                       </>
                     )}
 
-                    {/* LIST */}
+                    {/* APPROVED → LIST */}
                     {p.status === "approved" && !p.isListed && (
                       <button onClick={() => updateProduct(p._id, "list")}>
                         List
                       </button>
                     )}
 
-                    {/* DELIST */}
+                    {/* LISTED → DELIST */}
                     {p.isListed && (
                       <button onClick={() => updateProduct(p._id, "delist")}>
                         Delist
@@ -177,7 +184,7 @@ export default function AdminProductsList() {
         </table>
       </div>
 
-      {/* STYLES (FIXED INSIDE RETURN) */}
+      {/* STYLES */}
       <style jsx>{`
         .wrap {
           max-width: 1200px;
@@ -185,30 +192,18 @@ export default function AdminProductsList() {
           padding: 20px;
         }
 
-        h1 {
-          margin-bottom: 20px;
-        }
-
-        .filters {
-          margin-bottom: 15px;
-        }
-
         .filters button {
           margin-right: 10px;
           padding: 8px 12px;
           border: 1px solid #ddd;
           background: #fff;
-          cursor: pointer;
           border-radius: 6px;
+          cursor: pointer;
         }
 
         .filters .active {
           background: #000;
           color: #fff;
-        }
-
-        .tableWrap {
-          overflow-x: auto;
         }
 
         table {
@@ -221,7 +216,6 @@ export default function AdminProductsList() {
         td {
           padding: 12px;
           border-bottom: 1px solid #eee;
-          text-align: left;
         }
 
         th {
@@ -232,24 +226,23 @@ export default function AdminProductsList() {
           margin: 3px;
           padding: 6px 10px;
           border: none;
-          cursor: pointer;
           border-radius: 4px;
-          background: #eee;
+          cursor: pointer;
         }
 
         .approve {
           background: #28a745;
-          color: white;
+          color: #fff;
         }
 
         .reject {
           background: #dc3545;
-          color: white;
+          color: #fff;
         }
 
         .delete {
           background: #333;
-          color: white;
+          color: #fff;
         }
 
         .status {
