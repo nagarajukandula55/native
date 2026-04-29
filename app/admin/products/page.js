@@ -1528,42 +1528,66 @@ return (
         
           {/* SUBMIT BUTTON */}
             <button
-              disabled={submitting}
-              onClick={async () => {
-                if (submitting) return;
-                try {
-
-                  setSubmitting(true);
-                  
-                  const err = validateStep(3);
-                  if (err) return setError(err);
-            
-                  if (!form.productId) return setError("Product ID missing");
-                  if (!form.images || form.images.length === 0)
-                    return setError("Upload at least 1 image");
-                  if (!form.totalWeight)
-                    return setError("Total weight missing");
-                  if (!form.fssaiNumber)
-                    return setError("FSSAI number required");
-                  if (!form.nutrition?.energy)
-                    return setError("Generate nutrition first");
-                  if (!form.productId)
-                    return setError("Barcode missing");
-                  if (Number(form.sellingPrice) < totalCost) {
-                    return setError("Cannot submit: Selling price below cost");
+                onClick={async () => {
+                  if (submitting) return;
+                
+                  try {
+                    setSubmitting(true);
+                    setError("");
+                
+                    const err = validateStep(3);
+                    if (err) {
+                      setError(err);
+                      setSubmitting(false);
+                      return;
+                    }
+                
+                    if (!form.productId) {
+                      setError("Product ID missing");
+                      setSubmitting(false);
+                      return;
+                    }
+                
+                    if (!form.images || form.images.length === 0) {
+                      setError("Upload at least 1 image");
+                      setSubmitting(false);
+                      return;
+                    }
+                
+                    if (!form.totalWeight) {
+                      setError("Total weight missing");
+                      setSubmitting(false);
+                      return;
+                    }
+                
+                    if (!form.fssaiNumber) {
+                      setError("FSSAI number required");
+                      setSubmitting(false);
+                      return;
+                    }
+                
+                    if (!form.nutrition?.energy) {
+                      setError("Generate nutrition first");
+                      setSubmitting(false);
+                      return;
+                    }
+                
+                    if (Number(form.sellingPrice) < totalCost) {
+                      setError("Cannot submit: Selling price below cost");
+                      setSubmitting(false);
+                      return;
+                    }
+                
+                    await handleSubmit();
+                
+                  } catch (e) {
+                    console.error(e);
+                    setError("Something went wrong during submission");
+                  } finally {
+                    setSubmitting(false);
                   }
-            
-                  setError("");
-            
-                  // 🔥 THIS WAS MISSING
-                  await handleSubmit();
-            
-                } catch (e) {
-                  console.error(e);
-                  setError("Something went wrong during submission");
-                  setSubmitting(false);
-                }
-              }}
+                }}
+              disabled={submitting}
               style={{
                 background: "green",
                 color: "#fff",
