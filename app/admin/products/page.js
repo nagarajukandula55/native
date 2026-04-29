@@ -589,44 +589,53 @@ function removeIngredient(i) {
 /* ================= IMAGE UPLOAD ================= */
 
   async function handleImageUpload(e) {
-    const files = Array.from(e.target.files);
-  
+    const files = Array.from(e.target.files || []);
     if (!files.length) return;
+  
+    setLoading(true);
   
     const uploaded = [];
   
-    for (let file of files) {
-      const data = new FormData();
-      data.append("file", file);
-      data.append("upload_preset", "native_upload");
+    try {
+      for (const file of files) {
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("upload_preset", "native_upload");
   
-      try {
         const res = await fetch(
           `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUD_NAME}/image/upload`,
           {
             method: "POST",
-            body: data,
+            body: formData,
           }
         );
-       
-        if (!json.secure_url) {
-              alert("Image upload failed for one file");
-            }
   
         const json = await res.json();
   
-        if (json.secure_url) {
-          uploaded.push(json.secure_url);
+        if (!res.ok || !json.secure_url) {
+          console.error("Cloudinary upload failed:", json);
+          continue; // skip failed file
         }
-      } catch (err) {
-        console.error("Upload failed:", err);
-      }
-    }
   
-    setForm(prev => ({
-      ...prev,
-      images: [...(prev.images || []), ...uploaded],
-    }));
+        uploaded.push(json.secure_url);
+      }
+  
+      if (uploaded.length === 0) {
+        alert("No images were uploaded. Check Cloudinary config.");
+        return;
+      }
+  
+      setForm(prev => ({
+        ...prev,
+        images: [...(prev.images || []), ...uploaded],
+      }));
+  
+    } catch (err) {
+      console.error("Upload error:", err);
+      alert("Image upload failed due to network error");
+    } finally {
+      setLoading(false);
+    }
   }
 
     function generateNutrition() {
