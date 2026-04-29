@@ -148,18 +148,6 @@ export default function ProductUpload() {
   
   const sellingPrice = Number(form.sellingPrice || 0);
   const mrp = Number(form.mrp || 0);
-  
-  const gstRate = Number(form.tax || 0);
-  
-  const gstAmount = (sellingPrice * gstRate) / 100;
-  
-  const finalPrice = sellingPrice + gstAmount;
-  
-  const profit = sellingPrice - totalCost;
-  
-  const margin = sellingPrice
-    ? (profit / sellingPrice) * 100
-    : 0;
 
 /* ================= AUTO ================= */
 
