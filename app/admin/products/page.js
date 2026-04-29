@@ -973,7 +973,8 @@ return (
 
       <button onClick={addIngredient}>+ Add Ingredient</button>
         
-      </div>
+        </div>
+        </div>
 
 {/* ================= ACTION ================= */}
     <div>
