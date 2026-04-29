@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation";
 
 export default function ReviewPage() {
   const [products, setProducts] = useState([]);
-  const [rejectionMap, setRejectionMap] = useState({});
   const [loadingId, setLoadingId] = useState(null);
+  const [editRow, setEditRow] = useState(null);
+  const [log, setLog] = useState([]);
 
   const router = useRouter();
 
@@ -29,193 +30,259 @@ export default function ReviewPage() {
     loadProducts();
   }, []);
 
-  /* ================= APPROVE ================= */
+  /* ================= AI MODERATION (LOCAL ENGINE) ================= */
+
+  function aiScore(p) {
+    let score = 100;
+
+    if (!p.images?.length) score -= 25;
+    if (!p.description) score -= 15;
+    if (!p.primaryVariant?.sellingPrice) score -= 20;
+    if (p.primaryVariant?.sellingPrice < 10) score -= 15;
+
+    const risk =
+      score >= 85 ? "LOW" :
+      score >= 60 ? "MEDIUM" :
+      "HIGH";
+
+    return { score, risk };
+  }
+
+  /* ================= ACTIVITY LOG ================= */
+
+  function pushLog(action, productId) {
+    setLog((prev) => [
+      {
+        time: new Date().toLocaleTimeString(),
+        action,
+        productId,
+      },
+      ...prev,
+    ]);
+  }
+
+  /* ================= ACTIONS ================= */
 
   async function approve(productId) {
-    if (!confirm("Approve this product?")) return;
+    if (!confirm("Approve product?")) return;
 
     setLoadingId(productId);
 
-    try {
-      await fetch("/api/admin/products/action", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          productId,
-          action: "approve",
-        }),
-      });
+    await fetch("/api/admin/products/action", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ productId, action: "approve" }),
+    });
 
-      await loadProducts();
-    } catch (err) {
-      console.error(err);
-    }
-
+    pushLog("APPROVED", productId);
+    await loadProducts();
     setLoadingId(null);
   }
-
-  /* ================= REJECT ================= */
 
   async function reject(productId) {
-    const reason = rejectionMap[productId];
-
-    if (!reason) {
-      alert("Select rejection reason");
-      return;
-    }
-
-    if (!confirm("Reject this product?")) return;
+    if (!confirm("Reject product?")) return;
 
     setLoadingId(productId);
 
-    try {
-      await fetch("/api/admin/products/action", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          productId,
-          action: "reject",
-          reason,
-        }),
-      });
+    await fetch("/api/admin/products/action", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        productId,
+        action: "reject",
+        reason: "Manual review rejection",
+      }),
+    });
 
-      await loadProducts();
-    } catch (err) {
-      console.error(err);
-    }
-
+    pushLog("REJECTED", productId);
+    await loadProducts();
     setLoadingId(null);
   }
 
-  /* ================= AI DECISION PLACEHOLDER ================= */
-  function aiDecision(p) {
-    if (!p) return "Unknown";
+  /* ================= INLINE UPDATE ================= */
 
-    if (!p.primaryVariant?.sellingPrice) return "Reject (No Price)";
-    if (!p.images?.length) return "Reject (No Images)";
-    if (p.name?.length < 3) return "Reject (Bad Title)";
+  async function updateField(productId, field, value) {
+    const updated = products.map((p) =>
+      p.productId === productId
+        ? { ...p, [field]: value }
+        : p
+    );
 
-    return "Approve (AI Safe)";
+    setProducts(updated);
+
+    // optional backend sync hook
+    await fetch("/api/admin/products/update-inline", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ productId, field, value }),
+    });
+
+    pushLog(`UPDATED ${field}`, productId);
   }
 
+  /* ================= UI ================= */
+
   return (
-    <div style={{ padding: 20 }}>
+    <div style={{ padding: 20, background: "#f4f6f8" }}>
 
       <h2>🧠 AI Product Moderation Console</h2>
 
       {/* ================= TABLE ================= */}
-      <table width="100%" border="1" cellPadding="10">
-        <thead style={{ background: "#f5f5f5" }}>
-          <tr>
-            <th>Product</th>
-            <th>ID</th>
-            <th>Image</th>
-            <th>Price</th>
-            <th>Status</th>
-            <th>AI Suggestion</th>
-            <th>Reason</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
+      <div style={{ overflowX: "auto" }}>
+        <table width="100%" border="1" cellPadding="10" style={{ background: "#fff" }}>
+          <thead style={{ background: "#111", color: "#fff" }}>
+            <tr>
+              <th>Product</th>
+              <th>Product ID</th>
+              <th>Image</th>
+              <th>Price</th>
+              <th>AI Score</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
 
-        <tbody>
-          {products.map((p) => {
-            const id = p._id; // 🔥 FIXED: SINGLE SOURCE OF TRUTH
+          <tbody>
+            {products.map((p) => {
+              const ai = aiScore(p);
 
-            return (
-              <tr key={id}>
+              return (
+                <tr key={p.productId}>
 
-                {/* PRODUCT */}
-                <td>
-                  <b>{p.name}</b>
-                  <br />
-                  <small>{p.category}</small>
-                </td>
+                  {/* PRODUCT */}
+                  <td>
+                    {editRow === p.productId ? (
+                      <input
+                        value={p.name}
+                        onChange={(e) =>
+                          updateField(p.productId, "name", e.target.value)
+                        }
+                      />
+                    ) : (
+                      <b>{p.name}</b>
+                    )}
+                    <br />
+                    <small>{p.category}</small>
+                  </td>
 
-                {/* PRODUCT ID */}
-                <td style={{ fontSize: 12, color: "#666" }}>
-                  {id}
-                </td>
+                  {/* PRODUCT ID */}
+                  <td>
+                    <code>{p.productId}</code>
+                  </td>
 
-                {/* IMAGE */}
-                <td>
-                  <img
-                    src={p.images?.[0] || "/no-image.png"}
-                    width={60}
-                    height={60}
-                    style={{ objectFit: "cover", borderRadius: 6 }}
-                  />
-                </td>
+                  {/* IMAGE */}
+                  <td>
+                    <img
+                      src={p.images?.[0] || "/no-image.png"}
+                      width={60}
+                      height={60}
+                      style={{ objectFit: "cover", borderRadius: 6 }}
+                    />
+                  </td>
 
-                {/* PRICE */}
-                <td>₹{p.primaryVariant?.sellingPrice || 0}</td>
+                  {/* PRICE INLINE EDIT */}
+                  <td>
+                    {editRow === p.productId ? (
+                      <input
+                        type="number"
+                        value={p.primaryVariant?.sellingPrice || 0}
+                        onChange={(e) =>
+                          updateField(
+                            p.productId,
+                            "primaryVariant.sellingPrice",
+                            Number(e.target.value)
+                          )
+                        }
+                      />
+                    ) : (
+                      <>₹ {p.primaryVariant?.sellingPrice || 0}</>
+                    )}
+                  </td>
 
-                {/* STATUS */}
-                <td>
-                  <b>{p.status}</b>
-                </td>
+                  {/* AI SCORE */}
+                  <td>
+                    <div>
+                      <b>{ai.score}/100</b>
+                      <br />
+                      <span
+                        style={{
+                          color:
+                            ai.risk === "HIGH"
+                              ? "red"
+                              : ai.risk === "MEDIUM"
+                              ? "orange"
+                              : "green",
+                        }}
+                      >
+                        {ai.risk} RISK
+                      </span>
+                    </div>
+                  </td>
 
-                {/* AI SUGGESTION */}
-                <td>
-                  <span style={{ color: "#0070f3" }}>
-                    {aiDecision(p)}
-                  </span>
-                </td>
+                  {/* STATUS */}
+                  <td>
+                    <b>{p.status}</b>
+                  </td>
 
-                {/* REASON */}
-                <td>
-                  <select
-                    value={rejectionMap[id] || ""}
-                    onChange={(e) =>
-                      setRejectionMap((prev) => ({
-                        ...prev,
-                        [id]: e.target.value,
-                      }))
-                    }
-                  >
-                    <option value="">Select reason</option>
-                    <option value="Bad description">Bad description</option>
-                    <option value="Incorrect pricing">Incorrect pricing</option>
-                    <option value="Missing info">Missing info</option>
-                    <option value="Image issue">Image issue</option>
-                    <option value="Duplicate">Duplicate</option>
-                    <option value="Other">Other</option>
-                  </select>
-                </td>
+                  {/* ACTIONS */}
+                  <td style={{ display: "flex", gap: 6 }}>
 
-                {/* ACTIONS */}
-                <td style={{ display: "flex", gap: 6 }}>
+                    <button
+                      onClick={() => approve(p.productId)}
+                      disabled={loadingId === p.productId}
+                      style={{ background: "green", color: "#fff" }}
+                    >
+                      Approve
+                    </button>
 
-                  <button
-                    onClick={() => approve(id)}
-                    disabled={loadingId === id}
-                    style={{ background: "green", color: "#fff" }}
-                  >
-                    Approve
-                  </button>
+                    <button
+                      onClick={() => reject(p.productId)}
+                      disabled={loadingId === p.productId}
+                      style={{ background: "red", color: "#fff" }}
+                    >
+                      Reject
+                    </button>
 
-                  <button
-                    onClick={() => reject(id)}
-                    disabled={loadingId === id}
-                    style={{ background: "red", color: "#fff" }}
-                  >
-                    Reject
-                  </button>
+                    <button
+                      onClick={() =>
+                        router.push(`/admin/products/view/${p.productId}`)
+                      }
+                      style={{ background: "black", color: "#fff" }}
+                    >
+                      View
+                    </button>
 
-                  <button
-                    onClick={() => router.push(`/admin/products/view/${id}`)}
-                    style={{ background: "black", color: "#fff" }}
-                  >
-                    View
-                  </button>
+                    <button
+                      onClick={() =>
+                        setEditRow(
+                          editRow === p.productId ? null : p.productId
+                        )
+                      }
+                    >
+                      Edit
+                    </button>
 
-                </td>
+                  </td>
 
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* ================= ACTIVITY LOG ================= */}
+      <div style={{ marginTop: 30 }}>
+        <h3>📜 Activity Log</h3>
+
+        <div style={{ background: "#fff", padding: 10 }}>
+          {log.map((l, i) => (
+            <div key={i} style={{ fontSize: 12 }}>
+              [{l.time}] {l.action} → {l.productId}
+            </div>
+          ))}
+        </div>
+      </div>
 
     </div>
   );
