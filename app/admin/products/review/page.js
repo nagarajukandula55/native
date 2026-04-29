@@ -12,7 +12,6 @@ export default function ReviewPage() {
   const router = useRouter();
 
   /* ================= LOAD ================= */
-
   async function loadProducts() {
     try {
       const res = await fetch("/api/admin/products/review");
@@ -30,15 +29,14 @@ export default function ReviewPage() {
     loadProducts();
   }, []);
 
-  /* ================= AI SCORE ================= */
-
+  /* ================= SCORE ================= */
   function aiScore(p) {
     let score = 100;
 
     if (!p.images?.length) score -= 25;
     if (!p.description) score -= 15;
     if (!p.primaryVariant?.sellingPrice) score -= 20;
-    if (p.primaryVariant?.sellingPrice < 10) score -= 15;
+    if ((p.primaryVariant?.sellingPrice || 0) < 10) score -= 15;
 
     return {
       score,
@@ -50,20 +48,14 @@ export default function ReviewPage() {
   }
 
   /* ================= LOG ================= */
-
   function pushLog(action, id) {
     setLog((prev) => [
-      {
-        time: new Date().toLocaleTimeString(),
-        action,
-        id,
-      },
+      { time: new Date().toLocaleTimeString(), action, id },
       ...prev,
     ]);
   }
 
   /* ================= ACTIONS ================= */
-
   async function approve(id) {
     if (!confirm("Approve product?")) return;
 
@@ -88,11 +80,7 @@ export default function ReviewPage() {
     await fetch("/api/admin/products/action", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        productId: id,
-        action: "reject",
-        reason: "Manual review rejection",
-      }),
+      body: JSON.stringify({ productId: id, action: "reject" }),
     });
 
     pushLog("REJECTED", id);
@@ -101,7 +89,6 @@ export default function ReviewPage() {
   }
 
   /* ================= INLINE UPDATE ================= */
-
   async function updateField(id, field, value) {
     const updated = products.map((p) =>
       p._id === id ? { ...p, [field]: value } : p
@@ -119,10 +106,8 @@ export default function ReviewPage() {
   }
 
   /* ================= UI ================= */
-
   return (
     <div style={{ padding: 20, background: "#f4f6f8" }}>
-
       <h2>🧠 AI Product Moderation Console</h2>
 
       <div style={{ overflowX: "auto" }}>
@@ -141,7 +126,7 @@ export default function ReviewPage() {
 
           <tbody>
             {products.map((p) => {
-              const id = p._id; // 🔥 FIXED
+              const id = p._id;
               const ai = aiScore(p);
 
               return (
@@ -162,6 +147,7 @@ export default function ReviewPage() {
                     <small>{p.category}</small>
                   </td>
 
+                  {/* IMPORTANT: productKey only display */}
                   <td>
                     <code>{p.productKey}</code>
                   </td>
@@ -176,37 +162,14 @@ export default function ReviewPage() {
                   </td>
 
                   <td>
-                    {editRow === id ? (
-                      <input
-                        type="number"
-                        value={p.primaryVariant?.sellingPrice || 0}
-                        onChange={(e) =>
-                          updateField(
-                            id,
-                            "primaryVariant.sellingPrice",
-                            Number(e.target.value)
-                          )
-                        }
-                      />
-                    ) : (
-                      <>₹ {p.primaryVariant?.sellingPrice || 0}</>
-                    )}
+                    ₹ {p.primaryVariant?.sellingPrice || 0}
                   </td>
 
                   <td>
                     <b>{ai.score}/100</b>
                     <br />
-                    <span
-                      style={{
-                        color:
-                          ai.risk === "HIGH"
-                            ? "red"
-                            : ai.risk === "MEDIUM"
-                            ? "orange"
-                            : "green",
-                      }}
-                    >
-                      {ai.risk} RISK
+                    <span style={{ color: ai.risk === "HIGH" ? "red" : ai.risk === "MEDIUM" ? "orange" : "green" }}>
+                      {ai.risk}
                     </span>
                   </td>
 
@@ -215,40 +178,18 @@ export default function ReviewPage() {
                   </td>
 
                   <td style={{ display: "flex", gap: 6 }}>
+                    <button onClick={() => approve(id)} disabled={loadingId === id}>Approve</button>
+                    <button onClick={() => reject(id)} disabled={loadingId === id}>Reject</button>
 
                     <button
-                      onClick={() => approve(id)}
-                      disabled={loadingId === id}
-                      style={{ background: "green", color: "#fff" }}
-                    >
-                      Approve
-                    </button>
-
-                    <button
-                      onClick={() => reject(id)}
-                      disabled={loadingId === id}
-                      style={{ background: "red", color: "#fff" }}
-                    >
-                      Reject
-                    </button>
-
-                    <button
-                      onClick={() =>
-                        router.push(`/admin/products/view/${id}`)
-                      }
-                      style={{ background: "black", color: "#fff" }}
+                      onClick={() => router.push(`/admin/products/view/${id}`)}
                     >
                       View
                     </button>
 
-                    <button
-                      onClick={() =>
-                        setEditRow(editRow === id ? null : id)
-                      }
-                    >
+                    <button onClick={() => setEditRow(editRow === id ? null : id)}>
                       Edit
                     </button>
-
                   </td>
 
                 </tr>
@@ -269,7 +210,6 @@ export default function ReviewPage() {
           ))}
         </div>
       </div>
-
     </div>
   );
 }
