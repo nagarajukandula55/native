@@ -145,8 +145,6 @@ export default function ProductUpload() {
   const logisticsCost = Number(form.logisticsCost || 0);
   const marketingCost = Number(form.marketingCost || 0);
   
-  const totalCost =
-    baseCost + packagingCost + logisticsCost + marketingCost;
   
   const sellingPrice = Number(form.sellingPrice || 0);
   const mrp = Number(form.mrp || 0);
