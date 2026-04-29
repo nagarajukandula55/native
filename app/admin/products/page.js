@@ -972,15 +972,7 @@ return (
       ))}
 
       <button onClick={addIngredient}>+ Add Ingredient</button>
-
-      <div style={{ marginTop: 15, fontWeight: "bold" }}>
-          const total =
-            Array.isArray(form.ingredients)
-              ? form.ingredients.reduce(
-                  (sum, i) => sum + Number(i.percent || 0),
-                  0
-                )
-              : 0;
+        
       </div>
     </div>
 
