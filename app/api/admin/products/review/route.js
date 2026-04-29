@@ -1,25 +1,28 @@
-import { NextResponse } from "next/server";
-import connectDB from "@/lib/db";
+import dbConnect from "@/lib/db";
 import Product from "@/models/Product";
 
-export async function GET() {
+export async function GET(req, { params }) {
+  await dbConnect();
+
+  const { id } = params;
+
   try {
-    await connectDB();
+    const product = await Product.findById(id); // 🔥 THIS IS THE FIX
 
-    const products = await Product.find({ status: "review" })
-      .sort({ createdAt: -1 })
-      .lean();
+    if (!product) {
+      return Response.json(
+        { success: false, message: "Product not found" },
+        { status: 404 }
+      );
+    }
 
-    return NextResponse.json({
+    return Response.json({
       success: true,
-      products,
+      product,
     });
-
   } catch (err) {
-    console.error("REVIEW ERROR:", err);
-
-    return NextResponse.json(
-      { success: false, products: [] },
+    return Response.json(
+      { success: false, message: err.message },
       { status: 500 }
     );
   }
