@@ -266,61 +266,56 @@ useEffect(() => {
 
 /* =================== Product Key ================ */
 
-useEffect(() => {
-  if (!form.name || !form.brand) return;
-
-  const clean = (v) =>
-    String(v || "")
-      .trim()
-      .toUpperCase()
-      .replace(/[^A-Z0-9]/g, "");
-
-  const cleanName = clean(form.name);
-  const cleanBrand = clean(form.brand);
-
-  const unique = Date.now().toString().slice(-6);
-
-  // ================= PRODUCT ID (PRIMARY ID - NEVER CHANGE) =================
-  const productId = `${cleanBrand}-${cleanName}-${unique}`;
-
-  // ================= PRODUCT KEY (INTERNAL TRACE) =================
-    const productKey = `${cleanBrand}-${cleanName}-${unique}`;
-  
-    // ================= SLUG =================
-    const slug = `${form.brand || ""} ${form.name || ""}`
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/(^-|-$)/g, "");
-  
-    // ================= SKU =================
-    const finalSKU = `NA-${cleanName}-001-${form.totalWeight || "NA"}GM`;
-  
-    setForm((prev) => ({
-      ...prev,
-  
-      // 🔐 MASTER ID
-      productId,
-  
-      // internal
-      productKey,
-  
-      // SEO
-      slug,
-  
-      // barcode always same as productId
-      barcode: productId,
-  
-      qrCode: `https://shopnative.in/product/${slug}`,
-  
-      // SKU only for variant fallback
-      sku: "",
-  
-      variants: prev.variants?.map((v) => ({
-        ...v,
-        sku: v.sku || finalSKU,
-      })) || [],
-    }));
-  }, [form.name, form.brand, form.totalWeight]);
+    useEffect(() => {
+      if (!form.name || !form.brand) return;
+    
+      const clean = (v) =>
+        String(v || "")
+          .trim()
+          .toUpperCase()
+          .replace(/[^A-Z0-9]/g, "");
+    
+      const cleanName = clean(form.name);
+      const cleanBrand = clean(form.brand);
+    
+      const unique = Date.now().toString().slice(-6);
+    
+      const productId = `${cleanBrand}-${cleanName}-${unique}`;
+    
+      const productKey = productId;
+    
+      const slug = `${form.brand || ""} ${form.name || ""}`
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/(^-|-$)/g, "");
+    
+      const finalSKU = `NA-${cleanName}-001-${form.totalWeight || "NA"}GM`;
+    
+      setForm(prev => ({
+        ...prev,
+    
+        // 🔐 MASTER ID
+        productId,
+        productKey,
+    
+        // SEO
+        slug,
+    
+        // BARCODE = SAME AS PRODUCT ID
+        barcode: productId,
+    
+        qrCode: `https://shopnative.in/product/${slug}`,
+    
+        // SKU SAFE INITIALIZATION
+        sku: "",
+    
+        // VARIANTS SAFE UPDATE
+        variants: (prev.variants || []).map(v => ({
+          ...v,
+          sku: v.sku || finalSKU
+        })),
+      }));
+    }, [form.name, form.brand, form.totalWeight]);
   
       // ✅ THIS IS THE REAL FIX
       sku: "",
