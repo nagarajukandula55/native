@@ -15,10 +15,11 @@ export async function GET(req) {
     const category = searchParams.get("category");
     const search = searchParams.get("search");
 
-    /* ================= MATCH FILTER ================= */
+    /* ================= FILTER ================= */
     const match = {
       status: "approved",
       isActive: true,
+      isListed: true, // 🔥 IMPORTANT FIX (only show listed products)
     };
 
     if (category) {
@@ -33,27 +34,30 @@ export async function GET(req) {
     const pipeline = [
       { $match: match },
 
-      /* sort FIRST (important for correct grouping) */
-      { $sort: { sellingPrice: 1 } },
+      /* sort by price (safe nested path) */
+      {
+        $sort: {
+          "primaryVariant.sellingPrice": 1,
+        },
+      },
 
-      /* ================= GROUP PRODUCT ================= */
+      /* ================= GROUP BY PRODUCT ================= */
       {
         $group: {
           _id: "$productKey",
 
           name: { $first: "$name" },
           productKey: { $first: "$productKey" },
-          category: { $first: "$category" },
           slug: { $first: "$slug" },
+          category: { $first: "$category" },
 
           images: { $first: "$images" },
 
-          /* PRICE RANGE SUPPORT (IMPORTANT) */
-          minPrice: { $min: "$sellingPrice" },
-          maxPrice: { $max: "$sellingPrice" },
-          mrp: { $first: "$mrp" },
+          /* PRICE */
+          mrp: { $max: "$primaryVariant.mrp" },
+          minPrice: { $min: "$primaryVariant.sellingPrice" },
+          maxPrice: { $max: "$primaryVariant.sellingPrice" },
 
-          /* GST READY FIELDS */
           tax: { $first: "$tax" },
           gstCategory: { $first: "$gstCategory" },
 
@@ -61,22 +65,17 @@ export async function GET(req) {
 
           variantsCount: { $sum: 1 },
 
-          /* future SKU tracking support */
-          skus: { $push: "$sku" },
+          /* SKU tracking */
+          skus: { $push: "$primaryVariant.sku" },
         },
       },
 
-      /* ================= SAFE DISCOUNT CALC ================= */
+      /* ================= DISCOUNT CALC ================= */
       {
         $addFields: {
           discount: {
             $cond: [
-              {
-                $and: [
-                  { $gt: ["$mrp", 0] },
-                  { $gt: ["$minPrice", 0] }
-                ],
-              },
+              { $gt: ["$mrp", 0] },
               {
                 $round: [
                   {
@@ -97,18 +96,23 @@ export async function GET(req) {
             ],
           },
 
-          /* FINAL DISPLAY PRICE (PUBLIC) */
           displayPrice: "$minPrice",
         },
       },
 
+      /* newest first */
       { $sort: { createdAt: -1 } },
 
       /* ================= PAGINATION ================= */
       {
         $facet: {
-          data: [{ $skip: skip }, { $limit: limit }],
-          totalCount: [{ $count: "count" }],
+          data: [
+            { $skip: skip },
+            { $limit: limit },
+          ],
+          totalCount: [
+            { $count: "count" },
+          ],
         },
       },
     ];
@@ -127,7 +131,11 @@ export async function GET(req) {
     console.error("PUBLIC PRODUCTS ERROR:", err);
 
     return NextResponse.json(
-      { success: false, products: [] },
+      {
+        success: false,
+        message: err.message,
+        products: [],
+      },
       { status: 500 }
     );
   }
