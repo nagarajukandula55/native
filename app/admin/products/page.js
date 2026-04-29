@@ -266,82 +266,63 @@ useEffect(() => {
 
 /* =================== Product Key ================ */
 
-    useEffect(() => {
-      if (!form.name || !form.brand) return;
-    
-      const clean = (v) =>
-        String(v || "")
-          .trim()
-          .toUpperCase()
-          .replace(/[^A-Z0-9]/g, "");
-    
-      const cleanName = clean(form.name);
-      const cleanBrand = clean(form.brand);
-    
-      const unique = Date.now().toString().slice(-6);
-    
-      const productId = `${cleanBrand}-${cleanName}-${unique}`;
-    
-      const productKey = productId;
-    
-      const slug = `${form.brand || ""} ${form.name || ""}`
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/(^-|-$)/g, "");
-    
-      const finalSKU = `NA-${cleanName}-001-${form.totalWeight || "NA"}GM`;
-    
-      setForm(prev => ({
-        ...prev,
-    
-        // 🔐 MASTER ID
-        productId,
-        productKey,
-    
-        // SEO
-        slug,
-    
-        // BARCODE = SAME AS PRODUCT ID
-        barcode: productId,
-    
-        qrCode: `https://shopnative.in/product/${slug}`,
-    
-        // SKU SAFE INITIALIZATION
-        sku: "",
-    
-        // VARIANTS SAFE UPDATE
-        variants: (prev.variants || []).map(v => ({
-          ...v,
-          sku: v.sku || finalSKU
-        })),
-      }));
-    }, [form.name, form.brand, form.totalWeight]);
-  
-      // ✅ THIS IS THE REAL FIX
-      sku: "",
-  
-      // ⚠️ keep variants intact
-      variants: prev.variants?.map(v => ({
-        ...v,
-        sku: v.sku || finalSKU
-      })) || []
-    }));
-  
-  }, [form.name, form.brand, form.totalWeight]);
+function generateProductId(brand, name) {
+  const clean = (v) =>
+    String(v || "")
+      .trim()
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, "");
 
-  function generateProductId(brand, name) {
-    const clean = (v) =>
-      String(v || "")
-        .toUpperCase()
-        .replace(/[^A-Z0-9]/g, "");
-  
-    const brandKey = clean(brand);
-    const nameKey = clean(name);
-  
-    const unique = Date.now().toString().slice(-6);
-  
-    return `${brandKey}-${nameKey}-${unique}`;
-  }
+  const brandKey = clean(brand);
+  const nameKey = clean(name);
+
+  const unique = Date.now().toString().slice(-6);
+
+  return `${brandKey}-${nameKey}-${unique}`;
+}
+
+/* ================= PRODUCT ID SYSTEM (SINGLE SOURCE OF TRUTH) ================= */
+
+useEffect(() => {
+  if (!form.name || !form.brand) return;
+
+  const productId = generateProductId(form.brand, form.name);
+
+  const slug = `${form.brand || ""} ${form.name || ""}`
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+
+  const finalSKU = `NA-${String(form.name || "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "")}-001-${form.totalWeight || "NA"}GM`;
+
+  setForm((prev) => ({
+    ...prev,
+
+    // 🔐 MASTER ID (USE THIS EVERYWHERE)
+    productId,
+
+    // internal tracking (same for now)
+    productKey: productId,
+
+    // SEO
+    slug,
+
+    // barcode system
+    barcode: productId,
+    qrCode: `https://shopnative.in/product/${slug}`,
+
+    // SKU baseline
+    sku: "",
+
+    // variants safe merge
+    variants: (prev.variants || []).map((v) => ({
+      ...v,
+      sku: v.sku || finalSKU,
+    })),
+  }));
+}, [form.name, form.brand, form.totalWeight]);
 
 
 /* ================= HELPERS ================= */
