@@ -17,7 +17,8 @@ export async function GET(req, { params }) {
       );
     }
 
-    const product = await Product.findById(id).lean();
+    // 🔥 REMOVE lean first for debugging full structure
+    const product = await Product.findById(id).exec();
 
     if (!product) {
       return NextResponse.json(
@@ -28,7 +29,7 @@ export async function GET(req, { params }) {
 
     return NextResponse.json({
       success: true,
-      product,
+      product: product.toObject(), // ensures full nested structure
     });
 
   } catch (err) {
