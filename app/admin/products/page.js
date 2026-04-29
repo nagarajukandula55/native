@@ -813,6 +813,7 @@ return (
           <option value="AN">AN</option>
         </select>
 
+        {/* Preview */}
         <p style={{ gridColumn: "span 2", fontSize: 12 }}>
           Preview: <b>{displayName}</b>
         </p>
@@ -860,6 +861,32 @@ return (
           style={{ gridColumn: "span 2" }}
         />
 
+        {/* ================= PROGRESS BAR ================= */}
+        <div style={{
+          display: "flex",
+          marginBottom: 20,
+          borderRadius: 10,
+          overflow: "hidden",
+          gridColumn: "span 2"
+        }}>
+          {["Basic", "Pricing", "Media", "Compliance"].map((label, i) => (
+            <div
+              key={i}
+              style={{
+                flex: 1,
+                padding: 10,
+                textAlign: "center",
+                background: step >= i ? "#4caf50" : "#ddd",
+                color: step >= i ? "#fff" : "#333",
+                fontWeight: "bold",
+                fontSize: 12
+              }}
+            >
+              {label}
+            </div>
+          ))}
+        </div>
+
       </div>
 
       {/* ================= AUTO GENERATED ================= */}
@@ -884,7 +911,6 @@ return (
           readOnly
           style={{ gridColumn: "span 2", background: "#f5f5f5" }}
         />
-
       </div>
 
       {/* ================= INGREDIENT INPUT ================= */}
