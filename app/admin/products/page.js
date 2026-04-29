@@ -795,27 +795,26 @@ return (
       borderRadius: 10
     }}>
 
-        <h3 style={{ gridColumn: "span 2" }}>🧾 Basic Details</h3>
-        
-        <input
-          placeholder="Product Name"
-          value={form.name}
-          onChange={e => setForm({ ...form, name: e.target.value })}
-        />
-        
-        <select
-          value={form.brand}
-          onChange={e => setForm({ ...form, brand: e.target.value })}
-        >
-          <option value="">Select Brand</option>
-          <option value="Native">Native</option>
-          <option value="AN">AN</option>
-        </select>
-        
-        {/* Preview */}
-        <p style={{ gridColumn: "span 2", fontSize: 12 }}>
-          Preview: <b>{displayName}</b>
-        </p>
+      <h3 style={{ gridColumn: "span 2" }}>🧾 Basic Details</h3>
+
+      <input
+        placeholder="Product Name"
+        value={form.name}
+        onChange={e => setForm({ ...form, name: e.target.value })}
+      />
+
+      <select
+        value={form.brand}
+        onChange={e => setForm({ ...form, brand: e.target.value })}
+      >
+        <option value="">Select Brand</option>
+        <option value="Native">Native</option>
+        <option value="AN">AN</option>
+      </select>
+
+      <p style={{ gridColumn: "span 2", fontSize: 12 }}>
+        Preview: <b>{displayName}</b>
+      </p>
 
       <select
         value={form.category}
@@ -861,30 +860,30 @@ return (
       />
 
       {/* ================= PROGRESS BAR ================= */}
-        <div style={{
-          display: "flex",
-          marginBottom: 20,
-          borderRadius: 10,
-          overflow: "hidden"
-        }}>
-          {["Basic", "Pricing", "Media", "Compliance"].map((label, i) => (
-            <div
-              key={i}
-              style={{
-                flex: 1,
-                padding: 10,
-                textAlign: "center",
-                background: step >= i ? "#4caf50" : "#ddd",
-                color: step >= i ? "#fff" : "#333",
-                fontWeight: "bold",
-                fontSize: 12
-              }}
-            >
-              {label}
-            </div>
-          ))}
-        </div>
-        
+      <div style={{
+        display: "flex",
+        marginBottom: 20,
+        borderRadius: 10,
+        overflow: "hidden"
+      }}>
+        {["Basic", "Pricing", "Media", "Compliance"].map((label, i) => (
+          <div
+            key={i}
+            style={{
+              flex: 1,
+              padding: 10,
+              textAlign: "center",
+              background: step >= i ? "#4caf50" : "#ddd",
+              color: step >= i ? "#fff" : "#333",
+              fontWeight: "bold",
+              fontSize: 12
+            }}
+          >
+            {label}
+          </div>
+        ))}
+      </div>
+
     </div>
 
     {/* ================= AUTO GENERATED ================= */}
@@ -901,7 +900,6 @@ return (
 
       <input value={form.tags || ""} readOnly style={{ background: "#f5f5f5" }} />
       <input value={slug || ""} readOnly style={{ background: "#f5f5f5" }} />
-
       <input value={seo.title || ""} readOnly style={{ background: "#f5f5f5" }} />
 
       <textarea
@@ -909,6 +907,7 @@ return (
         readOnly
         style={{ gridColumn: "span 2", background: "#f5f5f5" }}
       />
+
     </div>
 
     {/* ================= INGREDIENT INPUT ================= */}
@@ -972,11 +971,10 @@ return (
       ))}
 
       <button onClick={addIngredient}>+ Add Ingredient</button>
-        
-        </div>
-        </div>
 
-{/* ================= ACTION ================= */}
+    </div>
+
+    {/* ================= ACTION ================= */}
     <div>
       <button
         type="button"
@@ -990,13 +988,12 @@ return (
           borderRadius: 6
         }}
       >
-        ⚡ Generate Content
+        Generate Content
       </button>
     </div>
 
   </div>
 )}
-
 {step === 1 && (
   <div style={{ background: "#fff", padding: 20, borderRadius: 10 }}>
 
