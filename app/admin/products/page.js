@@ -976,7 +976,6 @@ return (
       </div>
   </div>
 
-{/* ================= ACTION ================= */}
     <div>
       <button
         type="button"
