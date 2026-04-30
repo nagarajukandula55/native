@@ -8,52 +8,45 @@ export function CartProvider({ children }) {
   const [cart, setCart] = useState([]);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  /* ================= LOAD CART ================= */
+  /* ================= LOAD ================= */
   useEffect(() => {
     const saved = localStorage.getItem("cart");
     if (saved) {
       try {
         setCart(JSON.parse(saved) || []);
-      } catch (e) {
+      } catch {
         setCart([]);
       }
     }
   }, []);
 
-  /* ================= SAVE CART ================= */
+  /* ================= SAVE ================= */
   useEffect(() => {
     localStorage.setItem("cart", JSON.stringify(cart || []));
   }, [cart]);
 
-  /* ================= SAFE ADD ================= */
+  /* ================= ADD TO CART ================= */
   const addToCart = (product) => {
     if (!product) return;
 
-    setCart((prev) => {
-      const safePrev = Array.isArray(prev) ? prev : [];
+    const id = product.productKey || product.id;
 
-      const exists = safePrev.find(
-        (p) =>
-          (p._id && p._id === product._id) ||
-          (p.id && p.id === product.id)
-      );
+    setCart((prev) => {
+      const exists = prev.find((p) => p.productKey === id);
 
       if (exists) {
-        return safePrev.map((p) => {
-          const match =
-            (p._id && p._id === product._id) ||
-            (p.id && p.id === product.id);
-
-          return match
+        return prev.map((p) =>
+          p.productKey === id
             ? { ...p, qty: (p.qty || 1) + 1 }
-            : p;
-        });
+            : p
+        );
       }
 
       return [
-        ...safePrev,
+        ...prev,
         {
           ...product,
+          productKey: id,
           qty: 1,
         },
       ];
@@ -62,43 +55,28 @@ export function CartProvider({ children }) {
     setDrawerOpen(true);
   };
 
-  /* ================= SAFE REMOVE ================= */
-  const removeFromCart = (id) => {
-    if (!id) return;
-
+  /* ================= REMOVE ================= */
+  const removeFromCart = (productKey) => {
     setCart((prev) =>
-      (prev || []).filter(
-        (p) =>
-          p?._id !== id &&
-          p?.id !== id &&
-          p?.productId !== id
-      )
+      prev.filter((p) => p.productKey !== productKey)
     );
   };
 
-  /* ================= SAFE QTY UPDATE ================= */
-  const updateQty = (id, qty) => {
-    if (!id) return;
+  /* ================= UPDATE QTY ================= */
+  const updateQty = (productKey, qty) => {
+    if (!productKey) return;
 
     if (qty <= 0) {
-      removeFromCart(id);
+      removeFromCart(productKey);
       return;
     }
 
     setCart((prev) =>
-      (prev || []).map((p) => {
-        const match =
-          p?._id === id ||
-          p?.id === id ||
-          p?.productId === id;
-
-        if (!match) return p;
-
-        return {
-          ...p,
-          qty,
-        };
-      })
+      prev.map((p) =>
+        p.productKey === productKey
+          ? { ...p, qty }
+          : p
+      )
     );
   };
 
