@@ -176,3 +176,62 @@ export default function AdminOrdersPage() {
     </div>
   );
 }
+
+const container = {
+  padding: 20,
+  maxWidth: 1200,
+  margin: "auto",
+};
+
+const header = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  marginBottom: 20,
+};
+
+const input = {
+  padding: 10,
+  border: "1px solid #ddd",
+  borderRadius: 8,
+  width: 250,
+};
+
+const filters = {
+  display: "flex",
+  gap: 10,
+  marginBottom: 20,
+  flexWrap: "wrap",
+};
+
+const filterBtn = {
+  padding: "8px 12px",
+  border: "none",
+  borderRadius: 6,
+  cursor: "pointer",
+};
+
+const table = {
+  display: "flex",
+  flexDirection: "column",
+  gap: 10,
+};
+
+const rowHead = {
+  display: "grid",
+  gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr",
+  fontWeight: "bold",
+  padding: 10,
+  background: "#f5f5f5",
+  borderRadius: 8,
+};
+
+const row = {
+  display: "grid",
+  gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr",
+  padding: 10,
+  background: "#fff",
+  border: "1px solid #eee",
+  borderRadius: 8,
+  alignItems: "center",
+};
