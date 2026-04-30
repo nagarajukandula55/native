@@ -3,25 +3,28 @@ import Order from "@/models/Order";
 
 export async function GET(req) {
   try {
+    console.log("➡️ API HIT: get-by-id");
+
     await dbConnect();
+    console.log("✔ DB Connected");
 
     const { searchParams } = new URL(req.url);
     const orderId = searchParams.get("orderId");
 
-    // 🔴 VALIDATION
-    if (!orderId || !orderId.trim()) {
+    console.log("🔍 OrderId:", orderId);
+
+    if (!orderId) {
       return Response.json({
         success: false,
         message: "Order ID missing",
       });
     }
 
-    const cleanOrderId = orderId.trim();
-
-    // 🔍 FIND ORDER (SAFE MATCH)
     const order = await Order.findOne({
-      orderId: cleanOrderId,
-    }).lean(); // faster + safer response
+      orderId: orderId.trim(),
+    });
+
+    console.log("📦 Order Found:", order);
 
     if (!order) {
       return Response.json({
@@ -30,30 +33,18 @@ export async function GET(req) {
       });
     }
 
-    // 🧠 ENSURE SAFE RESPONSE STRUCTURE
     return Response.json({
       success: true,
-      order: {
-        ...order,
-
-        // fallback safety for tracking UI
-        status: order.status || "PENDING_PAYMENT",
-
-        // ensure timeline always exists
-        timeline: order.timeline || [
-          {
-            status: order.status || "PENDING_PAYMENT",
-            time: order.createdAt || new Date(),
-          },
-        ],
-      },
+      order,
     });
+
   } catch (err) {
-    console.error("GET_ORDER_ERROR:", err);
+    console.error("🔥 SERVER ERROR:", err);
 
     return Response.json({
       success: false,
       message: "Server error",
+      error: err.message,   // 👈 IMPORTANT DEBUG INFO
     });
   }
 }
