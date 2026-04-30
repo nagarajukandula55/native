@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db";
 import Order from "@/models/Order";
 import Razorpay from "razorpay";
+import { generateOrderId } from "@/lib/orderId";
 
 export async function POST(req) {
   try {
@@ -11,10 +12,10 @@ export async function POST(req) {
 
     const {
       cart = [],
-      amount = 0,
       address = {},
-      coupon = "",
+      coupon = null,
       discount = 0,
+      paymentMethod = "RAZORPAY",
     } = body;
 
     /* ================= VALIDATION ================= */
@@ -25,61 +26,86 @@ export async function POST(req) {
       );
     }
 
-    if (!amount || amount <= 0) {
+    /* ================= SAFE CART ================= */
+    let subtotal = 0;
+
+    const safeItems = cart.map((item) => {
+      const price = Number(item.price || 0);
+      const qty = Number(item.qty || 1);
+
+      subtotal += price * qty;
+
+      return {
+        productId: item.productId || item.id || null,
+        productKey: item.productKey || "",
+        name: item.name || "Product",
+        price,
+        qty,
+        image: item.image || "",
+        variant: item.variant || "",
+      };
+    });
+
+    /* ================= FINAL AMOUNT ================= */
+    const appliedDiscount = Number(discount || 0);
+    const amount = Math.max(subtotal - appliedDiscount, 0);
+
+    if (amount <= 0) {
       return NextResponse.json(
-        { success: false, message: "Invalid amount" },
+        { success: false, message: "Invalid order amount" },
         { status: 400 }
       );
     }
 
-    /* ================= SANITIZE CART ================= */
-    const safeItems = cart.map((item) => ({
-      productId: item.productId || null,
-      productKey: item.productKey || "",
-      name: item.name || "Product",
-      price: Number(item.price || 0),
-      qty: Number(item.qty || 1),
-      image: item.image || "",
-      variant: item.variant || "",
-    }));
+    /* ================= SECURE ORDER ID ================= */
+    const orderId = await generateOrderId();
 
-    /* ================= CREATE DB ORDER ================= */
+    /* ================= SAVE ORDER FIRST ================= */
     const orderDoc = await Order.create({
-      orderId: "ORD_" + Date.now(),
+      orderId,
       items: safeItems,
-      amount: Number(amount),
+      amount,
       address,
       coupon,
-      discount,
+      discount: appliedDiscount,
+      paymentMethod,
       status: "PENDING_PAYMENT",
     });
 
-    /* ================= RAZORPAY INIT ================= */
-    const razorpay = new Razorpay({
-      key_id: process.env.RAZORPAY_KEY_ID,
-      key_secret: process.env.RAZORPAY_KEY_SECRET,
-    });
+    /* ================= RAZORPAY (OPTIONAL SAFE) ================= */
+    let razorpayOrder = null;
 
-    /* ================= CREATE RAZORPAY ORDER ================= */
-    const razorpayOrder = await razorpay.orders.create({
-      amount: Math.round(amount * 100), // paise
-      currency: "INR",
-      receipt: orderDoc.orderId,
-    });
+    if (paymentMethod === "RAZORPAY") {
+      const razorpay = new Razorpay({
+        key_id: process.env.RAZORPAY_KEY_ID,
+        key_secret: process.env.RAZORPAY_KEY_SECRET,
+      });
 
-    /* ================= SAVE PAYMENT REF ================= */
-    orderDoc.payment = {
-      razorpay_order_id: razorpayOrder.id,
-    };
+      razorpayOrder = await razorpay.orders.create({
+        amount: Math.round(amount * 100),
+        currency: "INR",
+        receipt: orderId,
+      });
 
-    await orderDoc.save();
+      orderDoc.payment = {
+        razorpay_order_id: razorpayOrder.id,
+      };
 
-    /* ================= RESPONSE ================= */
+      await orderDoc.save();
+    }
+
+    /* ================= RESPONSE (SAFE FOR FRONTEND) ================= */
     return NextResponse.json({
       success: true,
-      order: razorpayOrder,
+
+      orderId: orderDoc.orderId,
       dbOrderId: orderDoc._id,
+
+      amount: orderDoc.amount,
+
+      razorpayOrder: razorpayOrder, // null if UPI/MANUAL
     });
+
   } catch (err) {
     console.error("ORDER CREATE ERROR:", err);
 
