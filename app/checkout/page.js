@@ -8,6 +8,9 @@ export default function CheckoutPage() {
   const router = useRouter();
   const { cart, setCart, closeCart } = useCart();
 
+  const [loading, setLoading] = useState(false);
+
+  /* ================= FORM ================= */
   const [form, setForm] = useState({
     name: "",
     phone: "",
@@ -16,33 +19,30 @@ export default function CheckoutPage() {
     pincode: "",
   });
 
-  const [loading, setLoading] = useState(false);
-
-  /* ================= COUPON STATE ================= */
+  /* ================= COUPON ================= */
   const [coupon, setCoupon] = useState("");
   const [discount, setDiscount] = useState(0);
 
-  /* ================= SAFE TOTAL CALC ================= */
+  /* ================= SAFE TOTAL ================= */
   const subtotal = useMemo(() => {
-    return cart.reduce((sum, item) => {
-      const price = Number(item.price || 0);
-      const qty = Number(item.qty || 1);
+    return (cart || []).reduce((sum, item) => {
+      const price = Number(item?.price || 0);
+      const qty = Number(item?.qty || 1);
       return sum + price * qty;
     }, 0);
   }, [cart]);
 
-  const finalTotal = Math.max(subtotal - discount, 0);
+  const finalAmount = Math.max(subtotal - discount, 0);
 
   /* ================= INPUT ================= */
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  /* ================= APPLY COUPON ================= */
+  /* ================= COUPON ================= */
   const applyCoupon = () => {
     const code = coupon.trim().toUpperCase();
 
-    // Example coupons (you can move this to backend later)
     if (code === "SAVE10") {
       setDiscount(subtotal * 0.1);
     } else if (code === "SAVE50") {
@@ -58,7 +58,7 @@ export default function CheckoutPage() {
     try {
       setLoading(true);
 
-      /* validation */
+      /* VALIDATION */
       if (!form.name || !form.phone || !form.address) {
         alert("Please fill required fields");
         setLoading(false);
@@ -77,34 +77,47 @@ export default function CheckoutPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           cart,
-          amount: Number(finalTotal), // 🔥 FIXED
+          amount: Number(finalAmount),
           address: form,
-          coupon: coupon || null,
-          discount: discount || 0,
+          coupon,
+          discount,
         }),
       });
 
       const data = await res.json();
 
-      if (!data.success) {
-        console.error(data);
-        alert(data.message || "Order creation failed");
+      console.log("ORDER RESPONSE:", data); // 🔥 DEBUG
+
+      /* ================= SAFETY CHECK ================= */
+      if (!data?.success || !data?.order) {
+        alert(data?.message || "Order creation failed");
+        setLoading(false);
+        return;
+      }
+
+      const order = data.order;
+
+      if (!order?.id || !order?.amount) {
+        console.error("Invalid Razorpay order:", order);
+        alert("Invalid payment order");
         setLoading(false);
         return;
       }
 
       /* ================= RAZORPAY ================= */
-      const order = data.order;
-
       const options = {
         key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+
         amount: order.amount,
-        currency: order.currency,
-        name: "Native Store",
-        description: "Order Payment",
+        currency: order.currency || "INR",
         order_id: order.id,
 
+        name: "Native Store",
+        description: "Order Payment",
+
         handler: async function (response) {
+          console.log("PAYMENT RESPONSE:", response);
+
           const verifyRes = await fetch("/api/orders/verify", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -113,7 +126,7 @@ export default function CheckoutPage() {
 
           const verifyData = await verifyRes.json();
 
-          if (verifyData.success) {
+          if (verifyData?.success) {
             setCart([]);
             closeCart();
             router.push("/order-success");
@@ -136,8 +149,8 @@ export default function CheckoutPage() {
       rzp.open();
 
     } catch (err) {
-      console.error(err);
-      alert("Payment error");
+      console.error("Checkout error:", err);
+      alert("Payment error occurred");
     }
 
     setLoading(false);
@@ -175,7 +188,7 @@ export default function CheckoutPage() {
       <div className="summaryBox">
         <h3>Order Summary</h3>
 
-        {cart.map((item, i) => (
+        {(cart || []).map((item, i) => (
           <div key={i} className="row">
             <span>{item.name} x {item.qty}</span>
             <span>₹{item.price * item.qty}</span>
@@ -198,7 +211,7 @@ export default function CheckoutPage() {
 
         <div className="total">
           <strong>Total</strong>
-          <strong>₹{finalTotal}</strong>
+          <strong>₹{finalAmount}</strong>
         </div>
       </div>
 
