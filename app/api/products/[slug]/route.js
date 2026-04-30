@@ -2,150 +2,69 @@ import { NextResponse } from "next/server";
 import connectDB from "@/lib/db";
 import Product from "@/models/Product";
 
-/* ================= SEO ================= */
-export async function generateMetadata({ params }) {
+export const dynamic = "force-dynamic";
+
+export async function GET(req, { params }) {
   try {
-    const res = await fetch(
-      `${process.env.NEXT_PUBLIC_BASE_URL || ""}/api/products/${params.slug}`,
-      { cache: "no-store" }
-    );
+    await connectDB();
 
-    if (!res.ok) throw new Error("Metadata fetch failed");
+    const { slug } = params;
 
-    const data = await res.json();
-    const p = data?.product || {};
-
-    return {
-      title: p.name || "Product",
-      description:
-        p.shortDescription ||
-        p.description ||
-        "Buy premium natural products online",
-
-      openGraph: {
-        title: p.name,
-        description: p.shortDescription || p.description,
-        images: p.images?.length ? [p.images[0]] : [],
-      },
-    };
-  } catch (err) {
-    console.error("Metadata error:", err);
-
-    return {
-      title: "Product",
-      description: "Buy online",
-    };
-  }
-}
-
-/* ================= PAGE ================= */
-export default async function ProductPage({ params }) {
-  /* 🔥 Safety check */
-  if (!params?.slug) {
-    return (
-      <div style={{ padding: 20 }}>
-        <h2>Invalid product URL</h2>
-      </div>
-    );
-  }
-
-  let data;
-
-  try {
-    /* ✅ IMPORTANT FIX → RELATIVE URL */
-    const res = await fetch(`/api/products/${params.slug}`, {
-      cache: "no-store",
-    });
-
-    if (!res.ok) {
-      throw new Error("Fetch failed");
+    if (!slug) {
+      return NextResponse.json(
+        { success: false, message: "Missing slug" },
+        { status: 400 }
+      );
     }
 
-    data = await res.json();
+    /* ✅ FIND PRODUCT */
+    const product = await Product.findOne({
+      slug,
+      isActive: true,
+      isListed: true,
+    }).lean();
+
+    if (!product) {
+      return NextResponse.json(
+        { success: false, message: "Product not found" },
+        { status: 404 }
+      );
+    }
+
+    /* ✅ VARIANTS */
+    const variants = product.variants?.length
+      ? product.variants
+      : product.primaryVariant
+      ? [product.primaryVariant]
+      : [];
+
+    const currentVariant = variants[0] || {};
+
+    /* ✅ RESPONSE */
+    return NextResponse.json({
+      success: true,
+      product: {
+        _id: product._id,
+        name: product.name,
+        slug: product.slug,
+        productKey: product.productKey,
+        description: product.description,
+        shortDescription: product.shortDescription,
+        images: product.images,
+
+        sellingPrice:
+          currentVariant?.sellingPrice || product.sellingPrice,
+        mrp: currentVariant?.mrp || product.mrp,
+        stock: currentVariant?.stock || 0,
+      },
+      variants,
+    });
   } catch (err) {
-    console.error("Product fetch error:", err);
+    console.error("API ERROR:", err);
 
-    return (
-      <div style={{ padding: 20 }}>
-        <h2>Something went wrong</h2>
-        <p>Unable to load product details</p>
-      </div>
+    return NextResponse.json(
+      { success: false, message: "Server error" },
+      { status: 500 }
     );
   }
-
-  const p = data?.product;
-
-  if (!p) {
-    return (
-      <div style={{ padding: 20 }}>
-        <h2>Product not found</h2>
-      </div>
-    );
-  }
-
-  const variants = data?.variants || [];
-
-  /* ================= VARIANT ================= */
-  const currentVariant =
-    variants.find((v) => v.slug === params.slug) ||
-    variants[0] ||
-    {};
-
-  /* ================= PRICE ================= */
-  const mrp = currentVariant?.mrp ?? p?.mrp ?? 0;
-  const sellingPrice =
-    currentVariant?.sellingPrice ?? p?.sellingPrice ?? 0;
-
-  const discount =
-    mrp > 0
-      ? Math.round(((mrp - sellingPrice) / mrp) * 100)
-      : 0;
-
-  /* ================= STOCK ================= */
-  const stock = currentVariant?.stock ?? p?.stock ?? 0;
-
-  const stockText =
-    stock > 10
-      ? "In Stock"
-      : stock > 0
-      ? `Only ${stock} left`
-      : "Out of Stock";
-
-  return (
-    <>
-      {/* ================= SEO JSON ================= */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
-            "@context": "https://schema.org/",
-            "@type": "Product",
-            name: p.name,
-            image: p.images || [],
-            description: p.description,
-            sku: currentVariant?.sku || p.productKey,
-            offers: {
-              "@type": "Offer",
-              price: sellingPrice,
-              priceCurrency: "INR",
-              availability:
-                stock > 0
-                  ? "https://schema.org/InStock"
-                  : "https://schema.org/OutOfStock",
-            },
-          }),
-        }}
-      />
-
-      {/* ================= PRODUCT VIEW ================= */}
-      <ProductView
-        p={p}
-        variants={variants}
-        currentVariant={currentVariant}
-        discount={discount}
-        stock={stock}
-        stockText={stockText}
-      />
-    </>
-  );
 }
