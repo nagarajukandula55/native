@@ -39,34 +39,39 @@ export default function CheckoutPage() {
   const handleChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
 
-  /* ================= COUPON ================= */
-  const applyCoupon = (code, subtotal) => {
-    const coupons = {
-      SAVE10: { type: "percent", value: 10 },
-      FLAT50: { type: "flat", value: 50 },
-      FOOD20: { type: "percent", value: 20 },
-    };
-  
-    const coupon = coupons[code];
-  
-    if (!coupon) return 0;
-  
-    if (coupon.type === "percent") {
-      return (subtotal * coupon.value) / 100;
+  /* ================= DB COUPON APPLY ================= */
+  const applyCoupon = async () => {
+    try {
+      const res = await fetch("/api/coupons/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: coupon,
+          cartTotal,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!data.success) {
+        setDiscount(0);
+        alert(data.message || "Invalid Coupon");
+        return;
+      }
+
+      setDiscount(data.discount);
+      alert("Coupon Applied Successfully");
+    } catch (err) {
+      console.error(err);
+      setDiscount(0);
+      alert("Coupon Error");
     }
-  
-    if (coupon.type === "flat") {
-      return coupon.value;
-    }
-  
-    return 0;
   };
 
   /* ================= PRODUCT-BASED TAX ================= */
   const taxItems = cart.map((item) => {
     const base = item.price * item.qty;
 
-    // FROM PRODUCT UPLOAD PAGE (IMPORTANT)
     const gstPercent = item.gstPercent ?? 0;
     const hsn = item.hsn ?? "0000";
 
@@ -153,7 +158,7 @@ export default function CheckoutPage() {
         rzp.open();
       }
 
-      /* ================= UPI REDIRECT ================= */
+      /* ================= UPI ================= */
       if (paymentMethod === "upi") {
         window.location.href = upiLink;
         router.push(`/order-pending?orderId=${orderId}`);
@@ -199,34 +204,20 @@ export default function CheckoutPage() {
           UPI Payment
         </label>
 
-  /* ================= COUPON (ONLY FIXED PART) ================= */
-      const applyCoupon = async () => {
-        try {
-          const res = await fetch("/api/coupons/validate", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              code: coupon,
-              cartTotal,
-            }),
-          });
-    
-          const data = await res.json();
-    
-          if (!data.success) {
-            setDiscount(0);
-            alert(data.message || "Invalid Coupon");
-            return;
-          }
-    
-          setDiscount(data.discount);
-          alert("Coupon Applied Successfully");
-        } catch (err) {
-          console.error(err);
-          setDiscount(0);
-          alert("Coupon Error");
-        }
-      };
+        {/* ================= COUPON ================= */}
+        <div className="coupon">
+          <input
+            placeholder="Coupon Code"
+            value={coupon}
+            onChange={(e) => setCoupon(e.target.value)}
+          />
+          <button onClick={applyCoupon}>Apply</button>
+        </div>
+
+        <button onClick={handleOrder} disabled={loading}>
+          {loading ? "Processing..." : `Pay ₹${finalAmount.toFixed(2)}`}
+        </button>
+      </div>
 
       {/* ================= SUMMARY ================= */}
       <div className="box">
@@ -281,39 +272,15 @@ export default function CheckoutPage() {
           <b>₹{finalAmount.toFixed(2)}</b>
         </div>
 
-        {/* ================= UPI OPTIONS ================= */}
+        {/* ================= UPI ================= */}
         {paymentMethod === "upi" && (
           <div className="upiBox">
             <h4>Pay via UPI</h4>
-
             <QRCode value={upiLink} size={140} />
-
-            <a href={upiLink} className="btn">
-              Open UPI App
-            </a>
-
-            <a
-              href={`gpay://upi/pay?pa=${UPI_ID}&pn=${UPI_NAME}&am=${finalAmount.toFixed(
-                2
-              )}&cu=INR`}
-              className="btn alt"
-            >
-              Google Pay
-            </a>
-
-            <a
-              href={`phonepe://pay?pa=${UPI_ID}&pn=${UPI_NAME}&am=${finalAmount.toFixed(
-                2
-              )}&cu=INR`}
-              className="btn alt"
-            >
-              PhonePe
-            </a>
           </div>
         )}
       </div>
 
-      {/* ================= STYLE ================= */}
       <style jsx>{`
         .checkout {
           display: grid;
@@ -342,13 +309,11 @@ export default function CheckoutPage() {
         .coupon {
           display: flex;
           gap: 10px;
-          margin-top: 10px;
         }
 
         button {
           width: 100%;
           padding: 12px;
-          margin-top: 10px;
           background: black;
           color: white;
           border: none;
@@ -364,30 +329,10 @@ export default function CheckoutPage() {
         .mini {
           font-size: 12px;
           color: gray;
-          margin-bottom: 8px;
         }
 
         .total {
           font-size: 18px;
-        }
-
-        .upiBox {
-          margin-top: 20px;
-          text-align: center;
-        }
-
-        .btn {
-          display: block;
-          margin-top: 10px;
-          padding: 10px;
-          background: green;
-          color: white;
-          border-radius: 6px;
-          text-decoration: none;
-        }
-
-        .btn.alt {
-          background: #111;
         }
       `}</style>
     </div>
