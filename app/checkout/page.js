@@ -8,6 +8,7 @@ import QRCode from "react-qr-code";
 const UPI_ID = "9000528462@ybl";
 const UPI_NAME = "Native Store";
 const SELLER_STATE = "Andhra Pradesh";
+const [enrichedCart, setEnrichedCart] = useState([]);
 
 /* ================= GST ================= */
 const getGST = (base, gstPercent = 0) => {
@@ -65,6 +66,35 @@ export default function CheckoutPage() {
 
     if (cart?.length) enrichCart();
   }, []);
+
+   /* =========================================================
+                      Enrich
+  ========================================================= */
+
+  useEffect(() => {
+  const enrichCart = async () => {
+    try {
+      const res = await fetch("/api/cart/enrich", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cart }),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        setEnrichedCart(data.cart);
+      } else {
+        setEnrichedCart(cart);
+      }
+    } catch (err) {
+      console.error("Enrich failed", err);
+      setEnrichedCart(cart);
+    }
+  };
+
+  if (cart?.length) enrichCart();
+}, [cart]);
 
   /* =========================================================
      🔎 2. GSTIN VALIDATION (B2B CHECK)
