@@ -3,200 +3,215 @@
 import { useState } from "react";
 import { useCart } from "@/context/CartContext";
 import { useRouter } from "next/navigation";
+import QRCode from "react-qr-code";
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { cart, cartTotal, setCart, closeCart } = useCart();
+  const { cart, cartTotal, setCart } = useCart();
 
-  const [form, setForm] = useState({
-    name: "",
-    phone: "",
-    address: "",
-    city: "",
-    pincode: "",
-  });
-
+  const [form, setForm] = useState({});
   const [paymentMethod, setPaymentMethod] = useState("razorpay");
   const [coupon, setCoupon] = useState("");
   const [discount, setDiscount] = useState(0);
   const [loading, setLoading] = useState(false);
 
-  const handleChange = (e) => {
+  const GST_RATE = 0.18;
+
+  const subtotal = cartTotal;
+  const taxable = subtotal - discount;
+  const gst = taxable * GST_RATE;
+  const total = taxable + gst;
+
+  const upiId = "9000528462@ybl";
+  const upiLink = `upi://pay?pa=${upiId}&pn=Native&am=${total.toFixed(2)}&cu=INR`;
+
+  const handleChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
-  };
 
-  /* ================= APPLY COUPON ================= */
-  const applyCoupon = async () => {
-    if (!coupon) return;
-
-    // TEMP LOGIC (replace with API later)
+  const applyCoupon = () => {
     if (coupon === "SAVE10") {
-      setDiscount(cartTotal * 0.1);
+      setDiscount(subtotal * 0.1);
     } else {
       setDiscount(0);
-      alert("Invalid Coupon");
+      alert("Invalid coupon");
     }
   };
 
-  const finalAmount = cartTotal - discount;
+  const placeOrder = async () => {
+    setLoading(true);
 
-  /* ================= PLACE ORDER ================= */
-  const handleOrder = async () => {
-    try {
-      setLoading(true);
-
-      const res = await fetch("/api/orders/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          cart,
-          amount: finalAmount,
-          address: form,
-          coupon,
-          discount,
-          paymentMethod,
-        }),
-      });
+    const res = await fetch("/api/orders/create", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        cart,
+        amount: total,
+        address: form,
+        coupon,
+        discount,
+        paymentMethod,
+      }),
+    });
 
     const data = await res.json();
-    
+
     if (!data.success) {
-      alert("Order creation failed");
+      alert("Order failed");
       setLoading(false);
       return;
     }
-    
+
     const orderId = data.orderId;
-    
-    // store for safety
-    sessionStorage.setItem("lastOrderId", orderId);
-    
+    sessionStorage.setItem("orderId", orderId);
+
+    setCart([]);
+
     router.push(`/order-success?orderId=${orderId}`);
-
-      /* ================= RAZORPAY ================= */
-      if (paymentMethod === "razorpay") {
-        const options = {
-          key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-          amount: order.amount,
-          currency: "INR",
-          order_id: order.id,
-
-          handler: async function (response) {
-            await fetch("/api/orders/verify", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(response),
-            });
-
-            setCart([]);
-            closeCart();
-            router.push("/order-success");
-          },
-
-          prefill: {
-            name: form.name,
-            contact: form.phone,
-          },
-        };
-
-        const rzp = new window.Razorpay(options);
-        rzp.open();
-      }
-
-      /* ================= UPI MANUAL ================= */
-      if (paymentMethod === "upi") {
-        alert("Please pay to UPI: 9000528462@ybl");
-
-        setCart([]);
-        closeCart();
-        router.push("/order-pending");
-      }
-
-    } catch (err) {
-      console.error(err);
-      alert("Error placing order");
-    }
-
     setLoading(false);
   };
 
   return (
-    <div className="container">
+    <div className="checkout">
 
-      {/* FORM */}
-      <div className="formBox">
+      {/* LEFT */}
+      <div className="box">
+
         <h2>Checkout</h2>
 
         <input name="name" placeholder="Name" onChange={handleChange} />
         <input name="phone" placeholder="Phone" onChange={handleChange} />
         <input name="address" placeholder="Address" onChange={handleChange} />
-        <input name="city" placeholder="City" onChange={handleChange} />
-        <input name="pincode" placeholder="Pincode" onChange={handleChange} />
 
-        {/* PAYMENT METHOD */}
-        <h4>Payment Method</h4>
+        {/* PAYMENT */}
+        <h3>Payment Method</h3>
 
         <label>
-          <input
-            type="radio"
-            checked={paymentMethod === "razorpay"}
-            onChange={() => setPaymentMethod("razorpay")}
-          />
+          <input type="radio" checked={paymentMethod==="razorpay"}
+            onChange={() => setPaymentMethod("razorpay")} />
           Razorpay (Instant)
         </label>
 
         <label>
-          <input
-            type="radio"
-            checked={paymentMethod === "upi"}
-            onChange={() => setPaymentMethod("upi")}
-          />
-          UPI (9000528462@ybl)
+          <input type="radio" checked={paymentMethod==="upi"}
+            onChange={() => setPaymentMethod("upi")} />
+          UPI Payment
         </label>
 
+        {/* UPI SECTION */}
+        {paymentMethod === "upi" && (
+          <div className="upiBox">
+
+            <h4>Scan & Pay</h4>
+
+            <QRCode value={upiLink} size={180} />
+
+            <p>UPI ID: <b>{upiId}</b></p>
+
+            <a href={upiLink} className="payBtn">
+              Pay via GPay / PhonePe
+            </a>
+
+          </div>
+        )}
+
         {/* COUPON */}
-        <div style={{ marginTop: 10 }}>
+        <div className="coupon">
           <input
-            placeholder="Coupon Code"
+            placeholder="Coupon"
             value={coupon}
             onChange={(e) => setCoupon(e.target.value)}
           />
           <button onClick={applyCoupon}>Apply</button>
         </div>
 
-        <button onClick={handleOrder} disabled={loading}>
-          {loading ? "Processing..." : `Pay ₹${finalAmount}`}
+        <button onClick={placeOrder} disabled={loading}>
+          {loading ? "Processing..." : `Pay ₹${total.toFixed(2)}`}
         </button>
+
       </div>
 
-      {/* SUMMARY */}
-      <div className="summaryBox">
-        <h3>Order Summary</h3>
+      {/* RIGHT */}
+      <div className="box">
 
-        {cart.map((item) => (
-          <div key={item.productId} className="row">
-            <span>{item.name} x {item.qty}</span>
-            <span>₹{item.price * item.qty}</span>
-          </div>
-        ))}
+        <h3>Bill Summary</h3>
+
+        <div className="row"><span>Subtotal</span><span>₹{subtotal}</span></div>
+        <div className="row"><span>Discount</span><span>-₹{discount}</span></div>
+        <div className="row"><span>GST (18%)</span><span>₹{gst.toFixed(2)}</span></div>
 
         <hr />
 
-        <div className="row">
-          <span>Subtotal</span>
-          <span>₹{cartTotal}</span>
-        </div>
-
-        <div className="row">
-          <span>Discount</span>
-          <span>-₹{discount}</span>
-        </div>
-
         <div className="row total">
-          <strong>Total</strong>
-          <strong>₹{finalAmount}</strong>
+          <b>Total</b>
+          <b>₹{total.toFixed(2)}</b>
         </div>
+
       </div>
+
+      <style jsx>{`
+        .checkout {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 20px;
+          padding: 30px;
+        }
+
+        .box {
+          background: #fff;
+          padding: 20px;
+          border-radius: 12px;
+          border: 1px solid #eee;
+        }
+
+        input {
+          width: 100%;
+          padding: 10px;
+          margin: 6px 0;
+          border: 1px solid #ddd;
+          border-radius: 8px;
+        }
+
+        .row {
+          display: flex;
+          justify-content: space-between;
+          margin: 8px 0;
+        }
+
+        .upiBox {
+          margin-top: 15px;
+          text-align: center;
+        }
+
+        .payBtn {
+          display: inline-block;
+          margin-top: 10px;
+          padding: 10px 15px;
+          background: black;
+          color: white;
+          border-radius: 8px;
+          text-decoration: none;
+        }
+
+        .coupon {
+          display: flex;
+          gap: 10px;
+          margin-top: 10px;
+        }
+
+        button {
+          width: 100%;
+          margin-top: 15px;
+          padding: 12px;
+          background: green;
+          color: white;
+          border: none;
+          border-radius: 8px;
+        }
+
+        .total {
+          font-size: 18px;
+        }
+      `}</style>
     </div>
   );
 }
