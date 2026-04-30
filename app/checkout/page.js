@@ -58,15 +58,20 @@ export default function CheckoutPage() {
         }),
       });
 
-      const data = await res.json();
-
-      if (!data.success) {
-        alert("Order creation failed");
-        setLoading(false);
-        return;
-      }
-
-      const order = data.order;
+    const data = await res.json();
+    
+    if (!data.success) {
+      alert("Order creation failed");
+      setLoading(false);
+      return;
+    }
+    
+    const orderId = data.orderId;
+    
+    // store for safety
+    sessionStorage.setItem("lastOrderId", orderId);
+    
+    router.push(`/order-success?orderId=${orderId}`);
 
       /* ================= RAZORPAY ================= */
       if (paymentMethod === "razorpay") {
