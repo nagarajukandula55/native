@@ -8,16 +8,20 @@ export async function GET(req) {
     const { searchParams } = new URL(req.url);
     const orderId = searchParams.get("orderId");
 
-    if (!orderId) {
+    // 🔴 VALIDATION
+    if (!orderId || !orderId.trim()) {
       return Response.json({
         success: false,
         message: "Order ID missing",
       });
     }
 
+    const cleanOrderId = orderId.trim();
+
+    // 🔍 FIND ORDER (SAFE MATCH)
     const order = await Order.findOne({
-      orderId: orderId,
-    });
+      orderId: cleanOrderId,
+    }).lean(); // faster + safer response
 
     if (!order) {
       return Response.json({
@@ -26,12 +30,26 @@ export async function GET(req) {
       });
     }
 
+    // 🧠 ENSURE SAFE RESPONSE STRUCTURE
     return Response.json({
       success: true,
-      order,
+      order: {
+        ...order,
+
+        // fallback safety for tracking UI
+        status: order.status || "PENDING_PAYMENT",
+
+        // ensure timeline always exists
+        timeline: order.timeline || [
+          {
+            status: order.status || "PENDING_PAYMENT",
+            time: order.createdAt || new Date(),
+          },
+        ],
+      },
     });
   } catch (err) {
-    console.error(err);
+    console.error("GET_ORDER_ERROR:", err);
 
     return Response.json({
       success: false,
