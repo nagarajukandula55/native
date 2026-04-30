@@ -21,33 +21,36 @@ export default function ProductsPage() {
       .catch(() => setLoading(false));
   }, []);
 
-  /* ================= ADD TO CART ================= */
-  async function handleAddToCart(p) {
-    try {
-      setAddingId(p.productKey);
-
-      const item = {
-        id: p.productKey, // unique
-        productKey: p.productKey,
-        name: p.name,
-        price: p.displayPrice || 0,
-        mrp: p.mrp || 0,
-        image: p.images?.[0] || "/no-image.png",
-        variant: "default",
-        qty: 1,
-      };
-
-      // ✅ INSTANT UI UPDATE
-      addToCart(item);
-
-      // ✅ OPTIONAL API SYNC (non-blocking)
-      fetch("/api/cart", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(item),
-      });
+  /* ================= ADD TO CART (FIXED SAFE VERSION) ================= */
+    function handleAddToCart(p) {
+      try {
+        if (!p) return;
+  
+        const id = p._id || p.productKey;
+        if (!id) return;
+  
+        setAddingId(id);
+  
+        const item = {
+          _id: id,                     // ✅ unified key (VERY IMPORTANT)
+          productKey: p.productKey || id,
+          name: p.name || "Product",
+          price: Number(p.displayPrice || 0),
+          mrp: Number(p.mrp || 0),
+          image: p.images?.[0] || "/no-image.png",
+          variant: "default",
+          qty: 1,
+        };
+  
+        console.log("ADD TO CART SAFE:", item);
+  
+        addToCart(item);
+      } catch (err) {
+        console.error("Cart error:", err);
+      } finally {
+        setTimeout(() => setAddingId(null), 200);
+      }
+    }
 
     } catch (err) {
       console.error(err);
