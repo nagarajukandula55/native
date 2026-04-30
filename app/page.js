@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useCart } from "@/context/CartContext";
+import { useRouter } from "next/navigation";
 
 export default function Home() {
   const { addToCart } = useCart();
+  const router = useRouter();
 
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -19,12 +21,14 @@ export default function Home() {
 
         const data = await res.json();
 
-        const list =
-          data?.products ||
-          data ||
-          [];
+        const list = data?.products || [];
 
-        setProducts(Array.isArray(list) ? list : []);
+        // ✅ IMPORTANT FILTER
+        const filtered = list.filter(
+          (p) => p.status === "approved" && p.isListed === true
+        );
+
+        setProducts(filtered);
       } catch (err) {
         console.error("Product fetch error:", err);
         setProducts([]);
@@ -91,25 +95,65 @@ export default function Home() {
           <p className="center">No products found</p>
         ) : (
           <div className="productGrid">
-            {products.map((p) => (
-              <div key={p._id || p.id} className="productCard">
+            {products.map((p) => {
+              const price =
+                p.primaryVariant?.sellingPrice || p.sellingPrice || 0;
 
-                <img
-                  src={p.image || "/placeholder.png"}
-                  alt={p.name}
-                />
+              const mrp =
+                p.primaryVariant?.mrp || p.mrp || 0;
 
-                <div className="productBody">
-                  <h3>{p.name}</h3>
-                  <p>₹{p.price}</p>
+              const image =
+                p.images?.[0] || "/placeholder.png";
 
-                  <button onClick={() => addToCart(p)}>
-                    Add to Cart
-                  </button>
+              const discount =
+                mrp > 0
+                  ? Math.round(((mrp - price) / mrp) * 100)
+                  : 0;
+
+              return (
+                <div
+                  key={p._id}
+                  className="productCard"
+                  onClick={() => router.push(`/products/${p.slug}`)}
+                >
+                  <img src={image} alt={p.name} />
+
+                  <div className="productBody">
+                    <h3>{p.name}</h3>
+
+                    <div className="priceRow">
+                      <span className="price">₹{price}</span>
+
+                      {mrp > price && (
+                        <span className="mrp">₹{mrp}</span>
+                      )}
+                    </div>
+
+                    {discount > 0 && (
+                      <span className="badge">
+                        {discount}% OFF
+                      </span>
+                    )}
+
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        addToCart({
+                          productId: p._id,
+                          productKey: p.productKey,
+                          name: p.name,
+                          price,
+                          image,
+                          qty: 1,
+                        });
+                      }}
+                    >
+                      Add to Cart
+                    </button>
+                  </div>
                 </div>
-
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </section>
@@ -135,11 +179,8 @@ export default function Home() {
 
       {/* ================= STYLES ================= */}
       <style jsx>{`
-        .home {
-          font-family: system-ui;
-        }
+        .home { font-family: system-ui; }
 
-        /* HERO */
         .hero {
           position: relative;
           min-height: 85vh;
@@ -163,18 +204,9 @@ export default function Home() {
           max-width: 800px;
         }
 
-        h1 {
-          font-size: 64px;
-          margin: 0;
-        }
-
-        .tagline {
-          font-size: 22px;
-        }
-
-        .desc {
-          margin: 20px 0;
-        }
+        h1 { font-size: 64px; margin: 0; }
+        .tagline { font-size: 22px; }
+        .desc { margin: 20px 0; }
 
         button {
           padding: 12px 30px;
@@ -185,14 +217,12 @@ export default function Home() {
           cursor: pointer;
         }
 
-        /* SCROLL TEXT */
         .scrollText {
           position: absolute;
           top: 20px;
           width: 100%;
           overflow: hidden;
           white-space: nowrap;
-          color: white;
         }
 
         .scrollText div {
@@ -206,7 +236,6 @@ export default function Home() {
           to { transform: translateX(-100%); }
         }
 
-        /* SECTIONS */
         .section {
           padding: 70px 20px;
           max-width: 1200px;
@@ -214,16 +243,6 @@ export default function Home() {
           text-align: center;
         }
 
-        h2 {
-          font-size: 32px;
-          margin-bottom: 30px;
-        }
-
-        .center {
-          text-align: center;
-        }
-
-        /* GRID */
         .grid {
           display: grid;
           grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -237,7 +256,6 @@ export default function Home() {
           box-shadow: 0 5px 15px rgba(0,0,0,0.05);
         }
 
-        /* PRODUCTS */
         .productGrid {
           display: grid;
           grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -249,6 +267,13 @@ export default function Home() {
           border-radius: 12px;
           overflow: hidden;
           box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+          cursor: pointer;
+          transition: 0.2s;
+          position: relative;
+        }
+
+        .productCard:hover {
+          transform: translateY(-5px);
         }
 
         .productCard img {
@@ -261,13 +286,31 @@ export default function Home() {
           padding: 15px;
         }
 
-        .productBody h3 {
-          margin: 0;
+        .priceRow {
+          display: flex;
+          align-items: center;
+          gap: 10px;
         }
 
-        .productBody p {
-          color: #c28b45;
+        .price {
           font-weight: bold;
+          font-size: 18px;
+        }
+
+        .mrp {
+          text-decoration: line-through;
+          color: #888;
+        }
+
+        .badge {
+          position: absolute;
+          top: 10px;
+          left: 10px;
+          background: #e53935;
+          color: white;
+          padding: 4px 8px;
+          font-size: 12px;
+          border-radius: 5px;
         }
 
         .productBody button {
@@ -275,16 +318,15 @@ export default function Home() {
           margin-top: 10px;
         }
 
-        /* WHY */
         .why {
           background: #f4efe6;
           padding: 70px 20px;
           text-align: center;
         }
 
-        .icon {
-          font-size: 40px;
-        }
+        .icon { font-size: 40px; }
+
+        .center { text-align: center; }
       `}</style>
     </div>
   );
