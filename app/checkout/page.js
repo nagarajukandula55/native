@@ -39,6 +39,62 @@ export default function CheckoutPage() {
   const [coupon, setCoupon] = useState("");
   const [discount, setDiscount] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [gstVerified, setGstVerified] = useState(null);
+
+  /* =========================================================
+     🧠 1. CART AUTO ENRICHMENT (FIX HSN + GST ISSUE)
+  ========================================================= */
+  useEffect(() => {
+    const enrichCart = async () => {
+      try {
+        const res = await fetch("/api/cart/enrich", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ cart }),
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+          setCart(data.cart);
+        }
+      } catch (err) {
+        console.error("Cart enrich failed", err);
+      }
+    };
+
+    if (cart?.length) enrichCart();
+  }, []);
+
+  /* =========================================================
+     🔎 2. GSTIN VALIDATION (B2B CHECK)
+  ========================================================= */
+  const validateGSTIN = async (gstin) => {
+    if (!gstin || gstin.length !== 15) return;
+
+    try {
+      const res = await fetch("/api/gst/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ gstin }),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        setGstVerified(data.gst);
+
+        setForm((prev) => ({
+          ...prev,
+          state: data.gst.state || prev.state,
+        }));
+      } else {
+        setGstVerified(null);
+      }
+    } catch (err) {
+      console.error("GST validation failed", err);
+    }
+  };
 
   /* ================= PINCODE AUTO FETCH ================= */
   useEffect(() => {
@@ -61,7 +117,7 @@ export default function CheckoutPage() {
           }));
         }
       } catch (err) {
-        console.error("PIN fetch error", err);
+        console.error(err);
       }
     };
 
@@ -74,44 +130,30 @@ export default function CheckoutPage() {
 
   /* ================= COUPON ================= */
   const applyCoupon = async () => {
-    try {
-      const res = await fetch("/api/coupons/validate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code: coupon, cartTotal }),
-      });
+    const res = await fetch("/api/coupons/validate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code: coupon, cartTotal }),
+    });
 
-      const data = await res.json();
+    const data = await res.json();
 
-      if (!data.success) {
-        setDiscount(0);
-        alert(data.message || "Invalid coupon");
-        return;
-      }
-
-      setDiscount(data.discount);
-    } catch (err) {
-      console.error(err);
+    if (!data.success) {
       setDiscount(0);
+      return;
     }
+
+    setDiscount(data.discount);
   };
 
-  /* ================= TAX ENRICHMENT (FIXED DB MAPPING) ================= */
+  /* ================= TAX ================= */
   const taxItems = cart.map((item) => {
     const base = item.price * item.qty;
 
-    // ✅ FIXED: correct DB mapping (NO 0000 / NOT_SET unless truly missing)
     const product = item.product || {};
 
-    const hsn =
-      product.hsn ||
-      item.hsn ||
-      "NOT_SET";
-
-    const gstPercent =
-      product.tax ??
-      item.gstPercent ??
-      0;
+    const hsn = product.hsn || item.hsn || "UNKNOWN";
+    const gstPercent = product.tax ?? item.gstPercent ?? 0;
 
     const tax = getGST(base, gstPercent);
 
@@ -125,7 +167,6 @@ export default function CheckoutPage() {
   });
 
   const subtotal = cartTotal;
-
   const gstTotal = taxItems.reduce((a, b) => a + b.gstTotal, 0);
   const cgstTotal = taxItems.reduce((a, b) => a + b.cgst, 0);
   const sgstTotal = taxItems.reduce((a, b) => a + b.sgst, 0);
@@ -135,9 +176,7 @@ export default function CheckoutPage() {
   const finalAmount = totalBeforeDiscount - discount;
 
   const isB2B = !!form.gstNumber;
-  const isInterState =
-    form.state &&
-    form.state !== SELLER_STATE;
+  const isInterState = form.state && form.state !== SELLER_STATE;
 
   const upiLink = `upi://pay?pa=${UPI_ID}&pn=${UPI_NAME}&am=${finalAmount.toFixed(
     2
@@ -174,10 +213,7 @@ export default function CheckoutPage() {
 
       const data = await res.json();
 
-      if (!data.success) {
-        alert("Order failed");
-        return;
-      }
+      if (!data.success) return;
 
       const orderId = data.orderId;
       sessionStorage.setItem("lastOrderId", orderId);
@@ -204,7 +240,6 @@ export default function CheckoutPage() {
       }
     } catch (err) {
       console.error(err);
-      alert("Error placing order");
     } finally {
       setLoading(false);
     }
@@ -217,21 +252,31 @@ export default function CheckoutPage() {
       <div className="box">
         <h2>Checkout</h2>
 
-        <input name="name" placeholder="Name" onChange={handleChange} />
-        <input name="phone" placeholder="Phone" onChange={handleChange} />
-        <input name="address" placeholder="Address" onChange={handleChange} />
-        <input name="pincode" placeholder="Pincode" onChange={handleChange} />
+        <input name="name" onChange={handleChange} placeholder="Name" />
+        <input name="phone" onChange={handleChange} placeholder="Phone" />
+        <input name="address" onChange={handleChange} placeholder="Address" />
+        <input name="pincode" onChange={handleChange} placeholder="Pincode" />
 
         <input value={form.city} disabled placeholder="City" />
         <input value={form.state} disabled placeholder="State" />
 
+        {/* 🔎 GST INPUT (B2B) */}
         <input
           name="gstNumber"
-          placeholder="GST Number (optional for B2B)"
-          onChange={handleChange}
+          placeholder="GST Number (B2B)"
+          onChange={(e) => {
+            handleChange(e);
+            validateGSTIN(e.target.value);
+          }}
         />
 
-        <h4>Payment Method</h4>
+        {gstVerified && (
+          <p style={{ color: "green" }}>
+            ✔ Verified: {gstVerified.name}
+          </p>
+        )}
+
+        <h4>Payment</h4>
 
         <label>
           <input
@@ -260,7 +305,7 @@ export default function CheckoutPage() {
           <button onClick={applyCoupon}>Apply</button>
         </div>
 
-        <button onClick={handleOrder} disabled={loading}>
+        <button onClick={handleOrder}>
           Pay ₹{finalAmount.toFixed(2)}
         </button>
       </div>
@@ -273,7 +318,7 @@ export default function CheckoutPage() {
           <div key={i}>
             <div className="row">
               <span>{item.name} x {item.qty}</span>
-              <span>₹{item.base.toFixed(2)}</span>
+              <span>₹{item.base}</span>
             </div>
 
             <small>
@@ -284,76 +329,25 @@ export default function CheckoutPage() {
 
         <hr />
 
-        <div className="row"><span>Subtotal</span><span>₹{subtotal.toFixed(2)}</span></div>
-        <div className="row"><span>CGST</span><span>₹{cgstTotal.toFixed(2)}</span></div>
-        <div className="row"><span>SGST</span><span>₹{sgstTotal.toFixed(2)}</span></div>
+        <div className="row"><span>Subtotal</span><span>₹{subtotal}</span></div>
+        <div className="row"><span>CGST</span><span>₹{cgstTotal}</span></div>
+        <div className="row"><span>SGST</span><span>₹{sgstTotal}</span></div>
 
         {isInterState && (
-          <div className="row"><span>IGST</span><span>₹{igstTotal.toFixed(2)}</span></div>
+          <div className="row"><span>IGST</span><span>₹{igstTotal}</span></div>
         )}
 
         <div className="row total">
           <b>Total</b>
-          <b>₹{finalAmount.toFixed(2)}</b>
+          <b>₹{finalAmount}</b>
         </div>
 
         {paymentMethod === "upi" && (
-          <div className="upi">
+          <div>
             <QRCode value={upiLink} />
-            <a href={upiLink} className="btn">Open UPI App</a>
           </div>
         )}
       </div>
-
-      <style jsx>{`
-        .checkout {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 20px;
-        }
-
-        .box {
-          padding: 20px;
-          border: 1px solid #eee;
-          border-radius: 12px;
-        }
-
-        input {
-          width: 100%;
-          padding: 10px;
-          margin: 5px 0;
-        }
-
-        .row {
-          display: flex;
-          justify-content: space-between;
-        }
-
-        .coupon {
-          display: flex;
-          gap: 10px;
-        }
-
-        button {
-          width: 100%;
-          padding: 10px;
-          background: black;
-          color: white;
-        }
-
-        .btn {
-          display: block;
-          margin-top: 10px;
-          background: green;
-          color: white;
-          padding: 10px;
-          text-align: center;
-        }
-
-        .total {
-          font-size: 18px;
-        }
-      `}</style>
     </div>
   );
 }
