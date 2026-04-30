@@ -1,13 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useCart } from "@/context/CartContext";
 
 export default function Home() {
   const { addToCart } = useCart();
+  const router = useRouter();
 
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  const [toast, setToast] = useState("");
 
   /* ================= FETCH PRODUCTS ================= */
   useEffect(() => {
@@ -20,8 +24,7 @@ export default function Home() {
         const data = await res.json();
 
         const list = data?.products || [];
-
-        setProducts(list);
+        setProducts(Array.isArray(list) ? list : []);
       } catch (err) {
         console.error("Product fetch error:", err);
         setProducts([]);
@@ -32,6 +35,19 @@ export default function Home() {
 
     loadProducts();
   }, []);
+
+  /* ================= ADD TO CART ================= */
+  function handleAddToCart(p, price) {
+    addToCart({
+      id: p._id,
+      name: p.name,
+      price,
+      image: p.images?.[0],
+    });
+
+    setToast(`${p.name} added to cart`);
+    setTimeout(() => setToast(""), 2000);
+  }
 
   return (
     <div className="home">
@@ -78,7 +94,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ================= PRODUCTS (FIXED) ================= */}
+      {/* ================= PRODUCTS ================= */}
       <section id="products" className="section">
         <h2>Featured Products</h2>
 
@@ -100,51 +116,46 @@ export default function Home() {
               return (
                 <div key={p._id} className="productCard">
 
-                  {/* IMAGE */}
-                  <img
-                    src={p.images?.[0] || "/placeholder.png"}
-                    alt={p.name}
-                  />
+                  {/* CLICKABLE AREA */}
+                  <div
+                    className="clickArea"
+                    onClick={() => router.push(`/products/${p.slug}`)}
+                  >
+                    <img
+                      src={p.images?.[0] || "/placeholder.png"}
+                      alt={p.name}
+                    />
 
-                  <div className="productBody">
+                    <div className="productBody">
+                      <h3>{p.name}</h3>
 
-                    {/* NAME */}
-                    <h3>{p.name}</h3>
+                      <p className="desc">
+                        {p.shortDescription ||
+                          p.description ||
+                          "No description available"}
+                      </p>
 
-                    {/* DESCRIPTION */}
-                    <p className="desc">
-                      {p.shortDescription ||
-                        p.description ||
-                        "No description available"}
-                    </p>
+                      <div className="priceBox">
+                        <span className="price">₹{price}</span>
 
-                    {/* PRICE */}
-                    <div className="priceBox">
-                      <span className="price">₹{price}</span>
-
-                      {mrp > price && (
-                        <>
-                          <span className="mrp">₹{mrp}</span>
-                          <span className="off">{discount}% OFF</span>
-                        </>
-                      )}
+                        {mrp > price && (
+                          <>
+                            <span className="mrp">₹{mrp}</span>
+                            <span className="off">{discount}% OFF</span>
+                          </>
+                        )}
+                      </div>
                     </div>
-
-                    {/* ADD TO CART */}
-                    <button
-                      onClick={() =>
-                        addToCart({
-                          id: p._id,
-                          name: p.name,
-                          price,
-                          image: p.images?.[0],
-                        })
-                      }
-                    >
-                      Add to Cart
-                    </button>
-
                   </div>
+
+                  {/* ADD TO CART BUTTON */}
+                  <button
+                    className="cartBtn"
+                    onClick={() => handleAddToCart(p, price)}
+                  >
+                    Add to Cart
+                  </button>
+
                 </div>
               );
             })}
@@ -152,7 +163,7 @@ export default function Home() {
         )}
       </section>
 
-      {/* ================= WHY US ================= */}
+      {/* ================= WHY ================= */}
       <section className="why">
         <h2>Why Choose Native</h2>
 
@@ -170,6 +181,9 @@ export default function Home() {
           ))}
         </div>
       </section>
+
+      {/* ================= TOAST ================= */}
+      {toast && <div className="toast">{toast}</div>}
 
       {/* ================= STYLES ================= */}
       <style jsx>{`
@@ -202,43 +216,6 @@ export default function Home() {
 
         h1 {
           font-size: 64px;
-          margin: 0;
-        }
-
-        .tagline {
-          font-size: 22px;
-        }
-
-        .desc {
-          margin: 20px 0;
-        }
-
-        button {
-          padding: 12px 30px;
-          background: #c28b45;
-          border: none;
-          color: white;
-          border-radius: 30px;
-          cursor: pointer;
-        }
-
-        .scrollText {
-          position: absolute;
-          top: 20px;
-          width: 100%;
-          overflow: hidden;
-          white-space: nowrap;
-        }
-
-        .scrollText div {
-          display: inline-block;
-          padding-left: 100%;
-          animation: scroll 12s linear infinite;
-        }
-
-        @keyframes scroll {
-          from { transform: translateX(0); }
-          to { transform: translateX(-100%); }
         }
 
         .section {
@@ -248,26 +225,10 @@ export default function Home() {
           text-align: center;
         }
 
-        h2 {
-          font-size: 32px;
-          margin-bottom: 30px;
-        }
-
-        .center {
-          text-align: center;
-        }
-
         .grid {
           display: grid;
           grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
           gap: 20px;
-        }
-
-        .card {
-          background: white;
-          padding: 25px;
-          border-radius: 12px;
-          box-shadow: 0 5px 15px rgba(0,0,0,0.05);
         }
 
         .productGrid {
@@ -281,6 +242,12 @@ export default function Home() {
           border-radius: 12px;
           overflow: hidden;
           box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+          display: flex;
+          flex-direction: column;
+        }
+
+        .clickArea {
+          cursor: pointer;
         }
 
         .productCard img {
@@ -293,19 +260,11 @@ export default function Home() {
           padding: 15px;
         }
 
-        .productBody h3 {
-          margin: 0;
-        }
-
-        .productBody .desc {
+        .desc {
           font-size: 13px;
           color: #666;
           height: 40px;
           overflow: hidden;
-        }
-
-        .priceBox {
-          margin-top: 8px;
         }
 
         .price {
@@ -322,22 +281,26 @@ export default function Home() {
         .off {
           color: green;
           margin-left: 8px;
-          font-weight: bold;
         }
 
-        .productBody button {
-          width: 100%;
-          margin-top: 10px;
+        .cartBtn {
+          margin: 10px;
+          padding: 10px;
+          background: black;
+          color: white;
+          border: none;
+          border-radius: 6px;
+          cursor: pointer;
         }
 
-        .why {
-          background: #f4efe6;
-          padding: 70px 20px;
-          text-align: center;
-        }
-
-        .icon {
-          font-size: 40px;
+        .toast {
+          position: fixed;
+          bottom: 20px;
+          right: 20px;
+          background: black;
+          color: white;
+          padding: 10px 15px;
+          border-radius: 6px;
         }
       `}</style>
     </div>
