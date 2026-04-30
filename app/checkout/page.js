@@ -6,15 +6,16 @@ import { useRouter } from "next/navigation";
 import QRCode from "react-qr-code";
 
 const UPI_ID = "9000528462@ybl";
-const UPI_NAME = "Native";
+const UPI_NAME = "Native Store";
 
-/* ================= GST HELPER ================= */
-const getTaxSplit = (base, gstPercent = 18) => {
-  const gst = (base * gstPercent) / 100;
+/* ================= TAX HELPER ================= */
+const getTaxSplit = (base, gstPercent = 0) => {
+  const gstTotal = (base * gstPercent) / 100;
+
   return {
-    cgst: gst / 2,
-    sgst: gst / 2,
-    gstTotal: gst,
+    cgst: gstTotal / 2,
+    sgst: gstTotal / 2,
+    gstTotal,
   };
 };
 
@@ -28,7 +29,6 @@ export default function CheckoutPage() {
     address: "",
     city: "",
     pincode: "",
-    state: "",
   });
 
   const [paymentMethod, setPaymentMethod] = useState("razorpay");
@@ -49,18 +49,21 @@ export default function CheckoutPage() {
     }
   };
 
-  /* ================= GST CALCULATION (ITEM WISE) ================= */
+  /* ================= PRODUCT-BASED TAX ================= */
   const taxItems = cart.map((item) => {
     const base = item.price * item.qty;
-    const gstPercent = item.gstPercent ?? item.gstRate ?? 18;
+
+    // FROM PRODUCT UPLOAD PAGE (IMPORTANT)
+    const gstPercent = item.gstPercent ?? 0;
+    const hsn = item.hsn ?? "0000";
 
     const tax = getTaxSplit(base, gstPercent);
 
     return {
       ...item,
       base,
-      hsn: item.hsn || "0000",
       gstPercent,
+      hsn,
       ...tax,
     };
   });
@@ -71,16 +74,11 @@ export default function CheckoutPage() {
   const cgstTotal = taxItems.reduce((a, b) => a + b.cgst, 0);
   const sgstTotal = taxItems.reduce((a, b) => a + b.sgst, 0);
 
-  /* ================= EXTRA CHARGES ================= */
-  const shippingFee = subtotal > 999 ? 0 : 49;
-  const packagingFee = subtotal > 0 ? 20 : 0;
-
-  const totalBeforeDiscount =
-    subtotal + gstTotal + shippingFee + packagingFee;
-
+  /* ================= FINAL AMOUNT ================= */
+  const totalBeforeDiscount = subtotal + gstTotal;
   const finalAmount = totalBeforeDiscount - discount;
 
-  /* ================= UPI ================= */
+  /* ================= UPI LINK ================= */
   const upiLink = `upi://pay?pa=${UPI_ID}&pn=${UPI_NAME}&am=${finalAmount.toFixed(
     2
   )}&cu=INR`;
@@ -101,8 +99,6 @@ export default function CheckoutPage() {
             gstTotal,
             cgstTotal,
             sgstTotal,
-            shippingFee,
-            packagingFee,
             discount,
             finalAmount,
           },
@@ -144,7 +140,7 @@ export default function CheckoutPage() {
         rzp.open();
       }
 
-      /* ================= UPI ================= */
+      /* ================= UPI REDIRECT ================= */
       if (paymentMethod === "upi") {
         window.location.href = upiLink;
         router.push(`/order-pending?orderId=${orderId}`);
@@ -160,7 +156,7 @@ export default function CheckoutPage() {
   return (
     <div className="checkout">
 
-      {/* ================= LEFT FORM ================= */}
+      {/* ================= FORM ================= */}
       <div className="box">
         <h2>Checkout</h2>
 
@@ -168,7 +164,6 @@ export default function CheckoutPage() {
         <input name="phone" placeholder="Phone" onChange={handleChange} />
         <input name="address" placeholder="Address" onChange={handleChange} />
         <input name="city" placeholder="City" onChange={handleChange} />
-        <input name="state" placeholder="State" onChange={handleChange} />
         <input name="pincode" placeholder="Pincode" onChange={handleChange} />
 
         <h4>Payment Method</h4>
@@ -179,7 +174,7 @@ export default function CheckoutPage() {
             checked={paymentMethod === "razorpay"}
             onChange={() => setPaymentMethod("razorpay")}
           />
-          Razorpay (Instant)
+          Razorpay
         </label>
 
         <label>
@@ -206,7 +201,7 @@ export default function CheckoutPage() {
         </button>
       </div>
 
-      {/* ================= RIGHT SUMMARY ================= */}
+      {/* ================= SUMMARY ================= */}
       <div className="box">
         <h3>Order Summary</h3>
 
@@ -245,16 +240,6 @@ export default function CheckoutPage() {
         </div>
 
         <div className="row">
-          <span>Shipping</span>
-          <span>{shippingFee === 0 ? "FREE" : `₹${shippingFee}`}</span>
-        </div>
-
-        <div className="row">
-          <span>Packaging</span>
-          <span>₹{packagingFee}</span>
-        </div>
-
-        <div className="row">
           <span>Total Before Discount</span>
           <span>₹{totalBeforeDiscount.toFixed(2)}</span>
         </div>
@@ -269,11 +254,34 @@ export default function CheckoutPage() {
           <b>₹{finalAmount.toFixed(2)}</b>
         </div>
 
-        {/* UPI */}
+        {/* ================= UPI OPTIONS ================= */}
         {paymentMethod === "upi" && (
           <div className="upiBox">
             <h4>Pay via UPI</h4>
+
             <QRCode value={upiLink} size={140} />
+
+            <a href={upiLink} className="btn">
+              Open UPI App
+            </a>
+
+            <a
+              href={`gpay://upi/pay?pa=${UPI_ID}&pn=${UPI_NAME}&am=${finalAmount.toFixed(
+                2
+              )}&cu=INR`}
+              className="btn alt"
+            >
+              Google Pay
+            </a>
+
+            <a
+              href={`phonepe://pay?pa=${UPI_ID}&pn=${UPI_NAME}&am=${finalAmount.toFixed(
+                2
+              )}&cu=INR`}
+              className="btn alt"
+            >
+              PhonePe
+            </a>
           </div>
         )}
       </div>
@@ -339,6 +347,20 @@ export default function CheckoutPage() {
         .upiBox {
           margin-top: 20px;
           text-align: center;
+        }
+
+        .btn {
+          display: block;
+          margin-top: 10px;
+          padding: 10px;
+          background: green;
+          color: white;
+          border-radius: 6px;
+          text-decoration: none;
+        }
+
+        .btn.alt {
+          background: #111;
         }
       `}</style>
     </div>
