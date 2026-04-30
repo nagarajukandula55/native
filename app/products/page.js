@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useCart } from "@/context/CartContext";
+import { useCart } from "@/context/CartContext"; // ✅ IMPORTANT
 
 export default function ProductsPage() {
-  const { addToCart } = useCart();
+  const { addToCart } = useCart(); // ✅ USE CONTEXT
 
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -21,34 +21,38 @@ export default function ProductsPage() {
       .catch(() => setLoading(false));
   }, []);
 
-  /* ================= ADD TO CART (FIXED SAFE VERSION) ================= */
-  function handleAddToCart(p) {
+  /* ================= ADD TO CART ================= */
+  async function handleAddToCart(p) {
     try {
-      if (!p) return;
-
-      const id = p._id || p.productKey;
-      if (!id) return;
-
-      setAddingId(id);
+      setAddingId(p.productKey);
 
       const item = {
-        _id: id,                     // ✅ unified key (VERY IMPORTANT)
-        productKey: p.productKey || id,
-        name: p.name || "Product",
-        price: Number(p.displayPrice || 0),
-        mrp: Number(p.mrp || 0),
+        id: p.productKey, // unique
+        productKey: p.productKey,
+        name: p.name,
+        price: p.displayPrice || 0,
+        mrp: p.mrp || 0,
         image: p.images?.[0] || "/no-image.png",
         variant: "default",
         qty: 1,
       };
 
-      console.log("ADD TO CART SAFE:", item);
-
+      // ✅ INSTANT UI UPDATE
       addToCart(item);
+
+      // ✅ OPTIONAL API SYNC (non-blocking)
+      fetch("/api/cart", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(item),
+      });
+
     } catch (err) {
-      console.error("Cart error:", err);
+      console.error(err);
     } finally {
-      setTimeout(() => setAddingId(null), 200);
+      setAddingId(null);
     }
   }
 
@@ -57,7 +61,11 @@ export default function ProductsPage() {
     return (
       <div className="container">
         <h1>All Products</h1>
-        <p>Loading products...</p>
+        <div className="grid">
+          {[...Array(8)].map((_, i) => (
+            <div key={i} className="card skeleton"></div>
+          ))}
+        </div>
       </div>
     );
   }
@@ -75,53 +83,60 @@ export default function ProductsPage() {
   /* ================= UI ================= */
   return (
     <div className="container">
-      <h1 className="title">All Products</h1>
+      <h1>All Products</h1>
 
       <div className="grid">
         {products.map((p) => {
-          const id = p._id || p.productKey;
-          const price = Number(p.displayPrice || 0);
-          const mrp = Number(p.mrp || 0);
+          const price = p.displayPrice || 0;
+          const mrp = p.mrp || 0;
 
           const discount =
-            mrp && price ? Math.round(((mrp - price) / mrp) * 100) : 0;
+            mrp && price
+              ? Math.round(((mrp - price) / mrp) * 100)
+              : 0;
 
           return (
-            <div key={id} className="card">
+            <div key={p.productKey} className="card">
 
-              {/* IMAGE */}
-              <Link href={`/products/${p.slug}`} className="imageWrap">
-                <img
-                  src={p.images?.[0] || "/no-image.png"}
-                  alt={p.name}
-                />
+              {/* LINK AREA */}
+              <Link href={`/products/${p.slug}`} className="link">
 
-                {discount > 0 && (
-                  <span className="badge">{discount}% OFF</span>
-                )}
+                <div className="imgWrap">
+                  <img
+                    src={p.images?.[0] || "/no-image.png"}
+                    alt={p.name}
+                  />
+
+                  {discount > 0 && (
+                    <span className="badge">{discount}% OFF</span>
+                  )}
+                </div>
+
+                <div className="content">
+                  <h3>{p.name}</h3>
+
+                  {p.shortDescription && (
+                    <p className="desc">{p.shortDescription}</p>
+                  )}
+
+                  <div className="price">
+                    <span className="sell">₹{price}</span>
+                    {mrp > price && (
+                      <span className="mrp">₹{mrp}</span>
+                    )}
+                  </div>
+                </div>
               </Link>
 
-              {/* CONTENT */}
-              <div className="content">
-                <Link href={`/products/${p.slug}`}>
-                  <h3 className="name">{p.name}</h3>
-                </Link>
-
-                <p className="price">
-                  ₹{price}
-                  {mrp > price && (
-                    <span className="mrp">₹{mrp}</span>
-                  )}
-                </p>
-              </div>
-
-              {/* BUTTON */}
+              {/* ADD TO CART */}
               <button
-                className="btn"
+                className="cartBtn"
+                disabled={addingId === p.productKey}
                 onClick={() => handleAddToCart(p)}
-                disabled={addingId === id}
               >
-                {addingId === id ? "Adding..." : "Add to Cart"}
+                {addingId === p.productKey
+                  ? "Adding..."
+                  : "Add to Cart"}
               </button>
 
             </div>
@@ -129,31 +144,25 @@ export default function ProductsPage() {
         })}
       </div>
 
-      {/* ================= STYLES (YOUR ORIGINAL CLEAN UI + SAFE FIXES) ================= */}
+      {/* ================= STYLES ================= */}
       <style jsx>{`
         .container {
           max-width: 1200px;
           margin: auto;
-          padding: 25px;
-        }
-
-        .title {
-          font-size: 26px;
-          font-weight: 700;
-          margin-bottom: 20px;
+          padding: 20px;
         }
 
         .grid {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-          gap: 18px;
+          grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+          gap: 20px;
         }
 
         .card {
           background: #fff;
-          border: 1px solid #eee;
-          border-radius: 14px;
+          border-radius: 12px;
           overflow: hidden;
+          border: 1px solid #eee;
           display: flex;
           flex-direction: column;
           transition: 0.25s;
@@ -164,23 +173,14 @@ export default function ProductsPage() {
           box-shadow: 0 10px 25px rgba(0,0,0,0.08);
         }
 
-        .imageWrap {
+        .imgWrap {
           position: relative;
-          width: 100%;
-          height: 180px;
-          overflow: hidden;
-          display: block;
         }
 
-        .imageWrap img {
+        img {
           width: 100%;
-          height: 100%;
+          height: 200px;
           object-fit: cover;
-          transition: 0.3s;
-        }
-
-        .card:hover img {
-          transform: scale(1.05);
         }
 
         .badge {
@@ -188,22 +188,20 @@ export default function ProductsPage() {
           top: 10px;
           left: 10px;
           background: #e53935;
-          color: white;
+          color: #fff;
           padding: 4px 8px;
           font-size: 12px;
           border-radius: 5px;
         }
 
         .content {
-          padding: 12px 14px;
-          flex-grow: 1;
+          padding: 12px;
         }
 
-        .name {
-          font-size: 15px;
-          font-weight: 600;
-          color: #222;
-          margin-bottom: 6px;
+        .desc {
+          font-size: 13px;
+          color: #666;
+          margin-bottom: 8px;
           display: -webkit-box;
           -webkit-line-clamp: 2;
           -webkit-box-orient: vertical;
@@ -211,37 +209,31 @@ export default function ProductsPage() {
         }
 
         .price {
-          font-size: 16px;
-          font-weight: 700;
+          display: flex;
+          gap: 8px;
+        }
+
+        .sell {
+          font-weight: bold;
         }
 
         .mrp {
-          margin-left: 8px;
-          font-size: 13px;
-          color: #888;
           text-decoration: line-through;
-          font-weight: 400;
+          color: #888;
         }
 
-        .btn {
-          margin: 10px 14px 14px;
+        .cartBtn {
+          margin: 10px;
           padding: 10px;
           border: none;
-          border-radius: 8px;
-          background: #111;
+          background: black;
           color: white;
-          font-weight: 600;
+          border-radius: 6px;
           cursor: pointer;
-          transition: 0.2s;
         }
 
-        .btn:hover {
-          background: #000;
-        }
-
-        .btn:disabled {
+        .cartBtn:disabled {
           background: #aaa;
-          cursor: not-allowed;
         }
       `}</style>
     </div>
