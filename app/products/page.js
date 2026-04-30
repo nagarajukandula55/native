@@ -8,7 +8,6 @@ export default function ProductsPage() {
   const [loading, setLoading] = useState(true);
   const [addingId, setAddingId] = useState(null);
 
-  /* ================= FETCH ================= */
   useEffect(() => {
     fetch("/api/products")
       .then((res) => res.json())
@@ -19,10 +18,9 @@ export default function ProductsPage() {
       .catch(() => setLoading(false));
   }, []);
 
-  /* ================= ADD TO CART ================= */
-  async function addToCart(product) {
+  async function addToCart(p) {
     try {
-      setAddingId(product.productKey);
+      setAddingId(p.productKey);
 
       await fetch("/api/cart", {
         method: "POST",
@@ -30,23 +28,20 @@ export default function ProductsPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          productId: product._id,
-          productKey: product.productKey,
-          name: product.name,
-          price: product.displayPrice,
-          image: product.images?.[0],
+          productKey: p.productKey,
+          name: p.name,
+          price: p.displayPrice,
+          image: p.images?.[0],
           qty: 1,
         }),
       });
-
     } catch (err) {
-      console.error("Cart error:", err);
+      console.error(err);
     } finally {
       setAddingId(null);
     }
   }
 
-  /* ================= LOADING ================= */
   if (loading) {
     return (
       <div className="container">
@@ -60,7 +55,6 @@ export default function ProductsPage() {
     );
   }
 
-  /* ================= EMPTY ================= */
   if (!products.length) {
     return (
       <div className="container">
@@ -70,7 +64,6 @@ export default function ProductsPage() {
     );
   }
 
-  /* ================= UI ================= */
   return (
     <div className="container">
       <h1>All Products</h1>
@@ -85,63 +78,45 @@ export default function ProductsPage() {
               ? Math.round(((mrp - price) / mrp) * 100)
               : 0;
 
-          const rating = p.rating || 4.2; // fallback
-          const isNew =
-            new Date(p.createdAt) >
-            new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-
           return (
             <div key={p.productKey} className="card">
 
-              {/* CLICKABLE AREA */}
-              <Link href={`/products/${p.slug}`}>
+              <Link href={`/products/${p.slug}`} className="link">
 
                 {/* IMAGE */}
                 <div className="imgWrap">
                   <img
                     src={p.images?.[0] || "/no-image.png"}
-                    loading="lazy"
                     alt={p.name}
                   />
 
                   {discount > 0 && (
-                    <span className="badge red">{discount}% OFF</span>
-                  )}
-
-                  {isNew && (
-                    <span className="badge green">NEW</span>
+                    <span className="badge">{discount}% OFF</span>
                   )}
                 </div>
 
-                {/* NAME */}
-                <h3>{p.name}</h3>
+                {/* CONTENT */}
+                <div className="content">
 
-                {/* RATING */}
-                <div className="rating">
-                  ⭐ {rating} <span>(120)</span>
-                </div>
+                  <h3>{p.name}</h3>
 
-                {/* DESCRIPTION */}
-                <p className="desc">
-                  {p.shortDescription || "No description available"}
-                </p>
-
-                {/* PRICE */}
-                <div className="price">
-                  <span className="sell">₹{price}</span>
-                  {mrp > price && (
-                    <span className="mrp">₹{mrp}</span>
+                  {/* DESCRIPTION */}
+                  {p.shortDescription && (
+                    <p className="desc">{p.shortDescription}</p>
                   )}
-                </div>
 
-                {/* DELIVERY */}
-                <div className="delivery">
-                  🚚 Free Delivery
-                </div>
+                  {/* PRICE */}
+                  <div className="price">
+                    <span className="sell">₹{price}</span>
+                    {mrp > price && (
+                      <span className="mrp">₹{mrp}</span>
+                    )}
+                  </div>
 
+                </div>
               </Link>
 
-              {/* ADD TO CART */}
+              {/* ACTION */}
               <button
                 className="cartBtn"
                 disabled={addingId === p.productKey}
@@ -156,7 +131,6 @@ export default function ProductsPage() {
         })}
       </div>
 
-      {/* ================= STYLES ================= */}
       <style jsx>{`
         .container {
           max-width: 1200px;
@@ -175,13 +149,13 @@ export default function ProductsPage() {
         }
 
         .card {
-          border: 1px solid #eee;
-          padding: 12px;
-          border-radius: 12px;
           background: #fff;
-          transition: 0.25s;
+          border-radius: 12px;
+          overflow: hidden;
+          border: 1px solid #eee;
           display: flex;
           flex-direction: column;
+          transition: 0.25s;
         }
 
         .card:hover {
@@ -189,60 +163,48 @@ export default function ProductsPage() {
           box-shadow: 0 10px 25px rgba(0,0,0,0.08);
         }
 
+        .link {
+          text-decoration: none;
+          color: inherit;
+        }
+
         .imgWrap {
           position: relative;
           overflow: hidden;
-          border-radius: 10px;
         }
 
         img {
           width: 100%;
           height: 200px;
           object-fit: cover;
-          transition: 0.3s;
-        }
-
-        .card:hover img {
-          transform: scale(1.05);
         }
 
         .badge {
           position: absolute;
           top: 10px;
           left: 10px;
-          padding: 4px 8px;
-          font-size: 11px;
-          border-radius: 5px;
-          color: #fff;
-        }
-
-        .red {
           background: #e53935;
+          color: #fff;
+          padding: 4px 8px;
+          font-size: 12px;
+          border-radius: 5px;
         }
 
-        .green {
-          background: #2e7d32;
-          left: auto;
-          right: 10px;
+        .content {
+          padding: 12px;
         }
 
         h3 {
-          margin: 8px 0 4px;
-        }
-
-        .rating {
-          font-size: 13px;
-          color: #444;
-        }
-
-        .rating span {
-          color: #888;
+          font-size: 16px;
+          margin-bottom: 5px;
         }
 
         .desc {
           font-size: 13px;
-          color: #555;
-          margin: 6px 0;
+          color: #666;
+          line-height: 1.4;
+          margin-bottom: 8px;
+
           display: -webkit-box;
           -webkit-line-clamp: 2;
           -webkit-box-orient: vertical;
@@ -250,45 +212,34 @@ export default function ProductsPage() {
         }
 
         .price {
-          margin-top: 5px;
+          display: flex;
+          align-items: center;
+          gap: 8px;
         }
 
         .sell {
-          font-weight: bold;
           font-size: 16px;
+          font-weight: bold;
         }
 
         .mrp {
-          text-decoration: line-through;
+          font-size: 13px;
           color: #888;
-          margin-left: 8px;
-        }
-
-        .delivery {
-          font-size: 12px;
-          color: green;
-          margin-top: 4px;
+          text-decoration: line-through;
         }
 
         .cartBtn {
-          margin-top: auto;
-          margin-top: 10px;
+          margin: 10px;
           padding: 10px;
           border: none;
           background: black;
           color: white;
           border-radius: 6px;
           cursor: pointer;
-          transition: 0.2s;
-        }
-
-        .cartBtn:hover {
-          background: #333;
         }
 
         .cartBtn:disabled {
           background: #aaa;
-          cursor: not-allowed;
         }
 
         .skeleton {
