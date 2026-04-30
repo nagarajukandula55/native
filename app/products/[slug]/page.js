@@ -1,17 +1,29 @@
 import ProductView from "./ProductView";
 
+/* ================= HELPER ================= */
+function getBaseUrl() {
+  if (process.env.NEXT_PUBLIC_BASE_URL) {
+    return process.env.NEXT_PUBLIC_BASE_URL;
+  }
+
+  // fallback (important for Vercel + local)
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+
+  return "http://localhost:3000";
+}
+
 /* ================= SEO ================= */
 export async function generateMetadata({ params }) {
   try {
-    const baseUrl =
-      process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+    const baseUrl = getBaseUrl();
 
-    const res = await fetch(
-      `${baseUrl}/api/products/${params.slug}`,
-      { cache: "no-store" }
-    );
+    const res = await fetch(`${baseUrl}/api/products/${params.slug}`, {
+      cache: "no-store",
+    });
 
-    if (!res.ok) throw new Error("Fetch failed");
+    if (!res.ok) throw new Error("Metadata fetch failed");
 
     const data = await res.json();
     const p = data?.product || {};
@@ -26,7 +38,7 @@ export async function generateMetadata({ params }) {
       openGraph: {
         title: p.name,
         description: p.shortDescription || p.description,
-        images: p.images?.[0] ? [p.images[0]] : [],
+        images: p.images?.length ? [p.images[0]] : [],
       },
     };
   } catch (err) {
@@ -41,18 +53,19 @@ export async function generateMetadata({ params }) {
 
 /* ================= PAGE ================= */
 export default async function ProductPage({ params }) {
-  const baseUrl =
-    process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+  const baseUrl = getBaseUrl();
 
   let data;
 
   try {
-    const res = await fetch(
-      `${baseUrl}/api/products/${params.slug}`,
-      { cache: "no-store" }
-    );
+    const res = await fetch(`${baseUrl}/api/products/${params.slug}`, {
+      cache: "no-store",
+    });
 
-    if (!res.ok) throw new Error("Fetch failed");
+    if (!res.ok) {
+      console.error("API ERROR STATUS:", res.status);
+      throw new Error("Fetch failed");
+    }
 
     data = await res.json();
   } catch (err) {
@@ -61,6 +74,7 @@ export default async function ProductPage({ params }) {
     return (
       <div style={{ padding: 20 }}>
         <h2>Something went wrong</h2>
+        <p>Unable to load product details</p>
       </div>
     );
   }
