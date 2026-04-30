@@ -6,26 +6,17 @@ import { useRouter } from "next/navigation";
 import QRCode from "react-qr-code";
 
 const UPI_ID = "9000528462@ybl";
-const UPI_NAME = "Native";
+const UPI_NAME = "Native Store";
 const SELLER_STATE = "Andhra Pradesh";
 
 /* ================= GST CALC ================= */
-const getGST = (base, gstPercent = 0, isInterState = false) => {
+const getGST = (base, gstPercent = 0) => {
   const gst = (base * gstPercent) / 100;
 
-  if (isInterState) {
-    return {
-      igst: gst,
-      cgst: 0,
-      sgst: 0,
-      gstTotal: gst,
-    };
-  }
-
   return {
-    igst: 0,
     cgst: gst / 2,
     sgst: gst / 2,
+    igst: gst,
     gstTotal: gst,
   };
 };
@@ -41,6 +32,7 @@ export default function CheckoutPage() {
     pincode: "",
     city: "",
     state: "",
+    gstNumber: "", // 🔥 NEW B2B FIELD
   });
 
   const [paymentMethod, setPaymentMethod] = useState("razorpay");
@@ -50,30 +42,31 @@ export default function CheckoutPage() {
 
   /* ================= PINCODE AUTO FETCH ================= */
   useEffect(() => {
-    if (form.pincode?.length !== 6) return;
+    const pin = form.pincode;
 
-    const timer = setTimeout(async () => {
+    if (!pin || pin.length !== 6) return;
+
+    const fetchLocation = async () => {
       try {
-        const res = await fetch(
-          `https://api.postalpincode.in/pincode/${form.pincode}`
-        );
+        const res = await fetch(`https://api.postalpincode.in/pincode/${pin}`);
         const data = await res.json();
 
         if (data?.[0]?.Status === "Success") {
-          const post = data[0].PostOffice?.[0];
+          const po = data[0].PostOffice?.[0];
 
           setForm((prev) => ({
             ...prev,
-            city: post?.District || "",
-            state: post?.State || "",
+            city: po?.District || "",
+            state: po?.State || "",
           }));
         }
-      } catch (err) {
-        console.error("Pincode error", err);
+      } catch (e) {
+        console.error("PIN fetch error", e);
       }
-    }, 500);
+    };
 
-    return () => clearTimeout(timer);
+    const t = setTimeout(fetchLocation, 500);
+    return () => clearTimeout(t);
   }, [form.pincode]);
 
   const handleChange = (e) =>
@@ -81,38 +74,33 @@ export default function CheckoutPage() {
 
   /* ================= COUPON ================= */
   const applyCoupon = async () => {
-    try {
-      const res = await fetch("/api/coupons/validate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code: coupon, cartTotal }),
-      });
+    const res = await fetch("/api/coupons/validate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code: coupon, cartTotal }),
+    });
 
-      const data = await res.json();
+    const data = await res.json();
 
-      if (!data.success) {
-        setDiscount(0);
-        alert(data.message);
-        return;
-      }
-
-      setDiscount(data.discount);
-      alert("Coupon Applied");
-    } catch (err) {
-      console.error(err);
+    if (!data.success) {
+      setDiscount(0);
+      alert(data.message);
+      return;
     }
+
+    setDiscount(data.discount);
+    alert("Coupon applied");
   };
 
-  /* ================= TAX LOGIC (FIXED GST RULE) ================= */
+  /* ================= GST ENRICHMENT (FIX HSN ISSUE) ================= */
   const taxItems = cart.map((item) => {
     const base = item.price * item.qty;
 
-    const gstPercent = item.tax ?? item.gstPercent ?? 0; // ✅ FIX: DB TAX
-    const hsn = item.hsn || "N/A";
+    // 🔥 IMPORTANT FIX: fallback only if missing
+    const gstPercent = item.tax ?? item.gstPercent ?? 0;
+    const hsn = item.hsn ?? item.product?.hsn ?? "UNKNOWN";
 
-    const isInterState = form.state && form.state !== SELLER_STATE;
-
-    const tax = getGST(base, gstPercent, isInterState);
+    const tax = getGST(base, gstPercent);
 
     return {
       ...item,
@@ -128,11 +116,17 @@ export default function CheckoutPage() {
   const gstTotal = taxItems.reduce((a, b) => a + b.gstTotal, 0);
   const cgstTotal = taxItems.reduce((a, b) => a + b.cgst, 0);
   const sgstTotal = taxItems.reduce((a, b) => a + b.sgst, 0);
-  const igstTotal = taxItems.reduce((a, b) => a + (b.igst || 0), 0);
+  const igstTotal = taxItems.reduce((a, b) => a + b.igst, 0);
 
   const totalBeforeDiscount = subtotal + gstTotal;
   const finalAmount = totalBeforeDiscount - discount;
 
+  /* ================= B2B / B2C DETECTION ================= */
+  const isB2B = !!form.gstNumber;
+
+  const isInterState = form.state && form.state !== SELLER_STATE;
+
+  /* ================= UPI ================= */
   const upiLink = `upi://pay?pa=${UPI_ID}&pn=${UPI_NAME}&am=${finalAmount.toFixed(
     2
   )}&cu=INR`;
@@ -152,6 +146,8 @@ export default function CheckoutPage() {
           coupon,
           discount,
           paymentMethod,
+          gstType: isB2B ? "B2B" : "B2C",
+          gstMode: isInterState ? "IGST" : "CGST_SGST",
           gstSummary: {
             subtotal,
             gstTotal,
@@ -172,6 +168,7 @@ export default function CheckoutPage() {
       }
 
       const orderId = data.orderId;
+
       sessionStorage.setItem("lastOrderId", orderId);
 
       if (paymentMethod === "razorpay") {
@@ -187,7 +184,8 @@ export default function CheckoutPage() {
           },
         };
 
-        new window.Razorpay(options).open();
+        const rzp = new window.Razorpay(options);
+        rzp.open();
       }
 
       if (paymentMethod === "upi") {
@@ -205,7 +203,7 @@ export default function CheckoutPage() {
   return (
     <div className="checkout">
 
-      {/* ================= FORM ================= */}
+      {/* FORM */}
       <div className="box">
         <h2>Checkout</h2>
 
@@ -217,7 +215,14 @@ export default function CheckoutPage() {
         <input value={form.city} disabled placeholder="City" />
         <input value={form.state} disabled placeholder="State" />
 
-        <h4>Payment Method</h4>
+        {/* 🔥 GST INPUT */}
+        <input
+          name="gstNumber"
+          placeholder="GST Number (optional for B2B)"
+          onChange={handleChange}
+        />
+
+        <h4>Payment</h4>
 
         <label>
           <input
@@ -239,9 +244,9 @@ export default function CheckoutPage() {
 
         <div className="coupon">
           <input
-            placeholder="Coupon"
             value={coupon}
             onChange={(e) => setCoupon(e.target.value)}
+            placeholder="Coupon"
           />
           <button onClick={applyCoupon}>Apply</button>
         </div>
@@ -251,7 +256,7 @@ export default function CheckoutPage() {
         </button>
       </div>
 
-      {/* ================= SUMMARY ================= */}
+      {/* SUMMARY */}
       <div className="box">
         <h3>Order Summary</h3>
 
@@ -259,11 +264,11 @@ export default function CheckoutPage() {
           <div key={i}>
             <div className="row">
               <span>{item.name} x {item.qty}</span>
-              <span>₹{item.base.toFixed(2)}</span>
+              <span>₹{item.base}</span>
             </div>
 
             <small>
-              HSN: {item.hsn} | GST: {item.gstPercent}% | IGST: {item.igst || 0}
+              HSN: {item.hsn} | GST: {item.gstPercent}%
             </small>
           </div>
         ))}
@@ -271,35 +276,73 @@ export default function CheckoutPage() {
         <hr />
 
         <div className="row"><span>Subtotal</span><span>₹{subtotal}</span></div>
-        <div className="row"><span>CGST</span><span>₹{cgstTotal.toFixed(2)}</span></div>
-        <div className="row"><span>SGST</span><span>₹{sgstTotal.toFixed(2)}</span></div>
-        <div className="row"><span>IGST</span><span>₹{igstTotal.toFixed(2)}</span></div>
-
-        <div className="row"><span>Total</span><span>₹{totalBeforeDiscount.toFixed(2)}</span></div>
-        <div className="row"><span>Discount</span><span>-₹{discount.toFixed(2)}</span></div>
+        <div className="row"><span>CGST</span><span>₹{cgstTotal}</span></div>
+        <div className="row"><span>SGST</span><span>₹{sgstTotal}</span></div>
+        {isInterState && (
+          <div className="row"><span>IGST</span><span>₹{igstTotal}</span></div>
+        )}
 
         <div className="row total">
-          <b>Final</b>
-          <b>₹{finalAmount.toFixed(2)}</b>
+          <b>Total</b>
+          <b>₹{finalAmount}</b>
         </div>
 
         {paymentMethod === "upi" && (
-          <div className="upiBox">
-            <QRCode value={upiLink} size={140} />
-            <a className="btn" href={upiLink}>Open UPI App</a>
+          <div className="upi">
+            <QRCode value={upiLink} />
+            <a href={upiLink} className="btn">Open UPI App</a>
           </div>
         )}
       </div>
 
       <style jsx>{`
-        .checkout { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
-        .box { padding:20px; border:1px solid #eee; border-radius:10px; }
-        input { width:100%; padding:10px; margin:5px 0; }
-        .row { display:flex; justify-content:space-between; }
-        .coupon { display:flex; gap:10px; }
-        button { width:100%; padding:10px; background:black; color:white; }
-        .btn { display:block; margin-top:10px; background:green; color:white; padding:10px; text-align:center; }
-        .total { font-size:18px; }
+        .checkout {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 20px;
+        }
+
+        .box {
+          padding: 20px;
+          border: 1px solid #eee;
+          border-radius: 12px;
+        }
+
+        input {
+          width: 100%;
+          padding: 10px;
+          margin: 5px 0;
+        }
+
+        .row {
+          display: flex;
+          justify-content: space-between;
+        }
+
+        .coupon {
+          display: flex;
+          gap: 10px;
+        }
+
+        button {
+          width: 100%;
+          padding: 10px;
+          background: black;
+          color: white;
+        }
+
+        .btn {
+          display: block;
+          margin-top: 10px;
+          padding: 10px;
+          background: green;
+          color: white;
+          text-align: center;
+        }
+
+        .total {
+          font-size: 18px;
+        }
       `}</style>
     </div>
   );
