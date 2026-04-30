@@ -1,27 +1,15 @@
 import ProductView from "./ProductView";
 
-/* ================= HELPER ================= */
-function getBaseUrl() {
-  if (process.env.NEXT_PUBLIC_BASE_URL) {
-    return process.env.NEXT_PUBLIC_BASE_URL;
-  }
-
-  // fallback (important for Vercel + local)
-  if (process.env.VERCEL_URL) {
-    return `https://${process.env.VERCEL_URL}`;
-  }
-
-  return "http://localhost:3000";
-}
-
 /* ================= SEO ================= */
 export async function generateMetadata({ params }) {
   try {
-    const baseUrl = getBaseUrl();
+    const baseUrl =
+      process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
 
-    const res = await fetch(`${baseUrl}/api/products/${params.slug}`, {
-      cache: "no-store",
-    });
+    const res = await fetch(
+      `${baseUrl}/api/products/${params.slug}`,
+      { cache: "no-store" }
+    );
 
     if (!res.ok) throw new Error("Metadata fetch failed");
 
@@ -53,19 +41,27 @@ export async function generateMetadata({ params }) {
 
 /* ================= PAGE ================= */
 export default async function ProductPage({ params }) {
-  const baseUrl = getBaseUrl();
+  const baseUrl =
+    process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+
+  /* 🔥 Safety check */
+  if (!params?.slug) {
+    return (
+      <div style={{ padding: 20 }}>
+        <h2>Invalid product URL</h2>
+      </div>
+    );
+  }
 
   let data;
 
   try {
-    const res = await fetch(`${baseUrl}/api/products/${params.slug}`, {
-      cache: "no-store",
-    });
+    const res = await fetch(
+      `${baseUrl}/api/products/${params.slug}`,
+      { cache: "no-store" }
+    );
 
-    if (!res.ok) {
-      console.error("API ERROR STATUS:", res.status);
-      throw new Error("Fetch failed");
-    }
+    if (!res.ok) throw new Error("Fetch failed");
 
     data = await res.json();
   } catch (err) {
@@ -108,7 +104,7 @@ export default async function ProductPage({ params }) {
       : 0;
 
   /* ================= STOCK ================= */
-  const stock = currentVariant?.stock ?? 0;
+  const stock = currentVariant?.stock ?? p?.stock ?? 0;
 
   const stockText =
     stock > 10
