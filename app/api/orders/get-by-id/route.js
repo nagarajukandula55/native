@@ -3,15 +3,15 @@ import Order from "@/models/Order";
 
 export async function GET(req) {
   try {
-    console.log("➡️ API HIT: get-by-id");
+    console.log("📡 TRACK API HIT");
 
     await dbConnect();
-    console.log("✔ DB Connected");
+    console.log("✅ DB CONNECTED");
 
     const { searchParams } = new URL(req.url);
     const orderId = searchParams.get("orderId");
 
-    console.log("🔍 OrderId:", orderId);
+    console.log("🔎 ORDER ID:", orderId);
 
     if (!orderId) {
       return Response.json({
@@ -22,9 +22,9 @@ export async function GET(req) {
 
     const order = await Order.findOne({
       orderId: orderId.trim(),
-    });
+    }).lean();
 
-    console.log("📦 Order Found:", order);
+    console.log("📦 ORDER RESULT:", order);
 
     if (!order) {
       return Response.json({
@@ -39,12 +39,13 @@ export async function GET(req) {
     });
 
   } catch (err) {
-    console.error("🔥 SERVER ERROR:", err);
+    console.error("🔥 FULL SERVER ERROR:", err);
 
     return Response.json({
       success: false,
       message: "Server error",
-      error: err.message,   // 👈 IMPORTANT DEBUG INFO
+      error: err.message,
+      stack: err.stack,
     });
   }
 }
