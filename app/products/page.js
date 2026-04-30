@@ -21,48 +21,76 @@ export default function ProductsPage() {
       .catch(() => setLoading(false));
   }, []);
 
+  /* ================= ADD TO CART (FIXED SAFE VERSION) ================= */
   function handleAddToCart(p) {
-    setAddingId(p._id);
+    try {
+      if (!p) return;
 
-    addToCart({
-      _id: p._id,
-      productKey: p.productKey,
-      name: p.name,
-      price: p.displayPrice || 0,
-      mrp: p.mrp || 0,
-      image: p.images?.[0] || "/no-image.png",
-      variant: "default",
-      qty: 1,
-    });
+      const id = p._id || p.productKey;
+      if (!id) return;
 
-    setTimeout(() => setAddingId(null), 300);
+      setAddingId(id);
+
+      const item = {
+        _id: id,                     // ✅ unified key (VERY IMPORTANT)
+        productKey: p.productKey || id,
+        name: p.name || "Product",
+        price: Number(p.displayPrice || 0),
+        mrp: Number(p.mrp || 0),
+        image: p.images?.[0] || "/no-image.png",
+        variant: "default",
+        qty: 1,
+      };
+
+      console.log("ADD TO CART SAFE:", item);
+
+      addToCart(item);
+    } catch (err) {
+      console.error("Cart error:", err);
+    } finally {
+      setTimeout(() => setAddingId(null), 200);
+    }
   }
 
+  /* ================= LOADING ================= */
   if (loading) {
     return (
       <div className="container">
-        <h2 className="title">All Products</h2>
+        <h1>All Products</h1>
         <p>Loading products...</p>
       </div>
     );
   }
 
+  /* ================= EMPTY ================= */
+  if (!products.length) {
+    return (
+      <div className="container">
+        <h1>All Products</h1>
+        <p>No products available</p>
+      </div>
+    );
+  }
+
+  /* ================= UI ================= */
   return (
     <div className="container">
       <h1 className="title">All Products</h1>
 
       <div className="grid">
         {products.map((p) => {
-          const price = p.displayPrice || 0;
-          const mrp = p.mrp || 0;
+          const id = p._id || p.productKey;
+          const price = Number(p.displayPrice || 0);
+          const mrp = Number(p.mrp || 0);
+
           const discount =
             mrp && price ? Math.round(((mrp - price) / mrp) * 100) : 0;
 
           return (
-            <div key={p._id} className="card">
+            <div key={id} className="card">
 
               {/* IMAGE */}
-              <Link href={`/products/${p.slug}`} className="imageBox">
+              <Link href={`/products/${p.slug}`} className="imageWrap">
                 <img
                   src={p.images?.[0] || "/no-image.png"}
                   alt={p.name}
@@ -75,26 +103,25 @@ export default function ProductsPage() {
 
               {/* CONTENT */}
               <div className="content">
-                <Link href={`/products/${p.slug}`} className="name">
-                  {p.name}
+                <Link href={`/products/${p.slug}`}>
+                  <h3 className="name">{p.name}</h3>
                 </Link>
 
-                <div className="priceRow">
-                  <span className="price">₹{price}</span>
-
+                <p className="price">
+                  ₹{price}
                   {mrp > price && (
                     <span className="mrp">₹{mrp}</span>
                   )}
-                </div>
+                </p>
               </div>
 
               {/* BUTTON */}
               <button
                 className="btn"
                 onClick={() => handleAddToCart(p)}
-                disabled={addingId === p._id}
+                disabled={addingId === id}
               >
-                {addingId === p._id ? "Adding..." : "Add to Cart"}
+                {addingId === id ? "Adding..." : "Add to Cart"}
               </button>
 
             </div>
@@ -102,29 +129,26 @@ export default function ProductsPage() {
         })}
       </div>
 
-      {/* ================= STYLES ================= */}
+      {/* ================= STYLES (YOUR ORIGINAL CLEAN UI + SAFE FIXES) ================= */}
       <style jsx>{`
         .container {
           max-width: 1200px;
           margin: auto;
-          padding: 24px;
+          padding: 25px;
         }
 
         .title {
-          font-size: 28px;
+          font-size: 26px;
           font-weight: 700;
-          margin-bottom: 22px;
-          color: #111;
+          margin-bottom: 20px;
         }
 
-        /* GRID */
         .grid {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-          gap: 20px;
+          grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+          gap: 18px;
         }
 
-        /* CARD */
         .card {
           background: #fff;
           border: 1px solid #eee;
@@ -132,95 +156,80 @@ export default function ProductsPage() {
           overflow: hidden;
           display: flex;
           flex-direction: column;
-          transition: all 0.25s ease;
-          height: 100%;
+          transition: 0.25s;
         }
 
         .card:hover {
           transform: translateY(-6px);
-          box-shadow: 0 12px 30px rgba(0,0,0,0.08);
+          box-shadow: 0 10px 25px rgba(0,0,0,0.08);
         }
 
-        /* IMAGE FIX (MOST IMPORTANT FIX) */
-        .imageBox {
+        .imageWrap {
           position: relative;
           width: 100%;
-          aspect-ratio: 1 / 1; /* 🔥 keeps perfect square */
-          background: #f7f7f7;
+          height: 180px;
           overflow: hidden;
           display: block;
         }
 
-        .imageBox img {
+        .imageWrap img {
           width: 100%;
           height: 100%;
           object-fit: cover;
-          transition: transform 0.3s ease;
+          transition: 0.3s;
         }
 
-        .card:hover .imageBox img {
+        .card:hover img {
           transform: scale(1.05);
         }
 
-        /* DISCOUNT BADGE */
         .badge {
           position: absolute;
           top: 10px;
           left: 10px;
           background: #e53935;
           color: white;
-          font-size: 11px;
-          padding: 4px 7px;
-          border-radius: 6px;
-          font-weight: 600;
+          padding: 4px 8px;
+          font-size: 12px;
+          border-radius: 5px;
         }
 
-        /* CONTENT */
         .content {
-          padding: 12px 14px 8px;
-          flex: 1;
+          padding: 12px 14px;
+          flex-grow: 1;
         }
 
         .name {
-          font-size: 14px;
+          font-size: 15px;
           font-weight: 600;
           color: #222;
-          line-height: 1.3;
+          margin-bottom: 6px;
           display: -webkit-box;
           -webkit-line-clamp: 2;
           -webkit-box-orient: vertical;
           overflow: hidden;
-          text-decoration: none;
-        }
-
-        /* PRICE ROW */
-        .priceRow {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          margin-top: 8px;
         }
 
         .price {
           font-size: 16px;
           font-weight: 700;
-          color: #111;
         }
 
         .mrp {
+          margin-left: 8px;
           font-size: 13px;
           color: #888;
           text-decoration: line-through;
+          font-weight: 400;
         }
 
-        /* BUTTON */
         .btn {
-          margin: 10px 12px 12px;
+          margin: 10px 14px 14px;
           padding: 10px;
           border: none;
-          border-radius: 10px;
+          border-radius: 8px;
           background: #111;
-          color: #fff;
+          color: white;
           font-weight: 600;
           cursor: pointer;
           transition: 0.2s;
