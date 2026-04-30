@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 
 export default function CouponDashboard() {
   const [coupons, setCoupons] = useState([]);
+  const [loading, setLoading] = useState(false);
+
   const [form, setForm] = useState({
     code: "",
     type: "flat",
@@ -14,60 +16,106 @@ export default function CouponDashboard() {
     expiry: "",
   });
 
+  /* ================= FETCH COUPONS ================= */
   const fetchCoupons = async () => {
-    const res = await fetch("/api/coupons");
-    const data = await res.json();
-    setCoupons(data.coupons || []);
+    try {
+      setLoading(true);
+
+      const res = await fetch("/api/coupons");
+      const data = await res.json();
+
+      if (data.success) {
+        setCoupons(data.coupons || []);
+      } else {
+        setCoupons([]);
+      }
+    } catch (err) {
+      console.error("Fetch coupons error:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
     fetchCoupons();
   }, []);
 
+  /* ================= CREATE COUPON ================= */
   const handleCreate = async () => {
-    await fetch("/api/coupons/create", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
-    });
+    try {
+      const res = await fetch("/api/coupons/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...form,
+          value: Number(form.value),
+          minCartValue: Number(form.minCartValue || 0),
+          maxDiscount: Number(form.maxDiscount || 0),
+          usageLimit: Number(form.usageLimit || 0),
+        }),
+      });
 
-    setForm({
-      code: "",
-      type: "flat",
-      value: "",
-      minCartValue: "",
-      maxDiscount: "",
-      usageLimit: "",
-      expiry: "",
-    });
+      const data = await res.json();
 
-    fetchCoupons();
+      if (!data.success) {
+        alert(data.message || "Failed to create coupon");
+        return;
+      }
+
+      setForm({
+        code: "",
+        type: "flat",
+        value: "",
+        minCartValue: "",
+        maxDiscount: "",
+        usageLimit: "",
+        expiry: "",
+      });
+
+      fetchCoupons();
+      alert("Coupon Created");
+    } catch (err) {
+      console.error(err);
+      alert("Error creating coupon");
+    }
   };
 
+  /* ================= TOGGLE ================= */
   const toggleStatus = async (id, active) => {
-    await fetch("/api/coupons/toggle", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, active }),
-    });
+    try {
+      await fetch("/api/coupons/toggle", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, active }),
+      });
 
-    fetchCoupons();
+      fetchCoupons();
+    } catch (err) {
+      console.error(err);
+    }
   };
 
+  /* ================= DELETE ================= */
   const deleteCoupon = async (id) => {
-    await fetch("/api/coupons/delete", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id }),
-    });
+    try {
+      await fetch("/api/coupons/delete", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
 
-    fetchCoupons();
+      fetchCoupons();
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   return (
     <div style={{ padding: 20 }}>
 
       <h2>🎟️ Coupon Dashboard</h2>
+
+      {loading && <p>Loading...</p>}
 
       {/* CREATE COUPON */}
       <div style={{ marginBottom: 20 }}>
@@ -102,7 +150,7 @@ export default function CouponDashboard() {
         />
 
         <input
-          placeholder="Max Discount (optional)"
+          placeholder="Max Discount"
           value={form.maxDiscount}
           onChange={(e) =>
             setForm({ ...form, maxDiscount: e.target.value })
@@ -129,6 +177,8 @@ export default function CouponDashboard() {
       {/* LIST */}
       <h3>All Coupons</h3>
 
+      {coupons.length === 0 && <p>No coupons found</p>}
+
       {coupons.map((c) => (
         <div
           key={c._id}
@@ -141,7 +191,6 @@ export default function CouponDashboard() {
           <b>{c.code}</b> ({c.type}) - {c.value}
 
           <div>Used: {c.usedBy?.length || 0}</div>
-
           <div>Status: {c.active ? "Active" : "Disabled"}</div>
 
           <button onClick={() => toggleStatus(c._id, !c.active)}>
