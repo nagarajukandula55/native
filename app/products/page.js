@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useCart } from "@/context/CartContext"; // ✅ IMPORTANT
+import { useCart } from "@/context/CartContext";
 
 export default function ProductsPage() {
-  const { addToCart } = useCart(); // ✅ USE CONTEXT
+  const { addToCart } = useCart();
 
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -22,12 +22,12 @@ export default function ProductsPage() {
   }, []);
 
   /* ================= ADD TO CART ================= */
-  async function handleAddToCart(p) {
+  function handleAddToCart(p) {
     try {
-      setAddingId(p.productKey);
+      setAddingId(p._id);
 
       const item = {
-        id: p.productKey, // unique
+        _id: p._id, // 🔥 MUST BE MongoDB ID
         productKey: p.productKey,
         name: p.name,
         price: p.displayPrice || 0,
@@ -37,50 +37,23 @@ export default function ProductsPage() {
         qty: 1,
       };
 
-      // ✅ INSTANT UI UPDATE
+      console.log("ADD TO CART:", item);
+
+      // ✅ ONLY LOCAL CART UPDATE
       addToCart(item);
 
-      // ✅ OPTIONAL API SYNC (non-blocking)
-      fetch("/api/cart", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(item),
-      });
-
     } catch (err) {
-      console.error(err);
+      console.error("Add to cart error:", err);
     } finally {
       setAddingId(null);
     }
   }
 
-  /* ================= LOADING ================= */
-  if (loading) {
-    return (
-      <div className="container">
-        <h1>All Products</h1>
-        <div className="grid">
-          {[...Array(8)].map((_, i) => (
-            <div key={i} className="card skeleton"></div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  /* ================= EMPTY ================= */
-  if (!products.length) {
-    return (
-      <div className="container">
-        <h1>All Products</h1>
-        <p>No products available</p>
-      </div>
-    );
-  }
-
   /* ================= UI ================= */
+  if (loading) {
+    return <div className="container"><h1>Loading...</h1></div>;
+  }
+
   return (
     <div className="container">
       <h1>All Products</h1>
@@ -96,146 +69,29 @@ export default function ProductsPage() {
               : 0;
 
           return (
-            <div key={p.productKey} className="card">
+            <div key={p._id} className="card">
 
-              {/* LINK AREA */}
               <Link href={`/products/${p.slug}`} className="link">
+                <img src={p.images?.[0] || "/no-image.png"} />
 
-                <div className="imgWrap">
-                  <img
-                    src={p.images?.[0] || "/no-image.png"}
-                    alt={p.name}
-                  />
+                <h3>{p.name}</h3>
 
-                  {discount > 0 && (
-                    <span className="badge">{discount}% OFF</span>
-                  )}
-                </div>
+                <p>₹{price}</p>
 
-                <div className="content">
-                  <h3>{p.name}</h3>
-
-                  {p.shortDescription && (
-                    <p className="desc">{p.shortDescription}</p>
-                  )}
-
-                  <div className="price">
-                    <span className="sell">₹{price}</span>
-                    {mrp > price && (
-                      <span className="mrp">₹{mrp}</span>
-                    )}
-                  </div>
-                </div>
+                {discount > 0 && <span>{discount}% OFF</span>}
               </Link>
 
-              {/* ADD TO CART */}
               <button
-                className="cartBtn"
-                disabled={addingId === p.productKey}
                 onClick={() => handleAddToCart(p)}
+                disabled={addingId === p._id}
               >
-                {addingId === p.productKey
-                  ? "Adding..."
-                  : "Add to Cart"}
+                {addingId === p._id ? "Adding..." : "Add to Cart"}
               </button>
 
             </div>
           );
         })}
       </div>
-
-      {/* ================= STYLES ================= */}
-      <style jsx>{`
-        .container {
-          max-width: 1200px;
-          margin: auto;
-          padding: 20px;
-        }
-
-        .grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-          gap: 20px;
-        }
-
-        .card {
-          background: #fff;
-          border-radius: 12px;
-          overflow: hidden;
-          border: 1px solid #eee;
-          display: flex;
-          flex-direction: column;
-          transition: 0.25s;
-        }
-
-        .card:hover {
-          transform: translateY(-6px);
-          box-shadow: 0 10px 25px rgba(0,0,0,0.08);
-        }
-
-        .imgWrap {
-          position: relative;
-        }
-
-        img {
-          width: 100%;
-          height: 200px;
-          object-fit: cover;
-        }
-
-        .badge {
-          position: absolute;
-          top: 10px;
-          left: 10px;
-          background: #e53935;
-          color: #fff;
-          padding: 4px 8px;
-          font-size: 12px;
-          border-radius: 5px;
-        }
-
-        .content {
-          padding: 12px;
-        }
-
-        .desc {
-          font-size: 13px;
-          color: #666;
-          margin-bottom: 8px;
-          display: -webkit-box;
-          -webkit-line-clamp: 2;
-          -webkit-box-orient: vertical;
-          overflow: hidden;
-        }
-
-        .price {
-          display: flex;
-          gap: 8px;
-        }
-
-        .sell {
-          font-weight: bold;
-        }
-
-        .mrp {
-          text-decoration: line-through;
-          color: #888;
-        }
-
-        .cartBtn {
-          margin: 10px;
-          padding: 10px;
-          border: none;
-          background: black;
-          color: white;
-          border-radius: 6px;
-          cursor: pointer;
-        }
-
-        .cartBtn:disabled {
-          background: #aaa;
-        }
-      `}</style>
     </div>
   );
 }
