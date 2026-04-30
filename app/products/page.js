@@ -2,14 +2,17 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useCart } from "@/context/CartContext"; // ✅ IMPORTANT
 
 export default function ProductsPage() {
+  const { addToCart } = useCart(); // ✅ USE CONTEXT
+
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [addingId, setAddingId] = useState(null);
 
   useEffect(() => {
-    fetch("/api/products")
+    fetch("/api/products", { cache: "no-store" })
       .then((res) => res.json())
       .then((data) => {
         setProducts(data.products || []);
@@ -18,23 +21,34 @@ export default function ProductsPage() {
       .catch(() => setLoading(false));
   }, []);
 
-  async function addToCart(p) {
+  /* ================= ADD TO CART ================= */
+  async function handleAddToCart(p) {
     try {
       setAddingId(p.productKey);
 
-      await fetch("/api/cart", {
+      const item = {
+        id: p.productKey, // unique
+        productKey: p.productKey,
+        name: p.name,
+        price: p.displayPrice || 0,
+        mrp: p.mrp || 0,
+        image: p.images?.[0] || "/no-image.png",
+        variant: "default",
+        qty: 1,
+      };
+
+      // ✅ INSTANT UI UPDATE
+      addToCart(item);
+
+      // ✅ OPTIONAL API SYNC (non-blocking)
+      fetch("/api/cart", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          productKey: p.productKey,
-          name: p.name,
-          price: p.displayPrice,
-          image: p.images?.[0],
-          qty: 1,
-        }),
+        body: JSON.stringify(item),
       });
+
     } catch (err) {
       console.error(err);
     } finally {
@@ -42,6 +56,7 @@ export default function ProductsPage() {
     }
   }
 
+  /* ================= LOADING ================= */
   if (loading) {
     return (
       <div className="container">
@@ -55,6 +70,7 @@ export default function ProductsPage() {
     );
   }
 
+  /* ================= EMPTY ================= */
   if (!products.length) {
     return (
       <div className="container">
@@ -64,6 +80,7 @@ export default function ProductsPage() {
     );
   }
 
+  /* ================= UI ================= */
   return (
     <div className="container">
       <h1>All Products</h1>
@@ -81,9 +98,9 @@ export default function ProductsPage() {
           return (
             <div key={p.productKey} className="card">
 
+              {/* LINK AREA */}
               <Link href={`/products/${p.slug}`} className="link">
 
-                {/* IMAGE */}
                 <div className="imgWrap">
                   <img
                     src={p.images?.[0] || "/no-image.png"}
@@ -95,51 +112,44 @@ export default function ProductsPage() {
                   )}
                 </div>
 
-                {/* CONTENT */}
                 <div className="content">
-
                   <h3>{p.name}</h3>
 
-                  {/* DESCRIPTION */}
                   {p.shortDescription && (
                     <p className="desc">{p.shortDescription}</p>
                   )}
 
-                  {/* PRICE */}
                   <div className="price">
                     <span className="sell">₹{price}</span>
                     {mrp > price && (
                       <span className="mrp">₹{mrp}</span>
                     )}
                   </div>
-
                 </div>
               </Link>
 
-              {/* ACTION */}
+              {/* ADD TO CART */}
               <button
                 className="cartBtn"
                 disabled={addingId === p.productKey}
-                onClick={() => addToCart(p)}
+                onClick={() => handleAddToCart(p)}
               >
                 {addingId === p.productKey
                   ? "Adding..."
                   : "Add to Cart"}
               </button>
+
             </div>
           );
         })}
       </div>
 
+      {/* ================= STYLES ================= */}
       <style jsx>{`
         .container {
           max-width: 1200px;
           margin: auto;
           padding: 20px;
-        }
-
-        h1 {
-          margin-bottom: 20px;
         }
 
         .grid {
@@ -163,14 +173,8 @@ export default function ProductsPage() {
           box-shadow: 0 10px 25px rgba(0,0,0,0.08);
         }
 
-        .link {
-          text-decoration: none;
-          color: inherit;
-        }
-
         .imgWrap {
           position: relative;
-          overflow: hidden;
         }
 
         img {
@@ -194,17 +198,10 @@ export default function ProductsPage() {
           padding: 12px;
         }
 
-        h3 {
-          font-size: 16px;
-          margin-bottom: 5px;
-        }
-
         .desc {
           font-size: 13px;
           color: #666;
-          line-height: 1.4;
           margin-bottom: 8px;
-
           display: -webkit-box;
           -webkit-line-clamp: 2;
           -webkit-box-orient: vertical;
@@ -213,19 +210,16 @@ export default function ProductsPage() {
 
         .price {
           display: flex;
-          align-items: center;
           gap: 8px;
         }
 
         .sell {
-          font-size: 16px;
           font-weight: bold;
         }
 
         .mrp {
-          font-size: 13px;
-          color: #888;
           text-decoration: line-through;
+          color: #888;
         }
 
         .cartBtn {
@@ -240,17 +234,6 @@ export default function ProductsPage() {
 
         .cartBtn:disabled {
           background: #aaa;
-        }
-
-        .skeleton {
-          height: 300px;
-          background: linear-gradient(90deg,#eee,#f5f5f5,#eee);
-          animation: shimmer 1.5s infinite;
-        }
-
-        @keyframes shimmer {
-          0% { background-position: -200px 0; }
-          100% { background-position: 200px 0; }
         }
       `}</style>
     </div>
