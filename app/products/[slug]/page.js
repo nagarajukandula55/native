@@ -4,20 +4,23 @@ import ProductView from "./ProductView";
 export async function generateMetadata({ params }) {
   try {
     const res = await fetch(
-      `https://shopnative.in/api/products/${params.slug}`,
+      `${process.env.NEXT_PUBLIC_BASE_URL}/api/products/${params.slug}`,
       { cache: "no-store" }
     );
 
     const data = await res.json();
-    const p = data.product || {};
+    const p = data?.product || {};
 
     return {
-      title: p.name || "Product",
-      description: p.shortDescription || p.description || "Buy online",
+      title: p?.name || "Product",
+      description:
+        p?.shortDescription ||
+        p?.description ||
+        "Buy high quality products online",
       openGraph: {
-        title: p.name,
-        description: p.shortDescription,
-        images: p.images?.[0] ? [p.images[0]] : [],
+        title: p?.name || "Product",
+        description: p?.shortDescription || "",
+        images: p?.images?.[0] ? [p.images[0]] : [],
       },
     };
   } catch (err) {
@@ -30,57 +33,92 @@ export async function generateMetadata({ params }) {
 
 /* ================= PAGE ================= */
 export default async function ProductPage({ params }) {
-  const res = await fetch(
-    `https://shopnative.in/api/products/${params.slug}`,
-    { cache: "no-store" }
-  );
+  try {
+    const res = await fetch(
+      `${process.env.NEXT_PUBLIC_BASE_URL}/api/products/${params.slug}`,
+      { cache: "no-store" }
+    );
 
-  const data = await res.json();
+    const data = await res.json();
 
-  const p = data.product;
+    const p = data?.product;
 
-  if (!p) {
+    if (!p) {
+      return (
+        <div style={{ padding: 20 }}>
+          <h2>Product not found</h2>
+        </div>
+      );
+    }
+
+    const variants = data?.variants || [];
+
+    /* ================= VARIANT FALLBACK ================= */
+    const currentVariant =
+      variants.find((v) => v.slug === params.slug) ||
+      p.primaryVariant ||
+      variants[0] ||
+      {};
+
+    /* ================= PRICE LOGIC ================= */
+    const mrp =
+      currentVariant?.mrp ??
+      p?.pricing?.mrp ??
+      p?.primaryVariant?.mrp ??
+      0;
+
+    const sellingPrice =
+      currentVariant?.sellingPrice ??
+      p?.pricing?.sellingPrice ??
+      p?.primaryVariant?.sellingPrice ??
+      0;
+
+    const discount =
+      mrp > 0
+        ? Math.round(((mrp - sellingPrice) / mrp) * 100)
+        : 0;
+
+    /* ================= STOCK ================= */
+    const stock =
+      currentVariant?.stock ??
+      p?.primaryVariant?.stock ??
+      0;
+
+    const stockText =
+      stock > 10
+        ? "In Stock"
+        : stock > 0
+        ? `Only ${stock} left`
+        : "Out of Stock";
+
+    /* ================= SAFE DESCRIPTION ================= */
+    const description =
+      p?.description ||
+      p?.shortDescription ||
+      "No description available";
+
+    return (
+      <ProductView
+        p={{
+          ...p,
+          description, // 🔥 fix missing description issue
+          mrp,
+          sellingPrice,
+        }}
+        variants={variants}
+        currentVariant={currentVariant}
+        discount={discount}
+        stock={stock}
+        stockText={stockText}
+      />
+    );
+  } catch (err) {
+    console.error("SLUG PAGE ERROR:", err);
+
     return (
       <div style={{ padding: 20 }}>
-        <h2>Product not found</h2>
+        <h2>Something went wrong</h2>
       </div>
     );
   }
-
-  const variants = data.variants || [];
-
-  // fallback logic
-  const currentVariant =
-    variants.find((v) => v.slug === params.slug) ||
-    p.primaryVariant ||
-    {};
-
-  const mrp = currentVariant?.mrp || p.pricing?.mrp || 0;
-  const sellingPrice =
-    currentVariant?.sellingPrice || p.pricing?.sellingPrice || 0;
-
-  const discount =
-    mrp > 0
-      ? Math.round(((mrp - sellingPrice) / mrp) * 100)
-      : 0;
-
-  const stock = currentVariant?.stock ?? 0;
-
-  const stockText =
-    stock > 10
-      ? "In Stock"
-      : stock > 0
-      ? `Only ${stock} left`
-      : "Out of Stock";
-
-  return (
-    <ProductView
-      p={p}
-      variants={variants}
-      currentVariant={currentVariant}
-      discount={discount}
-      stock={stock}
-      stockText={stockText}
-    />
-  );
 }
