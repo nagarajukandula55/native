@@ -20,6 +20,7 @@ export default function ProductView({
 
   const [toast, setToast] = useState("");
 
+  /* ================= IMAGE SYNC ================= */
   useEffect(() => {
     setSelectedImage(
       selectedVariant?.images?.[0] ||
@@ -28,24 +29,51 @@ export default function ProductView({
     );
   }, [selectedVariant, p.images]);
 
-  const price = selectedVariant?.sellingPrice || p?.sellingPrice || 0;
-  const mrp = selectedVariant?.mrp || p?.mrp || 0;
+  /* ================= PRICE ================= */
+  const price =
+    selectedVariant?.sellingPrice ?? p?.sellingPrice ?? 0;
+
+  const mrp =
+    selectedVariant?.mrp ?? p?.mrp ?? 0;
 
   const finalDiscount =
     mrp > 0
       ? Math.round(((mrp - price) / mrp) * 100)
       : discount;
 
-  const availableStock = selectedVariant?.stock ?? stock ?? 0;
+  /* ================= STOCK ================= */
+  const availableStock =
+    selectedVariant?.stock ?? stock ?? 0;
 
+  /* ================= ADD TO CART ================= */
   function handleAddToCart() {
-    addToCart({
-      id: p._id,
+    if (availableStock === 0) return;
+
+    const item = {
+      id:
+        selectedVariant?._id ||
+        `${p._id}-${selectedVariant?.variant || "default"}`, // ✅ UNIQUE
+
+      productId: p._id,
+      productKey: p.productKey,
+
       name: p.name,
+
       price,
+      mrp,
+
       image: selectedImage,
-      variant: selectedVariant?.variant,
-    });
+
+      variant:
+        selectedVariant?.variant ||
+        `${selectedVariant?.variantValue || ""} ${selectedVariant?.variantUnit || ""}`,
+
+      qty: 1,
+    };
+
+    console.log("ADD TO CART:", item); // 🔥 debug
+
+    addToCart(item);
 
     setToast("Added to cart");
     setTimeout(() => setToast(""), 2000);
@@ -74,6 +102,7 @@ export default function ProductView({
       <div className="right">
         <h1>{p.name}</h1>
 
+        {/* PRICE */}
         <div className="priceBox">
           <span className="price">₹{price}</span>
 
@@ -85,27 +114,38 @@ export default function ProductView({
           )}
         </div>
 
+        {/* STOCK */}
         <div className={`stock ${availableStock === 0 ? "out" : ""}`}>
-          {stockText}
+          {availableStock > 10
+            ? "In Stock"
+            : availableStock > 0
+            ? `Only ${availableStock} left`
+            : "Out of Stock"}
         </div>
 
         {/* VARIANTS */}
         {variants.length > 1 && (
           <div className="variants">
-            {variants.map((v) => (
-              <button
-                key={v._id}
-                onClick={() => setSelectedVariant(v)}
-                className={
-                  selectedVariant?._id === v._id ? "active" : ""
-                }
-              >
-                {v.variant}
-              </button>
-            ))}
+            <h4>Select Variant</h4>
+
+            <div className="variantList">
+              {variants.map((v) => (
+                <button
+                  key={v._id}
+                  onClick={() => setSelectedVariant(v)}
+                  className={
+                    selectedVariant?._id === v._id ? "active" : ""
+                  }
+                >
+                  {v.variant ||
+                    `${v.variantValue} ${v.variantUnit}`}
+                </button>
+              ))}
+            </div>
           </div>
         )}
 
+        {/* ADD TO CART */}
         <button
           className="cartBtn"
           disabled={availableStock === 0}
@@ -117,7 +157,11 @@ export default function ProductView({
         {/* DESCRIPTION */}
         <div className="section">
           <h3>Description</h3>
-          <p>{p.description || p.shortDescription}</p>
+          <p>
+            {p.description ||
+              p.shortDescription ||
+              "No description available"}
+          </p>
         </div>
 
         {/* INGREDIENTS */}
@@ -135,8 +179,10 @@ export default function ProductView({
         )}
       </div>
 
+      {/* TOAST */}
       {toast && <div className="toast">{toast}</div>}
 
+      {/* STYLES */}
       <style jsx>{`
         .wrap {
           display: grid;
@@ -164,6 +210,16 @@ export default function ProductView({
           width: 70px;
           height: 70px;
           cursor: pointer;
+          border-radius: 6px;
+          border: 2px solid transparent;
+        }
+
+        .thumbs img.active {
+          border-color: black;
+        }
+
+        .priceBox {
+          margin: 10px 0;
         }
 
         .price {
@@ -182,6 +238,35 @@ export default function ProductView({
           margin-left: 8px;
         }
 
+        .stock {
+          margin: 10px 0;
+          font-weight: bold;
+          color: green;
+        }
+
+        .stock.out {
+          color: red;
+        }
+
+        .variantList {
+          display: flex;
+          gap: 10px;
+          flex-wrap: wrap;
+        }
+
+        .variantList button {
+          padding: 8px 12px;
+          border: 1px solid #ddd;
+          background: #fff;
+          cursor: pointer;
+          border-radius: 6px;
+        }
+
+        .variantList .active {
+          background: black;
+          color: #fff;
+        }
+
         .cartBtn {
           margin-top: 20px;
           padding: 12px;
@@ -189,6 +274,8 @@ export default function ProductView({
           background: black;
           color: white;
           border: none;
+          border-radius: 6px;
+          cursor: pointer;
         }
 
         .toast {
@@ -198,6 +285,7 @@ export default function ProductView({
           background: black;
           color: white;
           padding: 10px;
+          border-radius: 6px;
         }
       `}</style>
     </div>
