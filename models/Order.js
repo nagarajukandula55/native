@@ -14,25 +14,19 @@ const WarehouseSchema = new mongoose.Schema({
     default: "NEW",
     enum: ["NEW", "PICKING", "PACKED", "DISPATCHED"],
   },
-
-  assignedTo: {
-    type: String,
-    default: null,
-  },
-
+  assignedTo: String,
   packedAt: Date,
   dispatchedAt: Date,
 });
 
 const OrderSchema = new mongoose.Schema(
   {
-    /* ================= USER ================= */
     userId: { type: String, default: null },
 
-    /* ================= ORDER ================= */
     orderId: {
       type: String,
-      unique: true,
+      required: true,
+      index: true,   // 🔥 IMPORTANT FIX
     },
 
     items: [OrderItemSchema],
@@ -42,7 +36,6 @@ const OrderSchema = new mongoose.Schema(
       required: true,
     },
 
-    /* ================= ORDER STATUS ================= */
     status: {
       type: String,
       default: "PENDING_PAYMENT",
@@ -58,7 +51,6 @@ const OrderSchema = new mongoose.Schema(
       ],
     },
 
-    /* ================= PAYMENT ================= */
     payment: {
       razorpay_order_id: String,
       razorpay_payment_id: String,
@@ -67,7 +59,6 @@ const OrderSchema = new mongoose.Schema(
       paidAt: Date,
     },
 
-    /* ================= ADDRESS ================= */
     address: {
       name: String,
       phone: String,
@@ -76,17 +67,19 @@ const OrderSchema = new mongoose.Schema(
       pincode: String,
     },
 
-    /* ================= 🏭 WAREHOUSE MODULE ================= */
     warehouse: {
       type: WarehouseSchema,
-      default: () => ({
+      default: {
         status: "NEW",
         assignedTo: null,
-      }),
+      },
     },
   },
   { timestamps: true }
 );
 
-export default mongoose.models.Order ||
-  mongoose.model("Order", OrderSchema);
+// 🔥 CRITICAL SAFE EXPORT
+const Order =
+  mongoose.models.Order || mongoose.model("Order", OrderSchema);
+
+export default Order;
