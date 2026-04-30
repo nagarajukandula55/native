@@ -4,6 +4,14 @@ import Product from "@/models/Product";
 
 export const dynamic = "force-dynamic";
 
+/* 🔥 NORMALIZE VARIANT VALUE */
+function getNumericValue(value = "") {
+  const num = parseFloat(value);
+  if (value.toUpperCase().includes("KG")) return num * 1000;
+  if (value.toUpperCase().includes("L")) return num * 1000;
+  return num;
+}
+
 export async function GET(req, { params }) {
   try {
     await connectDB();
@@ -17,97 +25,74 @@ export async function GET(req, { params }) {
       );
     }
 
-    /* ================= FETCH PRODUCT ================= */
-    const product = await Product.findOne({
+    /* ================= FIND PRODUCT ================= */
+    const baseProduct = await Product.findOne({
       slug,
       status: "approved",
-      isActive: true,
       isListed: true,
     }).lean();
 
-    if (!product) {
+    if (!baseProduct) {
       return NextResponse.json(
-        { success: false, message: "Product not found" },
+        { success: false, message: "Product not found or not listed" },
         { status: 404 }
       );
     }
 
-    /* ================= VARIANTS ================= */
-    let variants = product.variants || [];
+    /* ================= GET ALL VARIANTS ================= */
+    const variantsRaw = await Product.find({
+      productKey: baseProduct.productKey,
+      status: "approved",
+      isListed: true,
+    }).lean();
 
-    const primary = product.primaryVariant || null;
+    /* ================= SORT VARIANTS ================= */
+    const variantsSorted = variantsRaw.sort((a, b) => {
+      return getNumericValue(a.variant || "") - getNumericValue(b.variant || "");
+    });
 
-    // fallback if variants not stored as array
-    if (!variants.length && primary) {
-      variants = [primary];
-    }
-
-    /* ================= NORMALIZE VARIANTS ================= */
-    const normalizedVariants = variants.map((v, index) => ({
-      _id: v._id || index,
-      sku: v.sku || "",
-      sellingPrice: v.sellingPrice || 0,
-      mrp: v.mrp || 0,
-      stock: v.stock ?? 0,
-      images: v.images || product.images || [],
-      variant: v.variant || `${v.value || ""} ${v.unit || ""}`,
-      slug: v.slug || product.slug,
+    /* ================= FORMAT VARIANTS ================= */
+    const variants = variantsSorted.map((v) => ({
+      _id: v._id,
+      slug: v.slug,
+      sku: v.primaryVariant?.sku || v.sku,
+      variant: v.variant || `${v.primaryVariant?.value}${v.primaryVariant?.unit}`,
+      sellingPrice: v.primaryVariant?.sellingPrice || v.sellingPrice,
+      mrp: v.primaryVariant?.mrp || v.mrp,
+      stock: v.primaryVariant?.stock || v.stock,
+      images: v.images || [],
     }));
 
     /* ================= CURRENT VARIANT ================= */
-    const currentVariant = normalizedVariants[0] || {};
+    const currentVariant =
+      variants.find((v) => v.slug === slug) || variants[0] || {};
 
-    /* ================= PRICING ================= */
-    const price = currentVariant.sellingPrice || 0;
-    const mrp = currentVariant.mrp || 0;
+    const mrp = currentVariant?.mrp || 0;
+    const sellingPrice = currentVariant?.sellingPrice || 0;
 
     const discount =
       mrp > 0
-        ? Math.round(((mrp - price) / mrp) * 100)
+        ? Math.round(((mrp - sellingPrice) / mrp) * 100)
         : 0;
 
     /* ================= FINAL RESPONSE ================= */
     return NextResponse.json({
       success: true,
-
       product: {
-        _id: product._id,
-        name: product.name,
-        slug: product.slug,
-        productKey: product.productKey,
-
-        category: product.category,
-        subcategory: product.subcategory,
-        brand: product.brand,
-
-        description:
-          product.description ||
-          product.shortDescription ||
-          "",
-
-        shortDescription: product.shortDescription || "",
-
-        ingredients: product.ingredients || [],
-
-        images:
-          currentVariant.images?.length > 0
-            ? currentVariant.images
-            : product.images || [],
-
-        /* PRIMARY DISPLAY VALUES */
-        sellingPrice: price,
-        mrp: mrp,
+        _id: baseProduct._id,
+        name: baseProduct.name,
+        slug: baseProduct.slug,
+        productKey: baseProduct.productKey,
+        description: baseProduct.description,
+        shortDescription: baseProduct.shortDescription,
+        category: baseProduct.category,
+        images: currentVariant.images || baseProduct.images,
+        sellingPrice,
+        mrp,
         stock: currentVariant.stock,
-        sku: currentVariant.sku,
-
-        /* EXTRA */
-        tax: product.tax,
-        hsn: product.hsn,
-
         discount,
       },
-
-      variants: normalizedVariants,
+      variants,
     });
 
   } catch (err) {
