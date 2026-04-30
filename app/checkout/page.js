@@ -1,16 +1,13 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { useCart } from "@/context/CartContext";
 import { useRouter } from "next/navigation";
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { cart, setCart, closeCart } = useCart();
+  const { cart, cartTotal, setCart, closeCart } = useCart();
 
-  const [loading, setLoading] = useState(false);
-
-  /* ================= FORM ================= */
   const [form, setForm] = useState({
     name: "",
     phone: "",
@@ -19,138 +16,100 @@ export default function CheckoutPage() {
     pincode: "",
   });
 
-  /* ================= COUPON ================= */
+  const [paymentMethod, setPaymentMethod] = useState("razorpay");
   const [coupon, setCoupon] = useState("");
   const [discount, setDiscount] = useState(0);
+  const [loading, setLoading] = useState(false);
 
-  /* ================= SAFE TOTAL ================= */
-  const subtotal = useMemo(() => {
-    return (cart || []).reduce((sum, item) => {
-      const price = Number(item?.price || 0);
-      const qty = Number(item?.qty || 1);
-      return sum + price * qty;
-    }, 0);
-  }, [cart]);
-
-  const finalAmount = Math.max(subtotal - discount, 0);
-
-  /* ================= INPUT ================= */
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  /* ================= COUPON ================= */
-  const applyCoupon = () => {
-    const code = coupon.trim().toUpperCase();
+  /* ================= APPLY COUPON ================= */
+  const applyCoupon = async () => {
+    if (!coupon) return;
 
-    if (code === "SAVE10") {
-      setDiscount(subtotal * 0.1);
-    } else if (code === "SAVE50") {
-      setDiscount(50);
+    // TEMP LOGIC (replace with API later)
+    if (coupon === "SAVE10") {
+      setDiscount(cartTotal * 0.1);
     } else {
       setDiscount(0);
-      alert("Invalid coupon");
+      alert("Invalid Coupon");
     }
   };
 
-  /* ================= PAYMENT ================= */
-  const handlePayment = async () => {
+  const finalAmount = cartTotal - discount;
+
+  /* ================= PLACE ORDER ================= */
+  const handleOrder = async () => {
     try {
       setLoading(true);
 
-      /* VALIDATION */
-      if (!form.name || !form.phone || !form.address) {
-        alert("Please fill required fields");
-        setLoading(false);
-        return;
-      }
-
-      if (!cart || cart.length === 0) {
-        alert("Cart is empty");
-        setLoading(false);
-        return;
-      }
-
-      /* ================= CREATE ORDER ================= */
       const res = await fetch("/api/orders/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           cart,
-          amount: Number(finalAmount),
+          amount: finalAmount,
           address: form,
           coupon,
           discount,
+          paymentMethod,
         }),
       });
 
       const data = await res.json();
 
-      console.log("ORDER RESPONSE:", data); // 🔥 DEBUG
-
-      /* ================= SAFETY CHECK ================= */
-      if (!data?.success || !data?.order) {
-        alert(data?.message || "Order creation failed");
+      if (!data.success) {
+        alert("Order creation failed");
         setLoading(false);
         return;
       }
 
       const order = data.order;
 
-      if (!order?.id || !order?.amount) {
-        console.error("Invalid Razorpay order:", order);
-        alert("Invalid payment order");
-        setLoading(false);
-        return;
-      }
-
       /* ================= RAZORPAY ================= */
-      const options = {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+      if (paymentMethod === "razorpay") {
+        const options = {
+          key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+          amount: order.amount,
+          currency: "INR",
+          order_id: order.id,
 
-        amount: order.amount,
-        currency: order.currency || "INR",
-        order_id: order.id,
+          handler: async function (response) {
+            await fetch("/api/orders/verify", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(response),
+            });
 
-        name: "Native Store",
-        description: "Order Payment",
-
-        handler: async function (response) {
-          console.log("PAYMENT RESPONSE:", response);
-
-          const verifyRes = await fetch("/api/orders/verify", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(response),
-          });
-
-          const verifyData = await verifyRes.json();
-
-          if (verifyData?.success) {
             setCart([]);
             closeCart();
             router.push("/order-success");
-          } else {
-            router.push("/order-failed");
-          }
-        },
+          },
 
-        prefill: {
-          name: form.name,
-          contact: form.phone,
-        },
+          prefill: {
+            name: form.name,
+            contact: form.phone,
+          },
+        };
 
-        theme: {
-          color: "#c28b45",
-        },
-      };
+        const rzp = new window.Razorpay(options);
+        rzp.open();
+      }
 
-      const rzp = new window.Razorpay(options);
-      rzp.open();
+      /* ================= UPI MANUAL ================= */
+      if (paymentMethod === "upi") {
+        alert("Please pay to UPI: 9000528462@ybl");
+
+        setCart([]);
+        closeCart();
+        router.push("/order-pending");
+      }
 
     } catch (err) {
-      console.error("Checkout error:", err);
-      alert("Payment error occurred");
+      console.error(err);
+      alert("Error placing order");
     }
 
     setLoading(false);
@@ -163,14 +122,35 @@ export default function CheckoutPage() {
       <div className="formBox">
         <h2>Checkout</h2>
 
-        <input name="name" placeholder="Full Name" onChange={handleChange} />
-        <input name="phone" placeholder="Phone Number" onChange={handleChange} />
+        <input name="name" placeholder="Name" onChange={handleChange} />
+        <input name="phone" placeholder="Phone" onChange={handleChange} />
         <input name="address" placeholder="Address" onChange={handleChange} />
         <input name="city" placeholder="City" onChange={handleChange} />
         <input name="pincode" placeholder="Pincode" onChange={handleChange} />
 
+        {/* PAYMENT METHOD */}
+        <h4>Payment Method</h4>
+
+        <label>
+          <input
+            type="radio"
+            checked={paymentMethod === "razorpay"}
+            onChange={() => setPaymentMethod("razorpay")}
+          />
+          Razorpay (Instant)
+        </label>
+
+        <label>
+          <input
+            type="radio"
+            checked={paymentMethod === "upi"}
+            onChange={() => setPaymentMethod("upi")}
+          />
+          UPI (9000528462@ybl)
+        </label>
+
         {/* COUPON */}
-        <div className="couponBox">
+        <div style={{ marginTop: 10 }}>
           <input
             placeholder="Coupon Code"
             value={coupon}
@@ -179,8 +159,8 @@ export default function CheckoutPage() {
           <button onClick={applyCoupon}>Apply</button>
         </div>
 
-        <button onClick={handlePayment} disabled={loading}>
-          {loading ? "Processing..." : "Pay Now"}
+        <button onClick={handleOrder} disabled={loading}>
+          {loading ? "Processing..." : `Pay ₹${finalAmount}`}
         </button>
       </div>
 
@@ -188,8 +168,8 @@ export default function CheckoutPage() {
       <div className="summaryBox">
         <h3>Order Summary</h3>
 
-        {(cart || []).map((item, i) => (
-          <div key={i} className="row">
+        {cart.map((item) => (
+          <div key={item.productId} className="row">
             <span>{item.name} x {item.qty}</span>
             <span>₹{item.price * item.qty}</span>
           </div>
@@ -199,79 +179,19 @@ export default function CheckoutPage() {
 
         <div className="row">
           <span>Subtotal</span>
-          <span>₹{subtotal}</span>
+          <span>₹{cartTotal}</span>
         </div>
 
-        {discount > 0 && (
-          <div className="row">
-            <span>Discount</span>
-            <span>- ₹{discount}</span>
-          </div>
-        )}
+        <div className="row">
+          <span>Discount</span>
+          <span>-₹{discount}</span>
+        </div>
 
-        <div className="total">
+        <div className="row total">
           <strong>Total</strong>
           <strong>₹{finalAmount}</strong>
         </div>
       </div>
-
-      {/* STYLES */}
-      <style jsx>{`
-        .container {
-          display: flex;
-          gap: 30px;
-          padding: 40px;
-          max-width: 1100px;
-          margin: auto;
-        }
-
-        .formBox {
-          flex: 2;
-          display: flex;
-          flex-direction: column;
-          gap: 10px;
-        }
-
-        input {
-          padding: 12px;
-          border: 1px solid #ddd;
-          border-radius: 8px;
-        }
-
-        .couponBox {
-          display: flex;
-          gap: 10px;
-        }
-
-        button {
-          padding: 12px;
-          background: #c28b45;
-          color: white;
-          border: none;
-          border-radius: 10px;
-          cursor: pointer;
-        }
-
-        .summaryBox {
-          flex: 1;
-          background: #fafafa;
-          padding: 20px;
-          border-radius: 10px;
-        }
-
-        .row {
-          display: flex;
-          justify-content: space-between;
-          margin-bottom: 8px;
-        }
-
-        .total {
-          display: flex;
-          justify-content: space-between;
-          margin-top: 10px;
-          font-size: 18px;
-        }
-      `}</style>
     </div>
   );
 }
