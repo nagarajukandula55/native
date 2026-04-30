@@ -1,62 +1,25 @@
 import { NextResponse } from "next/server";
-import dbConnect from "@/lib/db";
-import Order from "@/models/Order";
 
 export async function POST(req) {
   try {
-    await dbConnect();
+    console.log("🔥 HIT API");
 
-    const body = await req.json();
-    console.log("📦 ORDER REQUEST:", body);
-
-    const { cart, amount, address } = body;
-
-    /* ================= VALIDATION ================= */
-    if (!cart || !Array.isArray(cart) || cart.length === 0) {
-      return NextResponse.json(
-        { success: false, message: "Cart is empty" },
-        { status: 400 }
-      );
-    }
-
-    if (!amount || amount <= 0) {
-      return NextResponse.json(
-        { success: false, message: "Invalid amount" },
-        { status: 400 }
-      );
-    }
-
-    /* ================= CREATE ORDER ================= */
-    const orderDoc = await Order.create({
-      orderId: "ORD_" + Date.now(),
-      items: cart,
-      amount,
-      address: address || null,
-
-      status: "CREATED",
-
-      payment: {
-        method: "COD_OR_PENDING",
-        status: "PENDING",
-      },
-    });
-
-    console.log("🟢 ORDER CREATED:", orderDoc._id);
+    const text = await req.text();
+    console.log("📦 RAW BODY:", text);
 
     return NextResponse.json({
       success: true,
-      message: "Order created successfully",
-      orderId: orderDoc._id,
-      order: orderDoc,
+      message: "API is working",
+      received: text,
     });
 
   } catch (err) {
-    console.error("🔥 ORDER CREATE ERROR:", err);
+    console.error("🔥 FATAL ERROR:", err);
 
     return NextResponse.json(
       {
         success: false,
-        message: err.message || "Order creation failed",
+        message: err.message,
       },
       { status: 500 }
     );
