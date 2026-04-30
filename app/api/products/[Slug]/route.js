@@ -4,14 +4,6 @@ import Product from "@/models/Product";
 
 export const dynamic = "force-dynamic";
 
-/* 🔥 NORMALIZE VARIANT VALUE */
-function getNumericValue(value = "") {
-  const num = parseFloat(value);
-  if (value.toUpperCase().includes("KG")) return num * 1000;
-  if (value.toUpperCase().includes("L")) return num * 1000;
-  return num;
-}
-
 export async function GET(req, { params }) {
   try {
     await connectDB();
@@ -26,80 +18,68 @@ export async function GET(req, { params }) {
     }
 
     /* ================= FIND PRODUCT ================= */
-    const baseProduct = await Product.findOne({
+    const product = await Product.findOne({
       slug,
       status: "approved",
       isListed: true,
     }).lean();
 
-    if (!baseProduct) {
+    if (!product) {
       return NextResponse.json(
-        { success: false, message: "Product not found or not listed" },
+        { success: false, message: "Product not found" },
         { status: 404 }
       );
     }
 
-    /* ================= GET ALL VARIANTS ================= */
-    const variantsRaw = await Product.find({
-      productKey: baseProduct.productKey,
-      status: "approved",
-      isListed: true,
-    }).lean();
+    /* ================= BUILD VARIANT FROM SAME DOC ================= */
+    const primary = product.primaryVariant || {};
 
-    /* ================= SORT VARIANTS ================= */
-    const variantsSorted = variantsRaw.sort((a, b) => {
-      return getNumericValue(a.variant || "") - getNumericValue(b.variant || "");
-    });
+    const variant = {
+      _id: product._id,
+      sku: primary.sku,
+      variant: `${primary.value || ""}${primary.unit || ""}`,
+      sellingPrice: primary.sellingPrice || 0,
+      mrp: primary.mrp || 0,
+      stock: primary.stock || 0,
+      images: product.images || [],
+      slug: product.slug, // 🔥 IMPORTANT
+    };
 
-    /* ================= FORMAT VARIANTS ================= */
-    const variants = variantsSorted.map((v) => ({
-      _id: v._id,
-      slug: v.slug,
-      sku: v.primaryVariant?.sku || v.sku,
-      variant: v.variant || `${v.primaryVariant?.value}${v.primaryVariant?.unit}`,
-      sellingPrice: v.primaryVariant?.sellingPrice || v.sellingPrice,
-      mrp: v.primaryVariant?.mrp || v.mrp,
-      stock: v.primaryVariant?.stock || v.stock,
-      images: v.images || [],
-    }));
-
-    /* ================= CURRENT VARIANT ================= */
-    const currentVariant =
-      variants.find((v) => v.slug === slug) || variants[0] || {};
-
-    const mrp = currentVariant?.mrp || 0;
-    const sellingPrice = currentVariant?.sellingPrice || 0;
-
+    /* ================= DISCOUNT ================= */
     const discount =
-      mrp > 0
-        ? Math.round(((mrp - sellingPrice) / mrp) * 100)
+      variant.mrp > 0
+        ? Math.round(
+            ((variant.mrp - variant.sellingPrice) / variant.mrp) * 100
+          )
         : 0;
 
-    /* ================= FINAL RESPONSE ================= */
+    /* ================= RESPONSE ================= */
     return NextResponse.json({
       success: true,
       product: {
-        _id: baseProduct._id,
-        name: baseProduct.name,
-        slug: baseProduct.slug,
-        productKey: baseProduct.productKey,
-        description: baseProduct.description,
-        shortDescription: baseProduct.shortDescription,
-        category: baseProduct.category,
-        images: currentVariant.images || baseProduct.images,
-        sellingPrice,
-        mrp,
-        stock: currentVariant.stock,
+        _id: product._id,
+        name: product.name,
+        slug: product.slug,
+        productKey: product.productKey,
+        description: product.description,
+        shortDescription: product.shortDescription,
+        category: product.category,
+        images: product.images,
+
+        sellingPrice: variant.sellingPrice,
+        mrp: variant.mrp,
+        stock: variant.stock,
         discount,
       },
-      variants,
+
+      variants: [variant], // 🔥 ALWAYS ARRAY
     });
 
   } catch (err) {
     console.error("SLUG API ERROR:", err);
 
     return NextResponse.json(
-      { success: false, message: "Server error" },
+      { success: false, message: err.message },
       { status: 500 }
     );
   }
