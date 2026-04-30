@@ -52,13 +52,6 @@ export default function ProductsPage() {
       }
     }
 
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setAddingId(null);
-    }
-  }
-
   /* ================= LOADING ================= */
   if (loading) {
     return (
