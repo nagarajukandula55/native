@@ -25,60 +25,51 @@ export function CartProvider({ children }) {
     localStorage.setItem("cart", JSON.stringify(cart || []));
   }, [cart]);
 
-  /* ================= ADD TO CART ================= */
+  /* ================= ADD ================= */
   const addToCart = (product) => {
-    if (!product) return;
-
-    const id = product.productKey || product.id;
+    if (!product?._id) return;
 
     setCart((prev) => {
-      const exists = prev.find((p) => p.productKey === id);
+      const exists = prev.find((p) => p._id === product._id);
 
       if (exists) {
         return prev.map((p) =>
-          p.productKey === id
+          p._id === product._id
             ? { ...p, qty: (p.qty || 1) + 1 }
             : p
         );
       }
 
-      return [
-        ...prev,
-        {
-          ...product,
-          productKey: id,
-          qty: 1,
-        },
-      ];
+      return [...prev, { ...product, qty: 1 }];
     });
 
     setDrawerOpen(true);
   };
 
   /* ================= REMOVE ================= */
-  const removeFromCart = (productKey) => {
-    setCart((prev) =>
-      prev.filter((p) => p.productKey !== productKey)
-    );
+  const removeFromCart = (id) => {
+    setCart((prev) => prev.filter((p) => p._id !== id));
   };
 
   /* ================= UPDATE QTY ================= */
-  const updateQty = (productKey, qty) => {
-    if (!productKey) return;
+  const updateQty = (id, qty) => {
+    if (!id) return;
 
     if (qty <= 0) {
-      removeFromCart(productKey);
+      removeFromCart(id);
       return;
     }
 
     setCart((prev) =>
       prev.map((p) =>
-        p.productKey === productKey
-          ? { ...p, qty }
-          : p
+        p._id === id ? { ...p, qty } : p
       )
     );
   };
+
+  /* ================= CLOSE DRAWER SAFETY ================= */
+  const closeCart = () => setDrawerOpen(false);
+  const openCart = () => setDrawerOpen(true);
 
   /* ================= TOTAL ================= */
   const cartTotal = (cart || []).reduce(
@@ -103,6 +94,8 @@ export function CartProvider({ children }) {
         cartCount,
         drawerOpen,
         setDrawerOpen,
+        openCart,
+        closeCart,
       }}
     >
       {children}
