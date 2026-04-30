@@ -42,7 +42,7 @@ export default function CheckoutPage() {
 
   /* ================= PINCODE AUTO FETCH ================= */
   useEffect(() => {
-    if (form.pincode?.length !== 6) return;
+    if (!form.pincode || form.pincode.length !== 6) return;
 
     const fetchLocation = async () => {
       try {
@@ -61,7 +61,7 @@ export default function CheckoutPage() {
           }));
         }
       } catch (err) {
-        console.error("PIN error", err);
+        console.error("PIN fetch error", err);
       }
     };
 
@@ -74,30 +74,44 @@ export default function CheckoutPage() {
 
   /* ================= COUPON ================= */
   const applyCoupon = async () => {
-    const res = await fetch("/api/coupons/validate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code: coupon, cartTotal }),
-    });
+    try {
+      const res = await fetch("/api/coupons/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: coupon, cartTotal }),
+      });
 
-    const data = await res.json();
+      const data = await res.json();
 
-    if (!data.success) {
+      if (!data.success) {
+        setDiscount(0);
+        alert(data.message || "Invalid coupon");
+        return;
+      }
+
+      setDiscount(data.discount);
+    } catch (err) {
+      console.error(err);
       setDiscount(0);
-      alert(data.message);
-      return;
     }
-
-    setDiscount(data.discount);
   };
 
-  /* ================= TAX ENRICHMENT (FIXED HSN + GST) ================= */
+  /* ================= TAX ENRICHMENT (FIXED DB MAPPING) ================= */
   const taxItems = cart.map((item) => {
     const base = item.price * item.qty;
 
-    // ✅ FIXED: direct DB fallback safe chain
-    const hsn = item.hsn || item.product?.hsn || "NOT_SET";
-    const gstPercent = item.tax || item.gstPercent || item.product?.tax || 0;
+    // ✅ FIXED: correct DB mapping (NO 0000 / NOT_SET unless truly missing)
+    const product = item.product || {};
+
+    const hsn =
+      product.hsn ||
+      item.hsn ||
+      "NOT_SET";
+
+    const gstPercent =
+      product.tax ??
+      item.gstPercent ??
+      0;
 
     const tax = getGST(base, gstPercent);
 
@@ -121,7 +135,9 @@ export default function CheckoutPage() {
   const finalAmount = totalBeforeDiscount - discount;
 
   const isB2B = !!form.gstNumber;
-  const isInterState = form.state && form.state !== SELLER_STATE;
+  const isInterState =
+    form.state &&
+    form.state !== SELLER_STATE;
 
   const upiLink = `upi://pay?pa=${UPI_ID}&pn=${UPI_NAME}&am=${finalAmount.toFixed(
     2
@@ -129,9 +145,9 @@ export default function CheckoutPage() {
 
   /* ================= ORDER ================= */
   const handleOrder = async () => {
-    setLoading(true);
-
     try {
+      setLoading(true);
+
       const res = await fetch("/api/orders/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -211,11 +227,11 @@ export default function CheckoutPage() {
 
         <input
           name="gstNumber"
-          placeholder="GST Number (optional)"
+          placeholder="GST Number (optional for B2B)"
           onChange={handleChange}
         />
 
-        <h4>Payment</h4>
+        <h4>Payment Method</h4>
 
         <label>
           <input
@@ -257,7 +273,7 @@ export default function CheckoutPage() {
           <div key={i}>
             <div className="row">
               <span>{item.name} x {item.qty}</span>
-              <span>₹{item.base}</span>
+              <span>₹{item.base.toFixed(2)}</span>
             </div>
 
             <small>
@@ -268,17 +284,17 @@ export default function CheckoutPage() {
 
         <hr />
 
-        <div className="row"><span>Subtotal</span><span>₹{subtotal}</span></div>
-        <div className="row"><span>CGST</span><span>₹{cgstTotal}</span></div>
-        <div className="row"><span>SGST</span><span>₹{sgstTotal}</span></div>
+        <div className="row"><span>Subtotal</span><span>₹{subtotal.toFixed(2)}</span></div>
+        <div className="row"><span>CGST</span><span>₹{cgstTotal.toFixed(2)}</span></div>
+        <div className="row"><span>SGST</span><span>₹{sgstTotal.toFixed(2)}</span></div>
 
         {isInterState && (
-          <div className="row"><span>IGST</span><span>₹{igstTotal}</span></div>
+          <div className="row"><span>IGST</span><span>₹{igstTotal.toFixed(2)}</span></div>
         )}
 
         <div className="row total">
           <b>Total</b>
-          <b>₹{finalAmount}</b>
+          <b>₹{finalAmount.toFixed(2)}</b>
         </div>
 
         {paymentMethod === "upi" && (
