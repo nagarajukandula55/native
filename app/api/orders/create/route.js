@@ -8,52 +8,46 @@ export async function POST(req) {
     await dbConnect();
 
     const body = await req.json();
+    console.log("🔥 ORDER PAYLOAD:", body);
 
     const { cart, amount, address } = body;
 
-    /* ================= VALIDATION ================= */
-    if (!cart || !Array.isArray(cart) || cart.length === 0) {
-      return NextResponse.json(
-        { success: false, message: "Cart is empty" },
-        { status: 400 }
-      );
+    if (!cart?.length) {
+      return NextResponse.json({ success: false, message: "Cart empty" }, { status: 400 });
     }
 
-    if (!amount || amount <= 0) {
-      return NextResponse.json(
-        { success: false, message: "Invalid amount" },
-        { status: 400 }
-      );
+    if (!amount) {
+      return NextResponse.json({ success: false, message: "Amount missing" }, { status: 400 });
     }
 
-    /* ================= CREATE ORDER (DB) ================= */
+    console.log("🔑 ENV CHECK:", {
+      key: process.env.RAZORPAY_KEY_ID,
+      secret: process.env.RAZORPAY_KEY_SECRET ? "OK" : "MISSING",
+    });
+
+    const razorpay = new Razorpay({
+      key_id: process.env.RAZORPAY_KEY_ID,
+      key_secret: process.env.RAZORPAY_KEY_SECRET,
+    });
+
     const orderDoc = await Order.create({
       orderId: "ORD_" + Date.now(),
       items: cart,
       amount,
       address,
       status: "PENDING_PAYMENT",
-
       payment: {
         razorpay_order_id: "",
         payment_status: "pending",
       },
     });
 
-    /* ================= RAZORPAY INIT ================= */
-    const razorpay = new Razorpay({
-      key_id: process.env.RAZORPAY_KEY_ID,
-      key_secret: process.env.RAZORPAY_KEY_SECRET,
-    });
-
-    /* ================= CREATE RAZORPAY ORDER ================= */
     const razorpayOrder = await razorpay.orders.create({
       amount: Math.round(amount * 100),
       currency: "INR",
       receipt: orderDoc.orderId,
     });
 
-    /* ================= SAFE UPDATE ================= */
     orderDoc.payment = {
       razorpay_order_id: razorpayOrder.id,
       payment_status: "created",
@@ -61,25 +55,21 @@ export async function POST(req) {
 
     await orderDoc.save();
 
-    /* ================= RESPONSE ================= */
     return NextResponse.json({
       success: true,
-      message: "Order created successfully",
       order: razorpayOrder,
       dbOrderId: orderDoc._id,
     });
 
   } catch (err) {
-    console.error("ORDER CREATE ERROR:", err);
+    console.error("🔥 FULL ORDER ERROR:", err);
 
     return NextResponse.json(
       {
         success: false,
-        message: err.message || "Order creation failed",
-        stack: err.stack,
+        message: err.message,
       },
       { status: 500 }
     );
-
   }
 }
