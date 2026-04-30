@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import dbConnect from "@/lib/db";
 import Order from "@/models/Order";
 import { NextResponse } from "next/server";
@@ -6,7 +8,6 @@ export async function GET(request) {
   try {
     await dbConnect();
 
-    // ✅ PROPER WAY IN APP ROUTER
     const { searchParams } = new URL(request.url);
     const orderId = searchParams.get("orderId");
 
@@ -34,7 +35,7 @@ export async function GET(request) {
     });
 
   } catch (err) {
-    console.error("TRACK ERROR:", err);
+    console.error("TRACK API ERROR:", err);
 
     return NextResponse.json({
       success: false,
