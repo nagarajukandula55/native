@@ -40,19 +40,6 @@ export async function POST(req) {
       },
     });
 
-      } catch (err) {
-      console.error("🔥 ORDER CREATE FAILED:", err);
-    
-      return NextResponse.json(
-        {
-          success: false,
-          message: err.message,
-          stack: err.stack,
-        },
-        { status: 500 }
-      );
-    }
-
     /* ================= RAZORPAY INIT ================= */
     const razorpay = new Razorpay({
       key_id: process.env.RAZORPAY_KEY_ID,
@@ -89,8 +76,10 @@ export async function POST(req) {
       {
         success: false,
         message: err.message || "Order creation failed",
+        stack: err.stack,
       },
       { status: 500 }
     );
+
   }
 }
