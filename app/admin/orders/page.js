@@ -89,48 +89,95 @@ export default function AdminOrdersPage() {
   };
 
   /* ================= ACTION BUTTONS ================= */
-  const ActionButtons = ({ o }) => {
-    return (
-      <span style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+const ActionButtons = ({ o }) => {
 
-        {/* MARK PAID (manual COD / pending UPI) */}
-        {o.status !== "PAID" && (
-          <button onClick={() => updateStatus(o._id, "PAID")}>
-            Mark Paid
-          </button>
-        )}
+  const btn = (bg) => ({
+    padding: "6px 10px",
+    border: "none",
+    borderRadius: 8,
+    cursor: "pointer",
+    fontSize: 12,
+    fontWeight: 600,
+    background: bg,
+    color: "#fff",
+  });
 
-        {/* PROCESS */}
-        {o.status === "PAID" && (
-          <button onClick={() => updateStatus(o._id, "PROCESSING")}>
-            Process
-          </button>
-        )}
+  return (
+    <span style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
 
-        {/* ASSIGN TO WAREHOUSE */}
-        {o.status === "PROCESSING" && (
-          <button onClick={() => updateStatus(o._id, "ASSIGNED_TO_WH")}>
-            Assign WH
-          </button>
-        )}
+      {/* ONLY NEXT VALID ACTION */}
 
-        {/* SHIP */}
-        {o.status === "ASSIGNED_TO_WH" && (
-          <button onClick={() => updateStatus(o._id, "SHIPPED")}>
-            Ship
-          </button>
-        )}
+      {o.status === "PENDING" && (
+        <button
+          style={btn("#16a34a")}
+          onClick={() => updateStatus(o._id, "PAID")}
+        >
+          Mark Paid
+        </button>
+      )}
 
-        {/* DELIVER */}
-        {o.status === "SHIPPED" && (
-          <button onClick={() => updateStatus(o._id, "DELIVERED")}>
-            Deliver
-          </button>
-        )}
+      {o.status === "PAID" && (
+        <button
+          style={btn("#2563eb")}
+          onClick={() => updateStatus(o._id, "PROCESSING")}
+        >
+          Start Processing
+        </button>
+      )}
 
-      </span>
-    );
-  };
+      {o.status === "PROCESSING" && (
+        <button
+          style={btn("#7c3aed")}
+          onClick={() => updateStatus(o._id, "ASSIGNED_TO_WH")}
+        >
+          Assign WH
+        </button>
+      )}
+
+      {o.status === "ASSIGNED_TO_WH" && (
+        <button
+          style={btn("#f97316")}
+          onClick={() => updateStatus(o._id, "SHIPPED")}
+        >
+          Ship Order
+        </button>
+      )}
+
+      {o.status === "SHIPPED" && (
+        <button
+          style={btn("#111")}
+          onClick={() => updateStatus(o._id, "DELIVERED")}
+        >
+          Mark Delivered
+        </button>
+      )}
+
+      {/* FINAL STATE */}
+      {o.status === "DELIVERED" && (
+        <span style={{
+          padding: "4px 10px",
+          borderRadius: 20,
+          fontSize: 12,
+          fontWeight: 600,
+          background:
+            o.status === "DELIVERED"
+              ? "#dcfce7"
+              : o.status === "SHIPPED"
+              ? "#dbeafe"
+              : o.status === "PROCESSING"
+              ? "#ede9fe"
+              : o.status === "PAID"
+              ? "#fef3c7"
+              : "#fee2e2",
+          color: "#111",
+        }}>
+          Completed ✔
+        </span>
+      )}
+
+    </span>
+  );
+};
 
   return (
     <div style={container}>
