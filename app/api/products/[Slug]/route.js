@@ -18,7 +18,12 @@ export async function GET(req, { params }) {
     }
 
     /* ================= FETCH PRODUCT ================= */
-    const product = await Product.findOne({ slug }).lean();
+    const product = await Product.findOne({
+      slug,
+      status: "approved",
+      isActive: true,
+      isListed: true,
+    }).lean();
 
     if (!product) {
       return NextResponse.json(
@@ -27,53 +32,89 @@ export async function GET(req, { params }) {
       );
     }
 
-    /* ================= VARIANTS LOGIC ================= */
-    const variants = product.variants || [];
+    /* ================= VARIANTS ================= */
+    let variants = product.variants || [];
 
     const primary = product.primaryVariant || null;
 
-    /* fallback if no variants array exists */
-    const finalVariants =
-      variants.length > 0
-        ? variants
-        : primary
-        ? [primary]
-        : [];
+    // fallback if variants not stored as array
+    if (!variants.length && primary) {
+      variants = [primary];
+    }
 
-    /* ================= DEFAULT VARIANT ================= */
-    const currentVariant = finalVariants[0] || primary || {};
+    /* ================= NORMALIZE VARIANTS ================= */
+    const normalizedVariants = variants.map((v, index) => ({
+      _id: v._id || index,
+      sku: v.sku || "",
+      sellingPrice: v.sellingPrice || 0,
+      mrp: v.mrp || 0,
+      stock: v.stock ?? 0,
+      images: v.images || product.images || [],
+      variant: v.variant || `${v.value || ""} ${v.unit || ""}`,
+      slug: v.slug || product.slug,
+    }));
 
-    /* ================= DISCOUNT ================= */
+    /* ================= CURRENT VARIANT ================= */
+    const currentVariant = normalizedVariants[0] || {};
+
+    /* ================= PRICING ================= */
+    const price = currentVariant.sellingPrice || 0;
+    const mrp = currentVariant.mrp || 0;
+
     const discount =
-      currentVariant?.mrp && currentVariant?.sellingPrice
-        ? Math.round(
-            ((currentVariant.mrp - currentVariant.sellingPrice) /
-              currentVariant.mrp) *
-              100
-          )
+      mrp > 0
+        ? Math.round(((mrp - price) / mrp) * 100)
         : 0;
 
-    /* ================= RESPONSE ================= */
+    /* ================= FINAL RESPONSE ================= */
     return NextResponse.json({
       success: true,
 
       product: {
-        ...product,
+        _id: product._id,
+        name: product.name,
+        slug: product.slug,
+        productKey: product.productKey,
 
-        // normalize main display fields
-        sellingPrice: currentVariant?.sellingPrice,
-        mrp: currentVariant?.mrp,
-        stock: currentVariant?.stock,
-        sku: currentVariant?.sku,
+        category: product.category,
+        subcategory: product.subcategory,
+        brand: product.brand,
+
+        description:
+          product.description ||
+          product.shortDescription ||
+          "",
+
+        shortDescription: product.shortDescription || "",
+
+        ingredients: product.ingredients || [],
+
+        images:
+          currentVariant.images?.length > 0
+            ? currentVariant.images
+            : product.images || [],
+
+        /* PRIMARY DISPLAY VALUES */
+        sellingPrice: price,
+        mrp: mrp,
+        stock: currentVariant.stock,
+        sku: currentVariant.sku,
+
+        /* EXTRA */
+        tax: product.tax,
+        hsn: product.hsn,
 
         discount,
       },
 
-      variants: finalVariants,
+      variants: normalizedVariants,
     });
+
   } catch (err) {
+    console.error("SLUG API ERROR:", err);
+
     return NextResponse.json(
-      { success: false, message: err.message },
+      { success: false, message: "Server error" },
       { status: 500 }
     );
   }
