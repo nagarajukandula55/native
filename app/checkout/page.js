@@ -34,16 +34,14 @@ export default function CheckoutPage() {
       setDiscount(cartTotal * 0.1);
     } else {
       setDiscount(0);
-      alert("Invalid coupon");
+      alert("Invalid Coupon");
     }
   };
 
   const finalAmount = cartTotal - discount;
 
-  /* ================= UPI LINK GENERATOR ================= */
-  const getUpiLink = () => {
-    return `upi://pay?pa=${UPI_ID}&pn=${UPI_NAME}&am=${finalAmount}&cu=INR`;
-  };
+  /* ================= UPI LINK ================= */
+  const upiLink = `upi://pay?pa=${UPI_ID}&pn=${UPI_NAME}&am=${finalAmount}&cu=INR`;
 
   /* ================= PLACE ORDER ================= */
   const handleOrder = async () => {
@@ -83,7 +81,7 @@ export default function CheckoutPage() {
           currency: "INR",
           order_id: data.razorpayOrderId,
 
-          handler: async function () {
+          handler: () => {
             setCart([]);
             closeCart();
             router.push(`/order-success?orderId=${orderId}`);
@@ -94,11 +92,9 @@ export default function CheckoutPage() {
         rzp.open();
       }
 
-      /* ================= UPI FLOW ================= */
+      /* ================= UPI ================= */
       if (paymentMethod === "upi") {
-        // open UPI apps directly
-        window.location.href = getUpiLink();
-
+        window.location.href = upiLink;
         router.push(`/order-pending?orderId=${orderId}`);
       }
 
@@ -113,11 +109,11 @@ export default function CheckoutPage() {
   return (
     <div className="checkout">
 
-      {/* LEFT */}
+      {/* LEFT - FORM */}
       <div className="box">
         <h2>Checkout</h2>
 
-        <input name="name" placeholder="Full Name" onChange={handleChange} />
+        <input name="name" placeholder="Name" onChange={handleChange} />
         <input name="phone" placeholder="Phone" onChange={handleChange} />
         <input name="address" placeholder="Address" onChange={handleChange} />
         <input name="city" placeholder="City" onChange={handleChange} />
@@ -146,7 +142,7 @@ export default function CheckoutPage() {
         {/* COUPON */}
         <div className="coupon">
           <input
-            placeholder="Coupon code"
+            placeholder="Coupon Code"
             value={coupon}
             onChange={(e) => setCoupon(e.target.value)}
           />
@@ -158,12 +154,12 @@ export default function CheckoutPage() {
         </button>
       </div>
 
-      {/* RIGHT */}
+      {/* RIGHT - SUMMARY */}
       <div className="box">
         <h3>Order Summary</h3>
 
         {cart.map((item) => (
-          <div key={item.id} className="row">
+          <div key={item.id || item.productKey} className="row">
             <span>{item.name} x {item.qty}</span>
             <span>₹{item.price * item.qty}</span>
           </div>
@@ -186,32 +182,27 @@ export default function CheckoutPage() {
           <b>₹{finalAmount}</b>
         </div>
 
-        {/* ================= UPI SECTION ================= */}
+        {/* UPI SECTION */}
         {paymentMethod === "upi" && (
           <div className="upiBox">
 
             <h4>Pay via UPI</h4>
-
             <p>{UPI_ID}</p>
 
-            {/* QR CODE */}
-            <QRCode value={getUpiLink()} size={160} />
+            <QRCode value={upiLink} size={140} />
 
-            {/* BUTTONS */}
-            <a href={getUpiLink()} className="upiBtn">
-              Pay with UPI App
-            </a>
+            <a href={upiLink} className="btn">Open UPI App</a>
 
             <a
               href={`gpay://upi/pay?pa=${UPI_ID}&pn=${UPI_NAME}&am=${finalAmount}&cu=INR`}
-              className="upiBtn alt"
+              className="btn alt"
             >
               Open Google Pay
             </a>
 
             <a
               href={`phonepe://pay?pa=${UPI_ID}&pn=${UPI_NAME}&am=${finalAmount}&cu=INR`}
-              className="upiBtn alt"
+              className="btn alt"
             >
               Open PhonePe
             </a>
@@ -220,12 +211,12 @@ export default function CheckoutPage() {
         )}
       </div>
 
-      {/* ================= STYLE ================= */}
+      {/* STYLE */}
       <style jsx>{`
         .checkout {
           display: grid;
           grid-template-columns: 1fr 1fr;
-          gap: 20px;
+          gap: 25px;
           max-width: 1100px;
           margin: auto;
           padding: 20px;
@@ -271,7 +262,6 @@ export default function CheckoutPage() {
 
         .total {
           font-size: 18px;
-          margin-top: 10px;
         }
 
         .upiBox {
@@ -279,7 +269,7 @@ export default function CheckoutPage() {
           text-align: center;
         }
 
-        .upiBtn {
+        .btn {
           display: block;
           margin-top: 10px;
           padding: 10px;
@@ -289,10 +279,11 @@ export default function CheckoutPage() {
           text-decoration: none;
         }
 
-        .upiBtn.alt {
+        .btn.alt {
           background: #111;
         }
       `}</style>
+
     </div>
   );
 }
