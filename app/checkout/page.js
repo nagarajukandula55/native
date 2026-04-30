@@ -1,21 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useCart } from "@/context/CartContext";
 import { useRouter } from "next/navigation";
 import QRCode from "react-qr-code";
 
 const UPI_ID = "9000528462@ybl";
 const UPI_NAME = "Native";
+const SELLER_STATE = "Andhra Pradesh";
 
-/* ================= TAX HELPER ================= */
-const getTaxSplit = (base, gstPercent = 0) => {
-  const gstTotal = (base * gstPercent) / 100;
+/* ================= GST SPLIT ================= */
+const getGST = (base, gstPercent = 0) => {
+  const gst = (base * gstPercent) / 100;
 
   return {
-    cgst: gstTotal / 2,
-    sgst: gstTotal / 2,
-    gstTotal,
+    cgst: gst / 2,
+    sgst: gst / 2,
+    gstTotal: gst,
   };
 };
 
@@ -28,8 +29,8 @@ export default function CheckoutPage() {
     phone: "",
     address: "",
     city: "",
-    state: "",
     pincode: "",
+    state: "",
   });
 
   const [paymentMethod, setPaymentMethod] = useState("razorpay");
@@ -37,33 +38,40 @@ export default function CheckoutPage() {
   const [discount, setDiscount] = useState(0);
   const [loading, setLoading] = useState(false);
 
+  /* ================= PINCODE AUTO FETCH ================= */
+  useEffect(() => {
+    const pin = form.pincode;
+
+    if (!pin || pin.length !== 6) return;
+
+    const fetchLocation = async () => {
+      try {
+        const res = await fetch(
+          `https://api.postalpincode.in/pincode/${pin}`
+        );
+
+        const data = await res.json();
+
+        if (data?.[0]?.Status === "Success") {
+          const postOffice = data[0].PostOffice?.[0];
+
+          setForm((prev) => ({
+            ...prev,
+            city: postOffice?.District || "",
+            state: postOffice?.State || "",
+          }));
+        }
+      } catch (err) {
+        console.error("Pincode fetch error", err);
+      }
+    };
+
+    const timer = setTimeout(fetchLocation, 500); // debounce
+    return () => clearTimeout(timer);
+  }, [form.pincode]);
+
   const handleChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
-
-  /* ================= PINCODE AUTO FETCH ================= */
-  const fetchPincodeDetails = async (pincode) => {
-    if (pincode.length !== 6) return;
-
-    try {
-      const res = await fetch(
-        `https://api.postalpincode.in/pincode/${pincode}`
-      );
-
-      const data = await res.json();
-
-      if (data?.[0]?.Status === "Success") {
-        const postOffice = data[0].PostOffice[0];
-
-        setForm((prev) => ({
-          ...prev,
-          city: postOffice.District || "",
-          state: postOffice.State || "",
-        }));
-      }
-    } catch (err) {
-      console.error("Pincode fetch error:", err);
-    }
-  };
 
   /* ================= COUPON ================= */
   const applyCoupon = async () => {
@@ -101,7 +109,7 @@ export default function CheckoutPage() {
     const gstPercent = item.gstPercent || 0;
     const hsn = item.hsn || "0000";
 
-    const tax = getTaxSplit(base, gstPercent);
+    const tax = getGST(base, gstPercent);
 
     return {
       ...item,
@@ -113,7 +121,6 @@ export default function CheckoutPage() {
   });
 
   const subtotal = cartTotal;
-
   const gstTotal = taxItems.reduce((a, b) => a + b.gstTotal, 0);
   const cgstTotal = taxItems.reduce((a, b) => a + b.cgst, 0);
   const sgstTotal = taxItems.reduce((a, b) => a + b.sgst, 0);
@@ -121,7 +128,6 @@ export default function CheckoutPage() {
   const totalBeforeDiscount = subtotal + gstTotal;
   const finalAmount = totalBeforeDiscount - discount;
 
-  /* ================= UPI ================= */
   const upiLink = `upi://pay?pa=${UPI_ID}&pn=${UPI_NAME}&am=${finalAmount.toFixed(
     2
   )}&cu=INR`;
@@ -160,7 +166,6 @@ export default function CheckoutPage() {
       }
 
       const orderId = data.orderId;
-
       sessionStorage.setItem("lastOrderId", orderId);
 
       if (paymentMethod === "razorpay") {
@@ -202,34 +207,11 @@ export default function CheckoutPage() {
         <input name="name" placeholder="Name" onChange={handleChange} />
         <input name="phone" placeholder="Phone" onChange={handleChange} />
         <input name="address" placeholder="Address" onChange={handleChange} />
+        <input name="pincode" placeholder="Pincode" onChange={handleChange} />
 
-        {/* PINCODE AUTO FETCH */}
-        <input
-          name="pincode"
-          placeholder="Pincode"
-          value={form.pincode}
-          onChange={(e) => {
-            const value = e.target.value;
-
-            setForm({ ...form, pincode: value });
-
-            fetchPincodeDetails(value);
-          }}
-        />
-
-        <input
-          name="city"
-          placeholder="City"
-          value={form.city}
-          onChange={handleChange}
-        />
-
-        <input
-          name="state"
-          placeholder="State"
-          value={form.state}
-          onChange={handleChange}
-        />
+        {/* AUTO FILLED */}
+        <input name="city" value={form.city} disabled placeholder="City Auto" />
+        <input name="state" value={form.state} disabled placeholder="State Auto" />
 
         <h4>Payment Method</h4>
 
@@ -261,8 +243,8 @@ export default function CheckoutPage() {
           <button onClick={applyCoupon}>Apply</button>
         </div>
 
-        <button onClick={handleOrder} disabled={loading}>
-          {loading ? "Processing..." : `Pay ₹${finalAmount.toFixed(2)}`}
+        <button onClick={handleOrder}>
+          Pay ₹{finalAmount.toFixed(2)}
         </button>
       </div>
 
@@ -276,6 +258,7 @@ export default function CheckoutPage() {
               <span>{item.name} x {item.qty}</span>
               <span>₹{item.base.toFixed(2)}</span>
             </div>
+            <small>HSN: {item.hsn} | GST: {item.gstPercent}%</small>
           </div>
         ))}
 
@@ -286,6 +269,7 @@ export default function CheckoutPage() {
         <div className="row"><span>SGST</span><span>₹{sgstTotal.toFixed(2)}</span></div>
 
         <div className="row"><span>Total</span><span>₹{totalBeforeDiscount.toFixed(2)}</span></div>
+
         <div className="row"><span>Discount</span><span>-₹{discount.toFixed(2)}</span></div>
 
         <div className="row total">
@@ -295,11 +279,61 @@ export default function CheckoutPage() {
 
         {paymentMethod === "upi" && (
           <div className="upiBox">
-            <h4>Pay via UPI</h4>
             <QRCode value={upiLink} size={140} />
+            <a href={upiLink} className="btn">Open UPI App</a>
           </div>
         )}
       </div>
+
+      <style jsx>{`
+        .checkout {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 20px;
+        }
+
+        .box {
+          padding: 20px;
+          border: 1px solid #eee;
+          border-radius: 10px;
+        }
+
+        input {
+          width: 100%;
+          padding: 10px;
+          margin: 5px 0;
+        }
+
+        .row {
+          display: flex;
+          justify-content: space-between;
+        }
+
+        .coupon {
+          display: flex;
+          gap: 10px;
+        }
+
+        button {
+          width: 100%;
+          padding: 10px;
+          background: black;
+          color: white;
+        }
+
+        .btn {
+          display: block;
+          margin-top: 10px;
+          background: green;
+          color: white;
+          padding: 10px;
+          text-align: center;
+        }
+
+        .total {
+          font-size: 18px;
+        }
+      `}</style>
     </div>
   );
 }
