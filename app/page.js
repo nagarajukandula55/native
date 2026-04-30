@@ -2,11 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useCart } from "@/context/CartContext";
-import { useRouter } from "next/navigation";
 
 export default function Home() {
   const { addToCart } = useCart();
-  const router = useRouter();
 
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -23,12 +21,7 @@ export default function Home() {
 
         const list = data?.products || [];
 
-        // ✅ IMPORTANT FILTER
-        const filtered = list.filter(
-          (p) => p.status === "approved" && p.isListed === true
-        );
-
-        setProducts(filtered);
+        setProducts(list);
       } catch (err) {
         console.error("Product fetch error:", err);
         setProducts([]);
@@ -43,20 +36,13 @@ export default function Home() {
   return (
     <div className="home">
 
-      {/* ================= HERO ================= */}
+      {/* HERO */}
       <section className="hero">
         <div className="overlay" />
-
-        <div className="scrollText">
-          <div>We are adding new products to our catalogue ✨</div>
-        </div>
 
         <div className="heroContent">
           <h1>Welcome to Native</h1>
           <p className="tagline">Eat Healthy, Stay Healthy</p>
-          <p className="desc">
-            Authentic natural food products refined directly from the source.
-          </p>
 
           <button
             onClick={() =>
@@ -70,40 +56,19 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ================= CATEGORIES ================= */}
-      <section className="section">
-        <h2>Our Categories</h2>
-
-        <div className="grid">
-          {["Batter Mix", "Cold Pressed Oils", "Traditional Foods", "Natural Products"].map(
-            (cat) => (
-              <div key={cat} className="card">
-                {cat}
-              </div>
-            )
-          )}
-        </div>
-      </section>
-
-      {/* ================= PRODUCTS ================= */}
+      {/* PRODUCTS */}
       <section id="products" className="section">
         <h2>Featured Products</h2>
 
         {loading ? (
-          <p className="center">Loading products...</p>
+          <p>Loading...</p>
         ) : products.length === 0 ? (
-          <p className="center">No products found</p>
+          <p>No products found</p>
         ) : (
-          <div className="productGrid">
+          <div className="grid">
             {products.map((p) => {
-              const price =
-                p.primaryVariant?.sellingPrice || p.sellingPrice || 0;
-
-              const mrp =
-                p.primaryVariant?.mrp || p.mrp || 0;
-
-              const image =
-                p.images?.[0] || "/placeholder.png";
+              const price = p.displayPrice || p.minPrice || 0;
+              const mrp = p.mrp || 0;
 
               const discount =
                 mrp > 0
@@ -111,46 +76,49 @@ export default function Home() {
                   : 0;
 
               return (
-                <div
-                  key={p._id}
-                  className="productCard"
-                  onClick={() => router.push(`/products/${p.slug}`)}
-                >
-                  <img src={image} alt={p.name} />
+                <div key={p._id} className="card">
 
-                  <div className="productBody">
-                    <h3>{p.name}</h3>
+                  {/* IMAGE */}
+                  <img
+                    src={p.images?.[0] || "/placeholder.png"}
+                    alt={p.name}
+                  />
 
-                    <div className="priceRow">
-                      <span className="price">₹{price}</span>
+                  {/* NAME */}
+                  <h3>{p.name}</h3>
 
-                      {mrp > price && (
+                  {/* DESCRIPTION */}
+                  <p className="desc">
+                    {p.shortDescription ||
+                      p.description ||
+                      "No description available"}
+                  </p>
+
+                  {/* PRICE */}
+                  <div className="priceBox">
+                    <span className="price">₹{price}</span>
+
+                    {mrp > price && (
+                      <>
                         <span className="mrp">₹{mrp}</span>
-                      )}
-                    </div>
-
-                    {discount > 0 && (
-                      <span className="badge">
-                        {discount}% OFF
-                      </span>
+                        <span className="off">{discount}% OFF</span>
+                      </>
                     )}
-
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        addToCart({
-                          productId: p._id,
-                          productKey: p.productKey,
-                          name: p.name,
-                          price,
-                          image,
-                          qty: 1,
-                        });
-                      }}
-                    >
-                      Add to Cart
-                    </button>
                   </div>
+
+                  {/* ADD TO CART */}
+                  <button
+                    onClick={() =>
+                      addToCart({
+                        id: p._id,
+                        name: p.name,
+                        price,
+                        image: p.images?.[0],
+                      })
+                    }
+                  >
+                    Add to Cart
+                  </button>
                 </div>
               );
             })}
@@ -158,138 +126,47 @@ export default function Home() {
         )}
       </section>
 
-      {/* ================= WHY US ================= */}
-      <section className="why">
-        <h2>Why Choose Native</h2>
-
-        <div className="grid">
-          {[
-            ["🌿", "100% Natural"],
-            ["🚜", "Direct From Farmers"],
-            ["🧂", "Traditional Methods"],
-            ["❤️", "Healthy Lifestyle"],
-          ].map(([icon, text]) => (
-            <div key={text} className="card">
-              <div className="icon">{icon}</div>
-              <strong>{text}</strong>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ================= STYLES ================= */}
+      {/* STYLES */}
       <style jsx>{`
-        .home { font-family: system-ui; }
-
-        .hero {
-          position: relative;
-          min-height: 85vh;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          text-align: center;
-          background: url('/hero.png') center/cover;
-          color: white;
-        }
-
-        .overlay {
-          position: absolute;
-          inset: 0;
-          background: rgba(0,0,0,0.4);
-        }
-
-        .heroContent {
-          position: relative;
-          z-index: 2;
-          max-width: 800px;
-        }
-
-        h1 { font-size: 64px; margin: 0; }
-        .tagline { font-size: 22px; }
-        .desc { margin: 20px 0; }
-
-        button {
-          padding: 12px 30px;
-          background: #c28b45;
-          border: none;
-          color: white;
-          border-radius: 30px;
-          cursor: pointer;
-        }
-
-        .scrollText {
-          position: absolute;
-          top: 20px;
-          width: 100%;
-          overflow: hidden;
-          white-space: nowrap;
-        }
-
-        .scrollText div {
-          display: inline-block;
-          padding-left: 100%;
-          animation: scroll 12s linear infinite;
-        }
-
-        @keyframes scroll {
-          from { transform: translateX(0); }
-          to { transform: translateX(-100%); }
-        }
-
         .section {
-          padding: 70px 20px;
+          padding: 50px 20px;
           max-width: 1200px;
           margin: auto;
-          text-align: center;
         }
 
         .grid {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+          grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
           gap: 20px;
         }
 
         .card {
           background: white;
-          padding: 25px;
-          border-radius: 12px;
-          box-shadow: 0 5px 15px rgba(0,0,0,0.05);
-        }
-
-        .productGrid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-          gap: 25px;
-        }
-
-        .productCard {
-          background: white;
-          border-radius: 12px;
-          overflow: hidden;
-          box-shadow: 0 5px 15px rgba(0,0,0,0.05);
-          cursor: pointer;
-          transition: 0.2s;
-          position: relative;
-        }
-
-        .productCard:hover {
-          transform: translateY(-5px);
-        }
-
-        .productCard img {
-          width: 100%;
-          height: 220px;
-          object-fit: cover;
-        }
-
-        .productBody {
           padding: 15px;
+          border-radius: 10px;
+          box-shadow: 0 5px 15px rgba(0,0,0,0.05);
         }
 
-        .priceRow {
-          display: flex;
-          align-items: center;
-          gap: 10px;
+        img {
+          width: 100%;
+          height: 180px;
+          object-fit: cover;
+          border-radius: 8px;
+        }
+
+        h3 {
+          margin: 10px 0 5px;
+        }
+
+        .desc {
+          font-size: 13px;
+          color: #666;
+          height: 40px;
+          overflow: hidden;
+        }
+
+        .priceBox {
+          margin: 10px 0;
         }
 
         .price {
@@ -299,34 +176,24 @@ export default function Home() {
 
         .mrp {
           text-decoration: line-through;
-          color: #888;
+          margin-left: 8px;
+          color: #999;
         }
 
-        .badge {
-          position: absolute;
-          top: 10px;
-          left: 10px;
-          background: #e53935;
-          color: white;
-          padding: 4px 8px;
-          font-size: 12px;
-          border-radius: 5px;
+        .off {
+          color: green;
+          margin-left: 8px;
         }
 
-        .productBody button {
+        button {
           width: 100%;
-          margin-top: 10px;
+          padding: 10px;
+          background: black;
+          color: white;
+          border: none;
+          border-radius: 6px;
+          cursor: pointer;
         }
-
-        .why {
-          background: #f4efe6;
-          padding: 70px 20px;
-          text-align: center;
-        }
-
-        .icon { font-size: 40px; }
-
-        .center { text-align: center; }
       `}</style>
     </div>
   );
