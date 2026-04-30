@@ -4,19 +4,21 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 
 export default function ProductsPage() {
-
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  /* ================= FETCH ================= */
   useEffect(() => {
     fetch("/api/products")
-      .then(res => res.json())
-      .then(data => {
+      .then((res) => res.json())
+      .then((data) => {
         setProducts(data.products || []);
         setLoading(false);
-      });
+      })
+      .catch(() => setLoading(false));
   }, []);
 
+  /* ================= LOADING ================= */
   if (loading) {
     return (
       <div className="container">
@@ -30,62 +32,70 @@ export default function ProductsPage() {
     );
   }
 
+  /* ================= EMPTY ================= */
+  if (!products.length) {
+    return (
+      <div className="container">
+        <h1>All Products</h1>
+        <p>No products available</p>
+      </div>
+    );
+  }
+
+  /* ================= UI ================= */
   return (
     <div className="container">
-
       <h1>All Products</h1>
 
       <div className="grid">
-        {products
-          .filter(p => p.status === "approved" && p.isListed === true)
-          .map(p => {
+        {products.map((p) => {
+          const price = p.displayPrice || 0;
+          const mrp = p.mrp || 0;
 
-            const price = p.primaryVariant?.sellingPrice || p.sellingPrice || 0;
-            const mrp = p.primaryVariant?.mrp || p.mrp || 0;
-
-            const discount = mrp && price
+          const discount =
+            mrp && price
               ? Math.round(((mrp - price) / mrp) * 100)
               : 0;
 
-            return (
-              <Link
-                key={p._id}
-                href={`/products/${p.slug}`}
-                className="card"
-              >
+          return (
+            <Link
+              key={p.productKey}
+              href={`/products/${p.slug}`}
+              className="card"
+            >
+              {/* IMAGE */}
+              <div className="imgWrap">
+                <img
+                  src={p.images?.[0] || "/no-image.png"}
+                  loading="lazy"
+                  alt={p.name}
+                />
+                {discount > 0 && (
+                  <span className="badge">{discount}% OFF</span>
+                )}
+              </div>
 
-                {/* IMAGE */}
-                <div className="imgWrap">
-                  <img
-                    src={p.images?.[0] || "/no-image.png"}
-                    loading="lazy"
-                  />
-                  {discount > 0 && (
-                    <span className="badge">{discount}% OFF</span>
-                  )}
-                </div>
+              {/* NAME */}
+              <h3>{p.name}</h3>
 
-                {/* NAME */}
-                <h3>{p.name}</h3>
+              {/* PRICE */}
+              <div className="price">
+                <span className="sell">₹{price}</span>
+                {mrp > price && (
+                  <span className="mrp">₹{mrp}</span>
+                )}
+              </div>
 
-                {/* PRICE */}
-                <div className="price">
-                  <span className="sell">₹{price}</span>
-                  {mrp > price && (
-                    <span className="mrp">₹{mrp}</span>
-                  )}
-                </div>
-
-                {/* PRODUCT KEY (optional for debugging/admin sync) */}
-                <small style={{ color: "#999" }}>
-                  {p.productKey}
-                </small>
-
-              </Link>
-            );
-          })}
+              {/* OPTIONAL DEBUG */}
+              <small style={{ color: "#999" }}>
+                {p.productKey}
+              </small>
+            </Link>
+          );
+        })}
       </div>
 
+      {/* ================= STYLES ================= */}
       <style jsx>{`
         .container {
           max-width: 1200px;
@@ -115,7 +125,7 @@ export default function ProductsPage() {
 
         .card:hover {
           transform: translateY(-5px);
-          box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+          box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
         }
 
         .imgWrap {
@@ -163,16 +173,19 @@ export default function ProductsPage() {
 
         .skeleton {
           height: 280px;
-          background: linear-gradient(90deg,#eee,#f5f5f5,#eee);
+          background: linear-gradient(90deg, #eee, #f5f5f5, #eee);
           animation: shimmer 1.5s infinite;
         }
 
         @keyframes shimmer {
-          0% { background-position: -200px 0; }
-          100% { background-position: 200px 0; }
+          0% {
+            background-position: -200px 0;
+          }
+          100% {
+            background-position: 200px 0;
+          }
         }
       `}</style>
-
     </div>
   );
 }
