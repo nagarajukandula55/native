@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db";
 import Order from "@/models/Order";
 
@@ -8,11 +7,22 @@ export async function POST(req) {
 
     const { id, status } = await req.json();
 
-    await Order.findByIdAndUpdate(id, { status });
+    const updated = await Order.findByIdAndUpdate(
+      id,
+      { status },
+      { new: true }
+    );
 
-    return NextResponse.json({ success: true });
+    return Response.json({
+      success: true,
+      order: updated,
+    });
 
   } catch (err) {
-    return NextResponse.json({ success: false });
+    console.error(err);
+    return Response.json({
+      success: false,
+      message: "Update failed",
+    });
   }
 }
