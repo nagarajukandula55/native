@@ -8,22 +8,33 @@ export async function POST(req) {
     await dbConnect();
 
     const body = await req.json();
-    console.log("📦 Incoming Order:", body);
+
+    console.log("📦 ORDER REQUEST:", body);
 
     const { cart, amount, address } = body;
 
-    if (!cart || cart.length === 0) {
-      return NextResponse.json({ success: false, message: "Cart empty" }, { status: 400 });
+    if (!cart || !Array.isArray(cart) || cart.length === 0) {
+      return NextResponse.json(
+        { success: false, message: "Cart is empty" },
+        { status: 400 }
+      );
     }
 
     if (!amount) {
-      return NextResponse.json({ success: false, message: "Amount missing" }, { status: 400 });
+      return NextResponse.json(
+        { success: false, message: "Amount missing" },
+        { status: 400 }
+      );
     }
 
-    console.log("🔑 Razorpay Keys Check:", {
+    console.log("🔑 ENV CHECK:", {
       key: process.env.RAZORPAY_KEY_ID ? "OK" : "MISSING",
       secret: process.env.RAZORPAY_KEY_SECRET ? "OK" : "MISSING",
     });
+
+    if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+      throw new Error("Razorpay credentials missing in environment");
+    }
 
     const razorpay = new Razorpay({
       key_id: process.env.RAZORPAY_KEY_ID,
@@ -42,7 +53,7 @@ export async function POST(req) {
       },
     });
 
-    console.log("🟡 DB Order Created:", orderDoc._id);
+    console.log("🟡 DB ORDER CREATED:", orderDoc._id);
 
     const razorpayOrder = await razorpay.orders.create({
       amount: Math.round(Number(amount) * 100),
@@ -50,7 +61,7 @@ export async function POST(req) {
       receipt: orderDoc.orderId,
     });
 
-    console.log("🟢 Razorpay Order Created:", razorpayOrder.id);
+    console.log("🟢 RAZORPAY ORDER:", razorpayOrder.id);
 
     orderDoc.payment = {
       razorpay_order_id: razorpayOrder.id,
@@ -61,12 +72,13 @@ export async function POST(req) {
 
     return NextResponse.json({
       success: true,
+      message: "Order created successfully",
       order: razorpayOrder,
       dbOrderId: orderDoc._id,
     });
 
   } catch (err) {
-    console.error("🔥 ORDER CREATE CRASH:", err);
+    console.error("🔥 ORDER CRASH FULL ERROR:", err);
 
     return NextResponse.json(
       {
