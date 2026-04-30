@@ -8,45 +8,76 @@ export async function POST(req) {
     await dbConnect();
 
     const body = await req.json();
+
     const { cart, amount, address } = body;
 
-    if (!cart || cart.length === 0) {
-      return NextResponse.json({ success: false, message: "Cart empty" });
+    /* ================= VALIDATION ================= */
+    if (!cart || !Array.isArray(cart) || cart.length === 0) {
+      return NextResponse.json(
+        { success: false, message: "Cart is empty" },
+        { status: 400 }
+      );
     }
 
-    // 1️⃣ Create DB order (PENDING)
+    if (!amount || amount <= 0) {
+      return NextResponse.json(
+        { success: false, message: "Invalid amount" },
+        { status: 400 }
+      );
+    }
+
+    /* ================= CREATE ORDER (DB) ================= */
     const orderDoc = await Order.create({
       orderId: "ORD_" + Date.now(),
       items: cart,
       amount,
       address,
       status: "PENDING_PAYMENT",
+
+      payment: {
+        razorpay_order_id: "",
+        payment_status: "pending",
+      },
     });
 
-    // 2️⃣ Razorpay order
+    /* ================= RAZORPAY INIT ================= */
     const razorpay = new Razorpay({
       key_id: process.env.RAZORPAY_KEY_ID,
       key_secret: process.env.RAZORPAY_KEY_SECRET,
     });
 
+    /* ================= CREATE RAZORPAY ORDER ================= */
     const razorpayOrder = await razorpay.orders.create({
-      amount: amount * 100,
+      amount: Math.round(amount * 100),
       currency: "INR",
       receipt: orderDoc.orderId,
     });
 
-    // 3️⃣ attach razorpay id
-    orderDoc.payment.razorpay_order_id = razorpayOrder.id;
+    /* ================= SAFE UPDATE ================= */
+    orderDoc.payment = {
+      razorpay_order_id: razorpayOrder.id,
+      payment_status: "created",
+    };
+
     await orderDoc.save();
 
+    /* ================= RESPONSE ================= */
     return NextResponse.json({
       success: true,
+      message: "Order created successfully",
       order: razorpayOrder,
       dbOrderId: orderDoc._id,
     });
 
   } catch (err) {
-    console.error(err);
-    return NextResponse.json({ success: false });
+    console.error("ORDER CREATE ERROR:", err);
+
+    return NextResponse.json(
+      {
+        success: false,
+        message: err.message || "Order creation failed",
+      },
+      { status: 500 }
+    );
   }
 }
