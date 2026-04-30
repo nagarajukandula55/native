@@ -8,49 +8,77 @@ export function CartProvider({ children }) {
   const [cart, setCart] = useState([]);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  /* ================= STORAGE ================= */
+  /* ================= LOAD CART ================= */
   useEffect(() => {
     const saved = localStorage.getItem("cart");
-    if (saved) setCart(JSON.parse(saved));
+    if (saved) {
+      try {
+        setCart(JSON.parse(saved));
+      } catch (e) {
+        setCart([]);
+      }
+    }
   }, []);
 
+  /* ================= SAVE CART ================= */
   useEffect(() => {
     localStorage.setItem("cart", JSON.stringify(cart));
   }, [cart]);
 
-  /* ================= CART ACTIONS ================= */
+  /* ================= UNIQUE KEY ================= */
+  const getKey = (item) =>
+    `${item.productId || item._id}-${item.variant || "default"}`;
+
+  /* ================= ADD TO CART ================= */
   const addToCart = (product) => {
     setCart((prev) => {
-      const exists = prev.find((p) => p._id === product._id);
+      const key = getKey(product);
+
+      const exists = prev.find((p) => getKey(p) === key);
 
       if (exists) {
         return prev.map((p) =>
-          p._id === product._id
+          getKey(p) === key
             ? { ...p, qty: (p.qty || 1) + 1 }
             : p
         );
       }
 
-      return [...prev, { ...product, qty: 1 }];
+      return [
+        ...prev,
+        {
+          ...product,
+          qty: 1,
+        },
+      ];
     });
 
-    setDrawerOpen(true); // 🔥 auto open on add
+    setDrawerOpen(true);
   };
 
-  const removeFromCart = (id) => {
-    setCart((prev) => prev.filter((p) => p._id !== id));
+  /* ================= REMOVE ================= */
+  const removeFromCart = (product) => {
+    const key = getKey(product);
+
+    setCart((prev) =>
+      prev.filter((p) => getKey(p) !== key)
+    );
   };
 
-  const updateQty = (id, qty) => {
-    if (qty <= 0) return removeFromCart(id);
+  /* ================= UPDATE QTY ================= */
+  const updateQty = (product, qty) => {
+    const key = getKey(product);
+
+    if (qty <= 0) return removeFromCart(product);
 
     setCart((prev) =>
       prev.map((p) =>
-        p._id === id ? { ...p, qty } : p
+        getKey(p) === key ? { ...p, qty } : p
       )
     );
   };
 
+  /* ================= TOTALS ================= */
   const cartTotal = cart.reduce(
     (sum, item) => sum + item.price * item.qty,
     0
@@ -61,7 +89,7 @@ export function CartProvider({ children }) {
     0
   );
 
-  /* ================= FIXED CONTROLS ================= */
+  /* ================= CONTROLS ================= */
   const openCart = () => setDrawerOpen(true);
   const closeCart = () => setDrawerOpen(false);
 
@@ -76,9 +104,9 @@ export function CartProvider({ children }) {
         cartTotal,
         cartCount,
         drawerOpen,
-        openCart,     // 🔥 IMPORTANT
-        closeCart,    // 🔥 IMPORTANT
-        setDrawerOpen
+        openCart,
+        closeCart,
+        setDrawerOpen,
       }}
     >
       {children}
