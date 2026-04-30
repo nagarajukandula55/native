@@ -13,9 +13,26 @@ export default function ProductView({
 }) {
   const { addToCart } = useCart();
 
-  const [selectedVariant, setSelectedVariant] = useState(currentVariant);
+  /* 🔥 SAFETY */
+  if (!p) return null;
+
+  /* ================= NORMALIZE VARIANT ================= */
+  const normalizeVariant = (v) => ({
+    ...v,
+    variant:
+      v.variant ||
+      (v.value && v.unit ? `${v.value}${v.unit}` : "Default"),
+    images: v.images?.length ? v.images : p.images,
+  });
+
+  const normalizedVariants = variants.map(normalizeVariant);
+
+  const [selectedVariant, setSelectedVariant] = useState(
+    normalizeVariant(currentVariant || normalizedVariants[0] || {})
+  );
+
   const [selectedImage, setSelectedImage] = useState(
-    currentVariant?.images?.[0] || p.images?.[0] || "/no-image.png"
+    selectedVariant?.images?.[0] || p.images?.[0] || "/no-image.png"
   );
 
   const [toast, setToast] = useState("");
@@ -24,8 +41,8 @@ export default function ProductView({
   useEffect(() => {
     setSelectedImage(
       selectedVariant?.images?.[0] ||
-      p.images?.[0] ||
-      "/no-image.png"
+        p.images?.[0] ||
+        "/no-image.png"
     );
   }, [selectedVariant, p.images]);
 
@@ -52,7 +69,7 @@ export default function ProductView({
     const item = {
       id:
         selectedVariant?._id ||
-        `${p._id}-${selectedVariant?.variant || "default"}`, // ✅ UNIQUE
+        `${p._id}-${selectedVariant?.variant}`,
 
       productId: p._id,
       productKey: p.productKey,
@@ -64,14 +81,12 @@ export default function ProductView({
 
       image: selectedImage,
 
-      variant:
-        selectedVariant?.variant ||
-        `${selectedVariant?.variantValue || ""} ${selectedVariant?.variantUnit || ""}`,
+      variant: selectedVariant?.variant,
 
       qty: 1,
     };
 
-    console.log("ADD TO CART:", item); // 🔥 debug
+    console.log("ADD TO CART:", item);
 
     addToCart(item);
 
@@ -124,12 +139,12 @@ export default function ProductView({
         </div>
 
         {/* VARIANTS */}
-        {variants.length > 1 && (
+        {normalizedVariants.length > 1 && (
           <div className="variants">
             <h4>Select Variant</h4>
 
             <div className="variantList">
-              {variants.map((v) => (
+              {normalizedVariants.map((v) => (
                 <button
                   key={v._id}
                   onClick={() => setSelectedVariant(v)}
@@ -137,8 +152,7 @@ export default function ProductView({
                     selectedVariant?._id === v._id ? "active" : ""
                   }
                 >
-                  {v.variant ||
-                    `${v.variantValue} ${v.variantUnit}`}
+                  {v.variant}
                 </button>
               ))}
             </div>
@@ -216,10 +230,6 @@ export default function ProductView({
 
         .thumbs img.active {
           border-color: black;
-        }
-
-        .priceBox {
-          margin: 10px 0;
         }
 
         .price {
