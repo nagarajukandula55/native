@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import QRCode from "react-qr-code";
 
 const UPI_ID = "9000528462@ybl";
-const UPI_NAME = "Native Store";
+const UPI_NAME = "Native";
 
 /* ================= TAX HELPER ================= */
 const getTaxSplit = (base, gstPercent = 0) => {
@@ -39,7 +39,7 @@ export default function CheckoutPage() {
   const handleChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
 
-  /* ================= DB COUPON APPLY ================= */
+  /* ================= COUPON (ONLY FIXED PART) ================= */
   const applyCoupon = async () => {
     try {
       const res = await fetch("/api/coupons/validate", {
@@ -60,7 +60,7 @@ export default function CheckoutPage() {
       }
 
       setDiscount(data.discount);
-      alert("Coupon Applied");
+      alert("Coupon Applied Successfully");
     } catch (err) {
       console.error(err);
       setDiscount(0);
@@ -68,7 +68,7 @@ export default function CheckoutPage() {
     }
   };
 
-  /* ================= TAX CALC ================= */
+  /* ================= PRODUCT-BASED TAX (UNCHANGED) ================= */
   const taxItems = cart.map((item) => {
     const base = item.price * item.qty;
 
@@ -92,17 +92,16 @@ export default function CheckoutPage() {
   const cgstTotal = taxItems.reduce((a, b) => a + b.cgst, 0);
   const sgstTotal = taxItems.reduce((a, b) => a + b.sgst, 0);
 
-  /* ================= FINAL BILLING (CORRECT ORDER) ================= */
-  const discountedSubtotal = subtotal - discount;
+  /* ================= FINAL AMOUNT (UNCHANGED LOGIC) ================= */
+  const totalBeforeDiscount = subtotal + gstTotal;
+  const finalAmount = totalBeforeDiscount - discount;
 
-  const finalAmount = discountedSubtotal + gstTotal;
-
-  /* ================= UPI ================= */
+  /* ================= UPI LINK ================= */
   const upiLink = `upi://pay?pa=${UPI_ID}&pn=${UPI_NAME}&am=${finalAmount.toFixed(
     2
   )}&cu=INR`;
 
-  /* ================= ORDER ================= */
+  /* ================= PLACE ORDER (UNCHANGED) ================= */
   const handleOrder = async () => {
     try {
       setLoading(true);
@@ -234,7 +233,9 @@ export default function CheckoutPage() {
             </div>
 
             <div className="mini">
-              HSN: {item.hsn} | GST: {item.gstPercent}%
+              <small>
+                HSN: {item.hsn} | GST: {item.gstPercent}%
+              </small>
             </div>
           </div>
         ))}
