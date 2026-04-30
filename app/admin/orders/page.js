@@ -19,9 +19,7 @@ export default function AdminOrdersPage() {
 
         const res = await fetch("/api/orders/list");
 
-        if (!res.ok) {
-          throw new Error("Failed to fetch orders");
-        }
+        if (!res.ok) throw new Error("Failed to fetch orders");
 
         const data = await res.json();
 
@@ -90,6 +88,50 @@ export default function AdminOrdersPage() {
     }
   };
 
+  /* ================= ACTION BUTTONS ================= */
+  const ActionButtons = ({ o }) => {
+    return (
+      <span style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+
+        {/* MARK PAID (manual COD / pending UPI) */}
+        {o.status !== "PAID" && (
+          <button onClick={() => updateStatus(o._id, "PAID")}>
+            Mark Paid
+          </button>
+        )}
+
+        {/* PROCESS */}
+        {o.status === "PAID" && (
+          <button onClick={() => updateStatus(o._id, "PROCESSING")}>
+            Process
+          </button>
+        )}
+
+        {/* ASSIGN TO WAREHOUSE */}
+        {o.status === "PROCESSING" && (
+          <button onClick={() => updateStatus(o._id, "ASSIGNED_TO_WH")}>
+            Assign WH
+          </button>
+        )}
+
+        {/* SHIP */}
+        {o.status === "ASSIGNED_TO_WH" && (
+          <button onClick={() => updateStatus(o._id, "SHIPPED")}>
+            Ship
+          </button>
+        )}
+
+        {/* DELIVER */}
+        {o.status === "SHIPPED" && (
+          <button onClick={() => updateStatus(o._id, "DELIVERED")}>
+            Deliver
+          </button>
+        )}
+
+      </span>
+    );
+  };
+
   return (
     <div style={container}>
 
@@ -105,12 +147,12 @@ export default function AdminOrdersPage() {
         />
       </div>
 
-      {/* ERROR STATE */}
+      {/* ERROR */}
       {error && <p style={{ color: "red" }}>{error}</p>}
 
       {/* FILTERS */}
       <div style={filters}>
-        {["ALL", "PAID", "PROCESSING", "SHIPPED", "DELIVERED"].map(
+        {["ALL", "PAID", "PROCESSING", "ASSIGNED_TO_WH", "SHIPPED", "DELIVERED"].map(
           (s) => (
             <button
               key={s}
@@ -158,17 +200,7 @@ export default function AdminOrdersPage() {
                 <b>{o.status}</b>
               </span>
 
-              <span style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-                <button onClick={() => updateStatus(o._id, "PROCESSING")}>
-                  Process
-                </button>
-                <button onClick={() => updateStatus(o._id, "SHIPPED")}>
-                  Ship
-                </button>
-                <button onClick={() => updateStatus(o._id, "DELIVERED")}>
-                  Deliver
-                </button>
-              </span>
+              <ActionButtons o={o} />
             </div>
           ))}
         </div>
@@ -176,6 +208,8 @@ export default function AdminOrdersPage() {
     </div>
   );
 }
+
+/* ================= STYLES ================= */
 
 const container = {
   padding: 20,
