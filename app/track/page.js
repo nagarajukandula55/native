@@ -8,43 +8,42 @@ export default function TrackOrderPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const fetchOrder = async () => {
-    try {
-      setLoading(true);
-      setError("");
-      setOrder(null);
+const fetchOrder = async () => {
+  try {
+    setLoading(true);
+    setError("");
+    setOrder(null);
 
-      if (!orderId.trim()) {
-        setError("Please enter Order ID");
-        return;
-      }
-
-      const res = await fetch(
-        `/api/orders/get-by-id?orderId=${orderId}`
-      );
-
-      const text = await res.text();
-
-      let data;
-      try {
-        data = JSON.parse(text);
-      } catch (e) {
-        throw new Error("Invalid server response");
-      }
-
-      if (!data?.success) {
-        setError(data?.message || "Order not found");
-        return;
-      }
-
-      setOrder(data.order);
-    } catch (err) {
-      console.error(err);
-      setError("Something went wrong");
-    } finally {
-      setLoading(false);
+    if (!orderId.trim()) {
+      setError("Please enter Order ID");
+      return;
     }
-  };
+
+    const res = await fetch(
+      `/api/orders/get-by-id?orderId=${orderId.trim()}`,
+      {
+        cache: "no-store",
+      }
+    );
+
+    const data = await res.json().catch(() => null);
+
+    console.log("TRACK RESPONSE:", data);
+
+    if (!res.ok || !data?.success) {
+      setError(data?.message || "Order not found");
+      return;
+    }
+
+    setOrder(data.order);
+
+  } catch (err) {
+    console.error(err);
+    setError("Something went wrong");
+  } finally {
+    setLoading(false);
+  }
+};
 
   /* ================= ORDER FLOW ================= */
   const steps = [
