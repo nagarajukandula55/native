@@ -13,30 +13,30 @@ export default function TrackOrderPage() {
       setLoading(true);
       setError("");
       setOrder(null);
-  
+
       if (!orderId.trim()) {
         setError("Please enter Order ID");
         return;
       }
-  
+
       const res = await fetch(
         `/api/orders/get-by-id?orderId=${orderId}`
       );
-  
+
       const text = await res.text();
-  
+
       let data;
       try {
         data = JSON.parse(text);
       } catch (e) {
-        throw new Error("Invalid server response (not JSON)");
+        throw new Error("Invalid server response");
       }
-  
-      if (!data.success) {
-        setError(data.message || "Order not found");
+
+      if (!data?.success) {
+        setError(data?.message || "Order not found");
         return;
       }
-  
+
       setOrder(data.order);
     } catch (err) {
       console.error(err);
@@ -46,8 +46,9 @@ export default function TrackOrderPage() {
     }
   };
 
+  /* ================= ORDER FLOW ================= */
   const steps = [
-    "PENDING",
+    "PENDING_PAYMENT",
     "PAID",
     "PROCESSING",
     "ASSIGNED_TO_WH",
@@ -55,14 +56,13 @@ export default function TrackOrderPage() {
     "DELIVERED",
   ];
 
-  const currentIndex = steps.indexOf(order?.status);
+  const currentIndex = steps.indexOf(order?.status || "PENDING_PAYMENT");
 
   return (
     <div style={container}>
-
       <h2>📦 Track Your Order</h2>
 
-      {/* SEARCH BOX */}
+      {/* SEARCH */}
       <div style={searchBox}>
         <input
           placeholder="Enter Order ID"
@@ -82,62 +82,60 @@ export default function TrackOrderPage() {
       {/* LOADING */}
       {loading && <p>Tracking order...</p>}
 
-      {/* ORDER DETAILS */}
+      {/* ORDER CARD */}
       {order && (
         <div style={card}>
-
           <h3>Order #{order.orderId}</h3>
 
-          <p>
-            <b>Name:</b> {order.address?.name}
-          </p>
-
-          <p>
-            <b>Phone:</b> {order.address?.phone}
-          </p>
-
-          <p>
-            <b>Amount:</b> ₹{order.amount}
-          </p>
-
-          <p>
-            <b>Status:</b> {order.status}
-          </p>
+          <p><b>Name:</b> {order.address?.name}</p>
+          <p><b>Phone:</b> {order.address?.phone}</p>
+          <p><b>Amount:</b> ₹{order.amount}</p>
+          <p><b>Status:</b> {order.status}</p>
 
           {/* ================= TIMELINE ================= */}
           <div style={timeline}>
+            {steps.map((step, index) => {
+              const isActive = index <= currentIndex;
 
-            {steps.map((step, index) => (
-              <div key={step} style={stepBox}>
+              const time = order?.timeline?.find(
+                (t) => t.status === step
+              )?.time;
 
-                <div
-                  style={{
-                    ...circle,
-                    background:
-                      index <= currentIndex ? "#16a34a" : "#e5e7eb",
-                  }}
-                />
+              return (
+                <div key={step} style={stepBox}>
+                  <div
+                    style={{
+                      ...circle,
+                      background: isActive ? "#16a34a" : "#e5e7eb",
+                    }}
+                  />
 
-                <span
-                  style={{
-                    color:
-                      index <= currentIndex ? "#111" : "#9ca3af",
-                    fontWeight: 600,
-                  }}
-                >
-                  {step}
-                </span>
+                  <div>
+                    <div
+                      style={{
+                        fontWeight: 600,
+                        color: isActive ? "#111" : "#9ca3af",
+                      }}
+                    >
+                      {step}
+                    </div>
 
-              </div>
-            ))}
-
+                    {time && (
+                      <small style={{ color: "#6b7280" }}>
+                        {new Date(time).toLocaleString()}
+                      </small>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
           {/* ITEMS */}
           <div style={{ marginTop: 20 }}>
             <h4>Items</h4>
 
-            {order.cart?.map((item, i) => (
+            {order.items?.map((item, i) => (
               <div key={i} style={itemRow}>
                 <span>
                   {item.name} x {item.qty}
@@ -146,7 +144,6 @@ export default function TrackOrderPage() {
               </div>
             ))}
           </div>
-
         </div>
       )}
     </div>
@@ -180,7 +177,6 @@ const btn = {
   color: "#fff",
   border: "none",
   borderRadius: 8,
-  cursor: "pointer",
 };
 
 const card = {
