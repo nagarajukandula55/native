@@ -1,174 +1,110 @@
-import ProductView from "./ProductView";
+import { NextResponse } from "next/server";
+import connectDB from "@/lib/db";
+import Product from "@/models/Product";
 
-/* ================= BASE URL HELPER ================= */
-function getBaseUrl() {
-  if (process.env.NEXT_PUBLIC_BASE_URL) {
-    return process.env.NEXT_PUBLIC_BASE_URL;
-  }
+export const dynamic = "force-dynamic";
 
-  if (process.env.VERCEL_URL) {
-    return `https://${process.env.VERCEL_URL}`;
-  }
-
-  return "http://localhost:3000";
-}
-
-/* ================= SEO ================= */
-export async function generateMetadata({ params }) {
+export async function GET(req, { params }) {
   try {
-    if (!params?.slug) {
-      return {
-        title: "Product",
-        description: "Buy online",
-      };
+    await connectDB();
+
+    const { slug } = params;
+
+    if (!slug) {
+      return NextResponse.json(
+        { success: false, message: "Missing slug" },
+        { status: 400 }
+      );
     }
 
-    const baseUrl = getBaseUrl();
+    /* ================= FIND BASE PRODUCT ================= */
+    const baseProduct = await Product.findOne({
+      slug,
+      isActive: true,
+      isDeleted: false,
+    }).lean();
 
-    const res = await fetch(`${baseUrl}/api/products/${params.slug}`, {
-      cache: "no-store",
-    });
+    if (!baseProduct) {
+      return NextResponse.json(
+        { success: false, message: "Product not found" },
+        { status: 404 }
+      );
+    }
 
-    if (!res.ok) throw new Error("Metadata fetch failed");
+    /* ================= FETCH ALL VARIANTS ================= */
+    const variantsRaw = await Product.find({
+      productKey: baseProduct.productKey,
+      isActive: true,
+      isDeleted: false,
+    }).lean();
 
-    const data = await res.json();
-    const p = data?.product || {};
+    const variants = variantsRaw.map((v) => ({
+      _id: v._id,
+      sku: v.primaryVariant?.sku || v.sku,
+      variant:
+        v.primaryVariant?.variant ||
+        `${v.primaryVariant?.value || ""}${v.primaryVariant?.unit || ""}`,
+      sellingPrice:
+        v.primaryVariant?.sellingPrice ||
+        v.pricing?.sellingPrice ||
+        0,
+      mrp:
+        v.primaryVariant?.mrp ||
+        v.pricing?.mrp ||
+        0,
+      stock: v.primaryVariant?.stock || 0,
+      images: v.images || [],
+      slug: v.slug,
+    }));
 
-    return {
-      title: p.name || "Product",
-      description:
-        p.shortDescription ||
-        p.description ||
-        "Buy premium natural products online",
+    /* ================= SELECT CURRENT VARIANT ================= */
+    const currentVariant =
+      variants.find((v) => v.slug === slug) ||
+      variants[0] ||
+      {};
 
-      openGraph: {
-        title: p.name,
-        description: p.shortDescription || p.description,
-        images: p.images?.length ? [p.images[0]] : [],
+    /* ================= DISCOUNT ================= */
+    const discount =
+      currentVariant?.mrp > 0
+        ? Math.round(
+            ((currentVariant.mrp - currentVariant.sellingPrice) /
+              currentVariant.mrp) *
+              100
+          )
+        : 0;
+
+    /* ================= RESPONSE ================= */
+    return NextResponse.json({
+      success: true,
+
+      product: {
+        _id: baseProduct._id,
+        name: baseProduct.name,
+        slug: baseProduct.slug,
+        productKey: baseProduct.productKey,
+        category: baseProduct.category,
+
+        description: baseProduct.description,
+        shortDescription: baseProduct.shortDescription,
+
+        images: baseProduct.images || [],
+
+        sellingPrice: currentVariant?.sellingPrice || 0,
+        mrp: currentVariant?.mrp || 0,
+        stock: currentVariant?.stock || 0,
+
+        discount,
       },
-    };
-  } catch (err) {
-    console.error("Metadata error:", err);
 
-    return {
-      title: "Product",
-      description: "Buy online",
-    };
-  }
-}
-
-/* ================= PAGE ================= */
-export default async function ProductPage({ params }) {
-  /* 🔥 HARD SAFETY CHECK */
-  if (!params?.slug || params.slug === "[slug]") {
-    return (
-      <div style={{ padding: 20 }}>
-        <h2>Invalid product URL</h2>
-      </div>
-    );
-  }
-
-  const baseUrl = getBaseUrl();
-
-  let data;
-
-  try {
-    console.log("SLUG RECEIVED:", params.slug);
-
-    const res = await fetch(`${baseUrl}/api/products/${params.slug}`, {
-      cache: "no-store",
+      variants,
     });
 
-    if (!res.ok) {
-      console.error("API STATUS:", res.status);
-      throw new Error("Fetch failed");
-    }
-
-    data = await res.json();
   } catch (err) {
-    console.error("Product fetch error:", err);
+    console.error("PRODUCT API ERROR:", err);
 
-    return (
-      <div style={{ padding: 20 }}>
-        <h2>Something went wrong</h2>
-        <p>Unable to load product details</p>
-      </div>
+    return NextResponse.json(
+      { success: false, message: "Server error" },
+      { status: 500 }
     );
   }
-
-  const p = data?.product;
-
-  if (!p) {
-    return (
-      <div style={{ padding: 20 }}>
-        <h2>Product not found</h2>
-      </div>
-    );
-  }
-
-  const variants = data?.variants || [];
-
-  /* ================= VARIANT ================= */
-  const currentVariant =
-    variants.find((v) => v.slug === params.slug) ||
-    variants[0] ||
-    {};
-
-  /* ================= PRICE ================= */
-  const mrp = currentVariant?.mrp ?? p?.mrp ?? 0;
-  const sellingPrice =
-    currentVariant?.sellingPrice ?? p?.sellingPrice ?? 0;
-
-  const discount =
-    mrp > 0
-      ? Math.round(((mrp - sellingPrice) / mrp) * 100)
-      : 0;
-
-  /* ================= STOCK ================= */
-  const stock = currentVariant?.stock ?? p?.stock ?? 0;
-
-  const stockText =
-    stock > 10
-      ? "In Stock"
-      : stock > 0
-      ? `Only ${stock} left`
-      : "Out of Stock";
-
-  return (
-    <>
-      {/* ================= JSON-LD SEO ================= */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
-            "@context": "https://schema.org/",
-            "@type": "Product",
-            name: p.name,
-            image: p.images || [],
-            description: p.description,
-            sku: currentVariant?.sku || p.productKey,
-            offers: {
-              "@type": "Offer",
-              price: sellingPrice,
-              priceCurrency: "INR",
-              availability:
-                stock > 0
-                  ? "https://schema.org/InStock"
-                  : "https://schema.org/OutOfStock",
-            },
-          }),
-        }}
-      />
-
-      {/* ================= PRODUCT VIEW ================= */}
-      <ProductView
-        p={p}
-        variants={variants}
-        currentVariant={currentVariant}
-        discount={discount}
-        stock={stock}
-        stockText={stockText}
-      />
-    </>
-  );
 }
