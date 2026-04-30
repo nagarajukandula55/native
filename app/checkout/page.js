@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useCart } from "@/context/CartContext";
 import { useRouter } from "next/navigation";
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { cart, cartTotal, setCart, closeCart } = useCart();
+  const { cart, setCart, closeCart } = useCart();
 
   const [form, setForm] = useState({
     name: "",
@@ -18,62 +18,97 @@ export default function CheckoutPage() {
 
   const [loading, setLoading] = useState(false);
 
-  /* ================= INPUT HANDLER ================= */
+  /* ================= COUPON STATE ================= */
+  const [coupon, setCoupon] = useState("");
+  const [discount, setDiscount] = useState(0);
+
+  /* ================= SAFE TOTAL CALC ================= */
+  const subtotal = useMemo(() => {
+    return cart.reduce((sum, item) => {
+      const price = Number(item.price || 0);
+      const qty = Number(item.qty || 1);
+      return sum + price * qty;
+    }, 0);
+  }, [cart]);
+
+  const finalTotal = Math.max(subtotal - discount, 0);
+
+  /* ================= INPUT ================= */
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  /* ================= CREATE ORDER ================= */
+  /* ================= APPLY COUPON ================= */
+  const applyCoupon = () => {
+    const code = coupon.trim().toUpperCase();
+
+    // Example coupons (you can move this to backend later)
+    if (code === "SAVE10") {
+      setDiscount(subtotal * 0.1);
+    } else if (code === "SAVE50") {
+      setDiscount(50);
+    } else {
+      setDiscount(0);
+      alert("Invalid coupon");
+    }
+  };
+
+  /* ================= PAYMENT ================= */
   const handlePayment = async () => {
     try {
       setLoading(true);
 
+      /* validation */
       if (!form.name || !form.phone || !form.address) {
         alert("Please fill required fields");
         setLoading(false);
         return;
       }
 
-      // 1️⃣ Create order (backend)
+      if (!cart || cart.length === 0) {
+        alert("Cart is empty");
+        setLoading(false);
+        return;
+      }
+
+      /* ================= CREATE ORDER ================= */
       const res = await fetch("/api/orders/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           cart,
-          amount: cartTotal,
+          amount: Number(finalTotal), // 🔥 FIXED
           address: form,
+          coupon: coupon || null,
+          discount: discount || 0,
         }),
       });
 
       const data = await res.json();
 
       if (!data.success) {
-        alert("Order creation failed");
+        console.error(data);
+        alert(data.message || "Order creation failed");
         setLoading(false);
         return;
       }
 
+      /* ================= RAZORPAY ================= */
       const order = data.order;
 
-      // 2️⃣ Razorpay config
       const options = {
         key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
         amount: order.amount,
         currency: order.currency,
         name: "Native Store",
-        description: "Food Products Order",
+        description: "Order Payment",
         order_id: order.id,
 
         handler: async function (response) {
-          // 3️⃣ Verify payment
           const verifyRes = await fetch("/api/orders/verify", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature,
-            }),
+            body: JSON.stringify(response),
           });
 
           const verifyData = await verifyRes.json();
@@ -81,7 +116,6 @@ export default function CheckoutPage() {
           if (verifyData.success) {
             setCart([]);
             closeCart();
-
             router.push("/order-success");
           } else {
             router.push("/order-failed");
@@ -112,7 +146,7 @@ export default function CheckoutPage() {
   return (
     <div className="container">
 
-      {/* LEFT - FORM */}
+      {/* FORM */}
       <div className="formBox">
         <h2>Checkout</h2>
 
@@ -122,17 +156,27 @@ export default function CheckoutPage() {
         <input name="city" placeholder="City" onChange={handleChange} />
         <input name="pincode" placeholder="Pincode" onChange={handleChange} />
 
+        {/* COUPON */}
+        <div className="couponBox">
+          <input
+            placeholder="Coupon Code"
+            value={coupon}
+            onChange={(e) => setCoupon(e.target.value)}
+          />
+          <button onClick={applyCoupon}>Apply</button>
+        </div>
+
         <button onClick={handlePayment} disabled={loading}>
           {loading ? "Processing..." : "Pay Now"}
         </button>
       </div>
 
-      {/* RIGHT - SUMMARY */}
+      {/* SUMMARY */}
       <div className="summaryBox">
         <h3>Order Summary</h3>
 
-        {cart.map((item) => (
-          <div key={item._id} className="row">
+        {cart.map((item, i) => (
+          <div key={i} className="row">
             <span>{item.name} x {item.qty}</span>
             <span>₹{item.price * item.qty}</span>
           </div>
@@ -140,9 +184,21 @@ export default function CheckoutPage() {
 
         <hr />
 
+        <div className="row">
+          <span>Subtotal</span>
+          <span>₹{subtotal}</span>
+        </div>
+
+        {discount > 0 && (
+          <div className="row">
+            <span>Discount</span>
+            <span>- ₹{discount}</span>
+          </div>
+        )}
+
         <div className="total">
           <strong>Total</strong>
-          <strong>₹{cartTotal}</strong>
+          <strong>₹{finalTotal}</strong>
         </div>
       </div>
 
@@ -167,6 +223,11 @@ export default function CheckoutPage() {
           padding: 12px;
           border: 1px solid #ddd;
           border-radius: 8px;
+        }
+
+        .couponBox {
+          display: flex;
+          gap: 10px;
         }
 
         button {
@@ -195,6 +256,7 @@ export default function CheckoutPage() {
           display: flex;
           justify-content: space-between;
           margin-top: 10px;
+          font-size: 18px;
         }
       `}</style>
     </div>
