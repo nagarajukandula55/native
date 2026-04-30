@@ -36,13 +36,20 @@ export default function Home() {
   return (
     <div className="home">
 
-      {/* HERO */}
+      {/* ================= HERO ================= */}
       <section className="hero">
         <div className="overlay" />
+
+        <div className="scrollText">
+          <div>We are adding new products to our catalogue ✨</div>
+        </div>
 
         <div className="heroContent">
           <h1>Welcome to Native</h1>
           <p className="tagline">Eat Healthy, Stay Healthy</p>
+          <p className="desc">
+            Authentic natural food products refined directly from the source.
+          </p>
 
           <button
             onClick={() =>
@@ -56,16 +63,31 @@ export default function Home() {
         </div>
       </section>
 
-      {/* PRODUCTS */}
+      {/* ================= CATEGORIES ================= */}
+      <section className="section">
+        <h2>Our Categories</h2>
+
+        <div className="grid">
+          {["Batter Mix", "Cold Pressed Oils", "Traditional Foods", "Natural Products"].map(
+            (cat) => (
+              <div key={cat} className="card">
+                {cat}
+              </div>
+            )
+          )}
+        </div>
+      </section>
+
+      {/* ================= PRODUCTS (FIXED) ================= */}
       <section id="products" className="section">
         <h2>Featured Products</h2>
 
         {loading ? (
-          <p>Loading...</p>
+          <p className="center">Loading products...</p>
         ) : products.length === 0 ? (
-          <p>No products found</p>
+          <p className="center">No products found</p>
         ) : (
-          <div className="grid">
+          <div className="productGrid">
             {products.map((p) => {
               const price = p.displayPrice || p.minPrice || 0;
               const mrp = p.mrp || 0;
@@ -76,7 +98,7 @@ export default function Home() {
                   : 0;
 
               return (
-                <div key={p._id} className="card">
+                <div key={p._id} className="productCard">
 
                   {/* IMAGE */}
                   <img
@@ -84,41 +106,45 @@ export default function Home() {
                     alt={p.name}
                   />
 
-                  {/* NAME */}
-                  <h3>{p.name}</h3>
+                  <div className="productBody">
 
-                  {/* DESCRIPTION */}
-                  <p className="desc">
-                    {p.shortDescription ||
-                      p.description ||
-                      "No description available"}
-                  </p>
+                    {/* NAME */}
+                    <h3>{p.name}</h3>
 
-                  {/* PRICE */}
-                  <div className="priceBox">
-                    <span className="price">₹{price}</span>
+                    {/* DESCRIPTION */}
+                    <p className="desc">
+                      {p.shortDescription ||
+                        p.description ||
+                        "No description available"}
+                    </p>
 
-                    {mrp > price && (
-                      <>
-                        <span className="mrp">₹{mrp}</span>
-                        <span className="off">{discount}% OFF</span>
-                      </>
-                    )}
+                    {/* PRICE */}
+                    <div className="priceBox">
+                      <span className="price">₹{price}</span>
+
+                      {mrp > price && (
+                        <>
+                          <span className="mrp">₹{mrp}</span>
+                          <span className="off">{discount}% OFF</span>
+                        </>
+                      )}
+                    </div>
+
+                    {/* ADD TO CART */}
+                    <button
+                      onClick={() =>
+                        addToCart({
+                          id: p._id,
+                          name: p.name,
+                          price,
+                          image: p.images?.[0],
+                        })
+                      }
+                    >
+                      Add to Cart
+                    </button>
+
                   </div>
-
-                  {/* ADD TO CART */}
-                  <button
-                    onClick={() =>
-                      addToCart({
-                        id: p._id,
-                        name: p.name,
-                        price,
-                        image: p.images?.[0],
-                      })
-                    }
-                  >
-                    Add to Cart
-                  </button>
                 </div>
               );
             })}
@@ -126,39 +152,152 @@ export default function Home() {
         )}
       </section>
 
-      {/* STYLES */}
+      {/* ================= WHY US ================= */}
+      <section className="why">
+        <h2>Why Choose Native</h2>
+
+        <div className="grid">
+          {[
+            ["🌿", "100% Natural"],
+            ["🚜", "Direct From Farmers"],
+            ["🧂", "Traditional Methods"],
+            ["❤️", "Healthy Lifestyle"],
+          ].map(([icon, text]) => (
+            <div key={text} className="card">
+              <div className="icon">{icon}</div>
+              <strong>{text}</strong>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ================= STYLES ================= */}
       <style jsx>{`
+        .home {
+          font-family: system-ui;
+        }
+
+        .hero {
+          position: relative;
+          min-height: 85vh;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          text-align: center;
+          background: url('/hero.png') center/cover;
+          color: white;
+        }
+
+        .overlay {
+          position: absolute;
+          inset: 0;
+          background: rgba(0,0,0,0.4);
+        }
+
+        .heroContent {
+          position: relative;
+          z-index: 2;
+          max-width: 800px;
+        }
+
+        h1 {
+          font-size: 64px;
+          margin: 0;
+        }
+
+        .tagline {
+          font-size: 22px;
+        }
+
+        .desc {
+          margin: 20px 0;
+        }
+
+        button {
+          padding: 12px 30px;
+          background: #c28b45;
+          border: none;
+          color: white;
+          border-radius: 30px;
+          cursor: pointer;
+        }
+
+        .scrollText {
+          position: absolute;
+          top: 20px;
+          width: 100%;
+          overflow: hidden;
+          white-space: nowrap;
+        }
+
+        .scrollText div {
+          display: inline-block;
+          padding-left: 100%;
+          animation: scroll 12s linear infinite;
+        }
+
+        @keyframes scroll {
+          from { transform: translateX(0); }
+          to { transform: translateX(-100%); }
+        }
+
         .section {
-          padding: 50px 20px;
+          padding: 70px 20px;
           max-width: 1200px;
           margin: auto;
+          text-align: center;
+        }
+
+        h2 {
+          font-size: 32px;
+          margin-bottom: 30px;
+        }
+
+        .center {
+          text-align: center;
         }
 
         .grid {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
           gap: 20px;
         }
 
         .card {
           background: white;
-          padding: 15px;
-          border-radius: 10px;
+          padding: 25px;
+          border-radius: 12px;
           box-shadow: 0 5px 15px rgba(0,0,0,0.05);
         }
 
-        img {
+        .productGrid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+          gap: 25px;
+        }
+
+        .productCard {
+          background: white;
+          border-radius: 12px;
+          overflow: hidden;
+          box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+        }
+
+        .productCard img {
           width: 100%;
-          height: 180px;
+          height: 220px;
           object-fit: cover;
-          border-radius: 8px;
         }
 
-        h3 {
-          margin: 10px 0 5px;
+        .productBody {
+          padding: 15px;
         }
 
-        .desc {
+        .productBody h3 {
+          margin: 0;
+        }
+
+        .productBody .desc {
           font-size: 13px;
           color: #666;
           height: 40px;
@@ -166,7 +305,7 @@ export default function Home() {
         }
 
         .priceBox {
-          margin: 10px 0;
+          margin-top: 8px;
         }
 
         .price {
@@ -176,23 +315,29 @@ export default function Home() {
 
         .mrp {
           text-decoration: line-through;
+          color: #888;
           margin-left: 8px;
-          color: #999;
         }
 
         .off {
           color: green;
           margin-left: 8px;
+          font-weight: bold;
         }
 
-        button {
+        .productBody button {
           width: 100%;
-          padding: 10px;
-          background: black;
-          color: white;
-          border: none;
-          border-radius: 6px;
-          cursor: pointer;
+          margin-top: 10px;
+        }
+
+        .why {
+          background: #f4efe6;
+          padding: 70px 20px;
+          text-align: center;
+        }
+
+        .icon {
+          font-size: 40px;
         }
       `}</style>
     </div>
