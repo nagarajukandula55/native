@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function ProductView({
   p,
@@ -10,22 +10,41 @@ export default function ProductView({
   stock = 0,
   stockText = "",
 }) {
+  const [selectedVariant, setSelectedVariant] = useState(currentVariant);
   const [selectedImage, setSelectedImage] = useState(
-    p.images?.[0] || "/no-image.png"
+    currentVariant?.images?.[0] || p.images?.[0] || "/no-image.png"
   );
 
-  const [selectedVariant, setSelectedVariant] = useState(currentVariant);
+  /* 🔥 Update image when variant changes */
+  useEffect(() => {
+    setSelectedImage(
+      selectedVariant?.images?.[0] ||
+      p.images?.[0] ||
+      "/no-image.png"
+    );
+  }, [selectedVariant, p.images]);
 
+  /* ================= PRICE ================= */
   const price =
-    selectedVariant?.sellingPrice || p?.sellingPrice || 0;
+    selectedVariant?.sellingPrice ??
+    p?.sellingPrice ??
+    0;
 
   const mrp =
-    selectedVariant?.mrp || p?.mrp || 0;
+    selectedVariant?.mrp ??
+    p?.mrp ??
+    0;
 
   const finalDiscount =
     mrp > 0
       ? Math.round(((mrp - price) / mrp) * 100)
       : discount;
+
+  /* ================= STOCK ================= */
+  const availableStock =
+    selectedVariant?.stock ??
+    stock ??
+    0;
 
   /* ================= ADD TO CART ================= */
   async function addToCart() {
@@ -36,6 +55,7 @@ export default function ProductView({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
+          productId: p._id,
           productKey: p.productKey,
           name: p.name,
           price,
@@ -47,20 +67,24 @@ export default function ProductView({
 
       alert("Added to cart");
     } catch (err) {
-      console.error(err);
+      console.error("Cart error:", err);
     }
   }
 
   return (
     <div className="wrap">
 
-      {/* LEFT SIDE */}
+      {/* ================= LEFT ================= */}
       <div className="left">
 
-        <img src={selectedImage} className="mainImg" />
+        <img
+          src={selectedImage}
+          alt={p.name}
+          className="mainImg"
+        />
 
         <div className="thumbs">
-          {(p.images || []).map((img, i) => (
+          {(selectedVariant?.images || p.images || []).map((img, i) => (
             <img
               key={i}
               src={img}
@@ -72,7 +96,7 @@ export default function ProductView({
 
       </div>
 
-      {/* RIGHT SIDE */}
+      {/* ================= RIGHT ================= */}
       <div className="right">
 
         <h1>{p.name}</h1>
@@ -90,8 +114,12 @@ export default function ProductView({
         </div>
 
         {/* STOCK */}
-        <div className={`stock ${stock === 0 ? "out" : ""}`}>
-          {stockText}
+        <div className={`stock ${availableStock === 0 ? "out" : ""}`}>
+          {availableStock > 10
+            ? "In Stock"
+            : availableStock > 0
+            ? `Only ${availableStock} left`
+            : "Out of Stock"}
         </div>
 
         {/* VARIANTS */}
@@ -108,7 +136,7 @@ export default function ProductView({
                     selectedVariant?._id === v._id ? "active" : ""
                   }
                 >
-                  {v.variant || v.variantValue} {v.variantUnit}
+                  {v.variant || `${v.variantValue} ${v.variantUnit}`}
                 </button>
               ))}
             </div>
@@ -118,27 +146,31 @@ export default function ProductView({
         {/* ADD TO CART */}
         <button
           className="cartBtn"
-          disabled={stock === 0}
+          disabled={availableStock === 0}
           onClick={addToCart}
         >
-          {stock === 0 ? "Out of Stock" : "Add to Cart"}
+          {availableStock === 0 ? "Out of Stock" : "Add to Cart"}
         </button>
 
         {/* DESCRIPTION */}
-        <div className="desc">
+        <div className="section">
           <h3>Description</h3>
-          <p>{p.description}</p>
+          <p>
+            {p.description ||
+              p.shortDescription ||
+              "No description available"}
+          </p>
         </div>
 
         {/* INGREDIENTS */}
         {p.ingredients?.length > 0 && (
-          <div className="desc">
+          <div className="section">
             <h3>Ingredients</h3>
             <ul>
-              {p.ingredients.map((i, idx) => (
-                <li key={idx}>
-                  {i.name} - {i.qty}
-                  {i.unit}
+              {p.ingredients.map((ing, i) => (
+                <li key={i}>
+                  {ing.name} - {ing.qty}
+                  {ing.unit}
                 </li>
               ))}
             </ul>
@@ -264,11 +296,11 @@ export default function ProductView({
           background: #aaa;
         }
 
-        .desc {
+        .section {
           margin-top: 20px;
         }
 
-        .desc h3 {
+        .section h3 {
           margin-bottom: 5px;
         }
       `}</style>
