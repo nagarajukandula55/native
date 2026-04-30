@@ -1,15 +1,17 @@
 import dbConnect from "@/lib/db";
 import Order from "@/models/Order";
+import { NextResponse } from "next/server";
 
-export async function GET(req) {
+export async function GET(request) {
   try {
     await dbConnect();
 
-    const { searchParams } = new URL(req.url);
+    // ✅ PROPER WAY IN APP ROUTER
+    const { searchParams } = new URL(request.url);
     const orderId = searchParams.get("orderId");
 
     if (!orderId) {
-      return Response.json({
+      return NextResponse.json({
         success: false,
         message: "Order ID missing",
       });
@@ -20,13 +22,13 @@ export async function GET(req) {
     }).lean();
 
     if (!order) {
-      return Response.json({
+      return NextResponse.json({
         success: false,
         message: "Order not found",
       });
     }
 
-    return Response.json({
+    return NextResponse.json({
       success: true,
       order,
     });
@@ -34,7 +36,7 @@ export async function GET(req) {
   } catch (err) {
     console.error("TRACK ERROR:", err);
 
-    return Response.json({
+    return NextResponse.json({
       success: false,
       message: "Server error",
       error: err.message,
