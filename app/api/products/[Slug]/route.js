@@ -1,4 +1,4 @@
-import ProductView from "./ProductView";
+import ProductView from "../ProductView";
 
 /* ================= BASE URL HELPER ================= */
 function getBaseUrl() {
