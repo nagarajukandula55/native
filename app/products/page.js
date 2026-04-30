@@ -22,22 +22,20 @@ export default function ProductsPage() {
   }, []);
 
   function handleAddToCart(p) {
-    try {
-      setAddingId(p._id);
+    setAddingId(p._id);
 
-      addToCart({
-        _id: p._id,
-        productKey: p.productKey,
-        name: p.name,
-        price: p.displayPrice || 0,
-        mrp: p.mrp || 0,
-        image: p.images?.[0] || "/no-image.png",
-        variant: "default",
-        qty: 1,
-      });
-    } finally {
-      setTimeout(() => setAddingId(null), 300);
-    }
+    addToCart({
+      _id: p._id,
+      productKey: p.productKey,
+      name: p.name,
+      price: p.displayPrice || 0,
+      mrp: p.mrp || 0,
+      image: p.images?.[0] || "/no-image.png",
+      variant: "default",
+      qty: 1,
+    });
+
+    setTimeout(() => setAddingId(null), 300);
   }
 
   if (loading) {
@@ -64,7 +62,7 @@ export default function ProductsPage() {
             <div key={p._id} className="card">
 
               {/* IMAGE */}
-              <Link href={`/products/${p.slug}`} className="imageWrap">
+              <Link href={`/products/${p.slug}`} className="imageBox">
                 <img
                   src={p.images?.[0] || "/no-image.png"}
                   alt={p.name}
@@ -77,16 +75,17 @@ export default function ProductsPage() {
 
               {/* CONTENT */}
               <div className="content">
-                <Link href={`/products/${p.slug}`}>
-                  <h3 className="name">{p.name}</h3>
+                <Link href={`/products/${p.slug}`} className="name">
+                  {p.name}
                 </Link>
 
-                <p className="price">
-                  ₹{price}
+                <div className="priceRow">
+                  <span className="price">₹{price}</span>
+
                   {mrp > price && (
                     <span className="mrp">₹{mrp}</span>
                   )}
-                </p>
+                </div>
               </div>
 
               {/* BUTTON */}
@@ -108,21 +107,24 @@ export default function ProductsPage() {
         .container {
           max-width: 1200px;
           margin: auto;
-          padding: 25px;
+          padding: 24px;
         }
 
         .title {
-          font-size: 26px;
+          font-size: 28px;
           font-weight: 700;
-          margin-bottom: 20px;
+          margin-bottom: 22px;
+          color: #111;
         }
 
+        /* GRID */
         .grid {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-          gap: 18px;
+          grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+          gap: 20px;
         }
 
+        /* CARD */
         .card {
           background: #fff;
           border: 1px solid #eee;
@@ -130,80 +132,95 @@ export default function ProductsPage() {
           overflow: hidden;
           display: flex;
           flex-direction: column;
-          transition: 0.25s;
+          transition: all 0.25s ease;
+          height: 100%;
         }
 
         .card:hover {
           transform: translateY(-6px);
-          box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+          box-shadow: 0 12px 30px rgba(0,0,0,0.08);
         }
 
-        .imageWrap {
+        /* IMAGE FIX (MOST IMPORTANT FIX) */
+        .imageBox {
           position: relative;
           width: 100%;
-          height: 180px;
+          aspect-ratio: 1 / 1; /* 🔥 keeps perfect square */
+          background: #f7f7f7;
           overflow: hidden;
           display: block;
         }
 
-        .imageWrap img {
+        .imageBox img {
           width: 100%;
           height: 100%;
           object-fit: cover;
-          transition: 0.3s;
+          transition: transform 0.3s ease;
         }
 
-        .card:hover img {
+        .card:hover .imageBox img {
           transform: scale(1.05);
         }
 
+        /* DISCOUNT BADGE */
         .badge {
           position: absolute;
           top: 10px;
           left: 10px;
           background: #e53935;
           color: white;
-          padding: 4px 8px;
-          font-size: 12px;
-          border-radius: 5px;
+          font-size: 11px;
+          padding: 4px 7px;
+          border-radius: 6px;
+          font-weight: 600;
         }
 
+        /* CONTENT */
         .content {
-          padding: 12px 14px;
-          flex-grow: 1;
+          padding: 12px 14px 8px;
+          flex: 1;
         }
 
         .name {
-          font-size: 15px;
+          font-size: 14px;
           font-weight: 600;
           color: #222;
-          margin-bottom: 6px;
+          line-height: 1.3;
           display: -webkit-box;
           -webkit-line-clamp: 2;
           -webkit-box-orient: vertical;
           overflow: hidden;
+          text-decoration: none;
+        }
+
+        /* PRICE ROW */
+        .priceRow {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-top: 8px;
         }
 
         .price {
           font-size: 16px;
           font-weight: 700;
+          color: #111;
         }
 
         .mrp {
-          margin-left: 8px;
           font-size: 13px;
           color: #888;
           text-decoration: line-through;
-          font-weight: 400;
         }
 
+        /* BUTTON */
         .btn {
-          margin: 10px 14px 14px;
+          margin: 10px 12px 12px;
           padding: 10px;
           border: none;
-          border-radius: 8px;
+          border-radius: 10px;
           background: #111;
-          color: white;
+          color: #fff;
           font-weight: 600;
           cursor: pointer;
           transition: 0.2s;
