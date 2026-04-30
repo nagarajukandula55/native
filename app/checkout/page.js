@@ -9,7 +9,7 @@ const UPI_ID = "9000528462@ybl";
 const UPI_NAME = "Native Store";
 const SELLER_STATE = "Andhra Pradesh";
 
-/* ================= GST CALC ================= */
+/* ================= GST ================= */
 const getGST = (base, gstPercent = 0) => {
   const gst = (base * gstPercent) / 100;
 
@@ -32,7 +32,7 @@ export default function CheckoutPage() {
     pincode: "",
     city: "",
     state: "",
-    gstNumber: "", // 🔥 NEW B2B FIELD
+    gstNumber: "",
   });
 
   const [paymentMethod, setPaymentMethod] = useState("razorpay");
@@ -42,13 +42,13 @@ export default function CheckoutPage() {
 
   /* ================= PINCODE AUTO FETCH ================= */
   useEffect(() => {
-    const pin = form.pincode;
-
-    if (!pin || pin.length !== 6) return;
+    if (form.pincode?.length !== 6) return;
 
     const fetchLocation = async () => {
       try {
-        const res = await fetch(`https://api.postalpincode.in/pincode/${pin}`);
+        const res = await fetch(
+          `https://api.postalpincode.in/pincode/${form.pincode}`
+        );
         const data = await res.json();
 
         if (data?.[0]?.Status === "Success") {
@@ -60,13 +60,13 @@ export default function CheckoutPage() {
             state: po?.State || "",
           }));
         }
-      } catch (e) {
-        console.error("PIN fetch error", e);
+      } catch (err) {
+        console.error("PIN error", err);
       }
     };
 
-    const t = setTimeout(fetchLocation, 500);
-    return () => clearTimeout(t);
+    const timer = setTimeout(fetchLocation, 400);
+    return () => clearTimeout(timer);
   }, [form.pincode]);
 
   const handleChange = (e) =>
@@ -89,24 +89,23 @@ export default function CheckoutPage() {
     }
 
     setDiscount(data.discount);
-    alert("Coupon applied");
   };
 
-  /* ================= GST ENRICHMENT (FIX HSN ISSUE) ================= */
+  /* ================= TAX ENRICHMENT (FIXED HSN + GST) ================= */
   const taxItems = cart.map((item) => {
     const base = item.price * item.qty;
 
-    // 🔥 IMPORTANT FIX: fallback only if missing
-    const gstPercent = item.tax ?? item.gstPercent ?? 0;
-    const hsn = item.hsn ?? item.product?.hsn ?? "UNKNOWN";
+    // ✅ FIXED: direct DB fallback safe chain
+    const hsn = item.hsn || item.product?.hsn || "NOT_SET";
+    const gstPercent = item.tax || item.gstPercent || item.product?.tax || 0;
 
     const tax = getGST(base, gstPercent);
 
     return {
       ...item,
       base,
-      gstPercent,
       hsn,
+      gstPercent,
       ...tax,
     };
   });
@@ -121,12 +120,9 @@ export default function CheckoutPage() {
   const totalBeforeDiscount = subtotal + gstTotal;
   const finalAmount = totalBeforeDiscount - discount;
 
-  /* ================= B2B / B2C DETECTION ================= */
   const isB2B = !!form.gstNumber;
-
   const isInterState = form.state && form.state !== SELLER_STATE;
 
-  /* ================= UPI ================= */
   const upiLink = `upi://pay?pa=${UPI_ID}&pn=${UPI_NAME}&am=${finalAmount.toFixed(
     2
   )}&cu=INR`;
@@ -168,7 +164,6 @@ export default function CheckoutPage() {
       }
 
       const orderId = data.orderId;
-
       sessionStorage.setItem("lastOrderId", orderId);
 
       if (paymentMethod === "razorpay") {
@@ -184,8 +179,7 @@ export default function CheckoutPage() {
           },
         };
 
-        const rzp = new window.Razorpay(options);
-        rzp.open();
+        new window.Razorpay(options).open();
       }
 
       if (paymentMethod === "upi") {
@@ -215,10 +209,9 @@ export default function CheckoutPage() {
         <input value={form.city} disabled placeholder="City" />
         <input value={form.state} disabled placeholder="State" />
 
-        {/* 🔥 GST INPUT */}
         <input
           name="gstNumber"
-          placeholder="GST Number (optional for B2B)"
+          placeholder="GST Number (optional)"
           onChange={handleChange}
         />
 
@@ -251,7 +244,7 @@ export default function CheckoutPage() {
           <button onClick={applyCoupon}>Apply</button>
         </div>
 
-        <button onClick={handleOrder}>
+        <button onClick={handleOrder} disabled={loading}>
           Pay ₹{finalAmount.toFixed(2)}
         </button>
       </div>
@@ -278,6 +271,7 @@ export default function CheckoutPage() {
         <div className="row"><span>Subtotal</span><span>₹{subtotal}</span></div>
         <div className="row"><span>CGST</span><span>₹{cgstTotal}</span></div>
         <div className="row"><span>SGST</span><span>₹{sgstTotal}</span></div>
+
         {isInterState && (
           <div className="row"><span>IGST</span><span>₹{igstTotal}</span></div>
         )}
@@ -334,9 +328,9 @@ export default function CheckoutPage() {
         .btn {
           display: block;
           margin-top: 10px;
-          padding: 10px;
           background: green;
           color: white;
+          padding: 10px;
           text-align: center;
         }
 
