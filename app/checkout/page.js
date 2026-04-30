@@ -40,13 +40,26 @@ export default function CheckoutPage() {
     setForm({ ...form, [e.target.name]: e.target.value });
 
   /* ================= COUPON ================= */
-  const applyCoupon = () => {
-    if (coupon === "SAVE10") {
-      setDiscount(cartTotal * 0.1);
-    } else {
-      setDiscount(0);
-      alert("Invalid Coupon");
+  const applyCoupon = (code, subtotal) => {
+    const coupons = {
+      SAVE10: { type: "percent", value: 10 },
+      FLAT50: { type: "flat", value: 50 },
+      FOOD20: { type: "percent", value: 20 },
+    };
+  
+    const coupon = coupons[code];
+  
+    if (!coupon) return 0;
+  
+    if (coupon.type === "percent") {
+      return (subtotal * coupon.value) / 100;
     }
+  
+    if (coupon.type === "flat") {
+      return coupon.value;
+    }
+  
+    return 0;
   };
 
   /* ================= PRODUCT-BASED TAX ================= */
