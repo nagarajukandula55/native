@@ -1,4 +1,4 @@
-import ProductView from "../ProductView";
+import ProductView from "./ProductView";
 
 /* ================= SEO ================= */
 export async function generateMetadata({ params }) {
