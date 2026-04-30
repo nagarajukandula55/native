@@ -39,34 +39,39 @@ export default function CheckoutPage() {
   const handleChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
 
-  /* ================= COUPON ================= */
-  const applyCoupon = (code, subtotal) => {
-    const coupons = {
-      SAVE10: { type: "percent", value: 10 },
-      FLAT50: { type: "flat", value: 50 },
-      FOOD20: { type: "percent", value: 20 },
-    };
-  
-    const coupon = coupons[code];
-  
-    if (!coupon) return 0;
-  
-    if (coupon.type === "percent") {
-      return (subtotal * coupon.value) / 100;
+  /* ================= DB COUPON APPLY ================= */
+  const applyCoupon = async () => {
+    try {
+      const res = await fetch("/api/coupons/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: coupon,
+          cartTotal,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!data.success) {
+        setDiscount(0);
+        alert(data.message || "Invalid Coupon");
+        return;
+      }
+
+      setDiscount(data.discount);
+      alert("Coupon Applied");
+    } catch (err) {
+      console.error(err);
+      setDiscount(0);
+      alert("Coupon Error");
     }
-  
-    if (coupon.type === "flat") {
-      return coupon.value;
-    }
-  
-    return 0;
   };
 
-  /* ================= PRODUCT-BASED TAX ================= */
+  /* ================= TAX CALC ================= */
   const taxItems = cart.map((item) => {
     const base = item.price * item.qty;
 
-    // FROM PRODUCT UPLOAD PAGE (IMPORTANT)
     const gstPercent = item.gstPercent ?? 0;
     const hsn = item.hsn ?? "0000";
 
@@ -87,16 +92,17 @@ export default function CheckoutPage() {
   const cgstTotal = taxItems.reduce((a, b) => a + b.cgst, 0);
   const sgstTotal = taxItems.reduce((a, b) => a + b.sgst, 0);
 
-  /* ================= FINAL AMOUNT ================= */
-  const totalBeforeDiscount = subtotal + gstTotal;
-  const finalAmount = totalBeforeDiscount - discount;
+  /* ================= FINAL BILLING (CORRECT ORDER) ================= */
+  const discountedSubtotal = subtotal - discount;
 
-  /* ================= UPI LINK ================= */
+  const finalAmount = discountedSubtotal + gstTotal;
+
+  /* ================= UPI ================= */
   const upiLink = `upi://pay?pa=${UPI_ID}&pn=${UPI_NAME}&am=${finalAmount.toFixed(
     2
   )}&cu=INR`;
 
-  /* ================= PLACE ORDER ================= */
+  /* ================= ORDER ================= */
   const handleOrder = async () => {
     try {
       setLoading(true);
@@ -153,7 +159,7 @@ export default function CheckoutPage() {
         rzp.open();
       }
 
-      /* ================= UPI REDIRECT ================= */
+      /* ================= UPI ================= */
       if (paymentMethod === "upi") {
         window.location.href = upiLink;
         router.push(`/order-pending?orderId=${orderId}`);
@@ -199,7 +205,7 @@ export default function CheckoutPage() {
           UPI Payment
         </label>
 
-        {/* COUPON */}
+        {/* ================= COUPON ================= */}
         <div className="coupon">
           <input
             placeholder="Coupon Code"
@@ -228,9 +234,7 @@ export default function CheckoutPage() {
             </div>
 
             <div className="mini">
-              <small>
-                HSN: {item.hsn} | GST: {item.gstPercent}%
-              </small>
+              HSN: {item.hsn} | GST: {item.gstPercent}%
             </div>
           </div>
         ))}
@@ -253,11 +257,6 @@ export default function CheckoutPage() {
         </div>
 
         <div className="row">
-          <span>Total Before Discount</span>
-          <span>₹{totalBeforeDiscount.toFixed(2)}</span>
-        </div>
-
-        <div className="row">
           <span>Discount</span>
           <span>-₹{discount.toFixed(2)}</span>
         </div>
@@ -267,39 +266,14 @@ export default function CheckoutPage() {
           <b>₹{finalAmount.toFixed(2)}</b>
         </div>
 
-        {/* ================= UPI OPTIONS ================= */}
+        {/* ================= UPI ================= */}
         {paymentMethod === "upi" && (
           <div className="upiBox">
-            <h4>Pay via UPI</h4>
-
             <QRCode value={upiLink} size={140} />
-
-            <a href={upiLink} className="btn">
-              Open UPI App
-            </a>
-
-            <a
-              href={`gpay://upi/pay?pa=${UPI_ID}&pn=${UPI_NAME}&am=${finalAmount.toFixed(
-                2
-              )}&cu=INR`}
-              className="btn alt"
-            >
-              Google Pay
-            </a>
-
-            <a
-              href={`phonepe://pay?pa=${UPI_ID}&pn=${UPI_NAME}&am=${finalAmount.toFixed(
-                2
-              )}&cu=INR`}
-              className="btn alt"
-            >
-              PhonePe
-            </a>
           </div>
         )}
       </div>
 
-      {/* ================= STYLE ================= */}
       <style jsx>{`
         .checkout {
           display: grid;
@@ -321,59 +295,29 @@ export default function CheckoutPage() {
           width: 100%;
           padding: 10px;
           margin: 6px 0;
-          border: 1px solid #ddd;
-          border-radius: 6px;
         }
 
         .coupon {
           display: flex;
           gap: 10px;
-          margin-top: 10px;
         }
 
         button {
           width: 100%;
           padding: 12px;
-          margin-top: 10px;
           background: black;
           color: white;
           border: none;
-          border-radius: 8px;
         }
 
         .row {
           display: flex;
           justify-content: space-between;
-          margin: 6px 0;
         }
 
         .mini {
           font-size: 12px;
           color: gray;
-          margin-bottom: 8px;
-        }
-
-        .total {
-          font-size: 18px;
-        }
-
-        .upiBox {
-          margin-top: 20px;
-          text-align: center;
-        }
-
-        .btn {
-          display: block;
-          margin-top: 10px;
-          padding: 10px;
-          background: green;
-          color: white;
-          border-radius: 6px;
-          text-decoration: none;
-        }
-
-        .btn.alt {
-          background: #111;
         }
       `}</style>
     </div>
