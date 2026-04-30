@@ -7,56 +7,42 @@ export async function POST(req) {
 
     const { cart } = await req.json();
 
-    if (!cart || !Array.isArray(cart)) {
+    if (!Array.isArray(cart)) {
       return Response.json({
         success: false,
-        message: "Invalid cart data",
+        message: "Invalid cart",
       });
     }
 
-    const productIds = cart.map((i) => i.productId);
+    const enrichedCart = await Promise.all(
+      cart.map(async (item) => {
+        const product = await Product.findById(item.productId).lean();
 
-    // 🔥 FETCH ALL PRODUCTS IN ONE QUERY
-    const products = await Product.find({
-      _id: { $in: productIds },
-    });
-
-    const productMap = new Map(
-      products.map((p) => [p._id.toString(), p])
-    );
-
-    // 🔥 ENRICH CART
-    const enrichedCart = cart.map((item) => {
-      const product = productMap.get(item.productId);
-
-      if (!product) {
         return {
           ...item,
-          hsn: "NOT_FOUND",
-          tax: 0,
+
+          // ✅ FIXED ENRICHMENT
+          name: product?.name || item.name,
+          price: product?.price || item.price,
+
+          hsn: product?.hsn || "NOT_SET",
+          gstPercent: product?.tax || 0,
+
+          product: {
+            hsn: product?.hsn,
+            tax: product?.tax,
+            name: product?.name,
+          },
         };
-      }
-
-      return {
-        ...item,
-
-        // 🔥 SOURCE OF TRUTH FROM DB
-        name: product.name,
-        price: product.price,
-        hsn: product.hsn || "UNKNOWN",
-        tax: product.tax || 0,
-
-        // keep qty intact
-        qty: item.qty,
-      };
-    });
+      })
+    );
 
     return Response.json({
       success: true,
       cart: enrichedCart,
     });
   } catch (err) {
-    console.error("Cart enrich error:", err);
+    console.error("Cart Enrich Error:", err);
 
     return Response.json({
       success: false,
