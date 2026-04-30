@@ -9,11 +9,21 @@ const UPI_ID = "9000528462@ybl";
 const UPI_NAME = "Native";
 const SELLER_STATE = "Andhra Pradesh";
 
-/* ================= GST SPLIT ================= */
-const getGST = (base, gstPercent = 0) => {
+/* ================= GST CALC ================= */
+const getGST = (base, gstPercent = 0, isInterState = false) => {
   const gst = (base * gstPercent) / 100;
 
+  if (isInterState) {
+    return {
+      igst: gst,
+      cgst: 0,
+      sgst: 0,
+      gstTotal: gst,
+    };
+  }
+
   return {
+    igst: 0,
     cgst: gst / 2,
     sgst: gst / 2,
     gstTotal: gst,
@@ -28,8 +38,8 @@ export default function CheckoutPage() {
     name: "",
     phone: "",
     address: "",
-    city: "",
     pincode: "",
+    city: "",
     state: "",
   });
 
@@ -40,33 +50,29 @@ export default function CheckoutPage() {
 
   /* ================= PINCODE AUTO FETCH ================= */
   useEffect(() => {
-    const pin = form.pincode;
+    if (form.pincode?.length !== 6) return;
 
-    if (!pin || pin.length !== 6) return;
-
-    const fetchLocation = async () => {
+    const timer = setTimeout(async () => {
       try {
         const res = await fetch(
-          `https://api.postalpincode.in/pincode/${pin}`
+          `https://api.postalpincode.in/pincode/${form.pincode}`
         );
-
         const data = await res.json();
 
         if (data?.[0]?.Status === "Success") {
-          const postOffice = data[0].PostOffice?.[0];
+          const post = data[0].PostOffice?.[0];
 
           setForm((prev) => ({
             ...prev,
-            city: postOffice?.District || "",
-            state: postOffice?.State || "",
+            city: post?.District || "",
+            state: post?.State || "",
           }));
         }
       } catch (err) {
-        console.error("Pincode fetch error", err);
+        console.error("Pincode error", err);
       }
-    };
+    }, 500);
 
-    const timer = setTimeout(fetchLocation, 500); // debounce
     return () => clearTimeout(timer);
   }, [form.pincode]);
 
@@ -79,17 +85,14 @@ export default function CheckoutPage() {
       const res = await fetch("/api/coupons/validate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          code: coupon,
-          cartTotal,
-        }),
+        body: JSON.stringify({ code: coupon, cartTotal }),
       });
 
       const data = await res.json();
 
       if (!data.success) {
         setDiscount(0);
-        alert(data.message || "Invalid Coupon");
+        alert(data.message);
         return;
       }
 
@@ -97,19 +100,19 @@ export default function CheckoutPage() {
       alert("Coupon Applied");
     } catch (err) {
       console.error(err);
-      setDiscount(0);
-      alert("Coupon Error");
     }
   };
 
-  /* ================= TAX ================= */
+  /* ================= TAX LOGIC (FIXED GST RULE) ================= */
   const taxItems = cart.map((item) => {
     const base = item.price * item.qty;
 
-    const gstPercent = item.gstPercent || 0;
-    const hsn = item.hsn || "0000";
+    const gstPercent = item.tax ?? item.gstPercent ?? 0; // ✅ FIX: DB TAX
+    const hsn = item.hsn || "N/A";
 
-    const tax = getGST(base, gstPercent);
+    const isInterState = form.state && form.state !== SELLER_STATE;
+
+    const tax = getGST(base, gstPercent, isInterState);
 
     return {
       ...item,
@@ -121,9 +124,11 @@ export default function CheckoutPage() {
   });
 
   const subtotal = cartTotal;
+
   const gstTotal = taxItems.reduce((a, b) => a + b.gstTotal, 0);
   const cgstTotal = taxItems.reduce((a, b) => a + b.cgst, 0);
   const sgstTotal = taxItems.reduce((a, b) => a + b.sgst, 0);
+  const igstTotal = taxItems.reduce((a, b) => a + (b.igst || 0), 0);
 
   const totalBeforeDiscount = subtotal + gstTotal;
   const finalAmount = totalBeforeDiscount - discount;
@@ -134,9 +139,9 @@ export default function CheckoutPage() {
 
   /* ================= ORDER ================= */
   const handleOrder = async () => {
-    try {
-      setLoading(true);
+    setLoading(true);
 
+    try {
       const res = await fetch("/api/orders/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -152,6 +157,7 @@ export default function CheckoutPage() {
             gstTotal,
             cgstTotal,
             sgstTotal,
+            igstTotal,
             finalAmount,
           },
           amount: finalAmount,
@@ -181,8 +187,7 @@ export default function CheckoutPage() {
           },
         };
 
-        const rzp = new window.Razorpay(options);
-        rzp.open();
+        new window.Razorpay(options).open();
       }
 
       if (paymentMethod === "upi") {
@@ -209,9 +214,8 @@ export default function CheckoutPage() {
         <input name="address" placeholder="Address" onChange={handleChange} />
         <input name="pincode" placeholder="Pincode" onChange={handleChange} />
 
-        {/* AUTO FILLED */}
-        <input name="city" value={form.city} disabled placeholder="City Auto" />
-        <input name="state" value={form.state} disabled placeholder="State Auto" />
+        <input value={form.city} disabled placeholder="City" />
+        <input value={form.state} disabled placeholder="State" />
 
         <h4>Payment Method</h4>
 
@@ -230,13 +234,12 @@ export default function CheckoutPage() {
             checked={paymentMethod === "upi"}
             onChange={() => setPaymentMethod("upi")}
           />
-          UPI Payment
+          UPI
         </label>
 
-        {/* COUPON */}
         <div className="coupon">
           <input
-            placeholder="Coupon Code"
+            placeholder="Coupon"
             value={coupon}
             onChange={(e) => setCoupon(e.target.value)}
           />
@@ -258,18 +261,21 @@ export default function CheckoutPage() {
               <span>{item.name} x {item.qty}</span>
               <span>₹{item.base.toFixed(2)}</span>
             </div>
-            <small>HSN: {item.hsn} | GST: {item.gstPercent}%</small>
+
+            <small>
+              HSN: {item.hsn} | GST: {item.gstPercent}% | IGST: {item.igst || 0}
+            </small>
           </div>
         ))}
 
         <hr />
 
-        <div className="row"><span>Subtotal</span><span>₹{subtotal.toFixed(2)}</span></div>
+        <div className="row"><span>Subtotal</span><span>₹{subtotal}</span></div>
         <div className="row"><span>CGST</span><span>₹{cgstTotal.toFixed(2)}</span></div>
         <div className="row"><span>SGST</span><span>₹{sgstTotal.toFixed(2)}</span></div>
+        <div className="row"><span>IGST</span><span>₹{igstTotal.toFixed(2)}</span></div>
 
         <div className="row"><span>Total</span><span>₹{totalBeforeDiscount.toFixed(2)}</span></div>
-
         <div className="row"><span>Discount</span><span>-₹{discount.toFixed(2)}</span></div>
 
         <div className="row total">
@@ -280,59 +286,20 @@ export default function CheckoutPage() {
         {paymentMethod === "upi" && (
           <div className="upiBox">
             <QRCode value={upiLink} size={140} />
-            <a href={upiLink} className="btn">Open UPI App</a>
+            <a className="btn" href={upiLink}>Open UPI App</a>
           </div>
         )}
       </div>
 
       <style jsx>{`
-        .checkout {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 20px;
-        }
-
-        .box {
-          padding: 20px;
-          border: 1px solid #eee;
-          border-radius: 10px;
-        }
-
-        input {
-          width: 100%;
-          padding: 10px;
-          margin: 5px 0;
-        }
-
-        .row {
-          display: flex;
-          justify-content: space-between;
-        }
-
-        .coupon {
-          display: flex;
-          gap: 10px;
-        }
-
-        button {
-          width: 100%;
-          padding: 10px;
-          background: black;
-          color: white;
-        }
-
-        .btn {
-          display: block;
-          margin-top: 10px;
-          background: green;
-          color: white;
-          padding: 10px;
-          text-align: center;
-        }
-
-        .total {
-          font-size: 18px;
-        }
+        .checkout { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+        .box { padding:20px; border:1px solid #eee; border-radius:10px; }
+        input { width:100%; padding:10px; margin:5px 0; }
+        .row { display:flex; justify-content:space-between; }
+        .coupon { display:flex; gap:10px; }
+        button { width:100%; padding:10px; background:black; color:white; }
+        .btn { display:block; margin-top:10px; background:green; color:white; padding:10px; text-align:center; }
+        .total { font-size:18px; }
       `}</style>
     </div>
   );
