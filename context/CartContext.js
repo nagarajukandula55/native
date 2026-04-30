@@ -13,7 +13,7 @@ export function CartProvider({ children }) {
     const saved = localStorage.getItem("cart");
     if (saved) {
       try {
-        setCart(JSON.parse(saved));
+        setCart(JSON.parse(saved) || []);
       } catch (e) {
         setCart([]);
       }
@@ -22,30 +22,36 @@ export function CartProvider({ children }) {
 
   /* ================= SAVE CART ================= */
   useEffect(() => {
-    localStorage.setItem("cart", JSON.stringify(cart));
+    localStorage.setItem("cart", JSON.stringify(cart || []));
   }, [cart]);
 
-  /* ================= UNIQUE KEY ================= */
-  const getKey = (item) =>
-    `${item.productId || item._id}-${item.variant || "default"}`;
-
-  /* ================= ADD TO CART ================= */
+  /* ================= SAFE ADD ================= */
   const addToCart = (product) => {
-    setCart((prev) => {
-      const key = getKey(product);
+    if (!product) return;
 
-      const exists = prev.find((p) => getKey(p) === key);
+    setCart((prev) => {
+      const safePrev = Array.isArray(prev) ? prev : [];
+
+      const exists = safePrev.find(
+        (p) =>
+          (p._id && p._id === product._id) ||
+          (p.id && p.id === product.id)
+      );
 
       if (exists) {
-        return prev.map((p) =>
-          getKey(p) === key
+        return safePrev.map((p) => {
+          const match =
+            (p._id && p._id === product._id) ||
+            (p.id && p.id === product.id);
+
+          return match
             ? { ...p, qty: (p.qty || 1) + 1 }
-            : p
-        );
+            : p;
+        });
       }
 
       return [
-        ...prev,
+        ...safePrev,
         {
           ...product,
           qty: 1,
@@ -56,42 +62,56 @@ export function CartProvider({ children }) {
     setDrawerOpen(true);
   };
 
-  /* ================= REMOVE ================= */
-  const removeFromCart = (product) => {
-    const key = getKey(product);
+  /* ================= SAFE REMOVE ================= */
+  const removeFromCart = (id) => {
+    if (!id) return;
 
     setCart((prev) =>
-      prev.filter((p) => getKey(p) !== key)
-    );
-  };
-
-  /* ================= UPDATE QTY ================= */
-  const updateQty = (product, qty) => {
-    const key = getKey(product);
-
-    if (qty <= 0) return removeFromCart(product);
-
-    setCart((prev) =>
-      prev.map((p) =>
-        getKey(p) === key ? { ...p, qty } : p
+      (prev || []).filter(
+        (p) =>
+          p?._id !== id &&
+          p?.id !== id &&
+          p?.productId !== id
       )
     );
   };
 
-  /* ================= TOTALS ================= */
-  const cartTotal = cart.reduce(
-    (sum, item) => sum + item.price * item.qty,
+  /* ================= SAFE QTY UPDATE ================= */
+  const updateQty = (id, qty) => {
+    if (!id) return;
+
+    if (qty <= 0) {
+      removeFromCart(id);
+      return;
+    }
+
+    setCart((prev) =>
+      (prev || []).map((p) => {
+        const match =
+          p?._id === id ||
+          p?.id === id ||
+          p?.productId === id;
+
+        if (!match) return p;
+
+        return {
+          ...p,
+          qty,
+        };
+      })
+    );
+  };
+
+  /* ================= TOTAL ================= */
+  const cartTotal = (cart || []).reduce(
+    (sum, item) => sum + (item.price || 0) * (item.qty || 0),
     0
   );
 
-  const cartCount = cart.reduce(
-    (sum, item) => sum + item.qty,
+  const cartCount = (cart || []).reduce(
+    (sum, item) => sum + (item.qty || 0),
     0
   );
-
-  /* ================= CONTROLS ================= */
-  const openCart = () => setDrawerOpen(true);
-  const closeCart = () => setDrawerOpen(false);
 
   return (
     <CartContext.Provider
@@ -104,8 +124,6 @@ export function CartProvider({ children }) {
         cartTotal,
         cartCount,
         drawerOpen,
-        openCart,
-        closeCart,
         setDrawerOpen,
       }}
     >
