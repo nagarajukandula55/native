@@ -6,7 +6,17 @@ import { useRouter } from "next/navigation";
 import QRCode from "react-qr-code";
 
 const UPI_ID = "9000528462@ybl";
-const UPI_NAME = "Native Store";
+const UPI_NAME = "Native";
+
+/* ================= GST HELPER ================= */
+const getTaxSplit = (base, gstPercent = 18) => {
+  const gst = (base * gstPercent) / 100;
+  return {
+    cgst: gst / 2,
+    sgst: gst / 2,
+    gstTotal: gst,
+  };
+};
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -18,6 +28,7 @@ export default function CheckoutPage() {
     address: "",
     city: "",
     pincode: "",
+    state: "",
   });
 
   const [paymentMethod, setPaymentMethod] = useState("razorpay");
@@ -38,10 +49,41 @@ export default function CheckoutPage() {
     }
   };
 
-  const finalAmount = cartTotal - discount;
+  /* ================= GST CALCULATION (ITEM WISE) ================= */
+  const taxItems = cart.map((item) => {
+    const base = item.price * item.qty;
+    const gstPercent = item.gstPercent ?? item.gstRate ?? 18;
 
-  /* ================= UPI LINK ================= */
-  const upiLink = `upi://pay?pa=${UPI_ID}&pn=${UPI_NAME}&am=${finalAmount}&cu=INR`;
+    const tax = getTaxSplit(base, gstPercent);
+
+    return {
+      ...item,
+      base,
+      hsn: item.hsn || "0000",
+      gstPercent,
+      ...tax,
+    };
+  });
+
+  const subtotal = cartTotal;
+
+  const gstTotal = taxItems.reduce((a, b) => a + b.gstTotal, 0);
+  const cgstTotal = taxItems.reduce((a, b) => a + b.cgst, 0);
+  const sgstTotal = taxItems.reduce((a, b) => a + b.sgst, 0);
+
+  /* ================= EXTRA CHARGES ================= */
+  const shippingFee = subtotal > 999 ? 0 : 49;
+  const packagingFee = subtotal > 0 ? 20 : 0;
+
+  const totalBeforeDiscount =
+    subtotal + gstTotal + shippingFee + packagingFee;
+
+  const finalAmount = totalBeforeDiscount - discount;
+
+  /* ================= UPI ================= */
+  const upiLink = `upi://pay?pa=${UPI_ID}&pn=${UPI_NAME}&am=${finalAmount.toFixed(
+    2
+  )}&cu=INR`;
 
   /* ================= PLACE ORDER ================= */
   const handleOrder = async () => {
@@ -53,6 +95,17 @@ export default function CheckoutPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           cart,
+          taxItems,
+          gstSummary: {
+            subtotal,
+            gstTotal,
+            cgstTotal,
+            sgstTotal,
+            shippingFee,
+            packagingFee,
+            discount,
+            finalAmount,
+          },
           amount: finalAmount,
           address: form,
           coupon,
@@ -70,14 +123,13 @@ export default function CheckoutPage() {
       }
 
       const orderId = data.orderId;
-
       sessionStorage.setItem("lastOrderId", orderId);
 
       /* ================= RAZORPAY ================= */
       if (paymentMethod === "razorpay") {
         const options = {
           key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-          amount: finalAmount * 100,
+          amount: Math.round(finalAmount * 100),
           currency: "INR",
           order_id: data.razorpayOrderId,
 
@@ -97,7 +149,6 @@ export default function CheckoutPage() {
         window.location.href = upiLink;
         router.push(`/order-pending?orderId=${orderId}`);
       }
-
     } catch (err) {
       console.error(err);
       alert("Error placing order");
@@ -109,7 +160,7 @@ export default function CheckoutPage() {
   return (
     <div className="checkout">
 
-      {/* LEFT - FORM */}
+      {/* ================= LEFT FORM ================= */}
       <div className="box">
         <h2>Checkout</h2>
 
@@ -117,6 +168,7 @@ export default function CheckoutPage() {
         <input name="phone" placeholder="Phone" onChange={handleChange} />
         <input name="address" placeholder="Address" onChange={handleChange} />
         <input name="city" placeholder="City" onChange={handleChange} />
+        <input name="state" placeholder="State" onChange={handleChange} />
         <input name="pincode" placeholder="Pincode" onChange={handleChange} />
 
         <h4>Payment Method</h4>
@@ -136,7 +188,7 @@ export default function CheckoutPage() {
             checked={paymentMethod === "upi"}
             onChange={() => setPaymentMethod("upi")}
           />
-          UPI (GPay / PhonePe / Paytm)
+          UPI Payment
         </label>
 
         {/* COUPON */}
@@ -150,18 +202,28 @@ export default function CheckoutPage() {
         </div>
 
         <button onClick={handleOrder} disabled={loading}>
-          {loading ? "Processing..." : `Pay ₹${finalAmount}`}
+          {loading ? "Processing..." : `Pay ₹${finalAmount.toFixed(2)}`}
         </button>
       </div>
 
-      {/* RIGHT - SUMMARY */}
+      {/* ================= RIGHT SUMMARY ================= */}
       <div className="box">
         <h3>Order Summary</h3>
 
-        {cart.map((item) => (
-          <div key={item.id || item.productKey} className="row">
-            <span>{item.name} x {item.qty}</span>
-            <span>₹{item.price * item.qty}</span>
+        {taxItems.map((item) => (
+          <div key={item.id || item.productKey}>
+            <div className="row">
+              <span>
+                {item.name} x {item.qty}
+              </span>
+              <span>₹{item.base.toFixed(2)}</span>
+            </div>
+
+            <div className="mini">
+              <small>
+                HSN: {item.hsn} | GST: {item.gstPercent}%
+              </small>
+            </div>
           </div>
         ))}
 
@@ -169,49 +231,54 @@ export default function CheckoutPage() {
 
         <div className="row">
           <span>Subtotal</span>
-          <span>₹{cartTotal}</span>
+          <span>₹{subtotal.toFixed(2)}</span>
+        </div>
+
+        <div className="row">
+          <span>CGST</span>
+          <span>₹{cgstTotal.toFixed(2)}</span>
+        </div>
+
+        <div className="row">
+          <span>SGST</span>
+          <span>₹{sgstTotal.toFixed(2)}</span>
+        </div>
+
+        <div className="row">
+          <span>Shipping</span>
+          <span>{shippingFee === 0 ? "FREE" : `₹${shippingFee}`}</span>
+        </div>
+
+        <div className="row">
+          <span>Packaging</span>
+          <span>₹{packagingFee}</span>
+        </div>
+
+        <div className="row">
+          <span>Total Before Discount</span>
+          <span>₹{totalBeforeDiscount.toFixed(2)}</span>
         </div>
 
         <div className="row">
           <span>Discount</span>
-          <span>-₹{discount}</span>
+          <span>-₹{discount.toFixed(2)}</span>
         </div>
 
         <div className="row total">
-          <b>Total</b>
-          <b>₹{finalAmount}</b>
+          <b>Final Total</b>
+          <b>₹{finalAmount.toFixed(2)}</b>
         </div>
 
-        {/* UPI SECTION */}
+        {/* UPI */}
         {paymentMethod === "upi" && (
           <div className="upiBox">
-
             <h4>Pay via UPI</h4>
-            <p>{UPI_ID}</p>
-
             <QRCode value={upiLink} size={140} />
-
-            <a href={upiLink} className="btn">Open UPI App</a>
-
-            <a
-              href={`gpay://upi/pay?pa=${UPI_ID}&pn=${UPI_NAME}&am=${finalAmount}&cu=INR`}
-              className="btn alt"
-            >
-              Open Google Pay
-            </a>
-
-            <a
-              href={`phonepe://pay?pa=${UPI_ID}&pn=${UPI_NAME}&am=${finalAmount}&cu=INR`}
-              className="btn alt"
-            >
-              Open PhonePe
-            </a>
-
           </div>
         )}
       </div>
 
-      {/* STYLE */}
+      {/* ================= STYLE ================= */}
       <style jsx>{`
         .checkout {
           display: grid;
@@ -251,13 +318,18 @@ export default function CheckoutPage() {
           color: white;
           border: none;
           border-radius: 8px;
-          cursor: pointer;
         }
 
         .row {
           display: flex;
           justify-content: space-between;
           margin: 6px 0;
+        }
+
+        .mini {
+          font-size: 12px;
+          color: gray;
+          margin-bottom: 8px;
         }
 
         .total {
@@ -268,22 +340,7 @@ export default function CheckoutPage() {
           margin-top: 20px;
           text-align: center;
         }
-
-        .btn {
-          display: block;
-          margin-top: 10px;
-          padding: 10px;
-          background: green;
-          color: white;
-          border-radius: 6px;
-          text-decoration: none;
-        }
-
-        .btn.alt {
-          background: #111;
-        }
       `}</style>
-
     </div>
   );
 }
