@@ -13,18 +13,30 @@ export default function TrackOrderPage() {
       setLoading(true);
       setError("");
       setOrder(null);
-
+  
+      if (!orderId.trim()) {
+        setError("Please enter Order ID");
+        return;
+      }
+  
       const res = await fetch(
         `/api/orders/get-by-id?orderId=${orderId}`
       );
-
-      const data = await res.json();
-
+  
+      const text = await res.text();
+  
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        throw new Error("Invalid server response (not JSON)");
+      }
+  
       if (!data.success) {
-        setError("Order not found");
+        setError(data.message || "Order not found");
         return;
       }
-
+  
       setOrder(data.order);
     } catch (err) {
       console.error(err);
