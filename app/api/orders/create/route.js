@@ -8,11 +8,11 @@ export async function POST(req) {
     await dbConnect();
 
     const body = await req.json();
-    console.log("🔥 ORDER PAYLOAD:", body);
+    console.log("📦 Incoming Order:", body);
 
     const { cart, amount, address } = body;
 
-    if (!cart?.length) {
+    if (!cart || cart.length === 0) {
       return NextResponse.json({ success: false, message: "Cart empty" }, { status: 400 });
     }
 
@@ -20,8 +20,8 @@ export async function POST(req) {
       return NextResponse.json({ success: false, message: "Amount missing" }, { status: 400 });
     }
 
-    console.log("🔑 ENV CHECK:", {
-      key: process.env.RAZORPAY_KEY_ID,
+    console.log("🔑 Razorpay Keys Check:", {
+      key: process.env.RAZORPAY_KEY_ID ? "OK" : "MISSING",
       secret: process.env.RAZORPAY_KEY_SECRET ? "OK" : "MISSING",
     });
 
@@ -42,11 +42,15 @@ export async function POST(req) {
       },
     });
 
+    console.log("🟡 DB Order Created:", orderDoc._id);
+
     const razorpayOrder = await razorpay.orders.create({
-      amount: Math.round(amount * 100),
+      amount: Math.round(Number(amount) * 100),
       currency: "INR",
       receipt: orderDoc.orderId,
     });
+
+    console.log("🟢 Razorpay Order Created:", razorpayOrder.id);
 
     orderDoc.payment = {
       razorpay_order_id: razorpayOrder.id,
@@ -62,12 +66,13 @@ export async function POST(req) {
     });
 
   } catch (err) {
-    console.error("🔥 FULL ORDER ERROR:", err);
+    console.error("🔥 ORDER CREATE CRASH:", err);
 
     return NextResponse.json(
       {
         success: false,
         message: err.message,
+        stack: err.stack,
       },
       { status: 500 }
     );
