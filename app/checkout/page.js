@@ -8,7 +8,7 @@ import QRCode from "react-qr-code";
 const UPI_ID = "9000528462@ybl";
 const UPI_NAME = "Native";
 
-/* ================= TAX HELPER ================= */
+/* ================= TAX ENGINE ================= */
 const getTaxSplit = (base, gstPercent = 0) => {
   const gstTotal = (base * gstPercent) / 100;
 
@@ -39,36 +39,50 @@ export default function CheckoutPage() {
   const handleChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
 
-  /* ================= COUPON (ONLY FIXED PART) ================= */
-  const applyCoupon = async () => {
-    try {
-      const res = await fetch("/api/coupons/validate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          code: coupon,
-          cartTotal,
-        }),
-      });
+  /* ================= COUPON ENGINE ================= */
+  const applyCoupon = () => {
+    const subtotal = cartTotal;
 
-      const data = await res.json();
+    const coupons = {
+      SAVE10: { type: "percent", value: 10, once: false },
+      FLAT50: { type: "flat", value: 50, once: false },
+      FIRST200: { type: "flat", value: 200, once: true },
+    };
 
-      if (!data.success) {
+    const c = coupons[coupon];
+
+    if (!c) {
+      setDiscount(0);
+      alert("Invalid Coupon");
+      return;
+    }
+
+    // simulate DB one-time usage
+    if (c.once) {
+      const used = sessionStorage.getItem(`coupon_${coupon}`);
+      if (used) {
+        alert("Coupon already used");
         setDiscount(0);
-        alert(data.message || "Invalid Coupon");
         return;
       }
+    }
 
-      setDiscount(data.discount);
-      alert("Coupon Applied Successfully");
-    } catch (err) {
-      console.error(err);
-      setDiscount(0);
-      alert("Coupon Error");
+    let discountValue = 0;
+
+    if (c.type === "percent") {
+      discountValue = (subtotal * c.value) / 100;
+    } else {
+      discountValue = c.value;
+    }
+
+    setDiscount(discountValue);
+
+    if (c.once) {
+      sessionStorage.setItem(`coupon_${coupon}`, "used");
     }
   };
 
-  /* ================= PRODUCT-BASED TAX (UNCHANGED) ================= */
+  /* ================= TAX CALCULATION ================= */
   const taxItems = cart.map((item) => {
     const base = item.price * item.qty;
 
@@ -92,16 +106,17 @@ export default function CheckoutPage() {
   const cgstTotal = taxItems.reduce((a, b) => a + b.cgst, 0);
   const sgstTotal = taxItems.reduce((a, b) => a + b.sgst, 0);
 
-  /* ================= FINAL AMOUNT (UNCHANGED LOGIC) ================= */
-  const totalBeforeDiscount = subtotal + gstTotal;
-  const finalAmount = totalBeforeDiscount - discount;
+  /* ================= FINAL BILLING (CORRECT ORDER) ================= */
+  const discountedSubtotal = subtotal - discount;
 
-  /* ================= UPI LINK ================= */
+  const finalAmount = discountedSubtotal + gstTotal;
+
+  /* ================= UPI ================= */
   const upiLink = `upi://pay?pa=${UPI_ID}&pn=${UPI_NAME}&am=${finalAmount.toFixed(
     2
   )}&cu=INR`;
 
-  /* ================= PLACE ORDER (UNCHANGED) ================= */
+  /* ================= ORDER ================= */
   const handleOrder = async () => {
     try {
       setLoading(true);
@@ -174,7 +189,7 @@ export default function CheckoutPage() {
   return (
     <div className="checkout">
 
-      {/* ================= FORM ================= */}
+      {/* LEFT */}
       <div className="box">
         <h2>Checkout</h2>
 
@@ -204,7 +219,7 @@ export default function CheckoutPage() {
           UPI Payment
         </label>
 
-        {/* ================= COUPON ================= */}
+        {/* COUPON */}
         <div className="coupon">
           <input
             placeholder="Coupon Code"
@@ -219,7 +234,7 @@ export default function CheckoutPage() {
         </button>
       </div>
 
-      {/* ================= SUMMARY ================= */}
+      {/* RIGHT */}
       <div className="box">
         <h3>Order Summary</h3>
 
@@ -233,9 +248,7 @@ export default function CheckoutPage() {
             </div>
 
             <div className="mini">
-              <small>
-                HSN: {item.hsn} | GST: {item.gstPercent}%
-              </small>
+              HSN: {item.hsn} | GST: {item.gstPercent}%
             </div>
           </div>
         ))}
@@ -267,7 +280,7 @@ export default function CheckoutPage() {
           <b>₹{finalAmount.toFixed(2)}</b>
         </div>
 
-        {/* ================= UPI ================= */}
+        {/* UPI */}
         {paymentMethod === "upi" && (
           <div className="upiBox">
             <QRCode value={upiLink} size={140} />
@@ -296,6 +309,7 @@ export default function CheckoutPage() {
           width: 100%;
           padding: 10px;
           margin: 6px 0;
+          border: 1px solid #ddd;
         }
 
         .coupon {
@@ -306,9 +320,9 @@ export default function CheckoutPage() {
         button {
           width: 100%;
           padding: 12px;
+          margin-top: 10px;
           background: black;
           color: white;
-          border: none;
         }
 
         .row {
