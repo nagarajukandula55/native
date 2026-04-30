@@ -10,19 +10,32 @@ export default function ProductView({
   stock = 0,
   stockText = "",
 }) {
-  const [selectedVariant, setSelectedVariant] = useState(currentVariant);
-  const [selectedImage, setSelectedImage] = useState(
-    currentVariant?.images?.[0] || p.images?.[0] || "/no-image.png"
+  const fallbackImage = "/no-image.png";
+
+  /* ================= SAFE INITIAL VARIANT ================= */
+  const [selectedVariant, setSelectedVariant] = useState(
+    currentVariant && Object.keys(currentVariant).length
+      ? currentVariant
+      : variants?.[0] || {}
   );
 
-  /* 🔥 Update image when variant changes */
+  /* ================= IMAGE STATE ================= */
+  const [selectedImage, setSelectedImage] = useState(
+    currentVariant?.images?.[0] ||
+    p?.images?.[0] ||
+    fallbackImage
+  );
+
+  /* ================= UPDATE IMAGE ON VARIANT CHANGE ================= */
   useEffect(() => {
+    if (!selectedVariant) return;
+
     setSelectedImage(
       selectedVariant?.images?.[0] ||
-      p.images?.[0] ||
-      "/no-image.png"
+      p?.images?.[0] ||
+      fallbackImage
     );
-  }, [selectedVariant, p.images]);
+  }, [selectedVariant, p?.images]);
 
   /* ================= PRICE ================= */
   const price =
@@ -46,6 +59,13 @@ export default function ProductView({
     stock ??
     0;
 
+  const stockLabel =
+    availableStock > 10
+      ? "In Stock"
+      : availableStock > 0
+      ? `Only ${availableStock} left`
+      : "Out of Stock";
+
   /* ================= ADD TO CART ================= */
   async function addToCart() {
     try {
@@ -60,7 +80,9 @@ export default function ProductView({
           name: p.name,
           price,
           image: selectedImage,
-          variant: selectedVariant?.variant,
+          variant:
+            selectedVariant?.variant ||
+            `${selectedVariant?.variantValue || ""} ${selectedVariant?.variantUnit || ""}`,
           qty: 1,
         }),
       });
@@ -76,30 +98,29 @@ export default function ProductView({
 
       {/* ================= LEFT ================= */}
       <div className="left">
-
         <img
           src={selectedImage}
-          alt={p.name}
+          alt={p?.name || "product"}
           className="mainImg"
         />
 
         <div className="thumbs">
-          {(selectedVariant?.images || p.images || []).map((img, i) => (
+          {(selectedVariant?.images || p?.images || []).map((img, i) => (
             <img
               key={i}
               src={img}
               onClick={() => setSelectedImage(img)}
               className={selectedImage === img ? "active" : ""}
+              alt={`thumb-${i}`}
             />
           ))}
         </div>
-
       </div>
 
       {/* ================= RIGHT ================= */}
       <div className="right">
 
-        <h1>{p.name}</h1>
+        <h1>{p?.name}</h1>
 
         {/* PRICE */}
         <div className="priceBox">
@@ -115,11 +136,7 @@ export default function ProductView({
 
         {/* STOCK */}
         <div className={`stock ${availableStock === 0 ? "out" : ""}`}>
-          {availableStock > 10
-            ? "In Stock"
-            : availableStock > 0
-            ? `Only ${availableStock} left`
-            : "Out of Stock"}
+          {stockLabel}
         </div>
 
         {/* VARIANTS */}
@@ -136,7 +153,8 @@ export default function ProductView({
                     selectedVariant?._id === v._id ? "active" : ""
                   }
                 >
-                  {v.variant || `${v.variantValue} ${v.variantUnit}`}
+                  {v.variant ||
+                    `${v.variantValue || ""} ${v.variantUnit || ""}`}
                 </button>
               ))}
             </div>
@@ -146,7 +164,7 @@ export default function ProductView({
         {/* ADD TO CART */}
         <button
           className="cartBtn"
-          disabled={availableStock === 0}
+          disabled={availableStock === 0 || price <= 0}
           onClick={addToCart}
         >
           {availableStock === 0 ? "Out of Stock" : "Add to Cart"}
@@ -156,21 +174,21 @@ export default function ProductView({
         <div className="section">
           <h3>Description</h3>
           <p>
-            {p.description ||
-              p.shortDescription ||
+            {p?.description?.trim() ||
+              p?.shortDescription?.trim() ||
               "No description available"}
           </p>
         </div>
 
         {/* INGREDIENTS */}
-        {p.ingredients?.length > 0 && (
+        {p?.ingredients?.length > 0 && (
           <div className="section">
             <h3>Ingredients</h3>
             <ul>
               {p.ingredients.map((ing, i) => (
                 <li key={i}>
-                  {ing.name} - {ing.qty}
-                  {ing.unit}
+                  {ing?.name || "—"} - {ing?.qty || 0}
+                  {ing?.unit || ""}
                 </li>
               ))}
             </ul>
@@ -219,10 +237,6 @@ export default function ProductView({
 
         .thumbs img.active {
           border-color: black;
-        }
-
-        .right h1 {
-          margin-bottom: 10px;
         }
 
         .priceBox {
@@ -294,6 +308,7 @@ export default function ProductView({
 
         .cartBtn:disabled {
           background: #aaa;
+          cursor: not-allowed;
         }
 
         .section {
@@ -302,6 +317,16 @@ export default function ProductView({
 
         .section h3 {
           margin-bottom: 5px;
+        }
+
+        @media (max-width: 768px) {
+          .wrap {
+            grid-template-columns: 1fr;
+          }
+
+          .mainImg {
+            height: 250px;
+          }
         }
       `}</style>
     </div>
