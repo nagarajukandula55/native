@@ -1,56 +1,11 @@
 import ProductView from "./ProductView";
 
-/* ================= SEO ================= */
-export async function generateMetadata({ params }) {
-  try {
-    const baseUrl =
-      process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
-
-    const res = await fetch(
-      `${baseUrl}/api/products/${params.slug}`,
-      { cache: "no-store" }
-    );
-
-    if (!res.ok) throw new Error("Metadata fetch failed");
-
-    const data = await res.json();
-    const p = data?.product || {};
-
-    return {
-      title: p.name || "Product",
-      description:
-        p.shortDescription ||
-        p.description ||
-        "Buy premium natural products online",
-
-      openGraph: {
-        title: p.name,
-        description: p.shortDescription || p.description,
-        images: p.images?.length ? [p.images[0]] : [],
-      },
-    };
-  } catch (err) {
-    console.error("Metadata error:", err);
-
-    return {
-      title: "Product",
-      description: "Buy online",
-    };
-  }
-}
-
-/* ================= PAGE ================= */
 export default async function ProductPage({ params }) {
   const baseUrl =
     process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
 
-  /* 🔥 Safety check */
   if (!params?.slug) {
-    return (
-      <div style={{ padding: 20 }}>
-        <h2>Invalid product URL</h2>
-      </div>
-    );
+    return <h2 style={{ padding: 20 }}>Invalid URL</h2>;
   }
 
   let data;
@@ -65,8 +20,6 @@ export default async function ProductPage({ params }) {
 
     data = await res.json();
   } catch (err) {
-    console.error("Product fetch error:", err);
-
     return (
       <div style={{ padding: 20 }}>
         <h2>Something went wrong</h2>
@@ -78,22 +31,18 @@ export default async function ProductPage({ params }) {
   const p = data?.product;
 
   if (!p) {
-    return (
-      <div style={{ padding: 20 }}>
-        <h2>Product not found</h2>
-      </div>
-    );
+    return <h2 style={{ padding: 20 }}>Product not found</h2>;
   }
 
-  const variants = data?.variants || [];
+  /* 🔥 NORMALIZE VARIANTS */
+  const variants = (data?.variants || []).map((v) => ({
+    ...v,
+    variant: `${v.value}${v.unit}`, // 🔥 FIX
+    images: p.images, // fallback
+  }));
 
-  /* ================= VARIANT ================= */
-  const currentVariant =
-    variants.find((v) => v.slug === params.slug) ||
-    variants[0] ||
-    {};
+  const currentVariant = variants[0] || {};
 
-  /* ================= PRICE ================= */
   const mrp = currentVariant?.mrp ?? p?.mrp ?? 0;
   const sellingPrice =
     currentVariant?.sellingPrice ?? p?.sellingPrice ?? 0;
@@ -103,7 +52,6 @@ export default async function ProductPage({ params }) {
       ? Math.round(((mrp - sellingPrice) / mrp) * 100)
       : 0;
 
-  /* ================= STOCK ================= */
   const stock = currentVariant?.stock ?? p?.stock ?? 0;
 
   const stockText =
@@ -114,40 +62,13 @@ export default async function ProductPage({ params }) {
       : "Out of Stock";
 
   return (
-    <>
-      {/* ================= JSON-LD SEO ================= */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
-            "@context": "https://schema.org/",
-            "@type": "Product",
-            name: p.name,
-            image: p.images || [],
-            description: p.description,
-            sku: currentVariant?.sku || p.productKey,
-            offers: {
-              "@type": "Offer",
-              price: sellingPrice,
-              priceCurrency: "INR",
-              availability:
-                stock > 0
-                  ? "https://schema.org/InStock"
-                  : "https://schema.org/OutOfStock",
-            },
-          }),
-        }}
-      />
-
-      {/* ================= PRODUCT VIEW ================= */}
-      <ProductView
-        p={p}
-        variants={variants}
-        currentVariant={currentVariant}
-        discount={discount}
-        stock={stock}
-        stockText={stockText}
-      />
-    </>
+    <ProductView
+      p={p}
+      variants={variants}
+      currentVariant={currentVariant}
+      discount={discount}
+      stock={stock}
+      stockText={stockText}
+    />
   );
 }
