@@ -7,15 +7,16 @@ import QRCode from "react-qr-code";
 
 const UPI_ID = "9000528462@ybl";
 const UPI_NAME = "Native Store";
+const SELLER_STATE = "Andhra Pradesh";
 
-/* ================= TAX HELPER ================= */
-const getTaxSplit = (base, gstPercent = 0) => {
-  const gstTotal = (base * gstPercent) / 100;
+/* ================= GST SPLIT ================= */
+const getGST = (base, gstPercent = 0) => {
+  const gst = (base * gstPercent) / 100;
 
   return {
-    cgst: gstTotal / 2,
-    sgst: gstTotal / 2,
-    gstTotal,
+    cgst: gst / 2,
+    sgst: gst / 2,
+    gstTotal: gst,
   };
 };
 
@@ -29,6 +30,7 @@ export default function CheckoutPage() {
     address: "",
     city: "",
     pincode: "",
+    state: "Andhra Pradesh",
   });
 
   const [paymentMethod, setPaymentMethod] = useState("razorpay");
@@ -39,7 +41,7 @@ export default function CheckoutPage() {
   const handleChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
 
-  /* ================= DB COUPON APPLY ================= */
+  /* ================= COUPON (DB ONLY) ================= */
   const applyCoupon = async () => {
     try {
       const res = await fetch("/api/coupons/validate", {
@@ -60,7 +62,7 @@ export default function CheckoutPage() {
       }
 
       setDiscount(data.discount);
-      alert("Coupon Applied Successfully");
+      alert("Coupon Applied");
     } catch (err) {
       console.error(err);
       setDiscount(0);
@@ -68,14 +70,14 @@ export default function CheckoutPage() {
     }
   };
 
-  /* ================= PRODUCT-BASED TAX ================= */
+  /* ================= TAX CALCULATION ================= */
   const taxItems = cart.map((item) => {
     const base = item.price * item.qty;
 
-    const gstPercent = item.gstPercent ?? 0;
-    const hsn = item.hsn ?? "0000";
+    const gstPercent = item.gstPercent || 0;
+    const hsn = item.hsn || "0000";
 
-    const tax = getTaxSplit(base, gstPercent);
+    const tax = getGST(base, gstPercent);
 
     return {
       ...item,
@@ -92,11 +94,10 @@ export default function CheckoutPage() {
   const cgstTotal = taxItems.reduce((a, b) => a + b.cgst, 0);
   const sgstTotal = taxItems.reduce((a, b) => a + b.sgst, 0);
 
-  /* ================= FINAL AMOUNT ================= */
   const totalBeforeDiscount = subtotal + gstTotal;
   const finalAmount = totalBeforeDiscount - discount;
 
-  /* ================= UPI LINK ================= */
+  /* ================= UPI ================= */
   const upiLink = `upi://pay?pa=${UPI_ID}&pn=${UPI_NAME}&am=${finalAmount.toFixed(
     2
   )}&cu=INR`;
@@ -112,19 +113,18 @@ export default function CheckoutPage() {
         body: JSON.stringify({
           cart,
           taxItems,
+          address: form,
+          coupon,
+          discount,
+          paymentMethod,
           gstSummary: {
             subtotal,
             gstTotal,
             cgstTotal,
             sgstTotal,
-            discount,
             finalAmount,
           },
           amount: finalAmount,
-          address: form,
-          coupon,
-          discount,
-          paymentMethod,
         }),
       });
 
@@ -132,11 +132,11 @@ export default function CheckoutPage() {
 
       if (!data.success) {
         alert("Order failed");
-        setLoading(false);
         return;
       }
 
       const orderId = data.orderId;
+
       sessionStorage.setItem("lastOrderId", orderId);
 
       /* ================= RAZORPAY ================= */
@@ -146,7 +146,6 @@ export default function CheckoutPage() {
           amount: Math.round(finalAmount * 100),
           currency: "INR",
           order_id: data.razorpayOrderId,
-
           handler: () => {
             setCart([]);
             closeCart();
@@ -204,7 +203,7 @@ export default function CheckoutPage() {
           UPI Payment
         </label>
 
-        {/* ================= COUPON ================= */}
+        {/* COUPON */}
         <div className="coupon">
           <input
             placeholder="Coupon Code"
@@ -223,52 +222,31 @@ export default function CheckoutPage() {
       <div className="box">
         <h3>Order Summary</h3>
 
-        {taxItems.map((item) => (
-          <div key={item.id || item.productKey}>
+        {taxItems.map((item, i) => (
+          <div key={i}>
             <div className="row">
-              <span>
-                {item.name} x {item.qty}
-              </span>
+              <span>{item.name} x {item.qty}</span>
               <span>₹{item.base.toFixed(2)}</span>
             </div>
 
-            <div className="mini">
-              <small>
-                HSN: {item.hsn} | GST: {item.gstPercent}%
-              </small>
-            </div>
+            <small>
+              HSN: {item.hsn} | GST: {item.gstPercent}%
+            </small>
           </div>
         ))}
 
         <hr />
 
-        <div className="row">
-          <span>Subtotal</span>
-          <span>₹{subtotal.toFixed(2)}</span>
-        </div>
+        <div className="row"><span>Subtotal</span><span>₹{subtotal.toFixed(2)}</span></div>
+        <div className="row"><span>CGST</span><span>₹{cgstTotal.toFixed(2)}</span></div>
+        <div className="row"><span>SGST</span><span>₹{sgstTotal.toFixed(2)}</span></div>
 
-        <div className="row">
-          <span>CGST</span>
-          <span>₹{cgstTotal.toFixed(2)}</span>
-        </div>
+        <div className="row"><span>Total</span><span>₹{totalBeforeDiscount.toFixed(2)}</span></div>
 
-        <div className="row">
-          <span>SGST</span>
-          <span>₹{sgstTotal.toFixed(2)}</span>
-        </div>
-
-        <div className="row">
-          <span>Total Before Discount</span>
-          <span>₹{totalBeforeDiscount.toFixed(2)}</span>
-        </div>
-
-        <div className="row">
-          <span>Discount</span>
-          <span>-₹{discount.toFixed(2)}</span>
-        </div>
+        <div className="row"><span>Discount</span><span>-₹{discount.toFixed(2)}</span></div>
 
         <div className="row total">
-          <b>Final Total</b>
+          <b>Final</b>
           <b>₹{finalAmount.toFixed(2)}</b>
         </div>
 
@@ -276,34 +254,47 @@ export default function CheckoutPage() {
         {paymentMethod === "upi" && (
           <div className="upiBox">
             <h4>Pay via UPI</h4>
+
             <QRCode value={upiLink} size={140} />
+
+            <a href={upiLink} className="btn">Open UPI App</a>
+
+            <a href={`gpay://upi/pay?pa=${UPI_ID}&pn=${UPI_NAME}&am=${finalAmount}`} className="btn">
+              Google Pay
+            </a>
+
+            <a href={`phonepe://pay?pa=${UPI_ID}&pn=${UPI_NAME}&am=${finalAmount}`} className="btn">
+              PhonePe
+            </a>
           </div>
         )}
       </div>
 
+      {/* ================= STYLE ================= */}
       <style jsx>{`
         .checkout {
           display: grid;
           grid-template-columns: 1fr 1fr;
-          gap: 25px;
+          gap: 20px;
           max-width: 1100px;
           margin: auto;
-          padding: 20px;
         }
 
         .box {
-          background: #fff;
           padding: 20px;
-          border-radius: 12px;
           border: 1px solid #eee;
+          border-radius: 10px;
         }
 
         input {
           width: 100%;
           padding: 10px;
-          margin: 6px 0;
-          border: 1px solid #ddd;
-          border-radius: 6px;
+          margin: 5px 0;
+        }
+
+        .row {
+          display: flex;
+          justify-content: space-between;
         }
 
         .coupon {
@@ -313,22 +304,19 @@ export default function CheckoutPage() {
 
         button {
           width: 100%;
-          padding: 12px;
+          padding: 10px;
           background: black;
           color: white;
-          border: none;
-          border-radius: 8px;
         }
 
-        .row {
-          display: flex;
-          justify-content: space-between;
-          margin: 6px 0;
-        }
-
-        .mini {
-          font-size: 12px;
-          color: gray;
+        .btn {
+          display: block;
+          margin-top: 10px;
+          padding: 10px;
+          background: green;
+          color: white;
+          text-align: center;
+          border-radius: 6px;
         }
 
         .total {
