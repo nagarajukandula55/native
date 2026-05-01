@@ -8,6 +8,17 @@ import { generateOrderId } from "@/lib/orderId";
 
 const SELLER_STATE = "Andhra Pradesh";
 
+/* ================= GST ================= */
+const GST_REGEX =
+  /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[A-Z0-9]{3}$/;
+
+const STATE_CODE_MAP = {
+  "Andhra Pradesh": "37",
+  "Tamil Nadu": "33",
+  "Karnataka": "29",
+  "Telangana": "36",
+};
+
 export async function POST(req) {
   try {
     await dbConnect();
@@ -37,6 +48,22 @@ export async function POST(req) {
       );
     }
 
+    /* ================= GST VALIDATION ================= */
+    let gstType = "B2C";
+    let gstStateCode = null;
+
+    if (gstNumber) {
+      if (!GST_REGEX.test(gstNumber)) {
+        return NextResponse.json(
+          { success: false, message: "Invalid GSTIN format" },
+          { status: 400 }
+        );
+      }
+
+      gstType = "B2B";
+      gstStateCode = gstNumber.slice(0, 2);
+    }
+
     /* ================= FETCH & LOCK PRODUCTS ================= */
     let subtotal = 0;
     let gstTotal = 0;
@@ -46,7 +73,6 @@ export async function POST(req) {
     for (const item of cart) {
       let product = null;
 
-      // 🔒 Try both identifiers (tamper-proof)
       if (item.productId) {
         product = await Product.findById(item.productId).lean();
       }
@@ -87,7 +113,7 @@ export async function POST(req) {
       });
     }
 
-    /* ================= CART INTEGRITY CHECK ================= */
+    /* ================= TAMPER CHECK ================= */
     if (safeItems.length !== cart.length) {
       return NextResponse.json(
         { success: false, message: "Cart tampering detected" },
@@ -95,9 +121,14 @@ export async function POST(req) {
       );
     }
 
-    /* ================= GST MODE ================= */
-    const isInterState =
-      address.state && address.state !== SELLER_STATE;
+    /* ================= GST MODE (FINAL LOGIC) ================= */
+    const sellerCode = STATE_CODE_MAP[SELLER_STATE];
+
+    const buyerCode = gstStateCode
+      ? gstStateCode
+      : STATE_CODE_MAP[address.state];
+
+    const isInterState = buyerCode !== sellerCode;
 
     const gstMode = isInterState ? "IGST" : "CGST_SGST";
 
@@ -105,7 +136,7 @@ export async function POST(req) {
     const sgstTotal = isInterState ? 0 : gstTotal / 2;
     const igstTotal = isInterState ? gstTotal : 0;
 
-    /* ================= COUPON VALIDATION ================= */
+    /* ================= COUPON ================= */
     let discount = 0;
 
     if (coupon) {
@@ -116,7 +147,8 @@ export async function POST(req) {
 
       if (
         validCoupon &&
-        (!validCoupon.expiry || new Date(validCoupon.expiry) > new Date()) &&
+        (!validCoupon.expiry ||
+          new Date(validCoupon.expiry) > new Date()) &&
         subtotal >= (validCoupon.minOrder || 0)
       ) {
         discount = Number(validCoupon.discount || 0);
@@ -158,8 +190,12 @@ export async function POST(req) {
         discount,
       },
 
-      gstMode,
-      gstNumber,
+      gstDetails: {
+        gstNumber,
+        gstType,
+        gstMode,
+        isInterState,
+      },
 
       address,
       coupon,
@@ -196,13 +232,12 @@ export async function POST(req) {
       success: true,
       orderId: orderDoc.orderId,
       dbOrderId: orderDoc._id,
-
       amount: orderDoc.amount,
-
       gstSummary: orderDoc.gstSummary,
-
+      gstDetails: orderDoc.gstDetails,
       razorpayOrder,
     });
+
   } catch (err) {
     console.error("ORDER CREATE ERROR:", err);
 
