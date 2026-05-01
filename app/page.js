@@ -131,21 +131,18 @@ export default function Home() {
 
                     {/* ✅ FIXED ADD TO CART */}
                     <button
-                      onClick={() =>
+                      onClick={() => {
+                        alert("CLICKED"); // 👈 MUST trigger
+                        console.log("ADDING", p);
+                    
                         addToCart({
-                          productId: p._id,                 // ✅ REQUIRED
-                          id: p._id,                        // ✅ keep for compatibility
-                          productKey: p.productKey || "",   // ✅ IMPORTANT (your backend uses this)
+                          productId: p._id,
                           name: p.name,
                           price: Number(p.displayPrice || p.minPrice || 0),
-                          image: p.images?.[0] || "",
+                          image: p.images?.[0],
                           qty: 1,
-                    
-                          // ✅ GST + HSN (fallback until enrich API runs)
-                          hsn: p.hsn || "",
-                          gstPercent: p.tax || 0,
-                        })
-                      }
+                        });
+                      }}
                     >
                       Add to Cart
                     </button>
