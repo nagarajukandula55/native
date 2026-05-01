@@ -18,7 +18,6 @@ export default function Home() {
         });
 
         const data = await res.json();
-
         const list = data?.products || [];
 
         setProducts(list);
@@ -78,7 +77,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ================= PRODUCTS (FIXED) ================= */}
+      {/* ================= PRODUCTS ================= */}
       <section id="products" className="section">
         <h2>Featured Products</h2>
 
@@ -130,14 +129,18 @@ export default function Home() {
                       )}
                     </div>
 
-                    {/* ADD TO CART */}
+                    {/* ✅ FIXED ADD TO CART */}
                     <button
                       onClick={() =>
                         addToCart({
-                          id: p._id,
+                          productId: p._id,          // ✅ CRITICAL FIX
+                          productKey: p.productKey,  // ✅ CRITICAL FIX
                           name: p.name,
                           price,
                           image: p.images?.[0],
+                          qty: 1,                    // ✅ REQUIRED
+                          hsn: p.hsn,                // ✅ fallback safety
+                          gstPercent: p.tax          // ✅ fallback safety
                         })
                       }
                     >
@@ -277,35 +280,45 @@ export default function Home() {
         }
 
         .productCard {
+          display: flex;
+          flex-direction: column;
           background: white;
           border-radius: 12px;
           overflow: hidden;
           box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+          height: 100%;
         }
 
         .productCard img {
           width: 100%;
-          height: 220px;
+          height: 200px;
           object-fit: cover;
         }
 
         .productBody {
+          display: flex;
+          flex-direction: column;
+          flex: 1;
           padding: 15px;
         }
 
         .productBody h3 {
           margin: 0;
+          font-size: 16px;
         }
 
         .productBody .desc {
           font-size: 13px;
           color: #666;
-          height: 40px;
-          overflow: hidden;
+          flex-grow: 1;
+          min-height: 40px;
         }
 
         .priceBox {
           margin-top: 8px;
+          display: flex;
+          align-items: center;
+          gap: 8px;
         }
 
         .price {
@@ -316,18 +329,16 @@ export default function Home() {
         .mrp {
           text-decoration: line-through;
           color: #888;
-          margin-left: 8px;
         }
 
         .off {
           color: green;
-          margin-left: 8px;
           font-weight: bold;
         }
 
         .productBody button {
           width: 100%;
-          margin-top: 10px;
+          margin-top: auto;
         }
 
         .why {
@@ -338,6 +349,22 @@ export default function Home() {
 
         .icon {
           font-size: 40px;
+        }
+
+        @media (max-width: 768px) {
+          h1 {
+            font-size: 36px;
+          }
+
+          .productGrid {
+            grid-template-columns: repeat(2, 1fr);
+          }
+        }
+
+        @media (max-width: 480px) {
+          .productGrid {
+            grid-template-columns: 1fr;
+          }
         }
       `}</style>
     </div>
