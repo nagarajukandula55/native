@@ -344,17 +344,7 @@ export default function CheckoutPage() {
 
         {gstData && (
           <div className="gstBox">
-            <strong>GST Format Verified ✅</strong>
-        
-            //<div className="gstRow">
-             // <span>Company:</span>
-             // <span>{gstData.legalName || "N/A"}</span>
-           // </div>
-        
-           // <div className="gstRow">
-           //   <span>Trade Name:</span>
-            //  <span>{gstData.tradeName || "N/A"}</span>
-          //  </div>
+            <strong>GST Format Verified ✅</strong>     
         
             <div className="gstRow">
               <span>State:</span>
