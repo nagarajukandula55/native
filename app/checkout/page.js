@@ -233,6 +233,7 @@ export default function CheckoutPage() {
           cart: safeCart,
           taxItems,
           address: form,
+          email: form.email,
           coupon,
           discount,
           paymentMethod,
