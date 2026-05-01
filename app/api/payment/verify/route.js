@@ -81,6 +81,8 @@ export async function POST(req) {
       paidAt: new Date(),
     };
 
+    await sendPaymentReceiptEmail(order);
+
     /* ================= GENERATE INVOICE HTML ================= */
     const invoiceHTML = generateInvoiceHTML(order.toObject());
 
