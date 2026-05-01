@@ -43,6 +43,7 @@ export default function CheckoutPage() {
   const [form, setForm] = useState({
     name: "",
     phone: "",
+    email: "",
     address: "",
     pincode: "",
     city: "",
@@ -196,7 +197,7 @@ export default function CheckoutPage() {
   
         setForm((prev) => ({
           ...prev,
-          gstformatVerified: true,
+          gstVerified: true,
         }));
       } else {
         setGstData(null);
@@ -307,6 +308,7 @@ export default function CheckoutPage() {
 
         <input name="name" placeholder="Name" onChange={handleChange} />
         <input name="phone" placeholder="Phone" onChange={handleChange} />
+        <input name="email" placeholder="Email Address" value={form.email} onChange={handleChange} />
         <input name="address" placeholder="Address" onChange={handleChange} />
         <input name="pincode" placeholder="Pincode" onChange={handleChange} />
 
