@@ -6,6 +6,8 @@ import Razorpay from "razorpay";
 import mongoose from "mongoose";
 import { generateOrderId } from "@/lib/orderId";
 
+const SELLER_STATE = "Andhra Pradesh";
+
 export async function POST(req) {
   try {
     await dbConnect();
@@ -27,43 +29,88 @@ export async function POST(req) {
       );
     }
 
-    /* ================= SERVER-SIDE PRICE LOCK ================= */
+    /* ================= SECURE PRODUCT FETCH ================= */
     let subtotal = 0;
+    let gstTotal = 0;
 
-    const safeItems = await Promise.all(
-      cart.map(async (item) => {
-        let product = null;
+    const safeItems = [];
 
-        if (
-          item.productId &&
-          mongoose.Types.ObjectId.isValid(item.productId)
-        ) {
-          product = await Product.findById(item.productId).lean();
-        }
+    for (const item of cart) {
+      let product = null;
 
-        const price = Number(product?.price || item.price || 0);
-        const qty = Number(item.qty || 1);
+      // ✅ Strict validation
+      if (
+        item.productId &&
+        mongoose.Types.ObjectId.isValid(item.productId)
+      ) {
+        product = await Product.findById(item.productId).lean();
+      }
 
-        subtotal += price * qty;
+      if (!product && item.productKey) {
+        product = await Product.findOne({
+          productKey: item.productKey,
+        }).lean();
+      }
 
-        return {
-          productId: item.productId || null,
-          productKey: product?.productKey || item.productKey || "",
-          name: product?.name || item.name || "Product",
-          price, // ✅ SERVER TRUSTED
-          qty,
-          image: product?.primaryImage || item.image || "",
-          hsn: product?.hsn || "NA",
-          gstPercent: product?.tax || 0,
-        };
-      })
+      // ❌ BLOCK if not found
+      if (!product) {
+        return NextResponse.json(
+          { success: false, message: "Invalid product" },
+          { status: 400 }
+        );
+      }
+
+      const price = Number(product.price || 0);
+      const qty = Math.max(Number(item.qty || 1), 1);
+      const gstPercent = Number(product.tax || 0);
+
+      const base = price * qty;
+      const gst = (base * gstPercent) / 100;
+
+      subtotal += base;
+      gstTotal += gst;
+
+      safeItems.push({
+        productId: product._id,
+        productKey: product.productKey,
+        name: product.name,
+        price,
+        qty,
+        image: product.primaryImage || "",
+        hsn: product.hsn || "NA",
+        gstPercent,
+        gstAmount: gst,
+      });
+    }
+
+    /* ================= CART INTEGRITY ================= */
+    if (safeItems.length !== cart.length) {
+      return NextResponse.json(
+        { success: false, message: "Cart tampering detected" },
+        { status: 400 }
+      );
+    }
+
+    /* ================= GST MODE ================= */
+    const isInterState =
+      address?.state &&
+      address.state !== SELLER_STATE;
+
+    const cgstTotal = isInterState ? 0 : gstTotal / 2;
+    const sgstTotal = isInterState ? 0 : gstTotal / 2;
+    const igstTotal = isInterState ? gstTotal : 0;
+
+    /* ================= FINAL AMOUNT ================= */
+    const appliedDiscount = 0; // 🔒 no frontend trust
+
+    const totalBeforeDiscount = subtotal + gstTotal;
+
+    const finalAmount = Math.max(
+      totalBeforeDiscount - appliedDiscount,
+      0
     );
 
-    /* ================= DISCOUNT SAFE ================= */
-    const appliedDiscount = 0; // 🔒 NEVER TRUST FRONTEND
-    const amount = Math.max(subtotal - appliedDiscount, 0);
-
-    if (amount <= 0) {
+    if (finalAmount <= 0) {
       return NextResponse.json(
         { success: false, message: "Invalid amount" },
         { status: 400 }
@@ -77,11 +124,23 @@ export async function POST(req) {
     const orderDoc = await Order.create({
       orderId,
       items: safeItems,
-      amount,
+
+      amount: finalAmount,
+
+      gstSummary: {
+        subtotal,
+        gstTotal,
+        cgstTotal,
+        sgstTotal,
+        igstTotal,
+        totalBeforeDiscount,
+      },
+
       address,
       coupon,
       discount: appliedDiscount,
       paymentMethod,
+
       status: "PENDING_PAYMENT",
     });
 
@@ -95,7 +154,7 @@ export async function POST(req) {
       });
 
       razorpayOrder = await razorpay.orders.create({
-        amount: Math.round(amount * 100),
+        amount: Math.round(finalAmount * 100),
         currency: "INR",
         receipt: orderId,
       });
@@ -107,12 +166,15 @@ export async function POST(req) {
       await orderDoc.save();
     }
 
+    /* ================= RESPONSE ================= */
     return NextResponse.json({
       success: true,
       orderId,
-      amount,
+      amount: finalAmount,
+      gstSummary: orderDoc.gstSummary,
       razorpayOrder,
     });
+
   } catch (err) {
     console.error("ORDER ERROR:", err);
 
