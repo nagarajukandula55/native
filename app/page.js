@@ -133,11 +133,17 @@ export default function Home() {
                     <button
                       onClick={() =>
                         addToCart({
-                          productId: p._id,   // ✅ FIXED
+                          productId: p._id,                 // ✅ REQUIRED
+                          id: p._id,                        // ✅ keep for compatibility
+                          productKey: p.productKey || "",   // ✅ IMPORTANT (your backend uses this)
                           name: p.name,
-                          price,
-                          image: p.images?.[0],
-                          qty: 1,             // ✅ important
+                          price: Number(p.displayPrice || p.minPrice || 0),
+                          image: p.images?.[0] || "",
+                          qty: 1,
+                    
+                          // ✅ GST + HSN (fallback until enrich API runs)
+                          hsn: p.hsn || "",
+                          gstPercent: p.tax || 0,
                         })
                       }
                     >
