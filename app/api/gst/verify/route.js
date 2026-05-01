@@ -7,7 +7,7 @@ export async function POST(req) {
   try {
     const { gstNumber } = await req.json();
 
-    /* ================= BASIC VALIDATION ================= */
+    /* ================= FORMAT VALIDATION ================= */
     if (!gstNumber || !GST_REGEX.test(gstNumber)) {
       return NextResponse.json({
         success: false,
@@ -15,81 +15,63 @@ export async function POST(req) {
       });
     }
 
-    try {
-      /* ================= REAL GST API ================= */
-      const res = await fetch(
-        `https://api.mastersindia.co/gstin/${gstNumber}`,
-        {
-          headers: {
-            Authorization: `Bearer ${process.env.GST_API_KEY}`,
-          },
-          cache: "no-store",
-        }
-      );
-
-      const data = await res.json();
-
-      if (!data || data.error) {
-        throw new Error("GST not found");
-      }
-
-      /* ================= NORMALIZE RESPONSE (LOCKED FORMAT) ================= */
-      const normalized = {
-        gstNumber: gstNumber,
-
-        // ✅ Legal Name (company registered name)
-        legalName: data.lgnm || "",
-
-        // ✅ Trade Name (business name)
-        tradeName: data.tradeNam || "",
-
-        // ✅ State (IMPORTANT FIX)
-        state:
-          data.pradr?.addr?.st || // primary address state
-          data.pradr?.addr?.state ||
-          "",
-
-        // ✅ State Code
-        stateCode:
-          data.stjCd || // API provided
-          gstNumber.slice(0, 2), // fallback
-
-        // ✅ Status
-        status: data.sts || "ACTIVE",
-
-        // ✅ Raw (for debugging if needed)
-        raw: process.env.NODE_ENV === "development" ? data : undefined,
-      };
-
-      return NextResponse.json({
-        success: true,
-        data: normalized,
-      });
-
-    } catch (apiErr) {
-      console.error("GST API ERROR:", apiErr);
-
-      /* ================= SAFE FALLBACK ================= */
-      return NextResponse.json({
-        success: true,
-        data: {
-          gstNumber,
-          legalName: "Verified Business",
-          tradeName: "",
-          state: "",
-          stateCode: gstNumber.slice(0, 2),
-          status: "UNKNOWN",
-          fallback: true,
+    /* ================= CALL GST API ================= */
+    const res = await fetch(
+      `https://api.mastersindia.co/gstin/${gstNumber}`,
+      {
+        headers: {
+          // ⚠️ try both if needed
+          Authorization: process.env.GST_API_KEY,
+          // Authorization: `Bearer ${process.env.GST_API_KEY}`,
         },
+        cache: "no-store",
+      }
+    );
+
+    const data = await res.json();
+
+    /* ================= STRICT VALIDATION ================= */
+    if (
+      !data ||
+      data.error ||
+      !data.lgnm // 🚨 MUST have legal name
+    ) {
+      return NextResponse.json({
+        success: false,
+        message: "Invalid GSTIN",
       });
     }
+
+    /* ================= NORMALIZED RESPONSE ================= */
+    const normalized = {
+      gstNumber,
+
+      legalName: data.lgnm || "",
+      tradeName: data.tradeNam || "",
+
+      state:
+        data.pradr?.addr?.st ||
+        "",
+
+      stateCode:
+        data.stjCd ||
+        gstNumber.slice(0, 2),
+
+      status: data.sts || "ACTIVE",
+    };
+
+    return NextResponse.json({
+      success: true,
+      data: normalized,
+    });
 
   } catch (err) {
     console.error("GST VERIFY ERROR:", err);
 
+    /* 🚨 NO FAKE SUCCESS ANYMORE */
     return NextResponse.json({
       success: false,
-      message: "GST verification failed",
+      message: "GST verification failed. Try again.",
     });
   }
 }
