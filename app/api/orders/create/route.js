@@ -2,9 +2,11 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db";
 import Order from "@/models/Order";
 import Product from "@/models/Product";
-import Coupon from "@/models/Coupon"; // optional if exists
+import Coupon from "@/models/Coupon";
 import Razorpay from "razorpay";
 import { generateOrderId } from "@/lib/orderId";
+
+const SELLER_STATE = "Andhra Pradesh";
 
 export async function POST(req) {
   try {
@@ -20,7 +22,7 @@ export async function POST(req) {
       gstNumber = null,
     } = body;
 
-    /* ================= VALIDATION ================= */
+    /* ================= BASIC VALIDATION ================= */
     if (!Array.isArray(cart) || cart.length === 0) {
       return NextResponse.json(
         { success: false, message: "Cart is empty" },
@@ -28,60 +30,110 @@ export async function POST(req) {
       );
     }
 
-    /* ================= FETCH PRODUCTS & LOCK PRICING ================= */
+    if (!address?.pincode || !address?.state) {
+      return NextResponse.json(
+        { success: false, message: "Invalid address" },
+        { status: 400 }
+      );
+    }
+
+    /* ================= FETCH & LOCK PRODUCTS ================= */
     let subtotal = 0;
     let gstTotal = 0;
 
-    const items = await Promise.all(
-      cart.map(async (item) => {
-        const product = await Product.findOne({
+    const safeItems = [];
+
+    for (const item of cart) {
+      let product = null;
+
+      // 🔒 Try both identifiers (tamper-proof)
+      if (item.productId) {
+        product = await Product.findById(item.productId).lean();
+      }
+
+      if (!product && item.productKey) {
+        product = await Product.findOne({
           productKey: item.productKey,
-        });
+        }).lean();
+      }
 
-        if (!product) {
-          throw new Error(`Product not found: ${item.productKey}`);
-        }
+      if (!product) {
+        return NextResponse.json(
+          { success: false, message: "Invalid product detected" },
+          { status: 400 }
+        );
+      }
 
-        const qty = Number(item.qty || 1);
-        const price = Number(product.price || 0);
+      const qty = Math.max(Number(item.qty || 1), 1);
+      const price = Number(product.price || 0);
+      const gstPercent = Number(product.tax || 0);
 
-        const base = price * qty;
-        const gst = (base * (product.tax || 0)) / 100;
+      const base = price * qty;
+      const gst = (base * gstPercent) / 100;
 
-        subtotal += base;
-        gstTotal += gst;
+      subtotal += base;
+      gstTotal += gst;
 
-        return {
-          productId: product._id,
-          productKey: product.productKey,
-          name: product.name,
-          price,
-          qty,
-          hsn: product.hsn,
-          gstPercent: product.tax,
-          image: product.primaryImage || "",
-        };
-      })
-    );
+      safeItems.push({
+        productId: product._id,
+        productKey: product.productKey,
+        name: product.name,
+        price,
+        qty,
+        hsn: product.hsn || "NA",
+        gstPercent,
+        gstAmount: gst,
+        image: product.primaryImage || "",
+      });
+    }
 
-    /* ================= COUPON VALIDATION (SERVER SIDE) ================= */
+    /* ================= CART INTEGRITY CHECK ================= */
+    if (safeItems.length !== cart.length) {
+      return NextResponse.json(
+        { success: false, message: "Cart tampering detected" },
+        { status: 400 }
+      );
+    }
+
+    /* ================= GST MODE ================= */
+    const isInterState =
+      address.state && address.state !== SELLER_STATE;
+
+    const gstMode = isInterState ? "IGST" : "CGST_SGST";
+
+    const cgstTotal = isInterState ? 0 : gstTotal / 2;
+    const sgstTotal = isInterState ? 0 : gstTotal / 2;
+    const igstTotal = isInterState ? gstTotal : 0;
+
+    /* ================= COUPON VALIDATION ================= */
     let discount = 0;
 
     if (coupon) {
-      const validCoupon = await Coupon.findOne({ code: coupon });
+      const validCoupon = await Coupon.findOne({
+        code: coupon,
+        active: true,
+      });
 
-      if (validCoupon) {
+      if (
+        validCoupon &&
+        (!validCoupon.expiry || new Date(validCoupon.expiry) > new Date()) &&
+        subtotal >= (validCoupon.minOrder || 0)
+      ) {
         discount = Number(validCoupon.discount || 0);
       }
     }
 
     /* ================= FINAL AMOUNT ================= */
     const totalBeforeDiscount = subtotal + gstTotal;
-    const finalAmount = Math.max(totalBeforeDiscount - discount, 0);
+
+    const finalAmount = Math.max(
+      totalBeforeDiscount - discount,
+      0
+    );
 
     if (finalAmount <= 0) {
       return NextResponse.json(
-        { success: false, message: "Invalid order amount" },
+        { success: false, message: "Invalid amount" },
         { status: 400 }
       );
     }
@@ -92,21 +144,27 @@ export async function POST(req) {
     /* ================= SAVE ORDER ================= */
     const orderDoc = await Order.create({
       orderId,
-      items,
+      items: safeItems,
+
       amount: finalAmount,
 
       gstSummary: {
         subtotal,
         gstTotal,
+        cgstTotal,
+        sgstTotal,
+        igstTotal,
         totalBeforeDiscount,
         discount,
       },
+
+      gstMode,
+      gstNumber,
 
       address,
       coupon,
       discount,
       paymentMethod,
-      gstNumber,
 
       status: "PENDING_PAYMENT",
     });
@@ -138,7 +196,11 @@ export async function POST(req) {
       success: true,
       orderId: orderDoc.orderId,
       dbOrderId: orderDoc._id,
+
       amount: orderDoc.amount,
+
+      gstSummary: orderDoc.gstSummary,
+
       razorpayOrder,
     });
   } catch (err) {
