@@ -8,6 +8,8 @@ import QRCode from "react-qr-code";
 const UPI_ID = "9000528462@ybl";
 const UPI_NAME = "Native";
 const SELLER_STATE = "Andhra Pradesh";
+const [gstData, setGstData] = useState(null);
+const [gstLoading, setGstLoading] = useState(false);
 
 /* ================= GST ================= */
 const getGST = (base, gstPercent = 0, isInterState) => {
@@ -171,6 +173,43 @@ export default function CheckoutPage() {
     2
   )}&cu=INR`;
 
+  const verifyGST = async () => {
+    if (!form.gstNumber) return;
+  
+    setGstLoading(true);
+  
+    try {
+      const res = await fetch("/api/gst/verify", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          gstNumber: form.gstNumber,
+        }),
+      });
+  
+      const data = await res.json();
+  
+      if (data.success) {
+        setGstData(data.data);
+  
+        setForm((prev) => ({
+          ...prev,
+          gstVerified: true,
+        }));
+      } else {
+        setGstData(null);
+        alert(data.message);
+      }
+    } catch (err) {
+      console.error(err);
+      alert("GST verification failed");
+    } finally {
+      setGstLoading(false);
+    }
+  };
+
   /* ================= ORDER ================= */
   const handleOrder = async () => {
     if (!form.name || !form.phone || !form.address) {
@@ -277,8 +316,10 @@ export default function CheckoutPage() {
         {/* ✅ GST FIELD */}
         <input
           name="gstNumber"
-          placeholder="GST Number (optional)"
+          placeholder="GST Number (for B2B)"
+          value={form.gstNumber}
           onChange={handleChange}
+          onBlur={verifyGST}
         />
 
         <h4>Payment</h4>
@@ -300,6 +341,13 @@ export default function CheckoutPage() {
           />
           UPI
         </label>
+
+        {gstData && (
+          <div className="gstBox">
+            <small>✔ {gstData.legalName}</small>
+            <small>State Code: {gstData.stateCode}</small>
+          </div>
+        )}
 
         {/* ✅ COUPON */}
         <div className="coupon">
