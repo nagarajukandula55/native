@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import dbConnect from "@/lib/db";
 import Order from "@/models/Order";
+import { generateInvoice } from "@/lib/invoice";
 
 export async function POST(req) {
   await dbConnect();
@@ -18,6 +19,9 @@ export async function POST(req) {
   }
 
   const event = JSON.parse(body);
+
+  const invoiceUrl = generateInvoice(order);
+  order.invoiceUrl = invoiceUrl;
 
   /* ================= PAYMENT SUCCESS ================= */
   if (event.event === "payment.captured") {
