@@ -210,20 +210,45 @@ export default function CheckoutPage() {
       }
 
       const orderId = data.orderId;
-
+      
       if (paymentMethod === "razorpay") {
         new window.Razorpay({
           key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
           amount: Math.round(finalAmount * 100),
-          order_id: data.razorpayOrderId,
-          handler: () => {
-            setCart([]);
-            closeCart();
-            router.push(`/order-success?orderId=${orderId}`);
+          order_id: data.razorpayOrder?.id,
+      
+          handler: async function (response) {
+            try {
+              const verifyRes = await fetch("/api/payment/verify", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  razorpay_order_id: response.razorpay_order_id,
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_signature: response.razorpay_signature,
+                  orderId: orderId,
+                }),
+              });
+      
+              const verifyData = await verifyRes.json();
+      
+              if (verifyData.success) {
+                setCart([]);
+                closeCart();
+                router.push(`/order-success?orderId=${orderId}`);
+              } else {
+                alert("Payment verification failed ❌");
+              }
+            } catch (err) {
+              console.error("Verify error:", err);
+              alert("Payment verification error");
+            }
           },
         }).open();
       }
-
+      
       if (paymentMethod === "upi") {
         window.location.href = upiLink;
         router.push(`/order-pending?orderId=${orderId}`);
