@@ -196,7 +196,7 @@ export default function CheckoutPage() {
   
         setForm((prev) => ({
           ...prev,
-          gstVerified: true,
+          gstformatVerified: true,
         }));
       } else {
         setGstData(null);
