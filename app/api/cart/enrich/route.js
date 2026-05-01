@@ -21,21 +21,54 @@ export async function POST(req) {
         try {
           let product = null;
 
-          // ✅ SAFE OBJECT ID CHECK (CRITICAL FIX)
-          if (item.productId && mongoose.Types.ObjectId.isValid(item.productId)) {
+          /* ================= FIND PRODUCT (MULTI STRATEGY) ================= */
+
+          // 1️⃣ Try Mongo _id
+          if (
+            item.productId &&
+            mongoose.Types.ObjectId.isValid(item.productId)
+          ) {
             product = await Product.findById(item.productId).lean();
           }
 
+          // 2️⃣ Try productKey
+          if (!product && item.productKey) {
+            product = await Product.findOne({
+              productKey: item.productKey,
+            }).lean();
+          }
+
+          // 3️⃣ Try slug
+          if (!product && item.slug) {
+            product = await Product.findOne({
+              slug: item.slug,
+            }).lean();
+          }
+
+          /* ================= DEBUG LOG ================= */
+          if (!product) {
+            console.warn("⚠️ Product NOT FOUND for cart item:", item);
+          } else {
+            console.log("✅ Product FOUND:", product.name);
+          }
+
+          /* ================= FINAL RETURN ================= */
           return {
             ...item,
 
-            // ✅ SAFE FALLBACKS
             name: product?.name || item.name || "Unknown Product",
             price: product?.price || item.price || 0,
 
-            // ✅ GST + HSN FIX
-            hsn: product?.hsn || item.hsn || "NOT_SET",
-            gstPercent: product?.tax || item.gstPercent || 0,
+            // ✅ HARD GUARANTEE (NO MORE NOT_SET IF DB HAS VALUE)
+            hsn:
+              product?.hsn && product.hsn !== ""
+                ? product.hsn
+                : item.hsn || "NOT_SET",
+
+            gstPercent:
+              typeof product?.tax === "number"
+                ? product.tax
+                : item.gstPercent || 0,
 
             product: product
               ? {
@@ -46,9 +79,8 @@ export async function POST(req) {
               : null,
           };
         } catch (itemErr) {
-          console.error("Item enrich error:", itemErr);
+          console.error("❌ Item enrich error:", itemErr);
 
-          // ✅ DO NOT BREAK ENTIRE CART
           return {
             ...item,
             hsn: item.hsn || "NOT_SET",
@@ -63,7 +95,7 @@ export async function POST(req) {
       cart: enrichedCart,
     });
   } catch (err) {
-    console.error("Cart Enrich Error:", err);
+    console.error("🔥 Cart Enrich Error:", err);
 
     return Response.json({
       success: false,
