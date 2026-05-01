@@ -132,14 +132,12 @@ export default function Home() {
                     {/* ✅ FIXED ADD TO CART */}
                     <button
                       onClick={() => {
-                        alert("CLICKED"); // 👈 MUST trigger
-                        console.log("ADDING", p);
-                    
                         addToCart({
                           productId: p._id,
+                          productKey: p.productKey,
                           name: p.name,
                           price: Number(p.displayPrice || p.minPrice || 0),
-                          image: p.images?.[0],
+                          image: p.images?.[0] || "",
                           qty: 1,
                         });
                       }}
