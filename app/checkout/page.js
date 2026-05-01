@@ -8,8 +8,6 @@ import QRCode from "react-qr-code";
 const UPI_ID = "9000528462@ybl";
 const UPI_NAME = "Native";
 const SELLER_STATE = "Andhra Pradesh";
-const [gstData, setGstData] = useState(null);
-const [gstLoading, setGstLoading] = useState(false);
 
 /* ================= GST ================= */
 const getGST = (base, gstPercent = 0, isInterState) => {
@@ -36,7 +34,9 @@ const validateGST = (gst) => {
 export default function CheckoutPage() {
   const router = useRouter();
   const { cart, cartTotal, setCart, closeCart } = useCart();
-
+  
+  const [gstData, setGstData] = useState(null);
+  const [gstLoading, setGstLoading] = useState(false);
   const [enrichedCart, setEnrichedCart] = useState([]);
   const [loading, setLoading] = useState(false);
 
