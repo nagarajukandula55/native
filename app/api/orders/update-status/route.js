@@ -18,6 +18,12 @@ export async function POST(req) {
       order: updated,
     });
 
+    if (status === "DISPATCHED") {
+     await generateInvoice(order);
+     await sendInvoiceEmail(order);
+     await sendWhatsAppInvoice(order);
+  }
+
   } catch (err) {
     console.error(err);
     return Response.json({
