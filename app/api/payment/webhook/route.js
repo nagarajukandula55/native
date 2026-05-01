@@ -1,44 +1,124 @@
-import crypto from "crypto";
+import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db";
 import Order from "@/models/Order";
-import { generateInvoice } from "@/lib/invoice";
+import Product from "@/models/Product";
+import Razorpay from "razorpay";
+import mongoose from "mongoose";
+import { generateOrderId } from "@/lib/orderId";
 
 export async function POST(req) {
-  await dbConnect();
+  try {
+    await dbConnect();
 
-  const body = await req.text(); // RAW BODY REQUIRED
-  const signature = req.headers.get("x-razorpay-signature");
+    const body = await req.json();
 
-  const expected = crypto
-    .createHmac("sha256", process.env.RAZORPAY_WEBHOOK_SECRET)
-    .update(body)
-    .digest("hex");
+    const {
+      cart = [],
+      address = {},
+      coupon = null,
+      paymentMethod = "RAZORPAY",
+    } = body;
 
-  if (signature !== expected) {
-    return new Response("Invalid signature", { status: 400 });
-  }
+    /* ================= VALIDATION ================= */
+    if (!Array.isArray(cart) || cart.length === 0) {
+      return NextResponse.json(
+        { success: false, message: "Cart is empty" },
+        { status: 400 }
+      );
+    }
 
-  const event = JSON.parse(body);
+    /* ================= SERVER-SIDE PRICE LOCK ================= */
+    let subtotal = 0;
 
-  const invoiceUrl = generateInvoice(order);
-  order.invoiceUrl = invoiceUrl;
+    const safeItems = await Promise.all(
+      cart.map(async (item) => {
+        let product = null;
 
-  /* ================= PAYMENT SUCCESS ================= */
-  if (event.event === "payment.captured") {
-    const payment = event.payload.payment.entity;
+        if (
+          item.productId &&
+          mongoose.Types.ObjectId.isValid(item.productId)
+        ) {
+          product = await Product.findById(item.productId).lean();
+        }
 
-    const order = await Order.findOne({
-      "payment.razorpay_order_id": payment.order_id,
+        const price = Number(product?.price || item.price || 0);
+        const qty = Number(item.qty || 1);
+
+        subtotal += price * qty;
+
+        return {
+          productId: item.productId || null,
+          productKey: product?.productKey || item.productKey || "",
+          name: product?.name || item.name || "Product",
+          price, // ✅ SERVER TRUSTED
+          qty,
+          image: product?.primaryImage || item.image || "",
+          hsn: product?.hsn || "NA",
+          gstPercent: product?.tax || 0,
+        };
+      })
+    );
+
+    /* ================= DISCOUNT SAFE ================= */
+    const appliedDiscount = 0; // 🔒 NEVER TRUST FRONTEND
+    const amount = Math.max(subtotal - appliedDiscount, 0);
+
+    if (amount <= 0) {
+      return NextResponse.json(
+        { success: false, message: "Invalid amount" },
+        { status: 400 }
+      );
+    }
+
+    /* ================= ORDER ID ================= */
+    const orderId = await generateOrderId();
+
+    /* ================= SAVE ORDER ================= */
+    const orderDoc = await Order.create({
+      orderId,
+      items: safeItems,
+      amount,
+      address,
+      coupon,
+      discount: appliedDiscount,
+      paymentMethod,
+      status: "PENDING_PAYMENT",
     });
 
-    if (order) {
-      order.status = "PAID";
-      order.payment.razorpay_payment_id = payment.id;
-      order.payment.paidAt = new Date();
+    /* ================= RAZORPAY ================= */
+    let razorpayOrder = null;
 
-      await order.save();
+    if (paymentMethod === "RAZORPAY") {
+      const razorpay = new Razorpay({
+        key_id: process.env.RAZORPAY_KEY_ID,
+        key_secret: process.env.RAZORPAY_KEY_SECRET,
+      });
+
+      razorpayOrder = await razorpay.orders.create({
+        amount: Math.round(amount * 100),
+        currency: "INR",
+        receipt: orderId,
+      });
+
+      orderDoc.payment = {
+        razorpay_order_id: razorpayOrder.id,
+      };
+
+      await orderDoc.save();
     }
-  }
 
-  return new Response("OK", { status: 200 });
+    return NextResponse.json({
+      success: true,
+      orderId,
+      amount,
+      razorpayOrder,
+    });
+  } catch (err) {
+    console.error("ORDER ERROR:", err);
+
+    return NextResponse.json(
+      { success: false, message: "Order failed" },
+      { status: 500 }
+    );
+  }
 }
