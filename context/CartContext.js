@@ -20,27 +20,57 @@ export function CartProvider({ children }) {
     }
   }, []);
 
-  /* ================= SAVE ================= */
+  /* ================= SAVE (NON-BLOCKING) ================= */
   useEffect(() => {
-    localStorage.setItem("cart", JSON.stringify(cart || []));
+    const t = setTimeout(() => {
+      localStorage.setItem("cart", JSON.stringify(cart || []));
+    }, 0);
+
+    return () => clearTimeout(t);
   }, [cart]);
 
   /* ================= ADD ================= */
   const addToCart = (product) => {
-    if (!product?._id) return;
+    if (!product) return;
+
+    // 🔥 STANDARDIZE ID
+    const productId = product.productId || product._id;
+    const productKey = product.productKey || product._id;
+
+    if (!productId && !productKey) return;
 
     setCart((prev) => {
-      const exists = prev.find((p) => p._id === product._id);
+      const exists = prev.find(
+        (p) =>
+          p.productId === productId ||
+          p.productKey === productKey
+      );
 
       if (exists) {
         return prev.map((p) =>
-          p._id === product._id
+          p.productId === productId ||
+          p.productKey === productKey
             ? { ...p, qty: (p.qty || 1) + 1 }
             : p
         );
       }
 
-      return [...prev, { ...product, qty: 1 }];
+      // ✅ KEEP CART LIGHT (IMPORTANT)
+      return [
+        ...prev,
+        {
+          productId,
+          productKey,
+          name: product.name || "Product",
+          price: Number(product.price || 0),
+          image: product.image || "",
+          qty: 1,
+
+          // fallback GST (optional)
+          hsn: product.hsn || "",
+          gstPercent: product.gstPercent || 0,
+        },
+      ];
     });
 
     setDrawerOpen(true);
@@ -48,7 +78,14 @@ export function CartProvider({ children }) {
 
   /* ================= REMOVE ================= */
   const removeFromCart = (id) => {
-    setCart((prev) => prev.filter((p) => p._id !== id));
+    setCart((prev) =>
+      prev.filter(
+        (p) =>
+          p.productId !== id &&
+          p.productKey !== id &&
+          p._id !== id
+      )
+    );
   };
 
   /* ================= UPDATE QTY ================= */
@@ -62,12 +99,16 @@ export function CartProvider({ children }) {
 
     setCart((prev) =>
       prev.map((p) =>
-        p._id === id ? { ...p, qty } : p
+        p.productId === id ||
+        p.productKey === id ||
+        p._id === id
+          ? { ...p, qty }
+          : p
       )
     );
   };
 
-  /* ================= CLOSE DRAWER SAFETY ================= */
+  /* ================= DRAWER ================= */
   const closeCart = () => setDrawerOpen(false);
   const openCart = () => setDrawerOpen(true);
 
