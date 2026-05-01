@@ -83,6 +83,14 @@ export async function POST(req) {
 
     await sendPaymentReceiptEmail(order);
 
+    order.receipt = {
+      receiptNumber: await generateReceiptNumber(),
+      generatedAt: new Date(),
+      paymentMode: "RAZORPAY",
+      paymentReference: razorpay_payment_id,
+      amountPaid: order.amount,
+    };
+
     /* ================= GENERATE INVOICE HTML ================= */
     const invoiceHTML = generateInvoiceHTML(order.toObject());
 
