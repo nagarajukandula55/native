@@ -1,11 +1,13 @@
 import dbConnect from "@/lib/db";
 import Product from "@/models/Product";
+import mongoose from "mongoose";
 
 export async function POST(req) {
   try {
     await dbConnect();
 
-    const { cart } = await req.json();
+    const body = await req.json();
+    const cart = body?.cart;
 
     if (!Array.isArray(cart)) {
       return Response.json({
@@ -16,24 +18,43 @@ export async function POST(req) {
 
     const enrichedCart = await Promise.all(
       cart.map(async (item) => {
-        const product = await Product.findById(item.productId).lean();
+        try {
+          let product = null;
 
-        return {
-          ...item,
+          // ✅ SAFE OBJECT ID CHECK (CRITICAL FIX)
+          if (item.productId && mongoose.Types.ObjectId.isValid(item.productId)) {
+            product = await Product.findById(item.productId).lean();
+          }
 
-          // ✅ FIXED ENRICHMENT
-          name: product?.name || item.name,
-          price: product?.price || item.price,
+          return {
+            ...item,
 
-          hsn: product?.hsn || "NOT_SET",
-          gstPercent: product?.tax || 0,
+            // ✅ SAFE FALLBACKS
+            name: product?.name || item.name || "Unknown Product",
+            price: product?.price || item.price || 0,
 
-          product: {
-            hsn: product?.hsn,
-            tax: product?.tax,
-            name: product?.name,
-          },
-        };
+            // ✅ GST + HSN FIX
+            hsn: product?.hsn || item.hsn || "NOT_SET",
+            gstPercent: product?.tax || item.gstPercent || 0,
+
+            product: product
+              ? {
+                  hsn: product.hsn,
+                  tax: product.tax,
+                  name: product.name,
+                }
+              : null,
+          };
+        } catch (itemErr) {
+          console.error("Item enrich error:", itemErr);
+
+          // ✅ DO NOT BREAK ENTIRE CART
+          return {
+            ...item,
+            hsn: item.hsn || "NOT_SET",
+            gstPercent: item.gstPercent || 0,
+          };
+        }
       })
     );
 
