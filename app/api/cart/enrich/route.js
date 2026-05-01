@@ -20,56 +20,25 @@ export async function POST(req) {
       cart.map(async (item) => {
         try {
           let product = null;
-
-          /* ================= FIND PRODUCT (MULTI STRATEGY) ================= */
-
-          // 1️⃣ Try Mongo _id
-          if (
-            item.productId &&
-            mongoose.Types.ObjectId.isValid(item.productId)
-          ) {
+    
+          if (item.productId && mongoose.Types.ObjectId.isValid(item.productId)) {
             product = await Product.findById(item.productId).lean();
           }
-
-          // 2️⃣ Try productKey
+    
           if (!product && item.productKey) {
             product = await Product.findOne({
               productKey: item.productKey,
             }).lean();
           }
-
-          // 3️⃣ Try slug
-          if (!product && item.slug) {
-            product = await Product.findOne({
-              slug: item.slug,
-            }).lean();
-          }
-
-          /* ================= DEBUG LOG ================= */
-          if (!product) {
-            console.warn("⚠️ Product NOT FOUND for cart item:", item);
-          } else {
-            console.log("✅ Product FOUND:", product.name);
-          }
-
-          /* ================= FINAL RETURN ================= */
+    
           return {
             ...item,
-
             name: product?.name || item.name || "Unknown Product",
             price: product?.price || item.price || 0,
-
-            // ✅ HARD GUARANTEE (NO MORE NOT_SET IF DB HAS VALUE)
-            hsn:
-              product?.hsn && product.hsn !== ""
-                ? product.hsn
-                : item.hsn || "NOT_SET",
-
-            gstPercent:
-              typeof product?.tax === "number"
-                ? product.tax
-                : item.gstPercent || 0,
-
+    
+            hsn: product?.hsn || item.hsn || "NOT_SET",
+            gstPercent: product?.tax || item.gstPercent || 0,
+    
             product: product
               ? {
                   hsn: product.hsn,
@@ -78,9 +47,9 @@ export async function POST(req) {
                 }
               : null,
           };
-        } catch (itemErr) {
-          console.error("❌ Item enrich error:", itemErr);
-
+        } catch (err) {
+          console.error("Item enrich error:", err);
+    
           return {
             ...item,
             hsn: item.hsn || "NOT_SET",
