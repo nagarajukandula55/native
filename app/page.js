@@ -133,20 +133,16 @@ export default function Home() {
                     <button
                       onClick={() =>
                         addToCart({
-                          productId: p._id,          // ✅ CRITICAL FIX
-                          productKey: p.productKey,  // ✅ CRITICAL FIX
+                          productId: p._id,   // ✅ FIXED
                           name: p.name,
                           price,
                           image: p.images?.[0],
-                          qty: 1,                    // ✅ REQUIRED
-                          hsn: p.hsn,                // ✅ fallback safety
-                          gstPercent: p.tax          // ✅ fallback safety
+                          qty: 1,             // ✅ important
                         })
                       }
                     >
                       Add to Cart
                     </button>
-
                   </div>
                 </div>
               );
