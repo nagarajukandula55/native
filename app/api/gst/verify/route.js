@@ -73,8 +73,8 @@ export async function POST(req) {
         status: "FORMAT_VALID",
 
         // ❌ no fake company names
-        legalName: "",
-        tradeName: "",
+        // legalName: "",
+        // tradeName: "",
 
         // ✅ real derived values
         state,
