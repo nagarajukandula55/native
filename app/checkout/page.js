@@ -344,8 +344,32 @@ export default function CheckoutPage() {
 
         {gstData && (
           <div className="gstBox">
-            <small>✔ {gstData.legalName}</small>
-            <small>State Code: {gstData.stateCode}</small>
+            <strong>GST Verified ✅</strong>
+        
+            <div className="gstRow">
+              <span>Company:</span>
+              <span>{gstData.legalName || "N/A"}</span>
+            </div>
+        
+            <div className="gstRow">
+              <span>Trade Name:</span>
+              <span>{gstData.tradeName || "N/A"}</span>
+            </div>
+        
+            <div className="gstRow">
+              <span>State:</span>
+              <span>{gstData.state || gstData.pradr?.addr?.st || "N/A"}</span>
+            </div>
+        
+            <div className="gstRow">
+              <span>State Code:</span>
+              <span>{gstData.stateCode}</span>
+            </div>
+        
+            <div className="gstRow">
+              <span>GSTIN:</span>
+              <span>{form.gstNumber}</span>
+            </div>
           </div>
         )}
 
@@ -452,7 +476,22 @@ export default function CheckoutPage() {
           padding: 10px;
           text-align: center;
         }
-      `}</style>
+
+        .gstBox {
+          margin-top: 10px;
+          padding: 10px;
+          background: #f1fff1;
+          border: 1px solid #b6e3b6;
+          border-radius: 8px;
+          font-size: 13px;
+        }
+        
+        .gstRow {
+          display: flex;
+          justify-content: space-between;
+          margin-top: 4px;
+        }
+     `}</style>
     </div>
   );
 }
