@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import crypto from "crypto";
 import dbConnect from "@/lib/db";
 import Order from "@/models/Order";
-import { generateInvoiceHTML } from "@/lib/invoice";
+import { generateReceiptNumber } from "@/lib/receipt";
+// import { sendPaymentReceiptEmail } from "@/lib/email"; // optional
 
 export async function POST(req) {
   try {
@@ -51,16 +52,17 @@ export async function POST(req) {
       );
     }
 
-    /* ================= IDENTITY LOCK (VERY IMPORTANT) ================= */
-    if (order.status === "PAID") {
+    /* ================= IDEMPOTENCY CHECK ================= */
+    if (order.status === "PAID" && order.receipt?.receiptNumber) {
       return NextResponse.json({
         success: true,
         message: "Already processed",
         orderId,
+        receipt: order.receipt,
       });
     }
 
-    /* ================= ORDER MISMATCH CHECK ================= */
+    /* ================= PAYMENT MATCH CHECK ================= */
     if (
       order.payment?.razorpay_order_id &&
       order.payment.razorpay_order_id !== razorpay_order_id
@@ -71,7 +73,7 @@ export async function POST(req) {
       );
     }
 
-    /* ================= MARK AS PAID ================= */
+    /* ================= STEP 1: MARK PAID ================= */
     order.status = "PAID";
 
     order.payment = {
@@ -81,27 +83,39 @@ export async function POST(req) {
       paidAt: new Date(),
     };
 
-    await sendPaymentReceiptEmail(order);
+    /* ================= STEP 2: GENERATE RECEIPT ================= */
+    const receiptNumber = await generateReceiptNumber();
 
     order.receipt = {
-      receiptNumber: await generateReceiptNumber(),
+      receiptNumber,
       generatedAt: new Date(),
       paymentMode: "RAZORPAY",
       paymentReference: razorpay_payment_id,
       amountPaid: order.amount,
     };
 
-    /* ================= GENERATE INVOICE HTML ================= */
-    const invoiceHTML = generateInvoiceHTML(order.toObject());
+    /* ================= STEP 3: GENERATE INVOICE HTML ================= */
+    // IMPORTANT: ensure function exists
+    const { generateInvoiceHTML } = await import("@/lib/invoice");
 
-    order.invoiceHTML = invoiceHTML;
+    order.invoiceHTML = generateInvoiceHTML(order.toObject());
 
+    /* ================= STEP 4: SAVE FIRST (CRITICAL) ================= */
     await order.save();
 
+    /* ================= STEP 5: SEND EMAIL (AFTER SAVE) ================= */
+    try {
+      // await sendPaymentReceiptEmail(order);
+    } catch (e) {
+      console.error("Email failed:", e);
+    }
+
+    /* ================= RESPONSE ================= */
     return NextResponse.json({
       success: true,
       message: "Payment verified successfully",
       orderId,
+      receipt: order.receipt,
     });
 
   } catch (err) {
