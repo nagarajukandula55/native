@@ -26,7 +26,7 @@ export default function ReceiptPage() {
     if (id) load();
   }, [id]);
 
-  /* ================= PRINT (FIXED - NO WEBSITE LEAK) ================= */
+  /* ================= PRINT (SAFE POPUP) ================= */
   const handlePrint = () => {
     const content = document.getElementById("invoice").outerHTML;
 
@@ -49,25 +49,33 @@ export default function ReceiptPage() {
               max-width: 800px;
               margin: auto;
               border: 1px solid #eee;
-              padding: 20px;
+              padding: 25px;
             }
 
+            /* ================= HEADER ================= */
             .header {
-              display: flex;
-              justify-content: space-between;
-              align-items: center;
+              text-align: center;
               border-bottom: 1px solid #eee;
               padding-bottom: 15px;
             }
 
             .logo {
               width: 140px;
+              margin-bottom: 10px;
             }
 
-            .meta h2 {
-              margin: 0;
+            .title {
+              font-size: 20px;
+              font-weight: bold;
+              margin: 5px 0;
             }
 
+            .sub {
+              font-size: 13px;
+              color: gray;
+            }
+
+            /* ================= ROW ================= */
             .row {
               display: flex;
               justify-content: space-between;
@@ -81,7 +89,8 @@ export default function ReceiptPage() {
             h4 {
               margin-bottom: 8px;
               font-size: 14px;
-              color: #333;
+              border-bottom: 1px solid #eee;
+              padding-bottom: 4px;
             }
 
             p {
@@ -89,6 +98,7 @@ export default function ReceiptPage() {
               font-size: 13px;
             }
 
+            /* ================= TABLE ================= */
             table {
               width: 100%;
               border-collapse: collapse;
@@ -96,8 +106,8 @@ export default function ReceiptPage() {
             }
 
             th {
-              text-align: left;
               background: #f5f5f5;
+              text-align: left;
               padding: 10px;
               font-size: 13px;
             }
@@ -108,13 +118,20 @@ export default function ReceiptPage() {
               font-size: 13px;
             }
 
-            .total {
+            /* ================= TOTAL ================= */
+            .summary {
+              margin-top: 15px;
               text-align: right;
-              font-size: 18px;
-              font-weight: bold;
-              margin-top: 20px;
+              font-size: 14px;
             }
 
+            .total {
+              font-size: 18px;
+              font-weight: bold;
+              margin-top: 10px;
+            }
+
+            /* ================= FOOTER ================= */
             .footer {
               text-align: center;
               margin-top: 30px;
@@ -134,16 +151,20 @@ export default function ReceiptPage() {
     win.document.close();
   };
 
-  /* ================= LOADING ================= */
   if (loading) return <div className="loader">Loading receipt...</div>;
   if (!data) return <div className="loader">Receipt not found</div>;
+
+  const discount = data.discount || 0;
+  const subtotal =
+    data.items?.reduce((a, b) => a + b.price * b.qty, 0) || 0;
+  const total = data.amount;
 
   return (
     <div className="page">
 
       {/* PRINT BUTTON */}
       <button className="printBtn no-print" onClick={handlePrint}>
-        Print Receipt
+        🖨 Print Receipt
       </button>
 
       {/* ================= RECEIPT ================= */}
@@ -153,11 +174,10 @@ export default function ReceiptPage() {
         <div className="header">
           <img src="/logo.png" className="logo" />
 
-          <div className="meta">
-            <h2>PAYMENT RECEIPT</h2>
-            <p><b>Order ID:</b> {data.orderId}</p>
-            <p><b>Status:</b> {data.status}</p>
-            <p><b>Date:</b> {new Date(data.createdAt).toLocaleString()}</p>
+          <div className="title">PAYMENT RECEIPT</div>
+          <div className="sub">
+            Order ID: {data.orderId} | Date:{" "}
+            {new Date(data.createdAt).toLocaleString()}
           </div>
         </div>
 
@@ -166,9 +186,9 @@ export default function ReceiptPage() {
 
           <div className="box">
             <h4>Customer Details</h4>
-            <p>{data.address?.name}</p>
-            <p>{data.address?.phone}</p>
-            <p>{data.address?.address}</p>
+            <p><b>Name:</b> {data.address?.name}</p>
+            <p><b>Phone:</b> {data.address?.phone}</p>
+            <p><b>Address:</b> {data.address?.address}</p>
           </div>
 
           <div className="box">
@@ -194,7 +214,8 @@ export default function ReceiptPage() {
             <tr>
               <th>Item</th>
               <th>Qty</th>
-              <th>Amount</th>
+              <th>Price</th>
+              <th>Total</th>
             </tr>
           </thead>
 
@@ -203,25 +224,34 @@ export default function ReceiptPage() {
               <tr key={idx}>
                 <td>{i.name}</td>
                 <td>{i.qty}</td>
+                <td>₹{i.price}</td>
                 <td>₹{i.price * i.qty}</td>
               </tr>
             ))}
           </tbody>
         </table>
 
-        {/* TOTAL */}
-        <div className="total">
-          TOTAL PAID: ₹{data.amount}
+        {/* SUMMARY */}
+        <div className="summary">
+          <p>Subtotal: ₹{subtotal}</p>
+
+          {discount > 0 && (
+            <p>Discount: -₹{discount}</p>
+          )}
+
+          <div className="total">
+            TOTAL PAID: ₹{total}
+          </div>
         </div>
 
         {/* FOOTER */}
         <div className="footer">
-          Thank you for your purchase ❤️
+          Thank you for your purchase ❤️ | Visit Again
         </div>
 
       </div>
 
-      {/* ================= PAGE STYLES ================= */}
+      {/* ================= PAGE STYLE ================= */}
       <style jsx>{`
         .page {
           display: flex;
@@ -239,18 +269,16 @@ export default function ReceiptPage() {
         .invoice {
           width: 800px;
           background: white;
-          padding: 20px;
+          padding: 25px;
           border: 1px solid #eee;
         }
 
-        .header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-        }
-
-        .logo {
-          width: 140px;
+        .printBtn {
+          margin-bottom: 15px;
+          padding: 10px 20px;
+          background: black;
+          color: white;
+          border: none;
         }
 
         .row {
@@ -275,11 +303,16 @@ export default function ReceiptPage() {
           text-align: left;
         }
 
-        .total {
+        .summary {
+          margin-top: 15px;
           text-align: right;
+          font-size: 14px;
+        }
+
+        .total {
           font-size: 18px;
           font-weight: bold;
-          margin-top: 20px;
+          margin-top: 10px;
         }
 
         .footer {
@@ -287,14 +320,6 @@ export default function ReceiptPage() {
           margin-top: 30px;
           font-size: 12px;
           color: gray;
-        }
-
-        .printBtn {
-          margin-bottom: 15px;
-          padding: 10px 20px;
-          background: black;
-          color: white;
-          border: none;
         }
 
         .no-print {
