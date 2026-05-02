@@ -80,29 +80,33 @@ export default function CouponDashboard() {
   };
 
   /* ================= TOGGLE (FIXED DB SYNC) ================= */
-  const toggleStatus = async (id, active) => {
-    try {
-      const res = await fetch("/api/coupons/toggle", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, active }),
-      });
-
-      const data = await res.json();
-
-      if (res.ok && data.success !== false) {
-        setCoupons((prev) =>
-          prev.map((c) =>
-            c._id === id ? { ...c, active } : c
-          )
-        );
-      } else {
-        alert("Failed to update status");
+    const toggleStatus = async (id, active) => {
+      try {
+        const res = await fetch("/api/coupons/toggle", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id, active }),
+        });
+    
+        if (!res.ok) {
+          const text = await res.text();
+          console.error("Toggle API failed:", text);
+          return;
+        }
+    
+        const data = await res.json();
+    
+        if (data.success) {
+          setCoupons((prev) =>
+            prev.map((c) =>
+              c._id === id ? { ...c, active } : c
+            )
+          );
+        }
+      } catch (err) {
+        console.error(err);
       }
-    } catch (err) {
-      console.error(err);
-    }
-  };
+    };
 
   /* ================= EXTEND EXPIRY ================= */
   const extendExpiry = async (id) => {
