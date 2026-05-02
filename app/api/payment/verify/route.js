@@ -3,11 +3,11 @@ import crypto from "crypto";
 import dbConnect from "@/lib/db";
 import Order from "@/models/Order";
 
-/* ================= CORE PAID HANDLER (IMPORTANT) ================= */
+/* ================= CORE PAID HANDLER ================= */
 async function handleOrderPaid(order, paymentData = {}) {
   let changed = false;
 
-  /* ================= MARK PAYMENT ================= */
+  /* ================= PAYMENT UPDATE ================= */
   order.payment = {
     razorpay_order_id: paymentData.razorpay_order_id,
     razorpay_payment_id: paymentData.razorpay_payment_id,
@@ -15,32 +15,30 @@ async function handleOrderPaid(order, paymentData = {}) {
     paidAt: new Date(),
   };
 
-  /* ================= RECEIPT GENERATION (SAFE + IDEMPOTENT) ================= */
+  /* ================= RECEIPT (IDEMPOTENT SAFE) ================= */
   if (!order.receipt?.receiptNumber) {
     const { generateReceiptNumber } = await import("@/lib/receipt");
 
     order.receipt = {
       receiptNumber: await generateReceiptNumber(),
       generatedAt: new Date(),
-      paymentMode: paymentData.mode || "RAZORPAY",
-      paymentReference:
-        paymentData.razorpay_payment_id || "MANUAL",
+      paymentMode: "RAZORPAY",
+      paymentReference: paymentData.razorpay_payment_id || "MANUAL",
       amountPaid: order.amount,
     };
 
     changed = true;
   }
 
-  /* ================= INVOICE GENERATION ================= */
+  /* ================= INVOICE (IDEMPOTENT SAFE) ================= */
   if (!order.invoice?.invoiceNumber) {
     const { generateInvoiceNumber } = await import("@/lib/invoiceNumber");
+    const { generateInvoiceHTML } = await import("@/lib/invoice");
 
     order.invoice = {
       invoiceNumber: await generateInvoiceNumber(order.createdAt),
       generatedAt: new Date(),
     };
-
-    const { generateInvoiceHTML } = await import("@/lib/invoice");
 
     order.invoiceHTML = generateInvoiceHTML(order.toObject());
 
@@ -50,7 +48,7 @@ async function handleOrderPaid(order, paymentData = {}) {
   return changed;
 }
 
-/* ================= PAYMENT VERIFY ================= */
+/* ================= PAYMENT VERIFY ROUTE ================= */
 export async function POST(req) {
   try {
     await dbConnect();
@@ -98,7 +96,7 @@ export async function POST(req) {
       );
     }
 
-    /* ================= IDEMPOTENCY (VERY IMPORTANT) ================= */
+    /* ================= IDEMPOTENCY LOCK ================= */
     if (order.status === "PAID" && order.receipt?.receiptNumber) {
       return NextResponse.json({
         success: true,
@@ -108,7 +106,7 @@ export async function POST(req) {
       });
     }
 
-    /* ================= PAYMENT MISMATCH CHECK ================= */
+    /* ================= ORDER MISMATCH CHECK ================= */
     if (
       order.payment?.razorpay_order_id &&
       order.payment.razorpay_order_id !== razorpay_order_id
@@ -122,6 +120,7 @@ export async function POST(req) {
     /* ================= STEP 1: MARK PAID ================= */
     order.status = "PAID";
 
+    /* ================= STEP 2: PROCESS RECEIPT + INVOICE ================= */
     await handleOrderPaid(order, {
       razorpay_order_id,
       razorpay_payment_id,
@@ -129,17 +128,19 @@ export async function POST(req) {
       mode: "RAZORPAY",
     });
 
-    /* ================= SAVE ================= */
+    /* ================= STEP 3: SAVE FINAL STATE ================= */
     await order.save();
 
-    /* ================= OPTIONAL: NOTIFICATIONS HOOK ================= */
-    try {
-      // later:
-      // await sendPaymentReceiptEmail(order);
-      // await sendWhatsAppReceipt(order);
-    } catch (err) {
-      console.error("Notification error:", err);
-    }
+    /* ================= STEP 4: ASYNC NOTIFICATIONS (NON-BLOCKING) ================= */
+    setImmediate(async () => {
+      try {
+        // 🔥 FUTURE READY HOOKS
+        // await sendWhatsAppReceipt(order);
+        // await sendPaymentReceiptEmail(order);
+      } catch (err) {
+        console.error("Notification error:", err);
+      }
+    });
 
     /* ================= RESPONSE ================= */
     return NextResponse.json({
