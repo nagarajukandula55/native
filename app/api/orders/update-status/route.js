@@ -9,23 +9,35 @@ async function handleStatusChange(order, newStatus) {
   if (newStatus === "PAID") {
     const { handleOrderPaid } = await import("@/lib/handleOrderPaid");
 
-    changed = await handleOrderPaid(order, {
+    const result = await handleOrderPaid(order, {
       mode: "MANUAL",
     });
+
+    if (result) changed = true;
   }
 
   /* ================= DISPATCHED LOGIC ================= */
   if (newStatus === "DISPATCHED") {
     try {
+      /* ================= INVOICE GENERATION ================= */
       const { generateInvoiceHTML } = await import("@/lib/invoice");
 
       order.invoiceHTML = generateInvoiceHTML(order.toObject());
 
-      const { sendInvoiceEmail } = await import("@/lib/email");
-      const { sendWhatsAppInvoice } = await import("@/lib/whatsapp");
+      /* ================= EMAIL + WHATSAPP ================= */
+      const { sendInvoiceEmail } = await import("@/lib/notifications/email");
+      const { sendWhatsAppInvoice } = await import("@/lib/notifications/whatsapp");
 
-      await sendInvoiceEmail(order);
-      await sendWhatsAppInvoice(order);
+      /* ================= IDEMPOTENT SAFETY ================= */
+      if (!order.invoiceSentAt) {
+        await sendInvoiceEmail(order);
+        order.invoiceSentAt = new Date();
+      }
+
+      if (!order.whatsappInvoiceSentAt) {
+        await sendWhatsAppInvoice(order);
+        order.whatsappInvoiceSentAt = new Date();
+      }
 
       changed = true;
     } catch (err) {
@@ -36,40 +48,52 @@ async function handleStatusChange(order, newStatus) {
   return changed;
 }
 
-/* ================= API ================= */
+/* ================= API ROUTE ================= */
 export async function POST(req) {
   try {
     await dbConnect();
 
     const { id, status } = await req.json();
 
+    /* ================= VALIDATION ================= */
     if (!id || !status) {
       return Response.json({
         success: false,
         message: "Missing id or status",
-      });
+      }, { status: 400 });
     }
 
+    /* ================= FETCH ORDER ================= */
     const order = await Order.findById(id);
 
     if (!order) {
       return Response.json({
         success: false,
         message: "Order not found",
+      }, { status: 404 });
+    }
+
+    /* ================= IDEMPOTENCY CHECK ================= */
+    if (order.status === status) {
+      return Response.json({
+        success: true,
+        message: "Already in requested status",
+        order,
       });
     }
 
     /* ================= UPDATE STATUS ================= */
     order.status = status;
 
-    /* ================= RUN BUSINESS LOGIC ================= */
+    /* ================= BUSINESS LOGIC ================= */
     await handleStatusChange(order, status);
 
-    /* ================= SAVE ================= */
+    /* ================= SAVE FINAL STATE ================= */
     await order.save();
 
     return Response.json({
       success: true,
+      message: "Status updated successfully",
       order,
     });
 
@@ -79,6 +103,6 @@ export async function POST(req) {
     return Response.json({
       success: false,
       message: "Update failed",
-    });
+    }, { status: 500 });
   }
 }
