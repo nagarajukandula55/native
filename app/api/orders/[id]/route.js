@@ -6,22 +6,24 @@ import Order from "@/models/Order";
 async function resolveOrder(id) {
   if (!id) return null;
 
-  // CASE 1: Mongo ID
+  let order = null;
+
+  /* ================= CASE 1: Mongo ID ================= */
   if (/^[0-9a-fA-F]{24}$/.test(id)) {
-    const order = await Order.findById(id);
+    order = await Order.findById(id);
     if (order) return order;
   }
 
-  // CASE 2: EXACT ORDER ID (PRIMARY SOURCE OF TRUTH)
-  let order = await Order.findOne({ orderId: id });
+  /* ================= CASE 2: EXACT ORDER ID (PRIMARY) ================= */
+  order = await Order.findOne({ orderId: id });
   if (order) return order;
 
-  // CASE 3: SAFE PREFIX MATCH (ONLY FIRST 2 SEGMENTS)
+  /* ================= CASE 3: SAFE PREFIX MATCH (STRICT) ================= */
   if (id.includes("-")) {
     const parts = id.split("-");
 
-    // safer base (prevents wrong matches)
-    const baseId = parts.slice(0, Math.min(3, parts.length)).join("-");
+    // 🔒 STRICT LIMIT: only first 3 segments (prevents wrong matches)
+    const baseId = parts.slice(0, 3).join("-");
 
     order = await Order.findOne({
       orderId: { $regex: new RegExp(`^${baseId}`) },
@@ -33,7 +35,7 @@ async function resolveOrder(id) {
   return null;
 }
 
-/* ================= GET ================= */
+/* ================= GET ORDER ================= */
 export async function GET(req, { params }) {
   try {
     await dbConnect();
@@ -52,9 +54,28 @@ export async function GET(req, { params }) {
       );
     }
 
+    const o = order.toObject();
+
+    /* ================= SAFE RESPONSE ENFORCEMENT ================= */
     return NextResponse.json({
       success: true,
-      order: order.toObject(),
+
+      order: {
+        ...o,
+
+        /* 🔥 CRITICAL FIX: prevent UI "Generating..." issues */
+        receipt: o.receipt || {
+          receiptNumber: null,
+          generatedAt: null,
+          paymentReference: null,
+        },
+
+        invoice: o.invoice || null,
+
+        payment: o.payment || null,
+        items: o.items || [],
+        address: o.address || {},
+      },
     });
 
   } catch (err) {
