@@ -24,7 +24,20 @@ export default function InvoicePage() {
 
   if (!order || !company) return <div>Loading...</div>;
 
-  const billing = order.billing;
+  const billing = order.billing || {
+    itemCount: order.items?.length || 0,
+    subtotal: order.items?.reduce((a, b) => a + (b.price * b.qty), 0) || 0,
+    discount: order.discount || 0,
+    taxableAmount: 0,
+    cgst: 0,
+    sgst: 0,
+    igst: 0,
+    total: order.amount || 0,
+  };
+
+  billing.taxableAmount =
+  billing.subtotal - billing.discount;
+  
   const gst = order.gstDetails;
 
   const verifyUrl = `${window.location.origin}/verify/${order.orderId}`;
