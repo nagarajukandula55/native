@@ -82,7 +82,7 @@ export async function POST(req) {
         );
       }
 
-      const qty = Math.max(Number(item.qty), 1);
+      const qty = Math.max(Number(item.qty || 1), 1);
       const price = Number(product.price || 0);
       const gstPercent = Number(product.tax || 0);
 
@@ -98,7 +98,6 @@ export async function POST(req) {
 
         price,
         qty,
-
         gstPercent,
 
         baseAmount,
@@ -130,17 +129,22 @@ export async function POST(req) {
     }
 
     /* ================= GST MODE ================= */
-    const sellerCode = STATE_CODE_MAP[SELLER_STATE];
+    const sellerCode = STATE_CODE_MAP[SELLER_STATE] || null;
 
-    let buyerCode = address.state
-      ? STATE_CODE_MAP[address.state]
-      : null;
+    const buyerState = address?.state || null;
+    let buyerCode = buyerState ? STATE_CODE_MAP[buyerState] : null;
 
+    // If GST provided → override buyer code
     if (gstNumber) {
       buyerCode = gstStateCode;
     }
 
-    const isInterState = sellerCode !== buyerCode;
+    // SAFE INTERSTATE CHECK (NO UNDEFINED CRASH)
+    const isInterState =
+      sellerCode && buyerCode
+        ? sellerCode !== buyerCode
+        : false;
+
     const gstMode = isInterState ? "IGST" : "CGST_SGST";
 
     /* ================= DISTRIBUTE DISCOUNT ================= */
@@ -154,7 +158,6 @@ export async function POST(req) {
     /* ================= ITEM TAX CALC ================= */
     for (let item of items) {
       const itemDiscount = item.baseAmount * discountRatio;
-
       const taxable = item.baseAmount - itemDiscount;
 
       const gstValue = (taxable * item.gstPercent) / 100;
@@ -212,7 +215,6 @@ export async function POST(req) {
       billing: {
         subtotal: round(subtotal),
         discount: round(discount),
-
         taxableAmount: round(totalTaxable),
 
         cgst: round(cgstTotal),
@@ -220,20 +222,18 @@ export async function POST(req) {
         igst: round(igstTotal),
 
         total: round(finalAmount),
-
         itemCount: items.reduce((a, b) => a + b.qty, 0),
       },
 
       gstDetails: {
-        gstNumber,
-        gstType,
-        gstMode,
-        isInterState,
+        gstNumber: gstNumber || null,
+        gstType: gstType || "B2C",
+        gstMode: gstMode || "CGST_SGST",
+        isInterState: Boolean(isInterState),
       },
 
       address,
       paymentMethod,
-
       status: "PENDING_PAYMENT",
     });
 
