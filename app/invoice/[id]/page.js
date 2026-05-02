@@ -8,74 +8,79 @@ export default function InvoicePage() {
 
   const [order, setOrder] = useState(null);
   const [company, setCompany] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const load = async () => {
-      const res = await fetch(`/api/orders/${id}`);
-      const json = await res.json();
+      try {
+        const [o, c] = await Promise.all([
+          fetch(`/api/orders/${id}`).then(r => r.json()),
+          fetch(`/api/company`).then(r => r.json()),
+        ]);
 
-      if (json.success) {
-        setOrder(json.order);
+        if (o.success) setOrder(o.order);
+        if (c.success) setCompany(c.data);
 
-        const cs = await fetch(`/api/company`);
-        const csJson = await cs.json();
-        if (csJson.success) setCompany(csJson.data);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
       }
     };
 
     if (id) load();
   }, [id]);
 
-  if (!order || !company) return <div>Loading...</div>;
+  const downloadPDF = () => {
+    window.open(`/api/invoice/${id}`, "_blank");
+  };
 
-  /* ================= CALCULATIONS ================= */
-  const subtotal =
-    order.items?.reduce((a, b) => a + b.price * b.qty, 0) || 0;
+  if (loading) return <div className="loader">Loading invoice...</div>;
+  if (!order || !company) return <div className="loader">Invoice not found</div>;
 
-  const discount = order.billing?.discount || 0;
-  const taxable = subtotal - discount;
-
-  const cgst = order.billing?.totalCGST || 0;
-  const sgst = order.billing?.totalSGST || 0;
-  const igst = order.billing?.totalIGST || 0;
-
-  const total = order.amount;
-
-  /* ================= GST TYPE ================= */
-  const isSameState =
-    company.stateCode === order.address?.stateCode;
+  const items = order.items || [];
+  const billing = order.billing || {};
+  const gst = order.gstDetails || {};
 
   return (
     <div className="page">
 
-      <div className="invoice">
+      <div className="topbar no-print">
+        <button onClick={downloadPDF}>⬇ Download PDF</button>
+      </div>
 
-        {/* ================= HEADER ================= */}
+      <div id="invoice" className="invoice">
+
+        {/* HEADER */}
         <div className="header">
 
-          <div>
-            <h2>{company.legalName}</h2>
-            <p className="tag">{company.brandTagline}</p>
-            <p>{company.addressLine1}, {company.addressLine2}</p>
+          <div className="left">
+            <h2>{company.companyName}</h2>
+            <p>{company.brandTagline}</p>
+
+            <p>{company.addressLine1}</p>
             <p>{company.city} - {company.pincode}</p>
-            <p><b>GSTIN:</b> {company.gstin}</p>
+
+            <p>GSTIN: {company.gstin}</p>
+            <p>State Code: {company.stateCode}</p>
           </div>
 
-          <div className="meta">
+          <div className="right">
             <h1>TAX INVOICE</h1>
             <p><b>Invoice No:</b> {order.invoice?.invoiceNumber}</p>
-            <p><b>Date:</b> {new Date(order.createdAt).toLocaleDateString()}</p>
             <p><b>Order ID:</b> {order.orderId}</p>
+            <p><b>Date:</b> {new Date(order.createdAt).toLocaleString()}</p>
           </div>
 
         </div>
 
-        {/* ================= PARTY DETAILS ================= */}
-        <div className="party">
+        {/* BILL / SHIP */}
+        <div className="addressRow">
 
           <div>
             <h4>Bill To</h4>
             <p>{order.address?.name}</p>
+            <p>{order.address?.phone}</p>
             <p>{order.address?.address}</p>
             <p>{order.address?.city} - {order.address?.pincode}</p>
             {order.address?.gstNumber && (
@@ -86,122 +91,100 @@ export default function InvoicePage() {
           <div>
             <h4>Ship To</h4>
             <p>{order.address?.name}</p>
+            <p>{order.address?.phone}</p>
             <p>{order.address?.address}</p>
             <p>{order.address?.city} - {order.address?.pincode}</p>
           </div>
 
-          <div>
-            <h4>Other Details</h4>
-            <p><b>Supply State:</b> {order.address?.state}</p>
-            <p><b>Invoice Type:</b> {order.address?.gstNumber ? "B2B" : "B2C"}</p>
-            <p><b>Reverse Charge:</b> No</p>
-          </div>
-
         </div>
 
-        {/* ================= ITEMS ================= */}
+        {/* TABLE */}
         <table>
           <thead>
             <tr>
               <th>#</th>
-              <th>Description</th>
+              <th>Item</th>
               <th>HSN</th>
               <th>Qty</th>
-              <th>Rate</th>
+              <th>Price</th>
+              <th>Discount</th>
               <th>Taxable</th>
-              <th>GST%</th>
-              <th>Tax</th>
+              <th>GST %</th>
               <th>Total</th>
             </tr>
           </thead>
 
           <tbody>
-            {order.items.map((i, idx) => {
-              const base = i.price * i.qty;
-              const gst = (base * i.gstRate) / 100;
-
-              return (
-                <tr key={idx}>
-                  <td>{idx + 1}</td>
-                  <td>{i.name} ({i.sku})</td>
-                  <td>{i.hsn || "-"}</td>
-                  <td>{i.qty}</td>
-                  <td>₹{i.price}</td>
-                  <td>₹{base}</td>
-                  <td>{i.gstRate}%</td>
-                  <td>₹{gst}</td>
-                  <td>₹{base + gst}</td>
-                </tr>
-              );
-            })}
+            {items.map((i, idx) => (
+              <tr key={idx}>
+                <td>{idx + 1}</td>
+                <td>
+                  {i.name}
+                  <br />
+                  <small>{i.sku}</small>
+                </td>
+                <td>{i.hsn}</td>
+                <td>{i.qty}</td>
+                <td>₹{i.price}</td>
+                <td>₹{i.discountAllocated}</td>
+                <td>₹{i.taxableAmount}</td>
+                <td>{i.gstPercent}%</td>
+                <td>₹{i.total}</td>
+              </tr>
+            ))}
           </tbody>
         </table>
 
-        {/* ================= SUMMARY ================= */}
+        {/* SUMMARY */}
         <div className="summary">
 
-          <div />
+          <div className="left">
+            <p><b>Total Items:</b> {billing.itemCount}</p>
+            <p><b>Payment Mode:</b> {order.payment?.method || "ONLINE"}</p>
+          </div>
 
-          <div className="box">
-            <p><span>Subtotal</span><span>₹{subtotal}</span></p>
+          <div className="right">
+            <p>Subtotal: ₹{billing.subtotal}</p>
+            <p>Discount: -₹{billing.discount}</p>
+            <p>Taxable: ₹{billing.taxableAmount}</p>
 
-            {discount > 0 && (
-              <p className="green">
-                <span>Discount</span><span>-₹{discount}</span>
-              </p>
-            )}
-
-            <p><span>Taxable</span><span>₹{taxable}</span></p>
-
-            {isSameState ? (
+            {!gst.isInterState ? (
               <>
-                <p><span>CGST</span><span>₹{cgst}</span></p>
-                <p><span>SGST</span><span>₹{sgst}</span></p>
+                <p>CGST: ₹{billing.cgst}</p>
+                <p>SGST: ₹{billing.sgst}</p>
               </>
             ) : (
-              <p><span>IGST</span><span>₹{igst}</span></p>
+              <p>IGST: ₹{billing.igst}</p>
             )}
 
-            <h3><span>Total</span><span>₹{total}</span></h3>
+            <h3>Total: ₹{billing.total}</h3>
           </div>
 
         </div>
 
-        {/* ================= DECLARATION ================= */}
+        {/* SIGNATURE */}
         <div className="footer">
-
-          <div className="decl">
-            <b>Declaration:</b>
-            <p>
-              We declare that this invoice shows the actual price of the goods
-              described and that all particulars are true and correct.
-            </p>
-          </div>
-
-          <div className="sign">
-            <img src={company.signatureUrl || "/signature.png"} />
+          <div>
+            <img src={company.signatureUrl} className="sign" />
             <p>Authorised Signatory</p>
-            <img src={company.logoUrl || "/logo.png"} className="logo" />
           </div>
-
         </div>
 
       </div>
 
-      {/* ================= STYLES ================= */}
+      {/* STYLE */}
       <style jsx>{`
         .page {
           background: #f5f5f5;
-          padding: 30px;
-          display: flex;
-          justify-content: center;
+          padding: 20px;
         }
 
         .invoice {
-          width: 900px;
+          max-width: 900px;
+          margin: auto;
           background: white;
           padding: 25px;
-          border: 1px solid #000;
+          border: 1px solid #ddd;
         }
 
         .header {
@@ -211,37 +194,27 @@ export default function InvoicePage() {
           padding-bottom: 10px;
         }
 
-        .meta {
-          text-align: right;
-        }
-
-        .party {
-          display: grid;
-          grid-template-columns: 1fr 1fr 1fr;
-          gap: 10px;
-          margin-top: 15px;
-        }
-
-        .party div {
-          border: 1px solid #000;
-          padding: 8px;
+        .addressRow {
+          display: flex;
+          justify-content: space-between;
+          margin-top: 20px;
         }
 
         table {
           width: 100%;
           border-collapse: collapse;
-          margin-top: 15px;
+          margin-top: 20px;
         }
 
         th, td {
-          border: 1px solid #000;
-          padding: 6px;
+          border: 1px solid #ddd;
+          padding: 8px;
           font-size: 13px;
         }
 
         th {
           background: #000;
-          color: white;
+          color: #fff;
         }
 
         .summary {
@@ -250,42 +223,34 @@ export default function InvoicePage() {
           margin-top: 20px;
         }
 
-        .box {
-          width: 300px;
-        }
-
-        .box p {
-          display: flex;
-          justify-content: space-between;
-          border-bottom: 1px solid #ddd;
-          padding: 4px 0;
-        }
-
-        h3 {
-          display: flex;
-          justify-content: space-between;
-          margin-top: 10px;
-        }
-
         .footer {
-          display: flex;
-          justify-content: space-between;
-          margin-top: 30px;
+          margin-top: 40px;
+          text-align: right;
         }
 
-        .sign img {
-          width: 120px;
+        .sign {
+          height: 60px;
         }
 
-        .logo {
-          width: 60px;
-          margin-top: 5px;
+        .topbar {
+          text-align: center;
+          margin-bottom: 10px;
         }
 
-        .green {
-          color: green;
+        button {
+          padding: 10px 20px;
+          background: black;
+          color: white;
+          border: none;
+        }
+
+        @media print {
+          .no-print {
+            display: none;
+          }
         }
       `}</style>
+
     </div>
   );
 }
