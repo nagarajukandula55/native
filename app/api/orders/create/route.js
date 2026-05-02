@@ -6,11 +6,8 @@ import Coupon from "@/models/Coupon";
 import Razorpay from "razorpay";
 import { generateOrderId } from "@/lib/orderId";
 
+/* ================= CONFIG ================= */
 const SELLER_STATE = "Andhra Pradesh";
-
-/* ================= GST ================= */
-const GST_REGEX =
-  /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[A-Z0-9]{3}$/;
 
 const STATE_CODE_MAP = {
   "Andhra Pradesh": "37",
@@ -19,6 +16,13 @@ const STATE_CODE_MAP = {
   "Telangana": "36",
 };
 
+/* ================= HELPERS ================= */
+const round = (num) => Math.round(num * 100) / 100;
+
+const GST_REGEX =
+  /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[A-Z0-9]{3}$/;
+
+/* ================= ROUTE ================= */
 export async function POST(req) {
   try {
     await dbConnect();
@@ -33,7 +37,7 @@ export async function POST(req) {
       gstNumber = null,
     } = body;
 
-    /* ================= BASIC VALIDATION ================= */
+    /* ================= VALIDATION ================= */
     if (!Array.isArray(cart) || cart.length === 0) {
       return NextResponse.json(
         { success: false, message: "Cart is empty" },
@@ -55,7 +59,7 @@ export async function POST(req) {
     if (gstNumber) {
       if (!GST_REGEX.test(gstNumber)) {
         return NextResponse.json(
-          { success: false, message: "Invalid GSTIN format" },
+          { success: false, message: "Invalid GSTIN" },
           { status: 400 }
         );
       }
@@ -64,104 +68,128 @@ export async function POST(req) {
       gstStateCode = gstNumber.slice(0, 2);
     }
 
-    /* ================= FETCH & LOCK PRODUCTS ================= */
+    /* ================= BUILD ITEMS ================= */
     let subtotal = 0;
-    let gstTotal = 0;
-
-    const safeItems = [];
+    let items = [];
 
     for (const item of cart) {
-      let product = null;
-
-      if (item.productId) {
-        product = await Product.findById(item.productId).lean();
-      }
-
-      if (!product && item.productKey) {
-        product = await Product.findOne({
-          productKey: item.productKey,
-        }).lean();
-      }
+      const product = await Product.findById(item.productId).lean();
 
       if (!product) {
         return NextResponse.json(
-          { success: false, message: "Invalid product detected" },
+          { success: false, message: "Invalid product" },
           { status: 400 }
         );
       }
 
-      const qty = Math.max(Number(item.qty || 1), 1);
+      const qty = Math.max(Number(item.qty), 1);
       const price = Number(product.price || 0);
       const gstPercent = Number(product.tax || 0);
 
-      const base = price * qty;
-      const gst = (base * gstPercent) / 100;
+      const baseAmount = price * qty;
 
-      subtotal += base;
-      gstTotal += gst;
+      subtotal += baseAmount;
 
-      safeItems.push({
+      items.push({
         productId: product._id,
-        productKey: product.productKey,
         name: product.name,
+        sku: product.productKey || "",
+        hsn: product.hsn || "NA",
+
         price,
         qty,
-        hsn: product.hsn || "NA",
+
         gstPercent,
-        gstAmount: gst,
-        image: product.primaryImage || "",
+
+        baseAmount,
+
+        discountAllocated: 0,
+        taxableAmount: 0,
+
+        cgst: 0,
+        sgst: 0,
+        igst: 0,
+
+        total: 0,
       });
     }
-
-    /* ================= TAMPER CHECK ================= */
-    if (safeItems.length !== cart.length) {
-      return NextResponse.json(
-        { success: false, message: "Cart tampering detected" },
-        { status: 400 }
-      );
-    }
-
-    /* ================= GST MODE (FINAL LOGIC) ================= */
-    const sellerCode = STATE_CODE_MAP[SELLER_STATE];
-
-    const buyerCode = gstStateCode
-      ? gstStateCode
-      : STATE_CODE_MAP[address.state];
-
-    const isInterState = buyerCode !== sellerCode;
-
-    const gstMode = isInterState ? "IGST" : "CGST_SGST";
-
-    const cgstTotal = isInterState ? 0 : gstTotal / 2;
-    const sgstTotal = isInterState ? 0 : gstTotal / 2;
-    const igstTotal = isInterState ? gstTotal : 0;
 
     /* ================= COUPON ================= */
     let discount = 0;
 
     if (coupon) {
-      const validCoupon = await Coupon.findOne({
-        code: coupon,
-        active: true,
-      });
+      const c = await Coupon.findOne({ code: coupon, active: true });
 
       if (
-        validCoupon &&
-        (!validCoupon.expiry ||
-          new Date(validCoupon.expiry) > new Date()) &&
-        subtotal >= (validCoupon.minOrder || 0)
+        c &&
+        (!c.expiry || new Date(c.expiry) > new Date()) &&
+        subtotal >= (c.minOrder || 0)
       ) {
-        discount = Number(validCoupon.discount || 0);
+        discount = Number(c.discount || 0);
       }
     }
 
-    /* ================= FINAL AMOUNT ================= */
-    const totalBeforeDiscount = subtotal + gstTotal;
+    /* ================= GST MODE ================= */
+    const sellerCode = STATE_CODE_MAP[SELLER_STATE];
 
-    const finalAmount = Math.max(
-      totalBeforeDiscount - discount,
-      0
-    );
+    let buyerCode = address.state
+      ? STATE_CODE_MAP[address.state]
+      : null;
+
+    if (gstNumber) {
+      buyerCode = gstStateCode;
+    }
+
+    const isInterState = sellerCode !== buyerCode;
+    const gstMode = isInterState ? "IGST" : "CGST_SGST";
+
+    /* ================= DISTRIBUTE DISCOUNT ================= */
+    const discountRatio = subtotal > 0 ? discount / subtotal : 0;
+
+    let totalTaxable = 0;
+    let cgstTotal = 0;
+    let sgstTotal = 0;
+    let igstTotal = 0;
+
+    /* ================= ITEM TAX CALC ================= */
+    for (let item of items) {
+      const itemDiscount = item.baseAmount * discountRatio;
+
+      const taxable = item.baseAmount - itemDiscount;
+
+      const gstValue = (taxable * item.gstPercent) / 100;
+
+      let cgst = 0,
+        sgst = 0,
+        igst = 0;
+
+      if (isInterState) {
+        igst = gstValue;
+      } else {
+        cgst = gstValue / 2;
+        sgst = gstValue / 2;
+      }
+
+      const total = taxable + gstValue;
+
+      item.discountAllocated = round(itemDiscount);
+      item.taxableAmount = round(taxable);
+
+      item.cgst = round(cgst);
+      item.sgst = round(sgst);
+      item.igst = round(igst);
+
+      item.total = round(total);
+
+      totalTaxable += taxable;
+      cgstTotal += cgst;
+      sgstTotal += sgst;
+      igstTotal += igst;
+    }
+
+    /* ================= FINAL TOTAL ================= */
+    const totalGST = cgstTotal + sgstTotal + igstTotal;
+    const finalAmount = totalTaxable + totalGST;
 
     if (finalAmount <= 0) {
       return NextResponse.json(
@@ -176,18 +204,24 @@ export async function POST(req) {
     /* ================= SAVE ORDER ================= */
     const orderDoc = await Order.create({
       orderId,
-      items: safeItems,
 
-      amount: finalAmount,
+      items,
 
-      gstSummary: {
-        subtotal,
-        gstTotal,
-        cgstTotal,
-        sgstTotal,
-        igstTotal,
-        totalBeforeDiscount,
-        discount,
+      amount: round(finalAmount),
+
+      billing: {
+        subtotal: round(subtotal),
+        discount: round(discount),
+
+        taxableAmount: round(totalTaxable),
+
+        cgst: round(cgstTotal),
+        sgst: round(sgstTotal),
+        igst: round(igstTotal),
+
+        total: round(finalAmount),
+
+        itemCount: items.reduce((a, b) => a + b.qty, 0),
       },
 
       gstDetails: {
@@ -198,8 +232,6 @@ export async function POST(req) {
       },
 
       address,
-      coupon,
-      discount,
       paymentMethod,
 
       status: "PENDING_PAYMENT",
@@ -231,9 +263,8 @@ export async function POST(req) {
     return NextResponse.json({
       success: true,
       orderId: orderDoc.orderId,
-      dbOrderId: orderDoc._id,
       amount: orderDoc.amount,
-      gstSummary: orderDoc.gstSummary,
+      billing: orderDoc.billing,
       gstDetails: orderDoc.gstDetails,
       razorpayOrder,
     });
