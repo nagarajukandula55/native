@@ -11,79 +11,73 @@ export default function InvoicePage() {
 
   useEffect(() => {
     const load = async () => {
-      try {
-        const res = await fetch(`/api/orders/${id}`);
-        const json = await res.json();
+      const o = await fetch(`/api/orders/${id}`).then(r => r.json());
+      const c = await fetch(`/api/company`).then(r => r.json());
 
-        if (json.success) {
-          setOrder(json.order);
-        }
-
-        const cRes = await fetch(`/api/company`);
-        const cJson = await cRes.json();
-
-        if (cJson.success) {
-          setCompany(cJson.data);
-        }
-
-      } catch (err) {
-        console.error(err);
-      }
+      if (o.success) setOrder(o.order);
+      if (c.success) setCompany(c.data);
     };
 
     if (id) load();
   }, [id]);
 
-  if (!order || !company) return <div style={{ padding: 20 }}>Loading Invoice...</div>;
+  if (!order || !company) return <div className="loader">Loading...</div>;
 
-  /* ================= TAX LOGIC ================= */
-  const isSameState =
-    company.state === order.address?.state;
+  /* ================= CALCULATIONS ================= */
+
+  const isSameState = company.state === order.address?.state;
 
   let subtotal = 0;
   let totalGST = 0;
+  let totalItems = 0;
 
   const items = order.items.map((i) => {
-    const price = i.price;
     const qty = i.qty;
+    const rate = i.price;
 
-    const gstRate = i.gst || 18; // default fallback
-    const base = (price * qty) / (1 + gstRate / 100);
+    const gstRate = i.gst || 18;
+    const total = qty * rate;
 
-    const gstAmount = price * qty - base;
+    const base = total / (1 + gstRate / 100);
+    const gstAmount = total - base;
 
     subtotal += base;
     totalGST += gstAmount;
+    totalItems += qty;
 
     return {
       ...i,
-      base,
       gstRate,
+      base,
       gstAmount,
-      total: price * qty,
+      total,
     };
   });
+
+  const discount = order.discount || 0;
+  const net = subtotal - discount;
 
   const cgst = isSameState ? totalGST / 2 : 0;
   const sgst = isSameState ? totalGST / 2 : 0;
   const igst = !isSameState ? totalGST : 0;
 
-  const total = order.amount;
+  const grandTotal = order.amount;
 
-  const paymentMode =
-    order.payment?.method ||
-    (order.payment?.razorpay_payment_id ? "ONLINE" : "MANUAL");
+  const paidDate = order.payment?.paidAt
+    ? new Date(order.payment.paidAt).toLocaleString()
+    : "N/A";
 
   /* ================= UI ================= */
+
   return (
     <div className="page">
 
       <div className="invoice">
 
-        {/* ================= HEADER ================= */}
+        {/* HEADER */}
         <div className="header">
 
-          <div className="left">
+          <div>
             <img src={company.logoUrl} className="logo" />
             <h2>{company.companyName}</h2>
             <p className="tag">{company.brandTagline}</p>
@@ -92,10 +86,10 @@ export default function InvoicePage() {
             <p>{company.addressLine2}</p>
             <p>{company.city} - {company.pincode}</p>
 
-            <p>GSTIN: {company.gstin}</p>
+            <p><b>GSTIN:</b> {company.gstin}</p>
           </div>
 
-          <div className="right">
+          <div className="invoiceMeta">
             <h1>TAX INVOICE</h1>
 
             <p><b>Invoice No:</b> {order.invoice?.invoiceNumber}</p>
@@ -105,7 +99,7 @@ export default function InvoicePage() {
 
         </div>
 
-        {/* ================= CUSTOMER ================= */}
+        {/* CUSTOMER */}
         <div className="section">
           <h4>Bill To</h4>
 
@@ -115,16 +109,17 @@ export default function InvoicePage() {
           <p>{order.address?.state}</p>
 
           {order.address?.gstNumber && (
-            <p>GSTIN: {order.address.gstNumber}</p>
+            <p><b>GSTIN:</b> {order.address.gstNumber}</p>
           )}
         </div>
 
-        {/* ================= ITEMS ================= */}
+        {/* ITEMS */}
         <table>
           <thead>
             <tr>
               <th>#</th>
-              <th>Item</th>
+              <th>Item (SKU)</th>
+              <th>HSN</th>
               <th>Qty</th>
               <th>Rate</th>
               <th>Taxable</th>
@@ -138,7 +133,11 @@ export default function InvoicePage() {
             {items.map((i, idx) => (
               <tr key={idx}>
                 <td>{idx + 1}</td>
-                <td>{i.name}</td>
+                <td>
+                  {i.name}
+                  {i.sku && <div className="sku">SKU: {i.sku}</div>}
+                </td>
+                <td>{i.hsn || "-"}</td>
                 <td>{i.qty}</td>
                 <td>₹{i.price}</td>
                 <td>₹{i.base.toFixed(2)}</td>
@@ -150,40 +149,47 @@ export default function InvoicePage() {
           </tbody>
         </table>
 
-        {/* ================= SUMMARY ================= */}
+        {/* SUMMARY */}
         <div className="summary">
 
+          <p>Total Items: {totalItems}</p>
+
           <p>Subtotal: ₹{subtotal.toFixed(2)}</p>
+
+          {discount > 0 && (
+            <p>Discount: -₹{discount}</p>
+          )}
+
+          <p>Net Amount: ₹{net.toFixed(2)}</p>
 
           {cgst > 0 && <p>CGST: ₹{cgst.toFixed(2)}</p>}
           {sgst > 0 && <p>SGST: ₹{sgst.toFixed(2)}</p>}
           {igst > 0 && <p>IGST: ₹{igst.toFixed(2)}</p>}
 
-          <h3>Total: ₹{total}</h3>
+          <h2>Total Payable: ₹{grandTotal}</h2>
 
         </div>
 
-        {/* ================= PAYMENT ================= */}
+        {/* PAYMENT */}
         <div className="section">
           <h4>Payment Details</h4>
 
-          <p><b>Mode:</b> {paymentMode}</p>
+          <p><b>Mode:</b> {order.payment?.method || "ONLINE"}</p>
           <p><b>Reference:</b> {order.payment?.razorpay_payment_id || order.payment?.utr}</p>
-          <p><b>Paid On:</b> {new Date(order.payment?.paidAt).toLocaleString()}</p>
+          <p><b>Paid On:</b> {paidDate}</p>
         </div>
 
-        {/* ================= FOOTER ================= */}
+        {/* FOOTER */}
         <div className="footer">
 
-          <div className="bank">
+          <div>
             <p><b>Bank:</b> {company.bankName}</p>
             <p><b>A/C:</b> {company.accountNumber}</p>
             <p><b>IFSC:</b> {company.ifsc}</p>
           </div>
 
-          <div className="sign">
-            <img src={company.signatureUrl} className="signImg" />
-            <img src={company.stampUrl} className="stamp" />
+          <div className="signature">
+            <img src="/signature.png" className="sign" />
             <p>Authorized Signatory</p>
           </div>
 
@@ -191,53 +197,72 @@ export default function InvoicePage() {
 
       </div>
 
-      {/* ================= STYLE ================= */}
+      {/* ================= STYLES ================= */}
       <style jsx>{`
         .page {
-          background: #f5f5f5;
+          background: #f0f2f5;
           padding: 30px;
           display: flex;
           justify-content: center;
         }
 
         .invoice {
-          width: 900px;
+          width: 950px;
           background: white;
           padding: 30px;
-          font-family: Arial;
+          border-radius: 10px;
         }
 
         .header {
           display: flex;
           justify-content: space-between;
-          border-bottom: 1px solid #ddd;
+          border-bottom: 2px solid #222;
           padding-bottom: 15px;
         }
 
         .logo {
           width: 120px;
+          margin-bottom: 10px;
         }
 
         .tag {
+          color: #666;
           font-size: 12px;
-          color: gray;
+        }
+
+        .invoiceMeta {
+          text-align: right;
         }
 
         table {
           width: 100%;
-          border-collapse: collapse;
           margin-top: 20px;
+          border-collapse: collapse;
         }
 
-        th, td {
+        th {
+          background: #222;
+          color: white;
+          padding: 10px;
+        }
+
+        td {
+          padding: 10px;
           border-bottom: 1px solid #eee;
-          padding: 8px;
-          font-size: 13px;
+        }
+
+        .sku {
+          font-size: 11px;
+          color: gray;
         }
 
         .summary {
           text-align: right;
           margin-top: 20px;
+        }
+
+        .summary h2 {
+          color: #000;
         }
 
         .footer {
@@ -246,16 +271,12 @@ export default function InvoicePage() {
           margin-top: 40px;
         }
 
-        .signImg {
+        .sign {
           width: 120px;
         }
 
-        .stamp {
-          width: 100px;
-          opacity: 0.8;
-        }
-
       `}</style>
+
     </div>
   );
 }
