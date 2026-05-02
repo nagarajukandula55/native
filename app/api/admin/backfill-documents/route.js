@@ -4,42 +4,40 @@ import Order from "@/models/Order";
 import { generateInvoiceNumber } from "@/lib/invoiceNumber";
 import { generateInvoiceHTML } from "@/lib/invoice";
 
-/* ================= SAFE RECEIPT SEQUENCE ================= */
-function createReceiptGenerator() {
-  const today = new Date();
-  const yyyy = today.getFullYear();
-  const mm = String(today.getMonth() + 1).padStart(2, "0");
-  const dd = String(today.getDate()).padStart(2, "0");
+/* ================= SAFE RECEIPT GENERATOR ================= */
+async function generateSafeReceipt(order, index) {
+  const date = new Date(order.createdAt || Date.now());
+
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const dd = String(date.getDate()).padStart(2, "0");
 
   const base = `NARCP${yyyy}${mm}${dd}`;
-  let counter = 1;
 
-  return () => {
-    const seq = String(counter++).padStart(3, "0");
-    return `${base}${seq}`;
-  };
+  const seq = String(index + 1).padStart(3, "0");
+
+  return `${base}${seq}`;
 }
 
 export async function POST() {
   try {
     await dbConnect();
 
-    /* ================= SORT ORDERS (IMPORTANT) ================= */
+    /* ================= FETCH ONLY VALID ORDERS ================= */
     const orders = await Order.find({
       status: "PAID",
-    }).sort({ createdAt: 1 }); // FIX ORDERING
-
-    const generateReceipt = createReceiptGenerator();
+    }).sort({ createdAt: 1 });
 
     let updated = 0;
 
-    for (const order of orders) {
+    for (let i = 0; i < orders.length; i++) {
+      const order = orders[i];
       let changed = false;
 
-      /* ================= RECEIPT ================= */
+      /* ================= RECEIPT (SAFE + IDEMPOTENT) ================= */
       if (!order.receipt?.receiptNumber) {
         order.receipt = {
-          receiptNumber: generateReceipt(),
+          receiptNumber: await generateSafeReceipt(order, i),
           generatedAt: order.createdAt || new Date(),
           paymentReference:
             order.payment?.razorpay_payment_id || "MANUAL",
@@ -51,9 +49,7 @@ export async function POST() {
 
       /* ================= INVOICE ================= */
       if (!order.invoice?.invoiceNumber) {
-        const invoiceNumber = await generateInvoiceNumber(
-          order.createdAt
-        );
+        const invoiceNumber = await generateInvoiceNumber(order.createdAt);
 
         order.invoice = {
           invoiceNumber,
@@ -65,6 +61,7 @@ export async function POST() {
         changed = true;
       }
 
+      /* ================= SAVE ONLY IF NEEDED ================= */
       if (changed) {
         await order.save();
         updated++;
