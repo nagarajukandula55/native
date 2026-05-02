@@ -97,7 +97,7 @@ export default function ReceiptPage() {
           />
 
           <div className="tagline">
-            Smart Repairs. Trusted Service.
+            Eat Healthy, Stay Healthy
           </div>
 
           <div className="title">
@@ -184,7 +184,7 @@ export default function ReceiptPage() {
 
         {/* ================= FOOTER ================= */}
         <div className="footer">
-          Thank you for your business ❤️
+          Thank you for your Purchase ❤️
         </div>
 
       </div>
