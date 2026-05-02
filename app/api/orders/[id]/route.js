@@ -14,15 +14,15 @@ async function resolveOrder(id) {
     if (order) return order;
   }
 
-  /* ================= CASE 2: EXACT ORDER ID (PRIMARY) ================= */
+  /* ================= CASE 2: EXACT ORDER ID ================= */
   order = await Order.findOne({ orderId: id });
   if (order) return order;
 
-  /* ================= CASE 3: SAFE PREFIX MATCH (STRICT) ================= */
+  /* ================= CASE 3: STRICT PREFIX MATCH ================= */
   if (id.includes("-")) {
     const parts = id.split("-");
 
-    // 🔒 STRICT LIMIT: only first 3 segments (prevents wrong matches)
+    // 🔒 strict safety: only first 3 segments
     const baseId = parts.slice(0, 3).join("-");
 
     order = await Order.findOne({
@@ -56,25 +56,41 @@ export async function GET(req, { params }) {
 
     const o = order.toObject();
 
-    /* ================= SAFE RESPONSE ENFORCEMENT ================= */
+    /* ================= FINAL SAFE RESPONSE ================= */
     return NextResponse.json({
       success: true,
 
       order: {
         ...o,
 
-        /* 🔥 CRITICAL FIX: prevent UI "Generating..." issues */
-        receipt: o.receipt || {
-          receiptNumber: null,
-          generatedAt: null,
-          paymentReference: null,
+        /* ================= RECEIPT (NO GENERATING ISSUE EVER) ================= */
+        receipt: {
+          receiptNumber: o.receipt?.receiptNumber || null,
+          generatedAt: o.receipt?.generatedAt || null,
+          paymentReference: o.receipt?.paymentReference || null,
+          amountPaid: o.receipt?.amountPaid || o.amount || 0,
         },
 
-        invoice: o.invoice || null,
+        /* ================= INVOICE SAFE STRUCTURE ================= */
+        invoice: o.invoice || {
+          invoiceNumber: null,
+          generatedAt: null,
+        },
 
-        payment: o.payment || null,
-        items: o.items || [],
+        /* ================= PAYMENT SAFE STRUCTURE ================= */
+        payment: o.payment || {
+          status: "PENDING",
+        },
+
+        /* ================= DATA SAFETY ================= */
+        items: Array.isArray(o.items) ? o.items : [],
         address: o.address || {},
+
+        /* ================= IMPORTANT FOR UI STABILITY ================= */
+        status: o.status || "UNKNOWN",
+
+        createdAt: o.createdAt || null,
+        updatedAt: o.updatedAt || null,
       },
     });
 
