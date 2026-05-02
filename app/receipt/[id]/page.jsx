@@ -80,10 +80,11 @@ export default function ReceiptPage() {
         </button>
 
         <button
-          className="pdfBtn"
-          onClick={() => generateReceiptPDF(data)}
+          onClick={() =>
+            window.open(`/api/receipt/pdf/${data.orderId}`, "_blank")
+          }
         >
-          ⬇ Download PDF
+          📄 Download PDF
         </button>
       </div>
 
