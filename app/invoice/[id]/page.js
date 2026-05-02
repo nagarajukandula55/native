@@ -2,85 +2,74 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import QRCode from "react-qr-code";
 
 export default function InvoicePage() {
   const { id } = useParams();
 
   const [order, setOrder] = useState(null);
   const [company, setCompany] = useState(null);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const load = async () => {
-      try {
-        const [o, c] = await Promise.all([
-          fetch(`/api/orders/${id}`).then(r => r.json()),
-          fetch(`/api/company`).then(r => r.json()),
-        ]);
+      const o = await fetch(`/api/orders/${id}`).then(r => r.json());
+      const c = await fetch(`/api/company`).then(r => r.json());
 
-        if (o.success) setOrder(o.order);
-        if (c.success) setCompany(c.data);
-
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
+      if (o.success) setOrder(o.order);
+      if (c.success) setCompany(c.data);
     };
 
     if (id) load();
   }, [id]);
 
-  const downloadPDF = () => {
-    window.open(`/api/invoice/${id}`, "_blank");
-  };
+  if (!order || !company) return <div>Loading...</div>;
 
-  if (loading) return <div className="loader">Loading invoice...</div>;
-  if (!order || !company) return <div className="loader">Invoice not found</div>;
+  const billing = order.billing;
+  const gst = order.gstDetails;
 
-  const items = order.items || [];
-  const billing = order.billing || {};
-  const gst = order.gstDetails || {};
+  const verifyUrl = `${window.location.origin}/verify/${order.orderId}`;
 
   return (
     <div className="page">
 
+      {/* ACTION */}
       <div className="topbar no-print">
-        <button onClick={downloadPDF}>⬇ Download PDF</button>
+        <button onClick={() => window.open(`/api/invoice/${id}`)}>
+          ⬇ Download PDF
+        </button>
       </div>
 
-      <div id="invoice" className="invoice">
+      <div className="invoice">
+
+        {/* WATERMARK */}
+        <div className="watermark">
+          {company.companyName}
+        </div>
 
         {/* HEADER */}
         <div className="header">
-
-          <div className="left">
+          <div>
             <h2>{company.companyName}</h2>
-            <p>{company.brandTagline}</p>
+            <p className="tag">{company.brandTagline}</p>
 
             <p>{company.addressLine1}</p>
             <p>{company.city} - {company.pincode}</p>
 
             <p>GSTIN: {company.gstin}</p>
-            <p>State Code: {company.stateCode}</p>
           </div>
 
           <div className="right">
             <h1>TAX INVOICE</h1>
-            <p><b>Invoice No:</b> {order.invoice?.invoiceNumber}</p>
-            <p><b>Order ID:</b> {order.orderId}</p>
-            <p><b>Date:</b> {new Date(order.createdAt).toLocaleString()}</p>
+            <p>Invoice: {order.invoice?.invoiceNumber}</p>
+            <p>Date: {new Date(order.createdAt).toLocaleString()}</p>
           </div>
-
         </div>
 
         {/* BILL / SHIP */}
-        <div className="addressRow">
-
+        <div className="addr">
           <div>
             <h4>Bill To</h4>
             <p>{order.address?.name}</p>
-            <p>{order.address?.phone}</p>
             <p>{order.address?.address}</p>
             <p>{order.address?.city} - {order.address?.pincode}</p>
             {order.address?.gstNumber && (
@@ -91,31 +80,29 @@ export default function InvoicePage() {
           <div>
             <h4>Ship To</h4>
             <p>{order.address?.name}</p>
-            <p>{order.address?.phone}</p>
             <p>{order.address?.address}</p>
             <p>{order.address?.city} - {order.address?.pincode}</p>
           </div>
-
         </div>
 
-        {/* TABLE */}
+        {/* ITEMS */}
         <table>
           <thead>
             <tr>
               <th>#</th>
-              <th>Item</th>
+              <th>Description</th>
               <th>HSN</th>
               <th>Qty</th>
               <th>Price</th>
-              <th>Discount</th>
+              <th>Disc</th>
               <th>Taxable</th>
-              <th>GST %</th>
+              <th>GST%</th>
               <th>Total</th>
             </tr>
           </thead>
 
           <tbody>
-            {items.map((i, idx) => (
+            {order.items.map((i, idx) => (
               <tr key={idx}>
                 <td>{idx + 1}</td>
                 <td>
@@ -137,15 +124,13 @@ export default function InvoicePage() {
 
         {/* SUMMARY */}
         <div className="summary">
-
-          <div className="left">
-            <p><b>Total Items:</b> {billing.itemCount}</p>
-            <p><b>Payment Mode:</b> {order.payment?.method || "ONLINE"}</p>
+          <div>
+            <p>Total Items: {billing.itemCount}</p>
           </div>
 
-          <div className="right">
+          <div>
             <p>Subtotal: ₹{billing.subtotal}</p>
-            <p>Discount: -₹{billing.discount}</p>
+            <p>Discount: ₹{billing.discount}</p>
             <p>Taxable: ₹{billing.taxableAmount}</p>
 
             {!gst.isInterState ? (
@@ -157,100 +142,104 @@ export default function InvoicePage() {
               <p>IGST: ₹{billing.igst}</p>
             )}
 
-            <h3>Total: ₹{billing.total}</h3>
+            <h2>Total: ₹{billing.total}</h2>
           </div>
-
         </div>
 
-        {/* SIGNATURE */}
+        {/* FOOTER */}
         <div className="footer">
-          <div>
-            <img src={company.signatureUrl} className="sign" />
+
+          <div className="qr">
+            <QRCode value={verifyUrl} size={90} />
+            <p>Scan to Verify</p>
+          </div>
+
+          <div className="signBox">
+            <img src={company.signatureUrl} />
             <p>Authorised Signatory</p>
           </div>
+
         </div>
 
       </div>
 
       {/* STYLE */}
       <style jsx>{`
-        .page {
-          background: #f5f5f5;
-          padding: 20px;
-        }
+        .page { background:#f5f5f5; padding:20px; }
 
         .invoice {
-          max-width: 900px;
-          margin: auto;
-          background: white;
-          padding: 25px;
-          border: 1px solid #ddd;
+          background:white;
+          padding:25px;
+          max-width:900px;
+          margin:auto;
+          position:relative;
+        }
+
+        .watermark {
+          position:absolute;
+          top:40%;
+          left:50%;
+          transform:translate(-50%, -50%);
+          font-size:80px;
+          opacity:0.05;
+          font-weight:bold;
         }
 
         .header {
-          display: flex;
-          justify-content: space-between;
-          border-bottom: 2px solid #000;
-          padding-bottom: 10px;
+          display:flex;
+          justify-content:space-between;
+          border-bottom:2px solid #000;
         }
 
-        .addressRow {
-          display: flex;
-          justify-content: space-between;
-          margin-top: 20px;
+        .tag { color:gray; }
+
+        .addr {
+          display:flex;
+          justify-content:space-between;
+          margin-top:20px;
         }
 
         table {
-          width: 100%;
-          border-collapse: collapse;
-          margin-top: 20px;
+          width:100%;
+          border-collapse:collapse;
+          margin-top:20px;
         }
 
         th, td {
-          border: 1px solid #ddd;
-          padding: 8px;
-          font-size: 13px;
+          border:1px solid #ddd;
+          padding:8px;
+          font-size:13px;
         }
 
         th {
-          background: #000;
-          color: #fff;
+          background:black;
+          color:white;
         }
 
         .summary {
-          display: flex;
-          justify-content: space-between;
-          margin-top: 20px;
+          display:flex;
+          justify-content:space-between;
+          margin-top:20px;
         }
 
         .footer {
-          margin-top: 40px;
-          text-align: right;
+          display:flex;
+          justify-content:space-between;
+          margin-top:40px;
         }
 
-        .sign {
-          height: 60px;
+        .signBox img {
+          height:60px;
         }
 
-        .topbar {
-          text-align: center;
-          margin-bottom: 10px;
-        }
-
-        button {
-          padding: 10px 20px;
-          background: black;
-          color: white;
-          border: none;
+        .qr {
+          text-align:center;
         }
 
         @media print {
-          .no-print {
-            display: none;
-          }
+          .no-print { display:none; }
         }
       `}</style>
-
     </div>
   );
 }
