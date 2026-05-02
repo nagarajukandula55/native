@@ -3,7 +3,7 @@ import crypto from "crypto";
 import dbConnect from "@/lib/db";
 import Order from "@/models/Order";
 
-/* ================= BILLING CALCULATOR ================= */
+/* ================= BILLING CALCULATION ================= */
 function calculateBilling(order) {
   const subtotal =
     order.items?.reduce((sum, item) => {
@@ -12,22 +12,22 @@ function calculateBilling(order) {
 
   const discount = order.discount || 0;
 
-  const taxableAmount = subtotal - discount;
+  const taxableAmount = Math.max(subtotal - discount, 0);
 
-  const taxRate = 18; // 🔥 keep simple for now
+  const taxRate = 18;
+
+  const companyState = "KA"; // 🔒 SET YOUR STATE CODE HERE
+  const customerState = order.address?.state || "";
 
   let cgst = 0;
   let sgst = 0;
   let igst = 0;
 
-  // 🔥 Basic GST logic (same state → CGST+SGST)
-  const isSameState = true; // you can enhance later
-
-  if (isSameState) {
-    cgst = (taxableAmount * taxRate) / 200;
-    sgst = (taxableAmount * taxRate) / 200;
+  if (customerState && customerState === companyState) {
+    cgst = +(taxableAmount * (taxRate / 2) / 100).toFixed(2);
+    sgst = +(taxableAmount * (taxRate / 2) / 100).toFixed(2);
   } else {
-    igst = (taxableAmount * taxRate) / 100;
+    igst = +(taxableAmount * taxRate / 100).toFixed(2);
   }
 
   return {
@@ -43,8 +43,8 @@ function calculateBilling(order) {
 }
 
 /* ================= CORE PAID HANDLER ================= */
-async function handleOrderPaid(order, paymentData = {}) {
-  let changed = false;
+async function handleOrderPaid(order, paymentData) {
+  let updated = false;
 
   /* ================= PAYMENT ================= */
   order.payment = {
@@ -55,10 +55,10 @@ async function handleOrderPaid(order, paymentData = {}) {
     paidAt: new Date(),
   };
 
-  /* ================= BILLING (🔥 CRITICAL ADDITION) ================= */
+  /* ================= BILLING ================= */
   if (!order.billing) {
     order.billing = calculateBilling(order);
-    changed = true;
+    updated = true;
   }
 
   /* ================= RECEIPT ================= */
@@ -74,7 +74,7 @@ async function handleOrderPaid(order, paymentData = {}) {
       amountPaid: order.amount,
     };
 
-    changed = true;
+    updated = true;
   }
 
   /* ================= INVOICE ================= */
@@ -89,26 +89,28 @@ async function handleOrderPaid(order, paymentData = {}) {
 
     order.invoiceHTML = generateInvoiceHTML({
       ...order.toObject(),
-      billing: order.billing, // 🔥 ensure billing is used
+      billing: order.billing,
     });
 
-    changed = true;
+    updated = true;
   }
 
-  return changed;
+  return updated;
 }
 
-/* ================= PAYMENT VERIFY ================= */
+/* ================= API ================= */
 export async function POST(req) {
   try {
     await dbConnect();
+
+    const body = await req.json();
 
     const {
       razorpay_order_id,
       razorpay_payment_id,
       razorpay_signature,
       orderId,
-    } = await req.json();
+    } = body;
 
     /* ================= VALIDATION ================= */
     if (
@@ -118,7 +120,7 @@ export async function POST(req) {
       !orderId
     ) {
       return NextResponse.json(
-        { success: false, message: "Missing payment data" },
+        { success: false, message: "Invalid request" },
         { status: 400 }
       );
     }
@@ -156,7 +158,7 @@ export async function POST(req) {
       });
     }
 
-    /* ================= ORDER MISMATCH ================= */
+    /* ================= ORDER VALIDATION ================= */
     if (
       order.payment?.razorpay_order_id &&
       order.payment.razorpay_order_id !== razorpay_order_id
@@ -167,10 +169,10 @@ export async function POST(req) {
       );
     }
 
-    /* ================= STEP 1 ================= */
+    /* ================= UPDATE STATUS ================= */
     order.status = "PAID";
 
-    /* ================= STEP 2 ================= */
+    /* ================= PROCESS ================= */
     await handleOrderPaid(order, {
       razorpay_order_id,
       razorpay_payment_id,
@@ -178,13 +180,13 @@ export async function POST(req) {
       mode: "RAZORPAY",
     });
 
-    /* ================= STEP 3 ================= */
+    /* ================= SAVE ================= */
     await order.save();
 
-    /* ================= STEP 4 (ASYNC NOTIFICATIONS) ================= */
+    /* ================= ASYNC NOTIFICATIONS ================= */
     setImmediate(async () => {
       try {
-        // future hooks
+        // integrate when ready
         // await sendWhatsAppReceipt(order);
         // await sendPaymentReceiptEmail(order);
       } catch (err) {
@@ -204,7 +206,7 @@ export async function POST(req) {
     console.error("PAYMENT VERIFY ERROR:", err);
 
     return NextResponse.json(
-      { success: false, message: "Verification failed" },
+      { success: false, message: "Internal server error" },
       { status: 500 }
     );
   }
