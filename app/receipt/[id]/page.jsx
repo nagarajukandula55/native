@@ -15,9 +15,7 @@ export default function ReceiptPage() {
         const res = await fetch(`/api/orders/${id}`);
         const json = await res.json();
 
-        if (json.success) {
-          setData(json.order);
-        }
+        if (json.success) setData(json.order);
       } catch (err) {
         console.error(err);
       } finally {
@@ -28,10 +26,115 @@ export default function ReceiptPage() {
     if (id) load();
   }, [id]);
 
+  /* ================= PRINT (FIXED - NO WEBSITE LEAK) ================= */
   const handlePrint = () => {
-    window.print();
+    const content = document.getElementById("invoice").outerHTML;
+
+    const win = window.open("", "_blank", "width=900,height=650");
+
+    win.document.write(`
+      <html>
+        <head>
+          <title>Receipt</title>
+          <style>
+
+            body {
+              font-family: Arial, sans-serif;
+              margin: 0;
+              padding: 20px;
+              color: #111;
+            }
+
+            .invoice {
+              max-width: 800px;
+              margin: auto;
+              border: 1px solid #eee;
+              padding: 20px;
+            }
+
+            .header {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              border-bottom: 1px solid #eee;
+              padding-bottom: 15px;
+            }
+
+            .logo {
+              width: 140px;
+            }
+
+            .meta h2 {
+              margin: 0;
+            }
+
+            .row {
+              display: flex;
+              justify-content: space-between;
+              margin-top: 20px;
+            }
+
+            .box {
+              width: 48%;
+            }
+
+            h4 {
+              margin-bottom: 8px;
+              font-size: 14px;
+              color: #333;
+            }
+
+            p {
+              margin: 4px 0;
+              font-size: 13px;
+            }
+
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-top: 20px;
+            }
+
+            th {
+              text-align: left;
+              background: #f5f5f5;
+              padding: 10px;
+              font-size: 13px;
+            }
+
+            td {
+              padding: 10px;
+              border-bottom: 1px solid #eee;
+              font-size: 13px;
+            }
+
+            .total {
+              text-align: right;
+              font-size: 18px;
+              font-weight: bold;
+              margin-top: 20px;
+            }
+
+            .footer {
+              text-align: center;
+              margin-top: 30px;
+              font-size: 12px;
+              color: gray;
+            }
+
+          </style>
+        </head>
+
+        <body onload="window.print(); window.close();">
+          ${content}
+        </body>
+      </html>
+    `);
+
+    win.document.close();
   };
 
+  /* ================= LOADING ================= */
   if (loading) return <div className="loader">Loading receipt...</div>;
   if (!data) return <div className="loader">Receipt not found</div>;
 
@@ -43,7 +146,7 @@ export default function ReceiptPage() {
         Print Receipt
       </button>
 
-      {/* ======== INVOICE CONTAINER (ONLY PRINT AREA) ======== */}
+      {/* ================= RECEIPT ================= */}
       <div id="invoice" className="invoice">
 
         {/* HEADER */}
@@ -52,29 +155,24 @@ export default function ReceiptPage() {
 
           <div className="meta">
             <h2>PAYMENT RECEIPT</h2>
-            <p><b>Order:</b> {data.orderId}</p>
+            <p><b>Order ID:</b> {data.orderId}</p>
             <p><b>Status:</b> {data.status}</p>
-            <p>
-              <b>Date:</b>{" "}
-              {new Date(data.createdAt).toLocaleString()}
-            </p>
+            <p><b>Date:</b> {new Date(data.createdAt).toLocaleString()}</p>
           </div>
         </div>
-
-        <div className="divider" />
 
         {/* CUSTOMER + PAYMENT */}
         <div className="row">
 
-          <div>
-            <h4>Customer</h4>
+          <div className="box">
+            <h4>Customer Details</h4>
             <p>{data.address?.name}</p>
             <p>{data.address?.phone}</p>
             <p>{data.address?.address}</p>
           </div>
 
-          <div>
-            <h4>Payment</h4>
+          <div className="box">
+            <h4>Payment Details</h4>
             <p><b>Method:</b> {data.payment?.method || "ONLINE"}</p>
             <p>
               <b>Reference:</b>{" "}
@@ -89,8 +187,6 @@ export default function ReceiptPage() {
           </div>
 
         </div>
-
-        <div className="divider" />
 
         {/* ITEMS */}
         <table>
@@ -125,7 +221,7 @@ export default function ReceiptPage() {
 
       </div>
 
-      {/* ================= STYLES ================= */}
+      {/* ================= PAGE STYLES ================= */}
       <style jsx>{`
         .page {
           display: flex;
@@ -140,13 +236,11 @@ export default function ReceiptPage() {
           text-align: center;
         }
 
-        /* ================= INVOICE CARD ================= */
         .invoice {
-          width: 210mm;
-          min-height: 297mm;
+          width: 800px;
           background: white;
-          padding: 25px;
-          box-shadow: 0 0 10px rgba(0,0,0,0.1);
+          padding: 20px;
+          border: 1px solid #eee;
         }
 
         .header {
@@ -162,34 +256,35 @@ export default function ReceiptPage() {
         .row {
           display: flex;
           justify-content: space-between;
-          margin: 15px 0;
+          margin-top: 20px;
         }
 
-        .divider {
-          border-top: 1px solid #ddd;
-          margin: 15px 0;
+        .box {
+          width: 48%;
         }
 
         table {
           width: 100%;
           border-collapse: collapse;
+          margin-top: 20px;
         }
 
         th, td {
+          padding: 10px;
           border-bottom: 1px solid #eee;
-          padding: 8px;
+          text-align: left;
         }
 
         .total {
           text-align: right;
           font-size: 18px;
-          margin-top: 20px;
           font-weight: bold;
+          margin-top: 20px;
         }
 
         .footer {
           text-align: center;
-          margin-top: 40px;
+          margin-top: 30px;
           font-size: 12px;
           color: gray;
         }
@@ -202,34 +297,11 @@ export default function ReceiptPage() {
           border: none;
         }
 
-        /* ================= PRINT FIX (CRITICAL) ================= */
-        @media print {
-          body * {
-            visibility: hidden;
-          }
-
-          #invoice, #invoice * {
-            visibility: visible;
-          }
-
-          #invoice {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-            box-shadow: none;
-          }
-
-          .no-print {
-            display: none !important;
-          }
-
-          .page {
-            background: white !important;
-            padding: 0 !important;
-          }
+        .no-print {
+          display: block;
         }
       `}</style>
+
     </div>
   );
 }
