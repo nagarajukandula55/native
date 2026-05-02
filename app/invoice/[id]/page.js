@@ -7,6 +7,7 @@ export default function InvoicePage() {
   const { id } = useParams();
 
   const [data, setData] = useState(null);
+  const [company, setCompany] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -14,7 +15,11 @@ export default function InvoicePage() {
       try {
         const res = await fetch(`/api/orders/${id}`);
         const json = await res.json();
-        if (json.success) setData(json.order);
+
+        if (json.success) {
+          setData(json.order);
+          setCompany(json.order.company || {}); // from DB
+        }
       } catch (err) {
         console.error(err);
       } finally {
@@ -25,8 +30,10 @@ export default function InvoicePage() {
     if (id) load();
   }, [id]);
 
-  const downloadPDF = () => {
-    window.open(`/api/invoice/${data.orderId}`, "_blank");
+  const handlePrint = () => window.print();
+
+  const handlePDF = () => {
+    window.open(`/api/invoice/${id}`, "_blank");
   };
 
   if (loading) return <div className="loader">Loading invoice...</div>;
@@ -37,7 +44,6 @@ export default function InvoicePage() {
     data.items?.reduce((a, b) => a + b.price * b.qty, 0) || 0;
 
   const discount = data.discount || 0;
-
   const taxable = subtotal - discount;
 
   const cgst = data.billing?.cgst || 0;
@@ -46,46 +52,46 @@ export default function InvoicePage() {
 
   const total = data.amount;
 
-  const paymentMode =
-    data.payment?.method ||
-    (data.payment?.razorpay_payment_id ? "ONLINE" : "MANUAL");
-
   return (
     <div className="page">
 
-      {/* ACTION BAR */}
+      {/* ACTIONS */}
       <div className="actions no-print">
-        <button onClick={downloadPDF}>
-          📄 Download Invoice
-        </button>
+        <button onClick={handlePrint}>🖨 Print</button>
+        <button onClick={handlePDF}>⬇ Download PDF</button>
       </div>
 
       {/* ================= INVOICE ================= */}
-      <div className="invoice">
+      <div id="invoice" className="invoice">
 
         {/* HEADER */}
         <div className="header">
-
-          <div className="brand">
-            <img
-              src="https://shopnative.in/logo.png"
-              className="logo"
-            />
-            <div className="tagline">
-              Your Trusted Mobile & Laptop Store
+          <div className="left">
+            <img src={company?.logo || "/logo.png"} className="logo" />
+            <div>
+              <div className="company">{company?.name}</div>
+              <div className="tag">{company?.tagline}</div>
             </div>
           </div>
 
-          <div className="invoiceMeta">
-            <h2>INVOICE</h2>
-            <p><b>Invoice No:</b> {data.invoice?.invoiceNumber || "NA"}</p>
-            <p><b>Date:</b> {new Date(data.createdAt).toLocaleString()}</p>
+          <div className="right">
+            <div className="title">TAX INVOICE</div>
+            <p>Invoice: {data.invoice?.invoiceNumber}</p>
+            <p>Order: {data.orderId}</p>
+            <p>
+              Date: {new Date(data.createdAt).toLocaleString()}
+            </p>
           </div>
-
         </div>
 
-        {/* CUSTOMER + ORDER */}
-        <div className="sectionRow">
+        {/* SELLER + BUYER */}
+        <div className="row">
+          <div className="box">
+            <h4>Seller</h4>
+            <p>{company?.name}</p>
+            <p>{company?.address}</p>
+            <p>GSTIN: {company?.gst}</p>
+          </div>
 
           <div className="box">
             <h4>Bill To</h4>
@@ -96,14 +102,6 @@ export default function InvoicePage() {
               {data.address?.city} - {data.address?.pincode}
             </p>
           </div>
-
-          <div className="box">
-            <h4>Order Details</h4>
-            <p><b>Order ID:</b> {data.orderId}</p>
-            <p><b>Status:</b> {data.status}</p>
-            <p><b>Payment:</b> {paymentMode}</p>
-          </div>
-
         </div>
 
         {/* ITEMS */}
@@ -111,9 +109,9 @@ export default function InvoicePage() {
           <thead>
             <tr>
               <th>Item</th>
-              <th style={{ textAlign: "center" }}>Qty</th>
-              <th style={{ textAlign: "right" }}>Price</th>
-              <th style={{ textAlign: "right" }}>Total</th>
+              <th>Qty</th>
+              <th>Rate</th>
+              <th>Total</th>
             </tr>
           </thead>
 
@@ -121,11 +119,9 @@ export default function InvoicePage() {
             {data.items?.map((i, idx) => (
               <tr key={idx}>
                 <td>{i.name}</td>
-                <td style={{ textAlign: "center" }}>{i.qty}</td>
-                <td style={{ textAlign: "right" }}>₹{i.price}</td>
-                <td style={{ textAlign: "right" }}>
-                  ₹{i.price * i.qty}
-                </td>
+                <td>{i.qty}</td>
+                <td>₹{i.price}</td>
+                <td>₹{i.price * i.qty}</td>
               </tr>
             ))}
           </tbody>
@@ -140,14 +136,14 @@ export default function InvoicePage() {
           </div>
 
           {discount > 0 && (
-            <div className="line discount">
+            <div className="line">
               <span>Discount</span>
-              <span>-₹{discount}</span>
+              <span>- ₹{discount}</span>
             </div>
           )}
 
           <div className="line">
-            <span>Taxable Amount</span>
+            <span>Taxable</span>
             <span>₹{taxable}</span>
           </div>
 
@@ -172,10 +168,23 @@ export default function InvoicePage() {
           )}
 
           <div className="total">
-            <span>TOTAL</span>
+            <span>Total</span>
             <span>₹{total}</span>
           </div>
+        </div>
 
+        {/* PAYMENT */}
+        <div className="payment">
+          <h4>Payment Details</h4>
+          <p>
+            Mode: {data.payment?.method || "ONLINE"}
+          </p>
+          <p>
+            Ref:{" "}
+            {data.payment?.razorpay_payment_id ||
+              data.receipt?.paymentReference ||
+              "NA"}
+          </p>
         </div>
 
         {/* FOOTER */}
@@ -190,64 +199,67 @@ export default function InvoicePage() {
         .page {
           padding: 20px;
           background: #f5f5f5;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
         }
 
         .actions {
-          margin-bottom: 15px;
-          width: 800px;
           display: flex;
-          justify-content: flex-end;
+          gap: 10px;
+          margin-bottom: 15px;
         }
 
         .actions button {
-          padding: 10px 18px;
-          background: #000;
-          color: #fff;
+          padding: 10px 16px;
+          border: none;
+          background: black;
+          color: white;
           border-radius: 6px;
-          font-size: 14px;
           cursor: pointer;
         }
 
         .invoice {
-          width: 800px;
-          background: #fff;
+          max-width: 900px;
+          margin: auto;
+          background: white;
           padding: 25px;
-          border: 1px solid #eee;
         }
 
-        /* HEADER */
         .header {
           display: flex;
           justify-content: space-between;
-          border-bottom: 1px solid #eee;
-          padding-bottom: 12px;
         }
 
-        .brand {
+        .left {
           display: flex;
-          flex-direction: column;
+          gap: 12px;
+          align-items: center;
         }
 
         .logo {
-          width: 110px;
+          width: 80px;
           object-fit: contain;
         }
 
-        .tagline {
+        .company {
+          font-size: 18px;
+          font-weight: bold;
+        }
+
+        .tag {
           font-size: 12px;
-          color: #666;
-          margin-top: 3px;
+          color: gray;
         }
 
-        .invoiceMeta {
+        .right {
           text-align: right;
+          font-size: 13px;
         }
 
-        /* ROW */
-        .sectionRow {
+        .title {
+          font-weight: bold;
+          font-size: 16px;
+        }
+
+        .row {
           display: flex;
           justify-content: space-between;
           margin-top: 20px;
@@ -257,30 +269,17 @@ export default function InvoicePage() {
           width: 48%;
         }
 
-        h4 {
-          margin-bottom: 6px;
-        }
-
-        /* TABLE */
         table {
           width: 100%;
-          border-collapse: collapse;
           margin-top: 20px;
+          border-collapse: collapse;
         }
 
-        th {
-          background: #f7f7f7;
-          padding: 10px;
-          font-size: 13px;
-        }
-
-        td {
+        th, td {
           padding: 10px;
           border-bottom: 1px solid #eee;
-          font-size: 13px;
         }
 
-        /* SUMMARY */
         .summary {
           margin-top: 20px;
           width: 300px;
@@ -290,12 +289,7 @@ export default function InvoicePage() {
         .line {
           display: flex;
           justify-content: space-between;
-          margin-bottom: 6px;
-          font-size: 14px;
-        }
-
-        .discount {
-          color: green;
+          padding: 5px 0;
         }
 
         .total {
@@ -303,23 +297,43 @@ export default function InvoicePage() {
           justify-content: space-between;
           font-weight: bold;
           font-size: 16px;
-          margin-top: 10px;
           border-top: 1px solid #ddd;
-          padding-top: 8px;
+          margin-top: 10px;
+          padding-top: 10px;
+        }
+
+        .payment {
+          margin-top: 30px;
         }
 
         .footer {
           text-align: center;
-          margin-top: 30px;
+          margin-top: 40px;
           font-size: 12px;
-          color: #888;
+          color: gray;
         }
 
-        .loader {
-          padding: 40px;
+        @media print {
+          body * {
+            visibility: hidden;
+          }
+
+          #invoice, #invoice * {
+            visibility: visible;
+          }
+
+          #invoice {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+          }
+
+          .no-print {
+            display: none;
+          }
         }
       `}</style>
-
     </div>
   );
 }
