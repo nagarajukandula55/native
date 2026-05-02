@@ -3,8 +3,8 @@ import crypto from "crypto";
 import dbConnect from "@/lib/db";
 import Order from "@/models/Order";
 import { generateReceiptNumber } from "@/lib/receipt";
-// import { sendPaymentReceiptEmail } from "@/lib/email"; // optional
 
+/* ================= PAYMENT VERIFY ================= */
 export async function POST(req) {
   try {
     await dbConnect();
@@ -29,7 +29,7 @@ export async function POST(req) {
       );
     }
 
-    /* ================= VERIFY SIGNATURE ================= */
+    /* ================= SIGNATURE VERIFY ================= */
     const expectedSignature = crypto
       .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
       .update(`${razorpay_order_id}|${razorpay_payment_id}`)
@@ -52,7 +52,7 @@ export async function POST(req) {
       );
     }
 
-    /* ================= IDEMPOTENCY CHECK ================= */
+    /* ================= IDEMPOTENCY (IMPORTANT) ================= */
     if (order.status === "PAID" && order.receipt?.receiptNumber) {
       return NextResponse.json({
         success: true,
@@ -62,13 +62,13 @@ export async function POST(req) {
       });
     }
 
-    /* ================= PAYMENT MATCH CHECK ================= */
+    /* ================= PAYMENT MISMATCH CHECK ================= */
     if (
       order.payment?.razorpay_order_id &&
       order.payment.razorpay_order_id !== razorpay_order_id
     ) {
       return NextResponse.json(
-        { success: false, message: "Order ID mismatch" },
+        { success: false, message: "Order mismatch" },
         { status: 400 }
       );
     }
@@ -83,31 +83,32 @@ export async function POST(req) {
       paidAt: new Date(),
     };
 
-    /* ================= STEP 2: GENERATE RECEIPT ================= */
-    const receiptNumber = await generateReceiptNumber();
+    /* ================= STEP 2: GENERATE RECEIPT (ATOMIC SAFE) ================= */
+    if (!order.receipt?.receiptNumber) {
+      const receiptNumber = await generateReceiptNumber();
 
-    order.receipt = {
-      receiptNumber,
-      generatedAt: new Date(),
-      paymentMode: "RAZORPAY",
-      paymentReference: razorpay_payment_id,
-      amountPaid: order.amount,
-    };
+      order.receipt = {
+        receiptNumber,
+        generatedAt: new Date(),
+        paymentMode: "RAZORPAY",
+        paymentReference: razorpay_payment_id,
+        amountPaid: order.amount,
+      };
+    }
 
-    /* ================= STEP 3: GENERATE INVOICE HTML ================= */
-    // IMPORTANT: ensure function exists
+    /* ================= STEP 3: GENERATE INVOICE ================= */
     const { generateInvoiceHTML } = await import("@/lib/invoice");
 
     order.invoiceHTML = generateInvoiceHTML(order.toObject());
 
-    /* ================= STEP 4: SAVE FIRST (CRITICAL) ================= */
+    /* ================= STEP 4: SAVE ================= */
     await order.save();
 
-    /* ================= STEP 5: SEND EMAIL (AFTER SAVE) ================= */
+    /* ================= STEP 5: OPTIONAL EMAIL ================= */
     try {
       // await sendPaymentReceiptEmail(order);
-    } catch (e) {
-      console.error("Email failed:", e);
+    } catch (err) {
+      console.error("Email error:", err);
     }
 
     /* ================= RESPONSE ================= */
