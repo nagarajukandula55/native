@@ -11,109 +11,91 @@ export default function InvoicePage() {
 
   useEffect(() => {
     const load = async () => {
-      const o = await fetch(`/api/orders/${id}`).then(r => r.json());
-      const c = await fetch(`/api/company`).then(r => r.json());
+      const res = await fetch(`/api/orders/${id}`);
+      const json = await res.json();
 
-      if (o.success) setOrder(o.order);
-      if (c.success) setCompany(c.data);
+      if (json.success) {
+        setOrder(json.order);
+
+        const cs = await fetch(`/api/company`);
+        const csJson = await cs.json();
+        if (csJson.success) setCompany(csJson.data);
+      }
     };
 
     if (id) load();
   }, [id]);
 
-  if (!order || !company) return <div className="loader">Loading...</div>;
+  if (!order || !company) return <div>Loading invoice...</div>;
 
   /* ================= CALCULATIONS ================= */
+  const subtotal =
+    order.items?.reduce((a, b) => a + b.price * b.qty, 0) || 0;
 
-  const isSameState = company.state === order.address?.state;
+  const discount = order.billing?.discount || 0;
 
-  let subtotal = 0;
-  let totalGST = 0;
-  let totalItems = 0;
+  const taxableAmount = subtotal - discount;
 
-  const items = order.items.map((i) => {
-    const qty = i.qty;
-    const rate = i.price;
+  const totalCGST = order.billing?.totalCGST || 0;
+  const totalSGST = order.billing?.totalSGST || 0;
+  const totalIGST = order.billing?.totalIGST || 0;
 
-    const gstRate = i.gst || 18;
-    const total = qty * rate;
+  const total = order.amount;
 
-    const base = total / (1 + gstRate / 100);
-    const gstAmount = total - base;
-
-    subtotal += base;
-    totalGST += gstAmount;
-    totalItems += qty;
-
-    return {
-      ...i,
-      gstRate,
-      base,
-      gstAmount,
-      total,
-    };
-  });
-
-  const discount = order.discount || 0;
-  const net = subtotal - discount;
-
-  const cgst = isSameState ? totalGST / 2 : 0;
-  const sgst = isSameState ? totalGST / 2 : 0;
-  const igst = !isSameState ? totalGST : 0;
-
-  const grandTotal = order.amount;
-
-  const paidDate = order.payment?.paidAt
-    ? new Date(order.payment.paidAt).toLocaleString()
-    : "N/A";
-
-  /* ================= UI ================= */
+  const totalQty =
+    order.items?.reduce((a, b) => a + b.qty, 0) || 0;
 
   return (
     <div className="page">
 
-      <div className="invoice">
+      <div id="invoice" className="invoice">
 
-        {/* HEADER */}
+        {/* ================= HEADER ================= */}
         <div className="header">
 
-          <div>
-            <img src={company.logoUrl} className="logo" />
+          <div className="company">
             <h2>{company.companyName}</h2>
             <p className="tag">{company.brandTagline}</p>
 
             <p>{company.addressLine1}</p>
             <p>{company.addressLine2}</p>
             <p>{company.city} - {company.pincode}</p>
-
-            <p><b>GSTIN:</b> {company.gstin}</p>
+            <p>GSTIN: {company.gstin}</p>
           </div>
 
           <div className="invoiceMeta">
             <h1>TAX INVOICE</h1>
-
             <p><b>Invoice No:</b> {order.invoice?.invoiceNumber}</p>
             <p><b>Date:</b> {new Date(order.createdAt).toLocaleDateString()}</p>
-            <p><b>Order ID:</b> {order.orderId}</p>
           </div>
 
         </div>
 
-        {/* CUSTOMER */}
-        <div className="section">
-          <h4>Bill To</h4>
+        {/* ================= BILL + SHIP ================= */}
+        <div className="row">
 
-          <p><b>{order.address?.name}</b></p>
-          <p>{order.address?.address}</p>
-          <p>{order.address?.city} - {order.address?.pincode}</p>
-          <p>{order.address?.state}</p>
+          <div className="box">
+            <h4>Bill To</h4>
+            <p>{order.address?.name}</p>
+            <p>{order.address?.phone}</p>
+            <p>{order.address?.address}</p>
+            <p>{order.address?.city}</p>
+            {order.address?.gstNumber && (
+              <p>GST: {order.address.gstNumber}</p>
+            )}
+          </div>
 
-          {order.address?.gstNumber && (
-            <p><b>GSTIN:</b> {order.address.gstNumber}</p>
-          )}
+          <div className="box">
+            <h4>Ship To</h4>
+            <p>{order.address?.name}</p>
+            <p>{order.address?.phone}</p>
+            <p>{order.address?.address}</p>
+            <p>{order.address?.city}</p>
+          </div>
+
         </div>
 
-        {/* ITEMS */}
+        {/* ================= ITEMS ================= */}
         <table>
           <thead>
             <tr>
@@ -121,76 +103,62 @@ export default function InvoicePage() {
               <th>Item (SKU)</th>
               <th>HSN</th>
               <th>Qty</th>
-              <th>Rate</th>
-              <th>Taxable</th>
+              <th>Price</th>
               <th>GST %</th>
-              <th>GST</th>
               <th>Total</th>
             </tr>
           </thead>
 
           <tbody>
-            {items.map((i, idx) => (
+            {order.items.map((i, idx) => (
               <tr key={idx}>
                 <td>{idx + 1}</td>
-                <td>
-                  {i.name}
-                  {i.sku && <div className="sku">SKU: {i.sku}</div>}
-                </td>
+                <td>{i.name} ({i.sku})</td>
                 <td>{i.hsn || "-"}</td>
                 <td>{i.qty}</td>
                 <td>₹{i.price}</td>
-                <td>₹{i.base.toFixed(2)}</td>
                 <td>{i.gstRate}%</td>
-                <td>₹{i.gstAmount.toFixed(2)}</td>
-                <td>₹{i.total}</td>
+                <td>₹{i.total || i.price * i.qty}</td>
               </tr>
             ))}
           </tbody>
         </table>
 
-        {/* SUMMARY */}
+        {/* ================= SUMMARY ================= */}
         <div className="summary">
 
-          <p>Total Items: {totalItems}</p>
-
-          <p>Subtotal: ₹{subtotal.toFixed(2)}</p>
-
-          {discount > 0 && (
-            <p>Discount: -₹{discount}</p>
-          )}
-
-          <p>Net Amount: ₹{net.toFixed(2)}</p>
-
-          {cgst > 0 && <p>CGST: ₹{cgst.toFixed(2)}</p>}
-          {sgst > 0 && <p>SGST: ₹{sgst.toFixed(2)}</p>}
-          {igst > 0 && <p>IGST: ₹{igst.toFixed(2)}</p>}
-
-          <h2>Total Payable: ₹{grandTotal}</h2>
-
-        </div>
-
-        {/* PAYMENT */}
-        <div className="section">
-          <h4>Payment Details</h4>
-
-          <p><b>Mode:</b> {order.payment?.method || "ONLINE"}</p>
-          <p><b>Reference:</b> {order.payment?.razorpay_payment_id || order.payment?.utr}</p>
-          <p><b>Paid On:</b> {paidDate}</p>
-        </div>
-
-        {/* FOOTER */}
-        <div className="footer">
-
-          <div>
-            <p><b>Bank:</b> {company.bankName}</p>
-            <p><b>A/C:</b> {company.accountNumber}</p>
-            <p><b>IFSC:</b> {company.ifsc}</p>
+          <div className="left">
+            <p>Total Items: {order.items.length}</p>
+            <p>Total Qty: {totalQty}</p>
           </div>
 
-          <div className="signature">
-            <img src="/signature.png" className="sign" />
-            <p>Authorized Signatory</p>
+          <div className="right">
+            <p>Subtotal: ₹{subtotal}</p>
+
+            {discount > 0 && (
+              <p className="discount">Discount: -₹{discount}</p>
+            )}
+
+            <p>Taxable: ₹{taxableAmount}</p>
+
+            <p>CGST: ₹{totalCGST}</p>
+            <p>SGST: ₹{totalSGST}</p>
+            {totalIGST > 0 && <p>IGST: ₹{totalIGST}</p>}
+
+            <h3>Total Payable: ₹{total}</h3>
+          </div>
+
+        </div>
+
+        {/* ================= SIGNATURE ================= */}
+        <div className="signatureSection">
+
+          <div className="signBox">
+            <img src={company.signatureUrl || "/signature.png"} className="sign" />
+            <p>Authorised Signatory</p>
+
+            {/* LOGO SHIFTED HERE */}
+            <img src={company.logoUrl || "/logo.png"} className="logoBottom" />
           </div>
 
         </div>
@@ -200,38 +168,51 @@ export default function InvoicePage() {
       {/* ================= STYLES ================= */}
       <style jsx>{`
         .page {
-          background: #f0f2f5;
-          padding: 30px;
           display: flex;
           justify-content: center;
+          padding: 30px;
+          background: #f4f6f8;
         }
 
         .invoice {
-          width: 950px;
+          width: 900px;
           background: white;
           padding: 30px;
           border-radius: 10px;
+          border: 1px solid #ddd;
         }
 
         .header {
           display: flex;
           justify-content: space-between;
-          border-bottom: 2px solid #222;
+          border-bottom: 2px solid #eee;
           padding-bottom: 15px;
         }
 
-        .logo {
-          width: 120px;
-          margin-bottom: 10px;
+        .company h2 {
+          margin: 0;
         }
 
         .tag {
-          color: #666;
-          font-size: 12px;
+          font-size: 13px;
+          color: gray;
         }
 
         .invoiceMeta {
           text-align: right;
+        }
+
+        .row {
+          display: flex;
+          justify-content: space-between;
+          margin-top: 20px;
+        }
+
+        .box {
+          width: 48%;
+          background: #fafafa;
+          padding: 12px;
+          border-radius: 6px;
         }
 
         table {
@@ -241,9 +222,10 @@ export default function InvoicePage() {
         }
 
         th {
-          background: #222;
+          background: #111;
           color: white;
           padding: 10px;
+          font-size: 13px;
         }
 
         td {
@@ -251,32 +233,41 @@ export default function InvoicePage() {
           border-bottom: 1px solid #eee;
         }
 
-        .sku {
-          font-size: 11px;
-          color: gray;
-        }
-
         .summary {
-          text-align: right;
-          margin-top: 20px;
-        }
-
-        .summary h2 {
-          color: #000;
-        }
-
-        .footer {
           display: flex;
           justify-content: space-between;
+          margin-top: 25px;
+        }
+
+        .right {
+          text-align: right;
+        }
+
+        .discount {
+          color: green;
+        }
+
+        .signatureSection {
           margin-top: 40px;
+          display: flex;
+          justify-content: flex-end;
+        }
+
+        .signBox {
+          text-align: center;
         }
 
         .sign {
           width: 120px;
+          margin-bottom: 5px;
         }
 
+        .logoBottom {
+          width: 70px;
+          margin-top: 10px;
+          opacity: 0.8;
+        }
       `}</style>
-
     </div>
   );
 }
