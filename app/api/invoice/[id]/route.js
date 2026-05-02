@@ -1,33 +1,54 @@
+import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db";
 import Order from "@/models/Order";
-import { generateInvoicePDF } from "@/lib/pdf/invoicePdf";
+import Company from "@/models/CompanySettings";
+import PDFDocument from "pdfkit";
 
 export async function GET(req, { params }) {
-  try {
-    await dbConnect();
+  await dbConnect();
 
-    const { id } = params;
+  const order = await Order.findOne({ orderId: params.id }).lean();
+  const company = await Company.findOne().lean();
 
-    const order = await Order.findOne({ orderId: id });
+  if (!order) return NextResponse.json({ error: "Not found" });
 
-    if (!order) {
-      return new Response("Order not found", { status: 404 });
-    }
+  const doc = new PDFDocument({ size: "A4", margin: 40 });
 
-    const pdfBuffer = await generateInvoicePDF(order.toObject());
+  const buffers = [];
+  doc.on("data", buffers.push.bind(buffers));
 
-    return new Response(pdfBuffer, {
-      headers: {
-        "Content-Type": "application/pdf",
-        "Content-Disposition": `inline; filename=invoice-${order.orderId}.pdf`,
-      },
-    });
+  doc.on("end", () => {});
 
-  } catch (err) {
-    console.error("PDF ERROR:", err);
+  /* HEADER */
+  doc.fontSize(16).text(company.companyName);
+  doc.fontSize(10).text(company.brandTagline);
 
-    return new Response("Failed to generate PDF", {
-      status: 500,
-    });
-  }
+  doc.moveDown();
+  doc.text(`Invoice: ${order.invoice.invoiceNumber}`);
+  doc.text(`Order: ${order.orderId}`);
+
+  doc.moveDown();
+
+  /* ITEMS */
+  order.items.forEach((i, idx) => {
+    doc.text(`${idx + 1}. ${i.name} | ₹${i.total}`);
+  });
+
+  doc.moveDown();
+  doc.text(`Total: ₹${order.billing.total}`);
+
+  doc.end();
+
+  const pdfBuffer = await new Promise(resolve => {
+    const chunks = [];
+    doc.on("data", c => chunks.push(c));
+    doc.on("end", () => resolve(Buffer.concat(chunks)));
+  });
+
+  return new NextResponse(pdfBuffer, {
+    headers: {
+      "Content-Type": "application/pdf",
+      "Content-Disposition": `inline; filename=invoice-${order.orderId}.pdf`,
+    },
+  });
 }
