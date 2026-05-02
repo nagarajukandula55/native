@@ -184,7 +184,7 @@ export default function ReceiptPage() {
 
         {/* ================= FOOTER ================= */}
         <div className="footer">
-          Thank you for your Purchase ❤️
+          Thank you for Shopping with Native ❤️
         </div>
 
       </div>
