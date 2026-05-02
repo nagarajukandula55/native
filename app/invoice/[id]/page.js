@@ -45,33 +45,41 @@ export default function InvoicePage() {
   const totalQty =
     order.items?.reduce((a, b) => a + b.qty, 0) || 0;
 
+  /* ================= DOWNLOAD PDF ================= */
+  const downloadPDF = () => {
+    window.open(`/api/invoice/${id}`, "_blank");
+  };
+
   return (
     <div className="page">
 
+      {/* ACTIONS */}
+      <div className="actions">
+        <button onClick={downloadPDF}>⬇ Download PDF</button>
+      </div>
+
       <div id="invoice" className="invoice">
 
-        {/* ================= HEADER ================= */}
+        {/* HEADER */}
         <div className="header">
-
-          <div className="company">
+          <div>
             <h2>{company.companyName}</h2>
             <p className="tag">{company.brandTagline}</p>
 
             <p>{company.addressLine1}</p>
             <p>{company.addressLine2}</p>
             <p>{company.city} - {company.pincode}</p>
-            <p>GSTIN: {company.gstin}</p>
+            <p><b>GSTIN:</b> {company.gstin}</p>
           </div>
 
-          <div className="invoiceMeta">
+          <div className="rightHead">
             <h1>TAX INVOICE</h1>
-            <p><b>Invoice No:</b> {order.invoice?.invoiceNumber}</p>
+            <p><b>Invoice:</b> {order.invoice?.invoiceNumber}</p>
             <p><b>Date:</b> {new Date(order.createdAt).toLocaleDateString()}</p>
           </div>
-
         </div>
 
-        {/* ================= BILL + SHIP ================= */}
+        {/* BILL / SHIP */}
         <div className="row">
 
           <div className="box">
@@ -79,7 +87,9 @@ export default function InvoicePage() {
             <p>{order.address?.name}</p>
             <p>{order.address?.phone}</p>
             <p>{order.address?.address}</p>
-            <p>{order.address?.city}</p>
+            <p>
+              {order.address?.city} - {order.address?.pincode}
+            </p>
             {order.address?.gstNumber && (
               <p>GST: {order.address.gstNumber}</p>
             )}
@@ -90,22 +100,24 @@ export default function InvoicePage() {
             <p>{order.address?.name}</p>
             <p>{order.address?.phone}</p>
             <p>{order.address?.address}</p>
-            <p>{order.address?.city}</p>
+            <p>
+              {order.address?.city} - {order.address?.pincode}
+            </p>
           </div>
 
         </div>
 
-        {/* ================= ITEMS ================= */}
+        {/* ITEMS TABLE */}
         <table>
           <thead>
             <tr>
               <th>#</th>
-              <th>Item (SKU)</th>
+              <th>Item</th>
               <th>HSN</th>
               <th>Qty</th>
-              <th>Price</th>
-              <th>GST %</th>
-              <th>Total</th>
+              <th>Rate</th>
+              <th>GST%</th>
+              <th>Amount</th>
             </tr>
           </thead>
 
@@ -124,7 +136,7 @@ export default function InvoicePage() {
           </tbody>
         </table>
 
-        {/* ================= SUMMARY ================= */}
+        {/* SUMMARY */}
         <div className="summary">
 
           <div className="left">
@@ -133,86 +145,105 @@ export default function InvoicePage() {
           </div>
 
           <div className="right">
-            <p>Subtotal: ₹{subtotal}</p>
+
+            <div className="line">
+              <span>Subtotal</span>
+              <span>₹{subtotal}</span>
+            </div>
 
             {discount > 0 && (
-              <p className="discount">Discount: -₹{discount}</p>
+              <div className="line discount">
+                <span>Discount</span>
+                <span>-₹{discount}</span>
+              </div>
             )}
 
-            <p>Taxable: ₹{taxableAmount}</p>
+            <div className="line">
+              <span>Taxable</span>
+              <span>₹{taxableAmount}</span>
+            </div>
 
-            <p>CGST: ₹{totalCGST}</p>
-            <p>SGST: ₹{totalSGST}</p>
-            {totalIGST > 0 && <p>IGST: ₹{totalIGST}</p>}
+            <div className="line">
+              <span>CGST</span>
+              <span>₹{totalCGST}</span>
+            </div>
 
-            <h3>Total Payable: ₹{total}</h3>
+            <div className="line">
+              <span>SGST</span>
+              <span>₹{totalSGST}</span>
+            </div>
+
+            {totalIGST > 0 && (
+              <div className="line">
+                <span>IGST</span>
+                <span>₹{totalIGST}</span>
+              </div>
+            )}
+
+            <div className="line total">
+              <span>Total Payable</span>
+              <span>₹{total}</span>
+            </div>
+
           </div>
-
         </div>
 
-        {/* ================= SIGNATURE ================= */}
-        <div className="signatureSection">
-
-          <div className="signBox">
+        {/* SIGNATURE */}
+        <div className="signature">
+          <div>
             <img src={company.signatureUrl || "/signature.png"} className="sign" />
             <p>Authorised Signatory</p>
-
-            {/* LOGO SHIFTED HERE */}
             <img src={company.logoUrl || "/logo.png"} className="logoBottom" />
           </div>
-
         </div>
 
       </div>
 
-      {/* ================= STYLES ================= */}
+      {/* STYLES */}
       <style jsx>{`
         .page {
-          display: flex;
-          justify-content: center;
           padding: 30px;
-          background: #f4f6f8;
+          background: #f5f5f5;
+        }
+
+        .actions {
+          text-align: right;
+          margin-bottom: 10px;
+        }
+
+        button {
+          padding: 10px 16px;
+          background: black;
+          color: white;
+          border-radius: 6px;
+          cursor: pointer;
         }
 
         .invoice {
           width: 900px;
+          margin: auto;
           background: white;
           padding: 30px;
-          border-radius: 10px;
-          border: 1px solid #ddd;
+          border: 1px solid #ccc;
         }
 
         .header {
           display: flex;
           justify-content: space-between;
-          border-bottom: 2px solid #eee;
-          padding-bottom: 15px;
-        }
-
-        .company h2 {
-          margin: 0;
-        }
-
-        .tag {
-          font-size: 13px;
-          color: gray;
-        }
-
-        .invoiceMeta {
-          text-align: right;
+          border-bottom: 2px solid #000;
+          padding-bottom: 10px;
         }
 
         .row {
           display: flex;
-          justify-content: space-between;
+          gap: 10px;
           margin-top: 20px;
         }
 
         .box {
-          width: 48%;
-          background: #fafafa;
-          padding: 12px;
-          border-radius: 6px;
+          flex: 1;
+          border: 1px solid #ccc;
+          padding: 10px;
         }
 
         table {
@@ -221,51 +252,54 @@ export default function InvoicePage() {
           border-collapse: collapse;
         }
 
-        th {
-          background: #111;
-          color: white;
-          padding: 10px;
-          font-size: 13px;
+        th, td {
+          border: 1px solid #ccc;
+          padding: 8px;
         }
 
-        td {
-          padding: 10px;
-          border-bottom: 1px solid #eee;
+        th {
+          background: #000;
+          color: white;
         }
 
         .summary {
           display: flex;
           justify-content: space-between;
-          margin-top: 25px;
+          margin-top: 20px;
         }
 
         .right {
-          text-align: right;
+          width: 300px;
+        }
+
+        .line {
+          display: flex;
+          justify-content: space-between;
+          padding: 5px 0;
+          border-bottom: 1px solid #eee;
         }
 
         .discount {
           color: green;
         }
 
-        .signatureSection {
-          margin-top: 40px;
-          display: flex;
-          justify-content: flex-end;
+        .total {
+          font-weight: bold;
+          font-size: 18px;
         }
 
-        .signBox {
-          text-align: center;
+        .signature {
+          margin-top: 40px;
+          text-align: right;
         }
 
         .sign {
           width: 120px;
-          margin-bottom: 5px;
         }
 
         .logoBottom {
-          width: 70px;
+          width: 60px;
           margin-top: 10px;
-          opacity: 0.8;
         }
       `}</style>
     </div>
