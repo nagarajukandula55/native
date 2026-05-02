@@ -19,7 +19,7 @@ export default function InvoicePage() {
       if (c.success) setCompany(c.data);
     };
 
-    if (id) load();
+    load();
   }, [id]);
 
   if (!order || !company) return <div>Loading...</div>;
@@ -32,8 +32,7 @@ export default function InvoicePage() {
   return (
     <div className="page">
 
-      {/* ACTION */}
-      <div className="topbar no-print">
+      <div className="topbar">
         <button onClick={() => window.open(`/api/invoice/${id}`)}>
           ⬇ Download PDF
         </button>
@@ -42,19 +41,15 @@ export default function InvoicePage() {
       <div className="invoice">
 
         {/* WATERMARK */}
-        <div className="watermark">
-          {company.companyName}
-        </div>
+        <div className="watermark">{company.companyName}</div>
 
         {/* HEADER */}
         <div className="header">
           <div>
             <h2>{company.companyName}</h2>
-            <p className="tag">{company.brandTagline}</p>
-
+            <p>{company.brandTagline}</p>
             <p>{company.addressLine1}</p>
             <p>{company.city} - {company.pincode}</p>
-
             <p>GSTIN: {company.gstin}</p>
           </div>
 
@@ -65,7 +60,7 @@ export default function InvoicePage() {
           </div>
         </div>
 
-        {/* BILL / SHIP */}
+        {/* ADDRESS */}
         <div className="addr">
           <div>
             <h4>Bill To</h4>
@@ -90,11 +85,11 @@ export default function InvoicePage() {
           <thead>
             <tr>
               <th>#</th>
-              <th>Description</th>
+              <th>Item</th>
               <th>HSN</th>
               <th>Qty</th>
               <th>Price</th>
-              <th>Disc</th>
+              <th>Discount</th>
               <th>Taxable</th>
               <th>GST%</th>
               <th>Total</th>
@@ -105,15 +100,11 @@ export default function InvoicePage() {
             {order.items.map((i, idx) => (
               <tr key={idx}>
                 <td>{idx + 1}</td>
-                <td>
-                  {i.name}
-                  <br />
-                  <small>{i.sku}</small>
-                </td>
+                <td>{i.name}</td>
                 <td>{i.hsn}</td>
                 <td>{i.qty}</td>
                 <td>₹{i.price}</td>
-                <td>₹{i.discountAllocated}</td>
+                <td>₹{i.discountAllocated || 0}</td>
                 <td>₹{i.taxableAmount}</td>
                 <td>{i.gstPercent}%</td>
                 <td>₹{i.total}</td>
@@ -149,13 +140,13 @@ export default function InvoicePage() {
         {/* FOOTER */}
         <div className="footer">
 
-          <div className="qr">
+          <div>
             <QRCode value={verifyUrl} size={90} />
             <p>Scan to Verify</p>
           </div>
 
-          <div className="signBox">
-            <img src={company.signatureUrl} />
+          <div>
+            <img src={company.signatureUrl} className="sign" />
             <p>Authorised Signatory</p>
           </div>
 
@@ -163,83 +154,19 @@ export default function InvoicePage() {
 
       </div>
 
-      {/* STYLE */}
       <style jsx>{`
-        .page { background:#f5f5f5; padding:20px; }
-
-        .invoice {
-          background:white;
-          padding:25px;
-          max-width:900px;
-          margin:auto;
-          position:relative;
-        }
-
-        .watermark {
-          position:absolute;
-          top:40%;
-          left:50%;
-          transform:translate(-50%, -50%);
-          font-size:80px;
-          opacity:0.05;
-          font-weight:bold;
-        }
-
-        .header {
-          display:flex;
-          justify-content:space-between;
-          border-bottom:2px solid #000;
-        }
-
-        .tag { color:gray; }
-
-        .addr {
-          display:flex;
-          justify-content:space-between;
-          margin-top:20px;
-        }
-
-        table {
-          width:100%;
-          border-collapse:collapse;
-          margin-top:20px;
-        }
-
-        th, td {
-          border:1px solid #ddd;
-          padding:8px;
-          font-size:13px;
-        }
-
-        th {
-          background:black;
-          color:white;
-        }
-
-        .summary {
-          display:flex;
-          justify-content:space-between;
-          margin-top:20px;
-        }
-
-        .footer {
-          display:flex;
-          justify-content:space-between;
-          margin-top:40px;
-        }
-
-        .signBox img {
-          height:60px;
-        }
-
-        .qr {
-          text-align:center;
-        }
-
-        @media print {
-          .no-print { display:none; }
-        }
+        .invoice { background:white; padding:25px; max-width:900px; margin:auto; position:relative; }
+        .watermark { position:absolute; top:40%; left:50%; transform:translate(-50%,-50%); font-size:80px; opacity:0.05; }
+        .header { display:flex; justify-content:space-between; border-bottom:2px solid #000; }
+        .addr { display:flex; justify-content:space-between; margin-top:20px; }
+        table { width:100%; border-collapse:collapse; margin-top:20px; }
+        th,td { border:1px solid #ddd; padding:8px; font-size:13px; }
+        th { background:black; color:white; }
+        .summary { display:flex; justify-content:space-between; margin-top:20px; }
+        .footer { display:flex; justify-content:space-between; margin-top:40px; }
+        .sign { height:60px; }
       `}</style>
+
     </div>
   );
 }
