@@ -5,147 +5,233 @@ import { useParams } from "next/navigation";
 
 export default function InvoicePage() {
   const { id } = useParams();
-  const [order, setOrder] = useState(null);
+
+  const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  /* ================= FETCH ORDER ================= */
   useEffect(() => {
-    const fetchOrder = async () => {
+    const load = async () => {
       try {
         const res = await fetch(`/api/orders/${id}`);
-        const data = await res.json();
-
-        if (data.success) {
-          setOrder(data.order);
-        }
+        const json = await res.json();
+        if (json.success) setData(json.order);
       } catch (err) {
-        console.error("Invoice fetch error:", err);
+        console.error(err);
       } finally {
         setLoading(false);
       }
     };
 
-    if (id) fetchOrder();
+    if (id) load();
   }, [id]);
 
-  if (loading) return <p>Loading receipt...</p>;
-  if (!order) return <p>Receipt not found</p>;
-
-  const company = {
-    name: "Native",
-    tagline: "Eat Healthy Stay Healthy",
+  const downloadPDF = () => {
+    window.open(`/api/invoice/${data.orderId}`, "_blank");
   };
 
+  if (loading) return <div className="loader">Loading invoice...</div>;
+  if (!data) return <div className="loader">Invoice not found</div>;
+
+  /* ================= CALCULATIONS ================= */
+  const subtotal =
+    data.items?.reduce((a, b) => a + b.price * b.qty, 0) || 0;
+
+  const discount = data.discount || 0;
+
+  const taxable = subtotal - discount;
+
+  const cgst = data.billing?.cgst || 0;
+  const sgst = data.billing?.sgst || 0;
+  const igst = data.billing?.igst || 0;
+
+  const total = data.amount;
+
+  const paymentMode =
+    data.payment?.method ||
+    (data.payment?.razorpay_payment_id ? "ONLINE" : "MANUAL");
+
   return (
-    <div className="invoice">
+    <div className="page">
 
-      {/* ================= HEADER ================= */}
-      <div className="header">
-        <div>
-          <h2>{company.name}</h2>
-          <small>{company.tagline}</small>
-        </div>
-
-        <div className="right">
-          <h3>RECEIPT</h3>
-          <p><b>Order:</b> {order.orderId}</p>
-          <p><b>Status:</b> {order.status}</p>
-        </div>
+      {/* ACTION BAR */}
+      <div className="actions no-print">
+        <button onClick={downloadPDF}>📄 Download PDF</button>
       </div>
 
-      <hr />
+      {/* INVOICE */}
+      <div className="invoice" id="invoice">
 
-      {/* ================= CUSTOMER ================= */}
-      <div className="grid">
-        <div>
-          <h4>Bill To</h4>
-          <p>{order.address?.name}</p>
-          <p>{order.address?.phone}</p>
-          <p>{order.address?.address}</p>
+        {/* HEADER */}
+        <div className="header">
+
+          <div className="logoWrap">
+            <img
+              src="https://shopnative.in/logo.png"
+              className="logo"
+            />
+            <div className="tagline">
+              Your Trusted Mobile & Laptop Store
+            </div>
+          </div>
+
+          <div className="titleBlock">
+            <h2>INVOICE</h2>
+            <p><b>Invoice No:</b> {data.invoice?.invoiceNumber || "NA"}</p>
+            <p><b>Date:</b> {new Date(data.createdAt).toLocaleString()}</p>
+          </div>
+
         </div>
 
-        <div>
-          <h4>Payment Info</h4>
-          <p><b>Method:</b> {order.payment?.method || "Online"}</p>
-          <p>
-            <b>Reference:</b>{" "}
-            {order.payment?.razorpay_payment_id || "NA"}
-          </p>
-          <p>
-            <b>Receipt:</b>{" "}
-            {order.receipt?.receiptNumber || "Pending"}
-          </p>
+        {/* CUSTOMER + ORDER */}
+        <div className="row">
+
+          <div className="box">
+            <h4>Bill To</h4>
+            <p>{data.address?.name}</p>
+            <p>{data.address?.phone}</p>
+            <p>{data.address?.address}</p>
+            <p>{data.address?.city} - {data.address?.pincode}</p>
+          </div>
+
+          <div className="box">
+            <h4>Order Info</h4>
+            <p><b>Order ID:</b> {data.orderId}</p>
+            <p><b>Status:</b> {data.status}</p>
+            <p><b>Payment:</b> {paymentMode}</p>
+          </div>
+
         </div>
-      </div>
 
-      {/* ================= ITEMS ================= */}
-      <table>
-        <thead>
-          <tr>
-            <th>Item</th>
-            <th>Qty</th>
-            <th>Price</th>
-            <th>GST%</th>
-            <th>Total</th>
-          </tr>
-        </thead>
-
-        <tbody>
-          {order.items.map((item, i) => (
-            <tr key={i}>
-              <td>{item.name}</td>
-              <td>{item.qty}</td>
-              <td>₹{item.price}</td>
-              <td>{item.gstPercent}%</td>
-              <td>
-                ₹{item.price * item.qty}
-              </td>
+        {/* ITEMS */}
+        <table>
+          <thead>
+            <tr>
+              <th>Item</th>
+              <th>Qty</th>
+              <th>Price</th>
+              <th>Total</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
 
-      {/* ================= TOTAL ================= */}
-      <div className="totals">
-        <p><b>Subtotal:</b> ₹{order.amount}</p>
-        <p><b>GST Included</b></p>
-        <h3>Total: ₹{order.amount}</h3>
+          <tbody>
+            {data.items?.map((i, idx) => (
+              <tr key={idx}>
+                <td>{i.name}</td>
+                <td>{i.qty}</td>
+                <td>₹{i.price}</td>
+                <td>₹{i.price * i.qty}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        {/* SUMMARY */}
+        <div className="summary">
+
+          <p>Subtotal: ₹{subtotal}</p>
+
+          {discount > 0 && (
+            <p>Discount: -₹{discount}</p>
+          )}
+
+          <p>Taxable Amount: ₹{taxable}</p>
+
+          {cgst > 0 && (
+            <>
+              <p>CGST: ₹{cgst}</p>
+              <p>SGST: ₹{sgst}</p>
+            </>
+          )}
+
+          {igst > 0 && (
+            <p>IGST: ₹{igst}</p>
+          )}
+
+          <div className="total">
+            TOTAL: ₹{total}
+          </div>
+
+        </div>
+
+        {/* FOOTER */}
+        <div className="footer">
+          This is a system generated invoice.
+        </div>
+
       </div>
 
-      {/* ================= FOOTER ================= */}
-      <div className="footer">
-        <p>Thank you for shopping with {company.name}</p>
-      </div>
-
-      {/* ================= PRINT BUTTON ================= */}
-      <button onClick={() => window.print()}>
-        Print Receipt
-      </button>
-
-      {/* ================= STYLES ================= */}
+      {/* STYLES */}
       <style jsx>{`
-        .invoice {
-          max-width: 800px;
-          margin: auto;
+        .page {
           padding: 20px;
-          background: white;
+          background: #f5f5f5;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
         }
 
+        .actions {
+          margin-bottom: 15px;
+        }
+
+        .actions button {
+          padding: 10px 20px;
+          background: black;
+          color: white;
+          border-radius: 6px;
+          cursor: pointer;
+        }
+
+        .invoice {
+          width: 800px;
+          background: white;
+          padding: 25px;
+          border: 1px solid #eee;
+        }
+
+        /* HEADER */
         .header {
           display: flex;
           justify-content: space-between;
+          border-bottom: 1px solid #eee;
+          padding-bottom: 10px;
         }
 
-        .right {
+        .logoWrap {
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+        }
+
+        .logo {
+          width: 110px;
+        }
+
+        .tagline {
+          font-size: 12px;
+          color: gray;
+        }
+
+        .titleBlock {
           text-align: right;
         }
 
-        .grid {
+        /* ROW */
+        .row {
           display: flex;
           justify-content: space-between;
-          margin: 20px 0;
+          margin-top: 20px;
         }
 
+        .box {
+          width: 48%;
+        }
+
+        h4 {
+          margin-bottom: 5px;
+        }
+
+        /* TABLE */
         table {
           width: 100%;
           border-collapse: collapse;
@@ -153,33 +239,34 @@ export default function InvoicePage() {
         }
 
         th, td {
-          border: 1px solid #ddd;
-          padding: 8px;
+          padding: 10px;
+          border-bottom: 1px solid #eee;
         }
 
-        th {
-          background: #f5f5f5;
-        }
-
-        .totals {
-          text-align: right;
+        /* SUMMARY */
+        .summary {
           margin-top: 20px;
+          text-align: right;
+        }
+
+        .total {
+          font-size: 18px;
+          font-weight: bold;
+          margin-top: 10px;
         }
 
         .footer {
-          margin-top: 40px;
+          margin-top: 30px;
           text-align: center;
-          font-size: 13px;
+          font-size: 12px;
+          color: gray;
         }
 
-        button {
-          margin-top: 20px;
-          padding: 10px;
-          width: 100%;
-          background: black;
-          color: white;
+        .loader {
+          padding: 40px;
         }
       `}</style>
+
     </div>
   );
 }
