@@ -3,43 +3,55 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 
+/* ================= AMOUNT IN WORDS ================= */
+function numberToWords(num) {
+  const a = [
+    "", "One", "Two", "Three", "Four", "Five", "Six",
+    "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve",
+    "Thirteen", "Fourteen", "Fifteen", "Sixteen",
+    "Seventeen", "Eighteen", "Nineteen",
+  ];
+  const b = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
+
+  if (num === 0) return "Zero";
+
+  const inWords = (n) => {
+    if (n < 20) return a[n];
+    if (n < 100) return b[Math.floor(n / 10)] + " " + a[n % 10];
+    if (n < 1000)
+      return a[Math.floor(n / 100)] + " Hundred " + inWords(n % 100);
+    if (n < 100000)
+      return inWords(Math.floor(n / 1000)) + " Thousand " + inWords(n % 1000);
+    if (n < 10000000)
+      return inWords(Math.floor(n / 100000)) + " Lakh " + inWords(n % 100000);
+    return "";
+  };
+
+  return inWords(Math.floor(num)) + " Only";
+}
+
 export default function InvoicePage() {
   const { id } = useParams();
 
   const [data, setData] = useState(null);
   const [company, setCompany] = useState(null);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const load = async () => {
-      try {
-        const res = await fetch(`/api/orders/${id}`);
-        const json = await res.json();
+      const res = await fetch(`/api/orders/${id}`);
+      const json = await res.json();
 
-        if (json.success) {
-          setData(json.order);
-          setCompany(json.order.company || {}); // from DB
-        }
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
+      if (json.success) {
+        setData(json.order);
+        setCompany(json.order.company || {});
       }
     };
 
     if (id) load();
   }, [id]);
 
-  const handlePrint = () => window.print();
+  if (!data) return <div>Loading...</div>;
 
-  const handlePDF = () => {
-    window.open(`/api/invoice/${id}`, "_blank");
-  };
-
-  if (loading) return <div className="loader">Loading invoice...</div>;
-  if (!data) return <div className="loader">Invoice not found</div>;
-
-  /* ================= CALCULATIONS ================= */
   const subtotal =
     data.items?.reduce((a, b) => a + b.price * b.qty, 0) || 0;
 
@@ -53,220 +65,107 @@ export default function InvoicePage() {
   const total = data.amount;
 
   return (
-    <div className="page">
+    <div className="invoice">
 
-      {/* ACTIONS */}
-      <div className="actions no-print">
-        <button onClick={handlePrint}>🖨 Print</button>
-        <button onClick={handlePDF}>⬇ Download PDF</button>
+      {/* HEADER */}
+      <div className="top">
+        <div className="company">
+          <img src={company.logo} className="logo" />
+          <div>
+            <h2>{company.name}</h2>
+            <p>{company.tagline}</p>
+            <p>{company.address}</p>
+            <p>GSTIN: {company.gst}</p>
+          </div>
+        </div>
+
+        <div className="meta">
+          <h2>TAX INVOICE</h2>
+          <p>Invoice: {data.invoice?.invoiceNumber}</p>
+          <p>Date: {new Date(data.createdAt).toLocaleDateString()}</p>
+          <p>Place of Supply: {data.address?.state}</p>
+        </div>
       </div>
 
-      {/* ================= INVOICE ================= */}
-      <div id="invoice" className="invoice">
+      {/* BUYER */}
+      <div className="block">
+        <h4>Bill To</h4>
+        <p>{data.address?.name}</p>
+        <p>{data.address?.address}</p>
+        <p>{data.address?.city}</p>
+        <p>GSTIN: {data.address?.gstNumber || "N/A"}</p>
+      </div>
 
-        {/* HEADER */}
-        <div className="header">
-          <div className="left">
-            <img src={company?.logo || "/logo.png"} className="logo" />
-            <div>
-              <div className="company">{company?.name}</div>
-              <div className="tag">{company?.tagline}</div>
-            </div>
-          </div>
+      {/* TABLE */}
+      <table>
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th>HSN</th>
+            <th>Qty</th>
+            <th>Rate</th>
+            <th>Tax</th>
+            <th>Total</th>
+          </tr>
+        </thead>
 
-          <div className="right">
-            <div className="title">TAX INVOICE</div>
-            <p>Invoice: {data.invoice?.invoiceNumber}</p>
-            <p>Order: {data.orderId}</p>
-            <p>
-              Date: {new Date(data.createdAt).toLocaleString()}
-            </p>
-          </div>
-        </div>
-
-        {/* SELLER + BUYER */}
-        <div className="row">
-          <div className="box">
-            <h4>Seller</h4>
-            <p>{company?.name}</p>
-            <p>{company?.address}</p>
-            <p>GSTIN: {company?.gst}</p>
-          </div>
-
-          <div className="box">
-            <h4>Bill To</h4>
-            <p>{data.address?.name}</p>
-            <p>{data.address?.phone}</p>
-            <p>{data.address?.address}</p>
-            <p>
-              {data.address?.city} - {data.address?.pincode}
-            </p>
-          </div>
-        </div>
-
-        {/* ITEMS */}
-        <table>
-          <thead>
-            <tr>
-              <th>Item</th>
-              <th>Qty</th>
-              <th>Rate</th>
-              <th>Total</th>
+        <tbody>
+          {data.items.map((i, idx) => (
+            <tr key={idx}>
+              <td>{i.name}</td>
+              <td>{i.hsn || "-"}</td>
+              <td>{i.qty}</td>
+              <td>₹{i.price}</td>
+              <td>18%</td>
+              <td>₹{i.price * i.qty}</td>
             </tr>
-          </thead>
+          ))}
+        </tbody>
+      </table>
 
-          <tbody>
-            {data.items?.map((i, idx) => (
-              <tr key={idx}>
-                <td>{i.name}</td>
-                <td>{i.qty}</td>
-                <td>₹{i.price}</td>
-                <td>₹{i.price * i.qty}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-
-        {/* SUMMARY */}
-        <div className="summary">
-
-          <div className="line">
-            <span>Subtotal</span>
-            <span>₹{subtotal}</span>
-          </div>
-
-          {discount > 0 && (
-            <div className="line">
-              <span>Discount</span>
-              <span>- ₹{discount}</span>
-            </div>
-          )}
-
-          <div className="line">
-            <span>Taxable</span>
-            <span>₹{taxable}</span>
-          </div>
-
-          {cgst > 0 && (
-            <>
-              <div className="line">
-                <span>CGST</span>
-                <span>₹{cgst}</span>
-              </div>
-              <div className="line">
-                <span>SGST</span>
-                <span>₹{sgst}</span>
-              </div>
-            </>
-          )}
-
-          {igst > 0 && (
-            <div className="line">
-              <span>IGST</span>
-              <span>₹{igst}</span>
-            </div>
-          )}
-
-          <div className="total">
-            <span>Total</span>
-            <span>₹{total}</span>
-          </div>
-        </div>
-
-        {/* PAYMENT */}
-        <div className="payment">
-          <h4>Payment Details</h4>
-          <p>
-            Mode: {data.payment?.method || "ONLINE"}
-          </p>
-          <p>
-            Ref:{" "}
-            {data.payment?.razorpay_payment_id ||
-              data.receipt?.paymentReference ||
-              "NA"}
-          </p>
-        </div>
-
-        {/* FOOTER */}
-        <div className="footer">
-          This is a system generated invoice.
-        </div>
-
+      {/* SUMMARY */}
+      <div className="summary">
+        <p>Subtotal: ₹{subtotal}</p>
+        {discount > 0 && <p>Discount: -₹{discount}</p>}
+        <p>Taxable: ₹{taxable}</p>
+        {cgst > 0 && <p>CGST: ₹{cgst}</p>}
+        {sgst > 0 && <p>SGST: ₹{sgst}</p>}
+        {igst > 0 && <p>IGST: ₹{igst}</p>}
+        <h3>Total: ₹{total}</h3>
       </div>
 
-      {/* ================= STYLES ================= */}
+      {/* AMOUNT IN WORDS */}
+      <div className="words">
+        Amount in words: {numberToWords(total)}
+      </div>
+
+      {/* FOOTER */}
+      <div className="footer">
+        <p>This is a computer generated invoice.</p>
+        <p>Authorized Signatory</p>
+      </div>
+
       <style jsx>{`
-        .page {
-          padding: 20px;
-          background: #f5f5f5;
-        }
-
-        .actions {
-          display: flex;
-          gap: 10px;
-          margin-bottom: 15px;
-        }
-
-        .actions button {
-          padding: 10px 16px;
-          border: none;
-          background: black;
-          color: white;
-          border-radius: 6px;
-          cursor: pointer;
-        }
-
         .invoice {
           max-width: 900px;
           margin: auto;
           background: white;
-          padding: 25px;
+          padding: 20px;
+          font-size: 13px;
         }
 
-        .header {
+        .top {
           display: flex;
           justify-content: space-between;
         }
 
-        .left {
+        .company {
           display: flex;
-          gap: 12px;
-          align-items: center;
+          gap: 10px;
         }
 
         .logo {
           width: 80px;
-          object-fit: contain;
-        }
-
-        .company {
-          font-size: 18px;
-          font-weight: bold;
-        }
-
-        .tag {
-          font-size: 12px;
-          color: gray;
-        }
-
-        .right {
-          text-align: right;
-          font-size: 13px;
-        }
-
-        .title {
-          font-weight: bold;
-          font-size: 16px;
-        }
-
-        .row {
-          display: flex;
-          justify-content: space-between;
-          margin-top: 20px;
-        }
-
-        .box {
-          width: 48%;
         }
 
         table {
@@ -276,62 +175,23 @@ export default function InvoicePage() {
         }
 
         th, td {
-          padding: 10px;
-          border-bottom: 1px solid #eee;
+          border: 1px solid #ccc;
+          padding: 8px;
         }
 
         .summary {
           margin-top: 20px;
-          width: 300px;
-          margin-left: auto;
+          text-align: right;
         }
 
-        .line {
-          display: flex;
-          justify-content: space-between;
-          padding: 5px 0;
-        }
-
-        .total {
-          display: flex;
-          justify-content: space-between;
+        .words {
+          margin-top: 20px;
           font-weight: bold;
-          font-size: 16px;
-          border-top: 1px solid #ddd;
-          margin-top: 10px;
-          padding-top: 10px;
-        }
-
-        .payment {
-          margin-top: 30px;
         }
 
         .footer {
-          text-align: center;
           margin-top: 40px;
-          font-size: 12px;
-          color: gray;
-        }
-
-        @media print {
-          body * {
-            visibility: hidden;
-          }
-
-          #invoice, #invoice * {
-            visibility: visible;
-          }
-
-          #invoice {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-          }
-
-          .no-print {
-            display: none;
-          }
+          text-align: right;
         }
       `}</style>
     </div>
