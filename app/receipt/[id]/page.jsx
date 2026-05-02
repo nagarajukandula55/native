@@ -1,22 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
 
-export default function ReceiptPage() {
-  const { id } = useParams();
-  const [order, setOrder] = useState(null);
+export default function ReceiptPage({ params }) {
+  const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  /* ================= FETCH ================= */
   useEffect(() => {
-    const fetchReceipt = async () => {
+    const load = async () => {
       try {
-        const res = await fetch(`/api/orders/${id}`);
-        const data = await res.json();
+        const res = await fetch(`/api/orders/${params.id}`);
+        const json = await res.json();
 
-        if (data.success) {
-          setOrder(data.order);
+        if (json.success) {
+          setData(json.order);
         }
       } catch (err) {
         console.error(err);
@@ -25,110 +22,115 @@ export default function ReceiptPage() {
       }
     };
 
-    if (id) fetchReceipt();
-  }, [id]);
+    if (params.id) load();
+  }, [params.id]);
 
-  if (loading) return <p>Loading receipt...</p>;
-  if (!order) return <p>Receipt not found</p>;
+  if (loading) return <p>Loading...</p>;
+  if (!data) return <p>Receipt not found</p>;
+
+  const print = () => window.print();
 
   return (
-    <div className="receipt-page">
+    <div className="page">
+      <div className="receipt" id="receipt">
 
-      {/* ================= HEADER (LOGO ONLY) ================= */}
-      <div className="header">
-        <img src="/logo.png" alt="logo" className="logo" />
+        {/* ================= HEADER ================= */}
+        <div className="header">
+          <img src="/logo.png" className="logo" />
 
-        <div className="right">
-          <h2>PAYMENT RECEIPT</h2>
-          <p>Order ID: {order.orderId}</p>
-          <p>Status: {order.status}</p>
-        </div>
-      </div>
-
-      <hr />
-
-      {/* ================= CUSTOMER ================= */}
-      <div className="grid">
-        <div>
-          <h4>Customer</h4>
-          <p>{order.address?.name}</p>
-          <p>{order.address?.phone}</p>
-          <p>{order.address?.address}</p>
+          <div className="meta">
+            <h2>PAYMENT RECEIPT</h2>
+            <p>Order ID: {data.orderId}</p>
+            <p>Status: {data.status}</p>
+          </div>
         </div>
 
-        <div>
-          <h4>Payment Details</h4>
-          <p>
-            <b>Method:</b> {order.payment?.method || "Online"}
-          </p>
-          <p>
-            <b>Reference:</b>{" "}
-            {order.payment?.razorpay_payment_id || order.payment?.utr || "NA"}
-          </p>
-          <p>
-            <b>Receipt No:</b>{" "}
-            {order.receipt?.receiptNumber || "Generating..."}
-          </p>
+        <hr />
+
+        {/* ================= CUSTOMER ================= */}
+        <div className="grid">
+          <div>
+            <h4>Customer</h4>
+            <p>{data.address?.name}</p>
+            <p>{data.address?.phone}</p>
+            <p>{data.address?.address}</p>
+          </div>
+
+          <div>
+            <h4>Payment</h4>
+            <p>
+              <b>Method:</b> {data.payment?.method || "ONLINE"}
+            </p>
+            <p>
+              <b>Reference:</b>{" "}
+              {data.payment?.razorpay_payment_id ||
+                data.payment?.upi_ref ||
+                data.receipt?.paymentReference ||
+                "NA"}
+            </p>
+            <p>
+              <b>Receipt No:</b>{" "}
+              {data.receipt?.receiptNumber || "Generating..."}
+            </p>
+          </div>
         </div>
-      </div>
 
-      {/* ================= ITEMS ================= */}
-      <table>
-        <thead>
-          <tr>
-            <th>Item</th>
-            <th>Qty</th>
-            <th>Amount</th>
-          </tr>
-        </thead>
-
-        <tbody>
-          {order.items.map((item, i) => (
-            <tr key={i}>
-              <td>{item.name}</td>
-              <td>{item.qty}</td>
-              <td>₹{item.price * item.qty}</td>
+        {/* ================= ITEMS ================= */}
+        <table>
+          <thead>
+            <tr>
+              <th>Item</th>
+              <th>Qty</th>
+              <th>Amount</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
 
-      {/* ================= TOTAL ================= */}
-      <div className="total">
-        <h3>Total Paid: ₹{order.amount}</h3>
+          <tbody>
+            {data.items.map((i, idx) => (
+              <tr key={idx}>
+                <td>{i.name}</td>
+                <td>{i.qty}</td>
+                <td>₹{i.price * i.qty}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        {/* ================= TOTAL ================= */}
+        <div className="total">
+          <h3>Total Paid: ₹{data.amount}</h3>
+        </div>
+
+        <button onClick={print}>Print Receipt</button>
       </div>
 
-      {/* ================= FOOTER ================= */}
-      <div className="footer">
-        <p>Thank you for your payment 💚</p>
-      </div>
-
-      {/* ================= PRINT ================= */}
-      <button onClick={() => window.print()}>Print Receipt</button>
-
-      {/* ================= STYLES (PRINT LOCKED) ================= */}
+      {/* ================= STYLES ================= */}
       <style jsx>{`
-        .receipt-page {
-          max-width: 800px;
-          margin: auto;
+        .page {
+          display: flex;
+          justify-content: center;
           padding: 20px;
+        }
+
+        .receipt {
+          width: 420px;
           background: white;
-          font-family: Arial;
+          padding: 20px;
+          border: 1px solid #ddd;
         }
 
         .header {
           display: flex;
-          justify-content: space-between;
+          gap: 10px;
           align-items: center;
         }
 
         .logo {
-          width: 120px;
-          object-fit: contain;
+          width: 70px;
         }
 
-        .right {
-          text-align: right;
+        .meta {
+          flex: 1;
         }
 
         .grid {
@@ -142,29 +144,21 @@ export default function ReceiptPage() {
           border-collapse: collapse;
         }
 
-        th, td {
-          border: 1px solid #ddd;
-          padding: 8px;
-        }
-
-        th {
-          background: #f5f5f5;
+        th,
+        td {
+          border-bottom: 1px solid #eee;
+          padding: 6px;
         }
 
         .total {
           text-align: right;
-          margin-top: 20px;
-        }
-
-        .footer {
-          text-align: center;
-          margin-top: 40px;
+          margin-top: 15px;
         }
 
         button {
-          margin-top: 20px;
           width: 100%;
           padding: 10px;
+          margin-top: 10px;
           background: black;
           color: white;
         }
@@ -175,24 +169,20 @@ export default function ReceiptPage() {
             visibility: hidden;
           }
 
-          .receipt-page,
-          .receipt-page * {
+          #receipt,
+          #receipt * {
             visibility: visible;
           }
 
-          .receipt-page {
+          #receipt {
             position: absolute;
-            top: 0;
             left: 0;
+            top: 0;
             width: 100%;
           }
 
           button {
-            display: none !important;
-          }
-
-          nav, footer {
-            display: none !important;
+            display: none;
           }
         }
       `}</style>
