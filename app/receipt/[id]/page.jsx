@@ -25,10 +25,8 @@ export default function ReceiptPage() {
     if (id) load();
   }, [id]);
 
-  /* ================= PRINT ================= */
   const handlePrint = () => {
     const content = document.getElementById("invoice").outerHTML;
-
     const win = window.open("", "_blank", "width=900,height=650");
 
     win.document.write(`
@@ -36,10 +34,10 @@ export default function ReceiptPage() {
         <head>
           <title>Receipt</title>
           <style>
-            body { font-family: Arial; padding: 20px; }
-            .invoice { max-width: 800px; margin:auto; }
+            body { font-family: Arial; padding:20px; }
+            .invoice { max-width:800px; margin:auto; }
             .header { text-align:center; }
-            .logo { width:120px; margin-bottom:10px; }
+            .logo { width:110px; margin-bottom:10px; }
             .row { display:flex; justify-content:space-between; margin-top:20px; }
             .box { width:48%; }
             table { width:100%; border-collapse:collapse; margin-top:20px; }
@@ -60,27 +58,19 @@ export default function ReceiptPage() {
   if (loading) return <div className="loader">Loading receipt...</div>;
   if (!data) return <div className="loader">Receipt not found</div>;
 
-  /* ================= CALCULATIONS ================= */
+  /* ================= CALCULATION (FIXED) ================= */
   const subtotal =
     data.items?.reduce((a, b) => a + b.price * b.qty, 0) || 0;
 
   const discount = data.discount || 0;
 
-  const taxable = subtotal - discount;
-
-  const gstRate = 18; // adjust if needed
-  const gst = (taxable * gstRate) / 100;
-
-  const cgst = gst / 2;
-  const sgst = gst / 2;
+  const netAmount = subtotal - discount;
 
   const total = data.amount;
 
   const paymentMode =
     data.payment?.method ||
-    (data.payment?.razorpay_payment_id ? "UPI" : "COD");
-
-  const verificationUrl = `https://shopnative.in/receipt/${data.orderId}`;
+    (data.payment?.razorpay_payment_id ? "ONLINE" : "MANUAL");
 
   return (
     <div className="page">
@@ -90,25 +80,29 @@ export default function ReceiptPage() {
         🖨 Print Receipt
       </button>
 
-      {/* ================= RECEIPT ================= */}
+      {/* RECEIPT */}
       <div id="invoice" className="invoice">
 
         {/* HEADER */}
         <div className="header">
           <img src="/logo.png" className="logo" />
-
           <div className="title">PAYMENT RECEIPT</div>
-
-          <div className="sub">
-            {data.orderId} • {new Date(data.createdAt).toLocaleString()}
-          </div>
         </div>
 
-        {/* PAYMENT BADGE */}
-        <div className="badge">{paymentMode}</div>
+        {/* ORDER DETAILS */}
+        <div className="section">
+          <h4>Order Details</h4>
+          <p><b>Order ID:</b> {data.orderId}</p>
+          <p><b>Status:</b> {data.status}</p>
+          <p>
+            <b>Date & Time:</b>{" "}
+            {new Date(data.createdAt).toLocaleString()}
+          </p>
+        </div>
 
         {/* CUSTOMER + PAYMENT */}
         <div className="row">
+
           <div className="box">
             <h4>Customer</h4>
             <p>{data.address?.name}</p>
@@ -118,16 +112,19 @@ export default function ReceiptPage() {
 
           <div className="box">
             <h4>Payment</h4>
+            <p><b>Mode:</b> {paymentMode}</p>
             <p>
-              Ref:{" "}
+              <b>Reference:</b>{" "}
               {data.payment?.razorpay_payment_id ||
                 data.receipt?.paymentReference ||
                 "N/A"}
             </p>
             <p>
-              Receipt: {data.receipt?.receiptNumber || "N/A"}
+              <b>Receipt No:</b>{" "}
+              {data.receipt?.receiptNumber || "N/A"}
             </p>
           </div>
+
         </div>
 
         {/* ITEMS */}
@@ -157,20 +154,15 @@ export default function ReceiptPage() {
         <div className="summary">
           <p>Subtotal: ₹{subtotal}</p>
 
-          {discount > 0 && <p>Discount: -₹{discount}</p>}
+          {discount > 0 && (
+            <p>Discount: -₹{discount}</p>
+          )}
 
-          <p>CGST (9%): ₹{cgst.toFixed(2)}</p>
-          <p>SGST (9%): ₹{sgst.toFixed(2)}</p>
+          <p>Net Amount: ₹{netAmount}</p>
 
-          <div className="total">TOTAL PAID: ₹{total}</div>
-        </div>
-
-        {/* QR + VERIFY */}
-        <div className="verify">
-          <img
-            src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${verificationUrl}`}
-          />
-          <p>Scan to verify receipt</p>
+          <div className="total">
+            Total Paid: ₹{total}
+          </div>
         </div>
 
         {/* FOOTER */}
@@ -180,7 +172,7 @@ export default function ReceiptPage() {
 
       </div>
 
-      {/* ================= STYLES ================= */}
+      {/* STYLES */}
       <style jsx>{`
         .page {
           display: flex;
@@ -199,7 +191,6 @@ export default function ReceiptPage() {
 
         .logo {
           width: 110px;
-          height: auto;
           object-fit: contain;
         }
 
@@ -214,19 +205,8 @@ export default function ReceiptPage() {
           font-weight: bold;
         }
 
-        .sub {
-          font-size: 12px;
-          color: gray;
-        }
-
-        .badge {
-          margin-top: 10px;
-          display: inline-block;
-          padding: 5px 12px;
-          background: #000;
-          color: #fff;
-          font-size: 12px;
-          border-radius: 20px;
+        .section {
+          margin-top: 15px;
         }
 
         .row {
@@ -259,15 +239,6 @@ export default function ReceiptPage() {
           font-size: 18px;
           font-weight: bold;
           margin-top: 10px;
-        }
-
-        .verify {
-          text-align: center;
-          margin-top: 25px;
-        }
-
-        .verify img {
-          width: 100px;
         }
 
         .footer {
