@@ -26,7 +26,7 @@ export default function ReceiptPage() {
     if (id) load();
   }, [id]);
 
-  /* ================= PRINT ================= */
+  /* ================= PRINT (SAFE POPUP) ================= */
   const handlePrint = () => {
     const content = document.getElementById("invoice").outerHTML;
 
@@ -41,6 +41,7 @@ export default function ReceiptPage() {
               font-family: Arial, sans-serif;
               margin: 0;
               padding: 20px;
+              color: #111;
             }
 
             .invoice {
@@ -50,31 +51,29 @@ export default function ReceiptPage() {
               padding: 25px;
             }
 
-            .logo-box {
-              width: 140px;
-              height: 80px;
-              margin: 0 auto;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-            }
-
-            .logo-box img {
-              max-width: 100%;
-              max-height: 100%;
-              object-fit: contain;
-            }
-
             .header {
               text-align: center;
               border-bottom: 1px solid #eee;
               padding-bottom: 15px;
-              margin-bottom: 20px;
+            }
+
+            .logo {
+              width: 110px;
+              height: auto;
+              object-fit: contain;
+              display: block;
+              margin: 0 auto 10px auto;
             }
 
             .title {
               font-size: 20px;
               font-weight: bold;
+              margin: 5px 0;
+            }
+
+            .sub {
+              font-size: 13px;
+              color: gray;
             }
 
             .row {
@@ -87,36 +86,54 @@ export default function ReceiptPage() {
               width: 48%;
             }
 
+            h4 {
+              margin-bottom: 8px;
+              font-size: 14px;
+              border-bottom: 1px solid #eee;
+              padding-bottom: 4px;
+            }
+
+            p {
+              margin: 4px 0;
+              font-size: 13px;
+            }
+
             table {
               width: 100%;
               border-collapse: collapse;
               margin-top: 20px;
             }
 
-            th, td {
+            th {
+              background: #f5f5f5;
+              text-align: left;
+              padding: 10px;
+              font-size: 13px;
+            }
+
+            td {
               padding: 10px;
               border-bottom: 1px solid #eee;
+              font-size: 13px;
             }
 
             .summary {
-              margin-top: 20px;
-              width: 300px;
-              margin-left: auto;
+              margin-top: 15px;
+              text-align: right;
               font-size: 14px;
             }
 
-            .summary div {
-              display: flex;
-              justify-content: space-between;
-              margin-bottom: 6px;
+            .total {
+              font-size: 18px;
+              font-weight: bold;
+              margin-top: 10px;
             }
 
-            .total {
-              font-weight: bold;
-              font-size: 18px;
-              border-top: 1px solid #ddd;
-              padding-top: 8px;
-              margin-top: 10px;
+            .footer {
+              text-align: center;
+              margin-top: 30px;
+              font-size: 12px;
+              color: gray;
             }
           </style>
         </head>
@@ -130,21 +147,22 @@ export default function ReceiptPage() {
     win.document.close();
   };
 
-  if (loading) return <div className="loader">Loading...</div>;
-  if (!data) return <div className="loader">Not found</div>;
+  if (loading) return <div className="loader">Loading receipt...</div>;
+  if (!data) return <div className="loader">Receipt not found</div>;
 
+  const discount = data.discount || 0;
   const subtotal =
     data.items?.reduce((a, b) => a + b.price * b.qty, 0) || 0;
 
-  const discount = data.discount || 0;
   const total = data.amount;
+  const net = subtotal - discount;
 
   return (
     <div className="page">
 
       {/* PRINT BUTTON */}
-      <button className="printBtn" onClick={handlePrint}>
-        🧾 Print Receipt
+      <button className="printBtn no-print" onClick={handlePrint}>
+        🖨 Print Receipt
       </button>
 
       {/* ================= RECEIPT ================= */}
@@ -152,15 +170,12 @@ export default function ReceiptPage() {
 
         {/* HEADER */}
         <div className="header">
-
-          {/* 🔥 FIXED LOGO BOX */}
-          <div className="logo-box">
-            <img src="/logo.png" alt="logo" />
-          </div>
+          <img src="/logo.png" className="logo" />
 
           <div className="title">PAYMENT RECEIPT</div>
           <div className="sub">
-            {data.orderId} | {new Date(data.createdAt).toLocaleString()}
+            Order ID: {data.orderId} | Date:{" "}
+            {new Date(data.createdAt).toLocaleString()}
           </div>
         </div>
 
@@ -168,23 +183,24 @@ export default function ReceiptPage() {
         <div className="row">
 
           <div className="box">
-            <h4>Customer</h4>
-            <p>{data.address?.name}</p>
-            <p>{data.address?.phone}</p>
-            <p>{data.address?.address}</p>
+            <h4>Customer Details</h4>
+            <p><b>Name:</b> {data.address?.name}</p>
+            <p><b>Phone:</b> {data.address?.phone}</p>
+            <p><b>Address:</b> {data.address?.address}</p>
           </div>
 
           <div className="box">
-            <h4>Payment</h4>
-            <p>Method: {data.payment?.method || "ONLINE"}</p>
+            <h4>Payment Details</h4>
+            <p><b>Method:</b> {data.payment?.method || "ONLINE"}</p>
             <p>
-              Ref:{" "}
+              <b>Reference:</b>{" "}
               {data.payment?.razorpay_payment_id ||
                 data.receipt?.paymentReference ||
                 "N/A"}
             </p>
             <p>
-              Receipt: {data.receipt?.receiptNumber || "N/A"}
+              <b>Receipt No:</b>{" "}
+              {data.receipt?.receiptNumber || "Not Generated"}
             </p>
           </div>
 
@@ -196,7 +212,8 @@ export default function ReceiptPage() {
             <tr>
               <th>Item</th>
               <th>Qty</th>
-              <th>Amount</th>
+              <th>Price</th>
+              <th>Total</th>
             </tr>
           </thead>
 
@@ -205,37 +222,36 @@ export default function ReceiptPage() {
               <tr key={idx}>
                 <td>{i.name}</td>
                 <td>{i.qty}</td>
+                <td>₹{i.price}</td>
                 <td>₹{i.price * i.qty}</td>
               </tr>
             ))}
           </tbody>
         </table>
 
-        {/* 🔥 PROPER PAYMENT BREAKDOWN */}
+        {/* SUMMARY */}
         <div className="summary">
-
-          <div>
-            <span>Subtotal</span>
-            <span>₹{subtotal}</span>
-          </div>
+          <p><b>Subtotal:</b> ₹{subtotal}</p>
 
           {discount > 0 && (
-            <div>
-              <span>Discount</span>
-              <span>- ₹{discount}</span>
-            </div>
+            <p><b>Discount:</b> -₹{discount}</p>
           )}
 
-          <div className="total">
-            <span>Total Paid</span>
-            <span>₹{total}</span>
-          </div>
+          <p><b>Net Amount:</b> ₹{net}</p>
 
+          <div className="total">
+            TOTAL PAID: ₹{total}
+          </div>
+        </div>
+
+        {/* FOOTER */}
+        <div className="footer">
+          Thank you for your purchase ❤️ | Visit Again
         </div>
 
       </div>
 
-      {/* ================= UI STYLES ================= */}
+      {/* ================= PAGE STYLE ================= */}
       <style jsx>{`
         .page {
           display: flex;
@@ -243,6 +259,12 @@ export default function ReceiptPage() {
           align-items: center;
           padding: 20px;
           background: #f5f5f5;
+          min-height: 100vh;
+        }
+
+        .loader {
+          padding: 30px;
+          text-align: center;
         }
 
         .invoice {
@@ -250,41 +272,50 @@ export default function ReceiptPage() {
           background: white;
           padding: 25px;
           border: 1px solid #eee;
+          border-radius: 8px;
         }
 
-        /* 🔥 STRICT LOGO FIX */
-        .logo-box {
-          width: 140px;
-          height: 80px;
-          margin: 0 auto 10px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-
-        .logo-box img {
-          max-width: 100%;
-          max-height: 100%;
+        /* ✅ FIXED LOGO */
+        .logo {
+          width: 110px;
+          height: auto;
           object-fit: contain;
+          display: block;
+          margin: 0 auto 10px auto;
         }
 
         .printBtn {
           margin-bottom: 15px;
-          padding: 12px 20px;
-          background: black;
+          padding: 10px 22px;
+          background: linear-gradient(135deg, #000, #333);
           color: white;
+          border: none;
           border-radius: 6px;
           cursor: pointer;
+          font-size: 14px;
+          transition: 0.2s;
+        }
+
+        .printBtn:hover {
+          opacity: 0.85;
         }
 
         .row {
           display: flex;
           justify-content: space-between;
           margin-top: 20px;
+          gap: 20px;
         }
 
         .box {
-          width: 48%;
+          width: 50%;
+        }
+
+        h4 {
+          margin-bottom: 6px;
+          font-size: 14px;
+          border-bottom: 1px solid #eee;
+          padding-bottom: 4px;
         }
 
         table {
@@ -296,26 +327,31 @@ export default function ReceiptPage() {
         th, td {
           padding: 10px;
           border-bottom: 1px solid #eee;
+          text-align: left;
+        }
+
+        th {
+          background: #fafafa;
         }
 
         .summary {
-          margin-top: 20px;
-          width: 300px;
-          margin-left: auto;
-        }
-
-        .summary div {
-          display: flex;
-          justify-content: space-between;
-          margin-bottom: 6px;
+          margin-top: 15px;
+          text-align: right;
+          font-size: 14px;
+          line-height: 1.6;
         }
 
         .total {
-          font-weight: bold;
           font-size: 18px;
-          border-top: 1px solid #ddd;
-          padding-top: 8px;
+          font-weight: bold;
           margin-top: 10px;
+        }
+
+        .footer {
+          text-align: center;
+          margin-top: 30px;
+          font-size: 12px;
+          color: gray;
         }
       `}</style>
 
