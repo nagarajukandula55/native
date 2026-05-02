@@ -16,7 +16,7 @@ function calculateBilling(order) {
 
   const taxRate = 18;
 
-  const companyState = "KA"; // 🔒 SET YOUR STATE CODE HERE
+  const companyState = "AP"; // 🔒 SET YOUR STATE CODE HERE
   const customerState = order.address?.state || "";
 
   let cgst = 0;
