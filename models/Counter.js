@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 
 const CounterSchema = new mongoose.Schema({
-  name: { type: String, unique: true },
+  key: { type: String, unique: true }, // e.g. "RECEIPT_20260502"
   seq: { type: Number, default: 0 },
 });
 
