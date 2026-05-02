@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import { generateReceiptPDF } from "@/lib/generateReceiptPDF";
 
 export default function ReceiptPage() {
   const { id } = useParams();
@@ -58,14 +59,11 @@ export default function ReceiptPage() {
   if (loading) return <div className="loader">Loading receipt...</div>;
   if (!data) return <div className="loader">Receipt not found</div>;
 
-  /* ================= CALCULATION (FIXED) ================= */
   const subtotal =
     data.items?.reduce((a, b) => a + b.price * b.qty, 0) || 0;
 
   const discount = data.discount || 0;
-
   const netAmount = subtotal - discount;
-
   const total = data.amount;
 
   const paymentMode =
@@ -75,34 +73,36 @@ export default function ReceiptPage() {
   return (
     <div className="page">
 
-      {/* PRINT BUTTON */}
-      <button className="printBtn" onClick={handlePrint}>
-        🖨 Print Receipt
-      </button>
+      {/* ACTION BUTTONS */}
+      <div className="actions">
+        <button className="printBtn" onClick={handlePrint}>
+          🖨 Print
+        </button>
+
+        <button
+          className="pdfBtn"
+          onClick={() => generateReceiptPDF(data)}
+        >
+          ⬇ Download PDF
+        </button>
+      </div>
 
       {/* RECEIPT */}
       <div id="invoice" className="invoice">
 
-        {/* HEADER */}
         <div className="header">
           <img src="/logo.png" className="logo" />
           <div className="title">PAYMENT RECEIPT</div>
         </div>
 
-        {/* ORDER DETAILS */}
         <div className="section">
           <h4>Order Details</h4>
           <p><b>Order ID:</b> {data.orderId}</p>
           <p><b>Status:</b> {data.status}</p>
-          <p>
-            <b>Date & Time:</b>{" "}
-            {new Date(data.createdAt).toLocaleString()}
-          </p>
+          <p><b>Date:</b> {new Date(data.createdAt).toLocaleString()}</p>
         </div>
 
-        {/* CUSTOMER + PAYMENT */}
         <div className="row">
-
           <div className="box">
             <h4>Customer</h4>
             <p>{data.address?.name}</p>
@@ -124,10 +124,8 @@ export default function ReceiptPage() {
               {data.receipt?.receiptNumber || "N/A"}
             </p>
           </div>
-
         </div>
 
-        {/* ITEMS */}
         <table>
           <thead>
             <tr>
@@ -150,13 +148,10 @@ export default function ReceiptPage() {
           </tbody>
         </table>
 
-        {/* SUMMARY */}
         <div className="summary">
           <p>Subtotal: ₹{subtotal}</p>
 
-          {discount > 0 && (
-            <p>Discount: -₹{discount}</p>
-          )}
+          {discount > 0 && <p>Discount: -₹{discount}</p>}
 
           <p>Net Amount: ₹{netAmount}</p>
 
@@ -165,7 +160,6 @@ export default function ReceiptPage() {
           </div>
         </div>
 
-        {/* FOOTER */}
         <div className="footer">
           Thank you for your purchase ❤️
         </div>
@@ -182,6 +176,12 @@ export default function ReceiptPage() {
           background: #f5f5f5;
         }
 
+        .actions {
+          display: flex;
+          gap: 10px;
+          margin-bottom: 15px;
+        }
+
         .invoice {
           width: 800px;
           background: white;
@@ -191,22 +191,16 @@ export default function ReceiptPage() {
 
         .logo {
           width: 110px;
-          object-fit: contain;
         }
 
         .header {
           text-align: center;
           border-bottom: 1px solid #eee;
-          padding-bottom: 10px;
         }
 
         .title {
           font-size: 20px;
           font-weight: bold;
-        }
-
-        .section {
-          margin-top: 15px;
         }
 
         .row {
@@ -238,7 +232,6 @@ export default function ReceiptPage() {
         .total {
           font-size: 18px;
           font-weight: bold;
-          margin-top: 10px;
         }
 
         .footer {
@@ -249,11 +242,20 @@ export default function ReceiptPage() {
         }
 
         .printBtn {
-          margin-bottom: 15px;
           padding: 10px 20px;
           background: black;
           color: white;
           border-radius: 6px;
+          border: none;
+          cursor: pointer;
+        }
+
+        .pdfBtn {
+          padding: 10px 20px;
+          background: #0a7cff;
+          color: white;
+          border-radius: 6px;
+          border: none;
           cursor: pointer;
         }
       `}</style>
