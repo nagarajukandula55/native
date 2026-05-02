@@ -6,10 +6,12 @@ export async function GET(req, { params }) {
   try {
     await dbConnect();
 
-    const order = await Order.findOne({ orderId: params.id });
+    const { id } = params;
+
+    const order = await Order.findOne({ orderId: id });
 
     if (!order) {
-      return new Response("Not found", { status: 404 });
+      return new Response("Order not found", { status: 404 });
     }
 
     const pdfBuffer = await generateInvoicePDF(order.toObject());
@@ -22,7 +24,10 @@ export async function GET(req, { params }) {
     });
 
   } catch (err) {
-    console.error(err);
-    return new Response("PDF error", { status: 500 });
+    console.error("PDF ERROR:", err);
+
+    return new Response("Failed to generate PDF", {
+      status: 500,
+    });
   }
 }
