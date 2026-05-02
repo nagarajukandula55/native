@@ -3,34 +3,81 @@ import crypto from "crypto";
 import dbConnect from "@/lib/db";
 import Order from "@/models/Order";
 
+/* ================= BILLING CALCULATOR ================= */
+function calculateBilling(order) {
+  const subtotal =
+    order.items?.reduce((sum, item) => {
+      return sum + item.price * item.qty;
+    }, 0) || 0;
+
+  const discount = order.discount || 0;
+
+  const taxableAmount = subtotal - discount;
+
+  const taxRate = 18; // 🔥 keep simple for now
+
+  let cgst = 0;
+  let sgst = 0;
+  let igst = 0;
+
+  // 🔥 Basic GST logic (same state → CGST+SGST)
+  const isSameState = true; // you can enhance later
+
+  if (isSameState) {
+    cgst = (taxableAmount * taxRate) / 200;
+    sgst = (taxableAmount * taxRate) / 200;
+  } else {
+    igst = (taxableAmount * taxRate) / 100;
+  }
+
+  return {
+    subtotal,
+    discount,
+    taxableAmount,
+    taxRate,
+    cgst,
+    sgst,
+    igst,
+    total: order.amount,
+  };
+}
+
 /* ================= CORE PAID HANDLER ================= */
 async function handleOrderPaid(order, paymentData = {}) {
   let changed = false;
 
-  /* ================= PAYMENT UPDATE ================= */
+  /* ================= PAYMENT ================= */
   order.payment = {
     razorpay_order_id: paymentData.razorpay_order_id,
     razorpay_payment_id: paymentData.razorpay_payment_id,
     razorpay_signature: paymentData.razorpay_signature,
+    method: paymentData.mode || "ONLINE",
     paidAt: new Date(),
   };
 
-  /* ================= RECEIPT (IDEMPOTENT SAFE) ================= */
+  /* ================= BILLING (🔥 CRITICAL ADDITION) ================= */
+  if (!order.billing) {
+    order.billing = calculateBilling(order);
+    changed = true;
+  }
+
+  /* ================= RECEIPT ================= */
   if (!order.receipt?.receiptNumber) {
     const { generateReceiptNumber } = await import("@/lib/receipt");
 
     order.receipt = {
       receiptNumber: await generateReceiptNumber(),
       generatedAt: new Date(),
-      paymentMode: "RAZORPAY",
-      paymentReference: paymentData.razorpay_payment_id || "MANUAL",
+      paymentMode: paymentData.mode || "RAZORPAY",
+      paymentReference:
+        paymentData.razorpay_payment_id || "MANUAL",
       amountPaid: order.amount,
     };
 
     changed = true;
   }
 
-  /* ================= INVOICE (IDEMPOTENT SAFE) ================= */
+  /* ================= INVOICE ================= */
   if (!order.invoice?.invoiceNumber) {
     const { generateInvoiceNumber } = await import("@/lib/invoiceNumber");
     const { generateInvoiceHTML } = await import("@/lib/invoice");
@@ -40,7 +87,10 @@ async function handleOrderPaid(order, paymentData = {}) {
       generatedAt: new Date(),
     };
 
-    order.invoiceHTML = generateInvoiceHTML(order.toObject());
+    order.invoiceHTML = generateInvoiceHTML({
+      ...order.toObject(),
+      billing: order.billing, // 🔥 ensure billing is used
+    });
 
     changed = true;
   }
@@ -48,7 +98,7 @@ async function handleOrderPaid(order, paymentData = {}) {
   return changed;
 }
 
-/* ================= PAYMENT VERIFY ROUTE ================= */
+/* ================= PAYMENT VERIFY ================= */
 export async function POST(req) {
   try {
     await dbConnect();
@@ -96,7 +146,7 @@ export async function POST(req) {
       );
     }
 
-    /* ================= IDEMPOTENCY LOCK ================= */
+    /* ================= IDEMPOTENCY ================= */
     if (order.status === "PAID" && order.receipt?.receiptNumber) {
       return NextResponse.json({
         success: true,
@@ -106,7 +156,7 @@ export async function POST(req) {
       });
     }
 
-    /* ================= ORDER MISMATCH CHECK ================= */
+    /* ================= ORDER MISMATCH ================= */
     if (
       order.payment?.razorpay_order_id &&
       order.payment.razorpay_order_id !== razorpay_order_id
@@ -117,10 +167,10 @@ export async function POST(req) {
       );
     }
 
-    /* ================= STEP 1: MARK PAID ================= */
+    /* ================= STEP 1 ================= */
     order.status = "PAID";
 
-    /* ================= STEP 2: PROCESS RECEIPT + INVOICE ================= */
+    /* ================= STEP 2 ================= */
     await handleOrderPaid(order, {
       razorpay_order_id,
       razorpay_payment_id,
@@ -128,13 +178,13 @@ export async function POST(req) {
       mode: "RAZORPAY",
     });
 
-    /* ================= STEP 3: SAVE FINAL STATE ================= */
+    /* ================= STEP 3 ================= */
     await order.save();
 
-    /* ================= STEP 4: ASYNC NOTIFICATIONS (NON-BLOCKING) ================= */
+    /* ================= STEP 4 (ASYNC NOTIFICATIONS) ================= */
     setImmediate(async () => {
       try {
-        // 🔥 FUTURE READY HOOKS
+        // future hooks
         // await sendWhatsAppReceipt(order);
         // await sendPaymentReceiptEmail(order);
       } catch (err) {
