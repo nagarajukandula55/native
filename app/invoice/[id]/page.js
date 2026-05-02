@@ -55,16 +55,18 @@ export default function InvoicePage() {
 
       {/* ACTION BAR */}
       <div className="actions no-print">
-        <button onClick={downloadPDF}>📄 Download PDF</button>
+        <button onClick={downloadPDF}>
+          📄 Download Invoice
+        </button>
       </div>
 
-      {/* INVOICE */}
-      <div className="invoice" id="invoice">
+      {/* ================= INVOICE ================= */}
+      <div className="invoice">
 
         {/* HEADER */}
         <div className="header">
 
-          <div className="logoWrap">
+          <div className="brand">
             <img
               src="https://shopnative.in/logo.png"
               className="logo"
@@ -74,7 +76,7 @@ export default function InvoicePage() {
             </div>
           </div>
 
-          <div className="titleBlock">
+          <div className="invoiceMeta">
             <h2>INVOICE</h2>
             <p><b>Invoice No:</b> {data.invoice?.invoiceNumber || "NA"}</p>
             <p><b>Date:</b> {new Date(data.createdAt).toLocaleString()}</p>
@@ -83,18 +85,20 @@ export default function InvoicePage() {
         </div>
 
         {/* CUSTOMER + ORDER */}
-        <div className="row">
+        <div className="sectionRow">
 
           <div className="box">
             <h4>Bill To</h4>
             <p>{data.address?.name}</p>
             <p>{data.address?.phone}</p>
             <p>{data.address?.address}</p>
-            <p>{data.address?.city} - {data.address?.pincode}</p>
+            <p>
+              {data.address?.city} - {data.address?.pincode}
+            </p>
           </div>
 
           <div className="box">
-            <h4>Order Info</h4>
+            <h4>Order Details</h4>
             <p><b>Order ID:</b> {data.orderId}</p>
             <p><b>Status:</b> {data.status}</p>
             <p><b>Payment:</b> {paymentMode}</p>
@@ -107,9 +111,9 @@ export default function InvoicePage() {
           <thead>
             <tr>
               <th>Item</th>
-              <th>Qty</th>
-              <th>Price</th>
-              <th>Total</th>
+              <th style={{ textAlign: "center" }}>Qty</th>
+              <th style={{ textAlign: "right" }}>Price</th>
+              <th style={{ textAlign: "right" }}>Total</th>
             </tr>
           </thead>
 
@@ -117,9 +121,11 @@ export default function InvoicePage() {
             {data.items?.map((i, idx) => (
               <tr key={idx}>
                 <td>{i.name}</td>
-                <td>{i.qty}</td>
-                <td>₹{i.price}</td>
-                <td>₹{i.price * i.qty}</td>
+                <td style={{ textAlign: "center" }}>{i.qty}</td>
+                <td style={{ textAlign: "right" }}>₹{i.price}</td>
+                <td style={{ textAlign: "right" }}>
+                  ₹{i.price * i.qty}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -128,27 +134,46 @@ export default function InvoicePage() {
         {/* SUMMARY */}
         <div className="summary">
 
-          <p>Subtotal: ₹{subtotal}</p>
+          <div className="line">
+            <span>Subtotal</span>
+            <span>₹{subtotal}</span>
+          </div>
 
           {discount > 0 && (
-            <p>Discount: -₹{discount}</p>
+            <div className="line discount">
+              <span>Discount</span>
+              <span>-₹{discount}</span>
+            </div>
           )}
 
-          <p>Taxable Amount: ₹{taxable}</p>
+          <div className="line">
+            <span>Taxable Amount</span>
+            <span>₹{taxable}</span>
+          </div>
 
           {cgst > 0 && (
             <>
-              <p>CGST: ₹{cgst}</p>
-              <p>SGST: ₹{sgst}</p>
+              <div className="line">
+                <span>CGST</span>
+                <span>₹{cgst}</span>
+              </div>
+              <div className="line">
+                <span>SGST</span>
+                <span>₹{sgst}</span>
+              </div>
             </>
           )}
 
           {igst > 0 && (
-            <p>IGST: ₹{igst}</p>
+            <div className="line">
+              <span>IGST</span>
+              <span>₹{igst}</span>
+            </div>
           )}
 
           <div className="total">
-            TOTAL: ₹{total}
+            <span>TOTAL</span>
+            <span>₹{total}</span>
           </div>
 
         </div>
@@ -160,7 +185,7 @@ export default function InvoicePage() {
 
       </div>
 
-      {/* STYLES */}
+      {/* ================= STYLES ================= */}
       <style jsx>{`
         .page {
           padding: 20px;
@@ -172,19 +197,23 @@ export default function InvoicePage() {
 
         .actions {
           margin-bottom: 15px;
+          width: 800px;
+          display: flex;
+          justify-content: flex-end;
         }
 
         .actions button {
-          padding: 10px 20px;
-          background: black;
-          color: white;
+          padding: 10px 18px;
+          background: #000;
+          color: #fff;
           border-radius: 6px;
+          font-size: 14px;
           cursor: pointer;
         }
 
         .invoice {
           width: 800px;
-          background: white;
+          background: #fff;
           padding: 25px;
           border: 1px solid #eee;
         }
@@ -194,30 +223,31 @@ export default function InvoicePage() {
           display: flex;
           justify-content: space-between;
           border-bottom: 1px solid #eee;
-          padding-bottom: 10px;
+          padding-bottom: 12px;
         }
 
-        .logoWrap {
+        .brand {
           display: flex;
           flex-direction: column;
-          align-items: flex-start;
         }
 
         .logo {
           width: 110px;
+          object-fit: contain;
         }
 
         .tagline {
           font-size: 12px;
-          color: gray;
+          color: #666;
+          margin-top: 3px;
         }
 
-        .titleBlock {
+        .invoiceMeta {
           text-align: right;
         }
 
         /* ROW */
-        .row {
+        .sectionRow {
           display: flex;
           justify-content: space-between;
           margin-top: 20px;
@@ -228,7 +258,7 @@ export default function InvoicePage() {
         }
 
         h4 {
-          margin-bottom: 5px;
+          margin-bottom: 6px;
         }
 
         /* TABLE */
@@ -238,28 +268,51 @@ export default function InvoicePage() {
           margin-top: 20px;
         }
 
-        th, td {
+        th {
+          background: #f7f7f7;
+          padding: 10px;
+          font-size: 13px;
+        }
+
+        td {
           padding: 10px;
           border-bottom: 1px solid #eee;
+          font-size: 13px;
         }
 
         /* SUMMARY */
         .summary {
           margin-top: 20px;
-          text-align: right;
+          width: 300px;
+          margin-left: auto;
+        }
+
+        .line {
+          display: flex;
+          justify-content: space-between;
+          margin-bottom: 6px;
+          font-size: 14px;
+        }
+
+        .discount {
+          color: green;
         }
 
         .total {
-          font-size: 18px;
+          display: flex;
+          justify-content: space-between;
           font-weight: bold;
+          font-size: 16px;
           margin-top: 10px;
+          border-top: 1px solid #ddd;
+          padding-top: 8px;
         }
 
         .footer {
-          margin-top: 30px;
           text-align: center;
+          margin-top: 30px;
           font-size: 12px;
-          color: gray;
+          color: #888;
         }
 
         .loader {
