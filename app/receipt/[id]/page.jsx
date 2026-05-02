@@ -26,7 +26,7 @@ export default function ReceiptPage() {
     if (id) load();
   }, [id]);
 
-  /* ================= PRINT (SAFE POPUP) ================= */
+  /* ================= PRINT ================= */
   const handlePrint = () => {
     const content = document.getElementById("invoice").outerHTML;
 
@@ -43,6 +43,7 @@ export default function ReceiptPage() {
               margin: 0;
               padding: 20px;
               color: #111;
+              background: white;
             }
 
             .invoice {
@@ -52,22 +53,27 @@ export default function ReceiptPage() {
               padding: 25px;
             }
 
-            /* ================= HEADER ================= */
+            /* ================= HEADER (FIXED LOGO) ================= */
             .header {
               text-align: center;
               border-bottom: 1px solid #eee;
-              padding-bottom: 15px;
+              padding-bottom: 20px;
+              margin-bottom: 20px;
             }
 
             .logo {
-              width: 140px;
-              margin-bottom: 10px;
+              width: 120px;
+              height: 120px;
+              object-fit: contain;
+              margin: 0 auto 10px auto;
+              display: block;
             }
 
             .title {
               font-size: 20px;
-              font-weight: bold;
+              font-weight: 700;
               margin: 5px 0;
+              letter-spacing: 0.5px;
             }
 
             .sub {
@@ -87,10 +93,10 @@ export default function ReceiptPage() {
             }
 
             h4 {
-              margin-bottom: 8px;
               font-size: 14px;
+              margin-bottom: 8px;
               border-bottom: 1px solid #eee;
-              padding-bottom: 4px;
+              padding-bottom: 5px;
             }
 
             p {
@@ -107,9 +113,9 @@ export default function ReceiptPage() {
 
             th {
               background: #f5f5f5;
-              text-align: left;
               padding: 10px;
               font-size: 13px;
+              text-align: left;
             }
 
             td {
@@ -122,7 +128,6 @@ export default function ReceiptPage() {
             .summary {
               margin-top: 15px;
               text-align: right;
-              font-size: 14px;
             }
 
             .total {
@@ -154,20 +159,15 @@ export default function ReceiptPage() {
   if (loading) return <div className="loader">Loading receipt...</div>;
   if (!data) return <div className="loader">Receipt not found</div>;
 
-  const discount = data.discount || 0;
-  const subtotal =
-    data.items?.reduce((a, b) => a + b.price * b.qty, 0) || 0;
-  const total = data.amount;
-
   return (
     <div className="page">
 
-      {/* PRINT BUTTON */}
+      {/* ================= BEAUTIFUL PRINT BUTTON ================= */}
       <button className="printBtn no-print" onClick={handlePrint}>
-        🖨 Print Receipt
+        🧾 Print Receipt
       </button>
 
-      {/* ================= RECEIPT ================= */}
+      {/* ================= INVOICE ================= */}
       <div id="invoice" className="invoice">
 
         {/* HEADER */}
@@ -175,9 +175,10 @@ export default function ReceiptPage() {
           <img src="/logo.png" className="logo" />
 
           <div className="title">PAYMENT RECEIPT</div>
+
           <div className="sub">
-            Order ID: {data.orderId} | Date:{" "}
-            {new Date(data.createdAt).toLocaleString()}
+            Order ID: {data.orderId} <br />
+            Date: {new Date(data.createdAt).toLocaleString()}
           </div>
         </div>
 
@@ -186,9 +187,9 @@ export default function ReceiptPage() {
 
           <div className="box">
             <h4>Customer Details</h4>
-            <p><b>Name:</b> {data.address?.name}</p>
-            <p><b>Phone:</b> {data.address?.phone}</p>
-            <p><b>Address:</b> {data.address?.address}</p>
+            <p>{data.address?.name}</p>
+            <p>{data.address?.phone}</p>
+            <p>{data.address?.address}</p>
           </div>
 
           <div className="box">
@@ -214,8 +215,7 @@ export default function ReceiptPage() {
             <tr>
               <th>Item</th>
               <th>Qty</th>
-              <th>Price</th>
-              <th>Total</th>
+              <th>Amount</th>
             </tr>
           </thead>
 
@@ -224,38 +224,32 @@ export default function ReceiptPage() {
               <tr key={idx}>
                 <td>{i.name}</td>
                 <td>{i.qty}</td>
-                <td>₹{i.price}</td>
                 <td>₹{i.price * i.qty}</td>
               </tr>
             ))}
           </tbody>
         </table>
 
-        {/* SUMMARY */}
+        {/* TOTAL */}
         <div className="summary">
-          <p>Subtotal: ₹{subtotal}</p>
-
-          {discount > 0 && (
-            <p>Discount: -₹{discount}</p>
-          )}
-
           <div className="total">
-            TOTAL PAID: ₹{total}
+            TOTAL PAID: ₹{data.amount}
           </div>
         </div>
 
         {/* FOOTER */}
         <div className="footer">
-          Thank you for your purchase ❤️ | Visit Again
+          Thank you for your purchase ❤️
         </div>
 
       </div>
 
-      {/* ================= PAGE STYLE ================= */}
+      {/* ================= PAGE STYLES ================= */}
       <style jsx>{`
         .page {
           display: flex;
-          justify-content: center;
+          flex-direction: column;
+          align-items: center;
           padding: 20px;
           background: #f5f5f5;
           min-height: 100vh;
@@ -273,12 +267,22 @@ export default function ReceiptPage() {
           border: 1px solid #eee;
         }
 
+        /* ================= PREMIUM PRINT BUTTON ================= */
         .printBtn {
           margin-bottom: 15px;
-          padding: 10px 20px;
-          background: black;
+          padding: 12px 22px;
+          background: linear-gradient(135deg, #111, #333);
           color: white;
           border: none;
+          border-radius: 8px;
+          font-weight: 600;
+          cursor: pointer;
+          box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+          transition: 0.2s;
+        }
+
+        .printBtn:hover {
+          transform: translateY(-2px);
         }
 
         .row {
@@ -306,7 +310,6 @@ export default function ReceiptPage() {
         .summary {
           margin-top: 15px;
           text-align: right;
-          font-size: 14px;
         }
 
         .total {
