@@ -37,6 +37,21 @@ const InvoiceSchema = new mongoose.Schema({
   invoiceUrl: String,
 });
 
+/* ================= BILLING (🔥 NEW - IMPORTANT) ================= */
+const BillingSchema = new mongoose.Schema({
+  subtotal: { type: Number, default: 0 },        // before discount
+  discount: { type: Number, default: 0 },        // applied discount
+  taxableAmount: { type: Number, default: 0 },   // subtotal - discount
+
+  taxRate: { type: Number, default: 0 },         // e.g. 18%
+
+  cgst: { type: Number, default: 0 },
+  sgst: { type: Number, default: 0 },
+  igst: { type: Number, default: 0 },
+
+  total: { type: Number, default: 0 },           // final payable (same as amount)
+});
+
 /* ================= ORDER ================= */
 const OrderSchema = new mongoose.Schema(
   {
@@ -77,10 +92,10 @@ const OrderSchema = new mongoose.Schema(
       razorpay_signature: String,
       method: String,
       paidAt: Date,
-      utr: String, // 🔥 manual payment support
+      utr: String, // manual payment support
     },
 
-    /* ================= RECEIPT (FIXED) ================= */
+    /* ================= RECEIPT ================= */
     receipt: {
       type: ReceiptSchema,
       default: null,
@@ -97,16 +112,22 @@ const OrderSchema = new mongoose.Schema(
       default: "",
     },
 
+    /* ================= BILLING (🔥 CORE ADDITION) ================= */
+    billing: {
+      type: BillingSchema,
+      default: null,
+    },
+
     /* ================= ADDRESS ================= */
     address: {
       name: String,
       phone: String,
-      email: String, // 🔥 IMPORTANT for receipt + invoice email
+      email: String,
       address: String,
       city: String,
       state: String,
       pincode: String,
-      gstNumber: String,
+      gstNumber: String, // for B2B
     },
 
     /* ================= WAREHOUSE ================= */
