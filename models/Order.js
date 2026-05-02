@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 
+/* ================= ORDER ITEM ================= */
 const OrderItemSchema = new mongoose.Schema({
   productId: String,
   name: String,
@@ -8,6 +9,7 @@ const OrderItemSchema = new mongoose.Schema({
   qty: Number,
 });
 
+/* ================= WAREHOUSE ================= */
 const WarehouseSchema = new mongoose.Schema({
   status: {
     type: String,
@@ -19,6 +21,23 @@ const WarehouseSchema = new mongoose.Schema({
   dispatchedAt: Date,
 });
 
+/* ================= RECEIPT ================= */
+const ReceiptSchema = new mongoose.Schema({
+  receiptNumber: String,
+  generatedAt: Date,
+  paymentMode: String,
+  paymentReference: String,
+  amountPaid: Number,
+});
+
+/* ================= INVOICE ================= */
+const InvoiceSchema = new mongoose.Schema({
+  invoiceNumber: String,
+  generatedAt: Date,
+  invoiceUrl: String,
+});
+
+/* ================= ORDER ================= */
 const OrderSchema = new mongoose.Schema(
   {
     userId: { type: String, default: null },
@@ -26,7 +45,7 @@ const OrderSchema = new mongoose.Schema(
     orderId: {
       type: String,
       required: true,
-      index: true,   // 🔥 IMPORTANT FIX
+      index: true,
     },
 
     items: [OrderItemSchema],
@@ -51,22 +70,46 @@ const OrderSchema = new mongoose.Schema(
       ],
     },
 
+    /* ================= PAYMENT ================= */
     payment: {
       razorpay_order_id: String,
       razorpay_payment_id: String,
       razorpay_signature: String,
       method: String,
       paidAt: Date,
+      utr: String, // 🔥 manual payment support
     },
 
+    /* ================= RECEIPT (FIXED) ================= */
+    receipt: {
+      type: ReceiptSchema,
+      default: null,
+    },
+
+    /* ================= INVOICE ================= */
+    invoice: {
+      type: InvoiceSchema,
+      default: null,
+    },
+
+    invoiceHTML: {
+      type: String,
+      default: "",
+    },
+
+    /* ================= ADDRESS ================= */
     address: {
       name: String,
       phone: String,
+      email: String, // 🔥 IMPORTANT for receipt + invoice email
       address: String,
       city: String,
+      state: String,
       pincode: String,
+      gstNumber: String,
     },
 
+    /* ================= WAREHOUSE ================= */
     warehouse: {
       type: WarehouseSchema,
       default: {
@@ -78,7 +121,7 @@ const OrderSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// 🔥 CRITICAL SAFE EXPORT
+/* ================= SAFE EXPORT ================= */
 const Order =
   mongoose.models.Order || mongoose.model("Order", OrderSchema);
 
