@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { generateReceiptPDF } from "@/lib/generateReceiptPDF";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
 
 export default function ReceiptPage() {
   const { id } = useParams();
@@ -26,84 +27,97 @@ export default function ReceiptPage() {
     if (id) load();
   }, [id]);
 
+  /* ================= PRINT ================= */
   const handlePrint = () => {
-    const content = document.getElementById("invoice").outerHTML;
-    const win = window.open("", "_blank", "width=900,height=650");
-
-    win.document.write(`
-      <html>
-        <head>
-          <title>Receipt</title>
-          <style>
-            body { font-family: Arial; padding:20px; }
-            .invoice { max-width:800px; margin:auto; }
-            .header { text-align:center; }
-            .logo { width:110px; margin-bottom:10px; }
-            .row { display:flex; justify-content:space-between; margin-top:20px; }
-            .box { width:48%; }
-            table { width:100%; border-collapse:collapse; margin-top:20px; }
-            th, td { padding:10px; border-bottom:1px solid #eee; }
-            .summary { text-align:right; margin-top:15px; }
-            .total { font-size:18px; font-weight:bold; }
-          </style>
-        </head>
-        <body onload="window.print(); window.close();">
-          ${content}
-        </body>
-      </html>
-    `);
-
-    win.document.close();
+    window.print();
   };
 
-  if (loading) return <div className="loader">Loading receipt...</div>;
-  if (!data) return <div className="loader">Receipt not found</div>;
+  /* ================= PDF GENERATE (FIXED) ================= */
+  const handlePDF = async () => {
+    const element = document.getElementById("invoice");
 
+    const canvas = await html2canvas(element, {
+      scale: 2,
+      useCORS: true, // 🔥 IMPORTANT for logo
+    });
+
+    const imgData = canvas.toDataURL("image/png");
+
+    const pdf = new jsPDF("p", "mm", "a4");
+
+    const imgWidth = 210;
+    const pageHeight = 295;
+
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+    let heightLeft = imgHeight;
+
+    let position = 0;
+
+    pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+
+    heightLeft -= pageHeight;
+
+    while (heightLeft > 0) {
+      position = heightLeft - imgHeight;
+      pdf.addPage();
+      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+    }
+
+    pdf.save(`Receipt-${data.orderId}.pdf`);
+  };
+
+  if (loading) return <div className="loader">Loading...</div>;
+  if (!data) return <div className="loader">Not found</div>;
+
+  /* ================= CALC ================= */
   const subtotal =
     data.items?.reduce((a, b) => a + b.price * b.qty, 0) || 0;
 
   const discount = data.discount || 0;
-  const netAmount = subtotal - discount;
-  const total = data.amount;
-
-  const paymentMode =
-    data.payment?.method ||
-    (data.payment?.razorpay_payment_id ? "ONLINE" : "MANUAL");
+  const net = subtotal - discount;
 
   return (
     <div className="page">
 
-      {/* ACTION BUTTONS */}
       <div className="actions">
-        <button className="printBtn" onClick={handlePrint}>
-          🖨 Print
-        </button>
-
-        <button
-          onClick={() =>
-            window.open(`/api/receipt/pdf/${data.orderId}`, "_blank")
-          }
-        >
-          📄 Download PDF
-        </button>
+        <button onClick={handlePrint}>🖨 Print</button>
+        <button onClick={handlePDF}>📄 Download PDF</button>
       </div>
 
-      {/* RECEIPT */}
       <div id="invoice" className="invoice">
 
+        {/* ================= HEADER ================= */}
         <div className="header">
-          <img src="/logo.png" className="logo" />
-          <div className="title">PAYMENT RECEIPT</div>
+
+          <img
+            src="https://shopnative.in/logo.png"
+            className="logo"
+          />
+
+          <div className="tagline">
+            Smart Repairs. Trusted Service.
+          </div>
+
+          <div className="title">
+            PAYMENT RECEIPT
+          </div>
+
         </div>
 
+        {/* ================= ORDER ================= */}
         <div className="section">
-          <h4>Order Details</h4>
           <p><b>Order ID:</b> {data.orderId}</p>
-          <p><b>Status:</b> {data.status}</p>
-          <p><b>Date:</b> {new Date(data.createdAt).toLocaleString()}</p>
+          <p>
+            <b>Date:</b>{" "}
+            {new Date(data.createdAt).toLocaleString()}
+          </p>
         </div>
 
+        {/* ================= DETAILS ================= */}
         <div className="row">
+
           <div className="box">
             <h4>Customer</h4>
             <p>{data.address?.name}</p>
@@ -113,9 +127,9 @@ export default function ReceiptPage() {
 
           <div className="box">
             <h4>Payment</h4>
-            <p><b>Mode:</b> {paymentMode}</p>
+            <p><b>Mode:</b> {data.payment?.method || "ONLINE"}</p>
             <p>
-              <b>Reference:</b>{" "}
+              <b>Ref:</b>{" "}
               {data.payment?.razorpay_payment_id ||
                 data.receipt?.paymentReference ||
                 "N/A"}
@@ -125,8 +139,10 @@ export default function ReceiptPage() {
               {data.receipt?.receiptNumber || "N/A"}
             </p>
           </div>
+
         </div>
 
+        {/* ================= ITEMS ================= */}
         <table>
           <thead>
             <tr>
@@ -149,59 +165,85 @@ export default function ReceiptPage() {
           </tbody>
         </table>
 
+        {/* ================= SUMMARY ================= */}
         <div className="summary">
+
           <p>Subtotal: ₹{subtotal}</p>
 
-          {discount > 0 && <p>Discount: -₹{discount}</p>}
+          {discount > 0 && (
+            <p>Discount: -₹{discount}</p>
+          )}
 
-          <p>Net Amount: ₹{netAmount}</p>
+          <p>Net Amount: ₹{net}</p>
 
           <div className="total">
-            Total Paid: ₹{total}
+            Paid: ₹{data.amount}
           </div>
+
         </div>
 
+        {/* ================= FOOTER ================= */}
         <div className="footer">
-          Thank you for your purchase ❤️
+          Thank you for your business ❤️
         </div>
 
       </div>
 
-      {/* STYLES */}
+      {/* ================= STYLES ================= */}
       <style jsx>{`
         .page {
           display: flex;
           flex-direction: column;
           align-items: center;
-          padding: 20px;
           background: #f5f5f5;
+          padding: 20px;
         }
 
         .actions {
-          display: flex;
-          gap: 10px;
           margin-bottom: 15px;
+        }
+
+        .actions button {
+          margin-right: 10px;
+          padding: 10px 16px;
+          border: none;
+          background: black;
+          color: white;
+          border-radius: 6px;
+          cursor: pointer;
         }
 
         .invoice {
           width: 800px;
           background: white;
           padding: 25px;
-          border: 1px solid #eee;
-        }
-
-        .logo {
-          width: 110px;
         }
 
         .header {
           text-align: center;
           border-bottom: 1px solid #eee;
+          padding-bottom: 10px;
+        }
+
+        .logo {
+          width: 120px;
+          height: auto;
+          margin-bottom: 6px;
+        }
+
+        .tagline {
+          font-size: 12px;
+          color: gray;
+          margin-bottom: 6px;
         }
 
         .title {
           font-size: 20px;
           font-weight: bold;
+        }
+
+        .section {
+          margin-top: 15px;
         }
 
         .row {
@@ -233,6 +275,7 @@ export default function ReceiptPage() {
         .total {
           font-size: 18px;
           font-weight: bold;
+          margin-top: 10px;
         }
 
         .footer {
@@ -242,22 +285,19 @@ export default function ReceiptPage() {
           color: gray;
         }
 
-        .printBtn {
-          padding: 10px 20px;
-          background: black;
-          color: white;
-          border-radius: 6px;
-          border: none;
-          cursor: pointer;
-        }
+        @media print {
+          .actions {
+            display: none;
+          }
 
-        .pdfBtn {
-          padding: 10px 20px;
-          background: #0a7cff;
-          color: white;
-          border-radius: 6px;
-          border: none;
-          cursor: pointer;
+          body {
+            background: white;
+          }
+
+          .invoice {
+            box-shadow: none;
+            width: 100%;
+          }
         }
       `}</style>
     </div>
