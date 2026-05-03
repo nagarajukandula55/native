@@ -1,58 +1,84 @@
 import mongoose from "mongoose";
 
 /* ================= ORDER ITEM ================= */
-const OrderItemSchema = new mongoose.Schema({
-  productId: String,
-  name: String,
-  image: String,
-  price: Number,
-  qty: Number,
-});
+const OrderItemSchema = new mongoose.Schema(
+  {
+    productId: {
+      type: mongoose.Schema.Types.ObjectId, // ✅ FIXED (was String)
+      ref: "Product",
+    },
+
+    productKey: String, // ✅ IMPORTANT fallback support
+
+    name: String,
+    image: String,
+
+    price: Number,
+    qty: Number,
+
+    gstPercent: Number,
+    baseAmount: Number,
+    total: Number,
+  },
+  { _id: false }
+);
 
 /* ================= WAREHOUSE ================= */
-const WarehouseSchema = new mongoose.Schema({
-  status: {
-    type: String,
-    default: "NEW",
-    enum: ["NEW", "PICKING", "PACKED", "DISPATCHED"],
+const WarehouseSchema = new mongoose.Schema(
+  {
+    status: {
+      type: String,
+      default: "NEW",
+      enum: ["NEW", "PICKING", "PACKED", "DISPATCHED"],
+    },
+    assignedTo: String,
+    packedAt: Date,
+    dispatchedAt: Date,
+    outForDeliveryAt: Date,
+    deliveredAt: Date,
   },
-  assignedTo: String,
-  packedAt: Date,
-  dispatchedAt: Date,
-  outForDeliveryAt: Date,
-  deliveredAt: Date,
-});
+  { _id: false }
+);
 
 /* ================= RECEIPT ================= */
-const ReceiptSchema = new mongoose.Schema({
-  receiptNumber: String,
-  generatedAt: Date,
-  paymentMode: String,
-  paymentReference: String,
-  amountPaid: Number,
-});
+const ReceiptSchema = new mongoose.Schema(
+  {
+    receiptNumber: String,
+    generatedAt: Date,
+    paymentMode: String,
+    paymentReference: String,
+    amountPaid: Number,
+  },
+  { _id: false }
+);
 
 /* ================= INVOICE ================= */
-const InvoiceSchema = new mongoose.Schema({
-  invoiceNumber: String,
-  generatedAt: Date,
-  invoiceUrl: String,
-});
+const InvoiceSchema = new mongoose.Schema(
+  {
+    invoiceNumber: String,
+    generatedAt: Date,
+    invoiceUrl: String,
+  },
+  { _id: false }
+);
 
-/* ================= BILLING (🔥 NEW - IMPORTANT) ================= */
-const BillingSchema = new mongoose.Schema({
-  subtotal: { type: Number, default: 0 },        // before discount
-  discount: { type: Number, default: 0 },        // applied discount
-  taxableAmount: { type: Number, default: 0 },   // subtotal - discount
+/* ================= BILLING ================= */
+const BillingSchema = new mongoose.Schema(
+  {
+    subtotal: { type: Number, default: 0 },
+    discount: { type: Number, default: 0 },
+    taxableAmount: { type: Number, default: 0 },
 
-  taxRate: { type: Number, default: 0 },         // e.g. 18%
+    taxRate: { type: Number, default: 0 },
 
-  cgst: { type: Number, default: 0 },
-  sgst: { type: Number, default: 0 },
-  igst: { type: Number, default: 0 },
+    cgst: { type: Number, default: 0 },
+    sgst: { type: Number, default: 0 },
+    igst: { type: Number, default: 0 },
 
-  total: { type: Number, default: 0 },           // final payable (same as amount)
-});
+    total: { type: Number, default: 0 },
+  },
+  { _id: false }
+);
 
 /* ================= ORDER ================= */
 const OrderSchema = new mongoose.Schema(
@@ -65,7 +91,13 @@ const OrderSchema = new mongoose.Schema(
       index: true,
     },
 
-    items: [OrderItemSchema],
+    /* ✅ ADD ROOT NAME (FIX FOR STRICT ERROR) */
+    name: String, // 🔥 prevents "name not in schema" crash
+
+    items: {
+      type: [OrderItemSchema],
+      default: [],
+    },
 
     amount: {
       type: Number,
@@ -94,7 +126,7 @@ const OrderSchema = new mongoose.Schema(
       razorpay_signature: String,
       method: String,
       paidAt: Date,
-      utr: String, // manual payment support
+      utr: String,
     },
 
     /* ================= RECEIPT ================= */
@@ -114,7 +146,7 @@ const OrderSchema = new mongoose.Schema(
       default: "",
     },
 
-    /* ================= BILLING (🔥 CORE ADDITION) ================= */
+    /* ================= BILLING ================= */
     billing: {
       type: BillingSchema,
       default: null,
@@ -129,7 +161,7 @@ const OrderSchema = new mongoose.Schema(
       city: String,
       state: String,
       pincode: String,
-      gstNumber: String, // for B2B
+      gstNumber: String,
     },
 
     /* ================= WAREHOUSE ================= */
@@ -141,7 +173,12 @@ const OrderSchema = new mongoose.Schema(
       },
     },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+
+    /* 🔥 SAFETY FIX (prevents strict crash on unknown fields) */
+    strict: true,
+  }
 );
 
 /* ================= SAFE EXPORT ================= */
