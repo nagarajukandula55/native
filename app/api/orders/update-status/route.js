@@ -1,54 +1,61 @@
 import dbConnect from "@/lib/db";
 import Order from "@/models/Order";
 
-order.status = "DISPATCHED";
-order.dispatchedAt = new Date();
-
 /* ================= CORE STATUS HANDLER ================= */
 async function handleStatusChange(order, newStatus) {
-  let changed = false;
+  const now = new Date();
 
-  /* ================= PAID LOGIC ================= */
+  /* ================= PAID ================= */
   if (newStatus === "PAID") {
     const { handleOrderPaid } = await import("@/lib/handleOrderPaid");
 
-    const result = await handleOrderPaid(order, {
-      mode: "MANUAL",
-    });
+    try {
+      await handleOrderPaid(order, { mode: "MANUAL" });
+    } catch (err) {
+      console.error("PAID handler failed:", err);
+    }
 
-    if (result) changed = true;
+    order.payment = {
+      ...order.payment,
+      paidAt: order.payment?.paidAt || now,
+    };
   }
 
-  /* ================= DISPATCHED LOGIC ================= */
+  /* ================= DISPATCHED ================= */
   if (newStatus === "DISPATCHED") {
     try {
-      /* ================= INVOICE GENERATION ================= */
       const { generateInvoiceHTML } = await import("@/lib/invoice");
-
-      order.invoiceHTML = generateInvoiceHTML(order.toObject());
-
-      /* ================= EMAIL + WHATSAPP ================= */
       const { sendInvoiceEmail } = await import("@/lib/notifications/email");
       const { sendWhatsAppInvoice } = await import("@/lib/notifications/whatsapp");
 
-      /* ================= IDEMPOTENT SAFETY ================= */
+      /* ================= GENERATE INVOICE ================= */
+      if (!order.invoiceHTML) {
+        order.invoiceHTML = generateInvoiceHTML(order.toObject());
+      }
+
+      /* ================= EMAIL (IDEMPOTENT) ================= */
       if (!order.invoiceSentAt) {
         await sendInvoiceEmail(order);
-        order.invoiceSentAt = new Date();
+        order.invoiceSentAt = now;
       }
 
+      /* ================= WHATSAPP (IDEMPOTENT) ================= */
       if (!order.whatsappInvoiceSentAt) {
         await sendWhatsAppInvoice(order);
-        order.whatsappInvoiceSentAt = new Date();
+        order.whatsappInvoiceSentAt = now;
       }
 
-      changed = true;
     } catch (err) {
       console.error("DISPATCHED handler error:", err);
     }
+
+    order.dispatchedAt = order.dispatchedAt || now;
   }
 
-  return changed;
+  /* ================= OTHER STATUSES ================= */
+  if (newStatus === "PACKED") order.packedAt = order.packedAt || now;
+  if (newStatus === "OUT_FOR_DELIVERY") order.outForDeliveryAt = order.outForDeliveryAt || now;
+  if (newStatus === "DELIVERED") order.deliveredAt = order.deliveredAt || now;
 }
 
 /* ================= API ROUTE ================= */
@@ -60,30 +67,32 @@ export async function POST(req) {
 
     /* ================= VALIDATION ================= */
     if (!id || !status) {
-      return Response.json({
-        success: false,
-        message: "Missing id or status",
-      }, { status: 400 });
+      return Response.json(
+        { success: false, message: "Missing id or status" },
+        { status: 400 }
+      );
     }
 
     /* ================= FETCH ORDER ================= */
     const order = await Order.findById(id);
 
     if (!order) {
-      return Response.json({
-        success: false,
-        message: "Order not found",
-      }, { status: 404 });
+      return Response.json(
+        { success: false, message: "Order not found" },
+        { status: 404 }
+      );
     }
 
-    /* ================= IDEMPOTENCY CHECK ================= */
+    /* ================= IDEMPOTENCY ================= */
     if (order.status === status) {
       return Response.json({
         success: true,
-        message: "Already in requested status",
+        message: "Already updated",
         order,
       });
     }
+
+    const previousStatus = order.status;
 
     /* ================= UPDATE STATUS ================= */
     order.status = status;
@@ -91,21 +100,25 @@ export async function POST(req) {
     /* ================= BUSINESS LOGIC ================= */
     await handleStatusChange(order, status);
 
-    /* ================= SAVE FINAL STATE ================= */
+    /* ================= SAVE ================= */
     await order.save();
 
     return Response.json({
       success: true,
       message: "Status updated successfully",
+      previousStatus,
       order,
     });
 
   } catch (err) {
     console.error("STATUS UPDATE ERROR:", err);
 
-    return Response.json({
-      success: false,
-      message: "Update failed",
-    }, { status: 500 });
+    return Response.json(
+      {
+        success: false,
+        message: err.message || "Update failed",
+      },
+      { status: 500 }
+    );
   }
 }
