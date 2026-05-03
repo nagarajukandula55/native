@@ -6,6 +6,9 @@ import Coupon from "@/models/Coupon";
 import Razorpay from "razorpay";
 import { generateOrderId } from "@/lib/orderId";
 
+/* ================= EMAIL ================= */
+import { sendInvoiceEmail } from "@/lib/notifications/email";
+
 /* ================= CONFIG ================= */
 const SELLER_STATE = "Andhra Pradesh";
 
@@ -129,25 +132,23 @@ export async function POST(req) {
     }
 
     /* ================= GST MODE ================= */
-    const sellerCode = STATE_CODE_MAP[SELLER_STATE] || null;
+    const sellerCode = STATE_CODE_MAP[SELLER_STATE];
 
-    const buyerState = address?.state || null;
-    let buyerCode = buyerState ? STATE_CODE_MAP[buyerState] : null;
+    let buyerCode = address.state
+      ? STATE_CODE_MAP[address.state]
+      : null;
 
-    // If GST provided → override buyer code
     if (gstNumber) {
       buyerCode = gstStateCode;
     }
 
-    // SAFE INTERSTATE CHECK (NO UNDEFINED CRASH)
-    const isInterState =
-      sellerCode && buyerCode
-        ? sellerCode !== buyerCode
-        : false;
+    const isInterState = sellerCode && buyerCode
+      ? sellerCode !== buyerCode
+      : false;
 
     const gstMode = isInterState ? "IGST" : "CGST_SGST";
 
-    /* ================= DISTRIBUTE DISCOUNT ================= */
+    /* ================= DISCOUNT ================= */
     const discountRatio = subtotal > 0 ? discount / subtotal : 0;
 
     let totalTaxable = 0;
@@ -155,7 +156,6 @@ export async function POST(req) {
     let sgstTotal = 0;
     let igstTotal = 0;
 
-    /* ================= ITEM TAX CALC ================= */
     for (let item of items) {
       const itemDiscount = item.baseAmount * discountRatio;
       const taxable = item.baseAmount - itemDiscount;
@@ -190,7 +190,7 @@ export async function POST(req) {
       igstTotal += igst;
     }
 
-    /* ================= FINAL TOTAL ================= */
+    /* ================= FINAL ================= */
     const totalGST = cgstTotal + sgstTotal + igstTotal;
     const finalAmount = totalTaxable + totalGST;
 
@@ -201,15 +201,12 @@ export async function POST(req) {
       );
     }
 
-    /* ================= ORDER ID ================= */
     const orderId = await generateOrderId();
 
-    /* ================= SAVE ORDER ================= */
+    /* ================= CREATE ORDER ================= */
     const orderDoc = await Order.create({
       orderId,
-
       items,
-
       amount: round(finalAmount),
 
       billing: {
@@ -227,15 +224,23 @@ export async function POST(req) {
 
       gstDetails: {
         gstNumber: gstNumber || null,
-        gstType: gstType || "B2C",
-        gstMode: gstMode || "CGST_SGST",
-        isInterState: Boolean(isInterState),
+        gstType,
+        gstMode,
+        isInterState,
       },
 
       address,
       paymentMethod,
       status: "PENDING_PAYMENT",
     });
+
+    /* ================= EMAIL TRIGGER (IMPORTANT) ================= */
+    try {
+      await sendInvoiceEmail(orderDoc);
+    } catch (emailErr) {
+      console.error("EMAIL FAILED:", emailErr);
+      // DO NOT fail order if email fails
+    }
 
     /* ================= RAZORPAY ================= */
     let razorpayOrder = null;
