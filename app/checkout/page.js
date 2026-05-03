@@ -444,33 +444,35 @@ export default function CheckoutPage() {
           <b>₹{finalAmount}</b>
         </div>
 
-      {/* ✅ UPI */}
-      {paymentMethod === "UPI" && (
-        <>
-          <div>
-            {finalAmount > 0 && <QRCode value={upiLink} />}
-            <a
-              href={upiLink}
-              className="btn"
-              onClick={(e) => {
-                const isMobile = /Android|iPhone/i.test(navigator.userAgent);
-                if (!isMobile) {
-                  e.preventDefault();
-                  alert("Open this on your mobile to complete payment 📱");
-                }
-              }}
-            >
-              Open UPI App
-            </a>
-          </div>
-      
-          <div style={{ marginTop: 10 }}>
-            <a href={upiApps.gpay} className="btn">Pay with GPay</a>
-            <a href={upiApps.phonepe} className="btn">Pay with PhonePe</a>
-            <a href={upiApps.paytm} className="btn">Pay with Paytm</a>
-          </div>
-        </>
-      )}
+        {/* ✅ UPI */}
+        {paymentMethod === "UPI" && (
+          <>
+            <div>
+              {finalAmount > 0 && <QRCode value={upiLink} />}
+              <a
+                href={upiLink}
+                className="btn"
+                onClick={(e) => {
+                  const isMobile = /Android|iPhone/i.test(navigator.userAgent);
+                  if (!isMobile) {
+                    e.preventDefault();
+                    alert("Open this on your mobile to complete payment 📱");
+                  }
+                }}
+              >
+                Open UPI App
+              </a>
+            </div>
+        
+            <div style={{ marginTop: 10 }}>
+              <a href={upiApps.gpay} className="btn">Pay with GPay</a>
+              <a href={upiApps.phonepe} className="btn">Pay with PhonePe</a>
+              <a href={upiApps.paytm} className="btn">Pay with Paytm</a>
+            </div>
+          </>
+        )}
+        
+        </div> 
 
       <style jsx>{`
         .checkout {
