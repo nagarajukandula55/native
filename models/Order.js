@@ -178,7 +178,7 @@ const OrderSchema = new mongoose.Schema(
     timestamps: true,
 
     /* 🔥 SAFETY FIX (prevents strict crash on unknown fields) */
-    strict: true,
+    strict: "throw",
   }
 );
 
