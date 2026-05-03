@@ -48,6 +48,7 @@ export async function GET(req) {
           mongoId: { $first: "$_id" }, // ✅ preserve real ID
 
           name: { $first: "$name" },
+          
           productKey: { $first: "$productKey" },
           slug: { $first: "$slug" },
           category: { $first: "$category" },
