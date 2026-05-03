@@ -205,8 +205,11 @@ export async function POST(req) {
       items,
       amount: finalAmount,
       address,
-      status: "PENDING_PAYMENT", // ✅ UPI will stay pending
-      paymentMethod,
+      status: "PENDING_PAYMENT",
+    
+      payment: {
+        method: paymentMethod, // ✅ FIX HERE
+      },
     });
 
     /* ================= NOTIFICATION ================= */
