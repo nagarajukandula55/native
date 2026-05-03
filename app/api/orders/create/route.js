@@ -95,7 +95,11 @@ export async function POST(req) {
       }
 
       if (!product) {
-        console.warn("❌ Product not found:", productId);
+        product = await Product.findOne({ productKey: productId }).lean();
+      }
+
+      } catch (err) {
+        console.error("❌ Product lookup error:", productId, err);
         continue;
       }
 
