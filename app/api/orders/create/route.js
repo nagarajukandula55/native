@@ -166,13 +166,16 @@ export async function POST(req) {
     const orderId = await generateOrderId();
 
     /* ================= SAFE ORDER CREATE ================= */
-    const orderDoc = await createOrderSafe({
-      orderId,
-      items,
-      amount: finalAmount,
-      address: safeAddress,
-      paymentMethod,
-    });
+    const safeItems = (data.cart || []).map((item) => ({
+      productId: String(item.productId || ""),
+      productKey: item.productKey ? String(item.productKey) : undefined,
+      qty: Number(item.qty || 1),
+      price: Number(item.price || 0),
+      gstPercent: Number(item.gstPercent || 0),
+      baseAmount: Number(item.baseAmount || 0),
+      total: Number(item.total || 0),
+      image: item.image ? String(item.image) : undefined,
+    }));
 
     /* ================= RAZORPAY ================= */
     let razorpayOrder = null;
