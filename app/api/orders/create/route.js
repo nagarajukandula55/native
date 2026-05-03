@@ -1,14 +1,11 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db";
-import Order from "@/models/Order";
 import Product from "@/models/Product";
 import Coupon from "@/models/Coupon";
 import Razorpay from "razorpay";
 import { generateOrderId } from "@/lib/orderId";
 
-import { notifyOrderEvent } from "@/lib/notifications/notifyOrderEvent";
 import { validateCart } from "@/lib/validators/validateCart";
-
 import { createOrderSafe } from "@/lib/safe/createOrderSafe";
 
 /* ================= HELPERS ================= */
@@ -37,36 +34,39 @@ export async function POST(req) {
       gstNumber = null,
     } = body;
 
-    console.log("🛒 RAW CART:", JSON.stringify(cart, null, 2));
+    console.log("🛒 RAW CART:", cart);
 
     /* ================= BLOCK RAZORPAY ================= */
     if (paymentMethod === "RAZORPAY" && !PAYMENT_CONFIG.RAZORPAY) {
       return NextResponse.json(
-        {
-          success: false,
-          message: "Razorpay disabled. Use UPI / COD",
-        },
+        { success: false, message: "Razorpay disabled. Use UPI / COD" },
         { status: 400 }
       );
     }
 
     /* ================= SAFE CART ================= */
     cart = validateCart(cart);
-    console.log("✅ CLEANED CART:", cart);
 
     if (!cart.length) {
       return NextResponse.json(
-        {
-          success: false,
-          message: "Cart empty after validation",
-          debug: cart,
-        },
+        { success: false, message: "Cart empty after validation" },
         { status: 400 }
       );
     }
 
-    /* ================= ADDRESS ================= */
-    if (!address?.state || !address?.pincode) {
+    /* ================= ADDRESS VALIDATION ================= */
+    const safeAddress = {
+      name: address?.name || "",
+      phone: address?.phone || "",
+      email: address?.email || "",
+      address: address?.address || "",
+      city: address?.city || "",
+      state: address?.state || "",
+      pincode: address?.pincode || "",
+      gstNumber: address?.gstNumber || null,
+    };
+
+    if (!safeAddress.state || !safeAddress.pincode) {
       return NextResponse.json(
         { success: false, message: "Invalid address" },
         { status: 400 }
@@ -75,63 +75,38 @@ export async function POST(req) {
 
     /* ================= BUILD ITEMS ================= */
     let subtotal = 0;
-    let items = [];
+    const items = [];
 
     for (const item of cart) {
       const productId =
         item.productId || item._id || item.productKey;
 
-      if (!productId) {
-        console.warn("❌ Missing productId:", item);
-        continue;
-      }
+      if (!productId) continue;
 
-      let product = null;
+      let product =
+        (await Product.findById(productId).lean()) ||
+        (await Product.findOne({ productKey: productId }).lean());
 
-      try {
-        // ✅ Try Mongo _id first
-        product = await Product.findById(productId).lean();
-      } catch (err) {
-        console.warn("⚠️ Not a valid ObjectId, trying productKey...");
-      }
-
-      try {
-        // ✅ Fallback to productKey
-        if (!product) {
-          product = await Product.findOne({
-            productKey: productId,
-          }).lean();
-        }
-      } catch (err) {
-        console.error("❌ Product lookup error:", productId, err);
-        continue;
-      }
-
-      if (!product) {
-        console.warn("❌ Product not found:", productId);
-        continue;
-      }
+      if (!product) continue;
 
       const qty = Math.max(Number(item.qty || 1), 1);
 
-      // 🔥 IMPORTANT FIX (your schema uses variants)
       const price =
         Number(product?.primaryVariant?.sellingPrice) ||
-        Number(product.price) ||
+        Number(product?.pricing?.sellingPrice) ||
+        Number(product?.price) ||
         0;
 
-      const gstPercent = Number(product.tax || 0);
+      const gstPercent = Number(product?.tax || 0);
 
       const baseAmount = price * qty;
       subtotal += baseAmount;
 
       items.push({
         productId: product._id,
+        productKey: product.productKey,
         name: product.name,
-        image:
-          product.primaryImage ||
-          product.images?.[0] ||
-          "",
+        image: product.primaryImage || product.images?.[0] || "",
         price,
         qty,
         gstPercent,
@@ -140,15 +115,9 @@ export async function POST(req) {
       });
     }
 
-    console.log("🧾 FINAL ITEMS:", items);
-
     if (!items.length) {
       return NextResponse.json(
-        {
-          success: false,
-          message: "No valid products found",
-          debug: cart,
-        },
+        { success: false, message: "No valid products found" },
         { status: 400 }
       );
     }
@@ -157,17 +126,13 @@ export async function POST(req) {
     let discount = 0;
 
     if (coupon) {
-      try {
-        const c = await Coupon.findOne({
-          code: coupon,
-          active: true,
-        });
+      const c = await Coupon.findOne({
+        code: coupon.toUpperCase(),
+        active: true,
+      });
 
-        if (c && subtotal >= (c.minOrder || 0)) {
-          discount = Number(c.discount || 0);
-        }
-      } catch (err) {
-        console.error("Coupon error:", err);
+      if (c && subtotal >= (c.minCartValue || 0)) {
+        discount = Number(c.value || 0);
       }
     }
 
@@ -176,7 +141,7 @@ export async function POST(req) {
     let totalTaxable = 0;
     let totalGST = 0;
 
-    for (let item of items) {
+    for (const item of items) {
       const discounted = item.baseAmount * discountRatio;
       const taxable = item.baseAmount - discounted;
 
@@ -190,62 +155,44 @@ export async function POST(req) {
 
     const finalAmount = round(totalTaxable + totalGST);
 
-    console.log("💰 FINAL AMOUNT:", finalAmount);
-
     if (!isFinite(finalAmount) || finalAmount <= 0) {
       return NextResponse.json(
-        { success: false, message: "Invalid amount calculated" },
+        { success: false, message: "Invalid amount" },
         { status: 400 }
       );
     }
 
     const orderId = await generateOrderId();
 
-    /* ================= CREATE ORDER ================= */
+    /* ================= SAFE ORDER CREATION ================= */
     const orderDoc = await createOrderSafe({
       orderId,
       items,
       amount: finalAmount,
-      address,
+      address: safeAddress,
       paymentMethod,
     });
-
-    /* ================= NOTIFICATION ================= */
-    try {
-   //   await notifyOrderEvent(orderDoc, null);
-    } catch (err) {
-      console.error("Notify failed:", err);
-    }
 
     /* ================= RAZORPAY ================= */
     let razorpayOrder = null;
 
     if (paymentMethod === "RAZORPAY" && PAYMENT_CONFIG.RAZORPAY) {
-      try {
-        const razorpay = new Razorpay({
-          key_id: process.env.RAZORPAY_KEY_ID,
-          key_secret: process.env.RAZORPAY_KEY_SECRET,
-        });
+      const razorpay = new Razorpay({
+        key_id: process.env.RAZORPAY_KEY_ID,
+        key_secret: process.env.RAZORPAY_KEY_SECRET,
+      });
 
-        razorpayOrder = await razorpay.orders.create({
-          amount: Math.round(finalAmount * 100),
-          currency: "INR",
-          receipt: orderId,
-        });
+      razorpayOrder = await razorpay.orders.create({
+        amount: Math.round(finalAmount * 100),
+        currency: "INR",
+        receipt: orderId,
+      });
 
-        orderDoc.payment = {
-          razorpay_order_id: razorpayOrder.id,
-        };
+      orderDoc.payment = {
+        razorpay_order_id: razorpayOrder.id,
+      };
 
-        await orderDoc.save();
-      } catch (err) {
-        console.error("Razorpay error:", err);
-
-        return NextResponse.json(
-          { success: false, message: "Payment gateway error" },
-          { status: 500 }
-        );
-      }
+      await orderDoc.save();
     }
 
     /* ================= RESPONSE ================= */
