@@ -211,7 +211,7 @@ export async function POST(req) {
 
     /* ================= NOTIFICATION ================= */
     try {
-      await notifyOrderEvent(orderDoc, null);
+   //   await notifyOrderEvent(orderDoc, null);
     } catch (err) {
       console.error("Notify failed:", err);
     }
