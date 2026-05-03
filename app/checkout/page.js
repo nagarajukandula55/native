@@ -170,7 +170,7 @@ export default function CheckoutPage() {
 
   const finalAmount = subtotal + gstTotal - discount;
 
-  const upiLink = `upi://pay?pa=${encodeURIComponent(UPI_ID)}&pn=${encodeURIComponent(UPI_NAME)}&am=${Number(finalAmount).toFixed(2)}&cu=INR`;
+  const upiLink = `upi://pay?pa=${encodeURIComponent(UPI_ID)}&pn=${encodeURIComponent(UPI_NAME)}&am=${Number(finalAmount).toFixed(2)}&cu=INR&tn=${encodeURIComponent("Order Payment")}`;
   const upiApps = {
     gpay: `tez://upi/pay?pa=${UPI_ID}&pn=${UPI_NAME}&am=${finalAmount.toFixed(2)}&cu=INR`,
     phonepe: `phonepe://pay?pa=${UPI_ID}&pn=${UPI_NAME}&am=${finalAmount.toFixed(2)}&cu=INR`,
@@ -233,7 +233,10 @@ export default function CheckoutPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          cart: safeCart,
+          cart: safeCart.map(item => ({
+            productId: item.productId || item._id || item.product?._id,
+            qty: item.qty,
+            variant: item.variant || "default"})),
           taxItems,
           address: form,
           email: form.email,
@@ -256,6 +259,8 @@ export default function CheckoutPage() {
       const orderId = data.orderId;
       
       if (paymentMethod === "RAZORPAY") {
+        if (!data.razorpayOrder) {alert("Razorpay is temporarily disabled. Use UPI.");
+        return;}
         new window.Razorpay({
           key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
           amount: Math.round(finalAmount * 100),
@@ -429,9 +434,9 @@ export default function CheckoutPage() {
         </div>
 
         {/* ✅ UPI */}
-        {paymentMethod === "upi" && (
+        {paymentMethod === "UPI" && (
           <div>
-            <QRCode value={upiLink} />
+            {finalAmount > 0 && <QRCode value={upiLink} />}
             <a
                 href={upiLink}
                 className="btn"
@@ -446,6 +451,11 @@ export default function CheckoutPage() {
                 Open UPI App
               </a>
           </div>
+         <div style={{ marginTop: 10 }}>
+          <a href={upiApps.gpay} className="btn">Pay with GPay</a>
+          <a href={upiApps.phonepe} className="btn">Pay with PhonePe</a>
+          <a href={upiApps.paytm} className="btn">Pay with Paytm</a>
+        </div>
         )}
       </div>
 
