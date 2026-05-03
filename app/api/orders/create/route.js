@@ -7,21 +7,19 @@ import { generateOrderId } from "@/lib/orderId";
 
 import { validateCart } from "@/lib/validators/validateCart";
 import { createOrderSafe } from "@/lib/safe/createOrderSafe";
-
 import mongoose from "mongoose";
 
-/* ================= HELPERS ================= */
-const round = (n) => Math.round(n * 100) / 100;
-
-/* ================= PAYMENT CONFIG ================= */
+/* ================= CONFIG ================= */
 const PAYMENT_CONFIG = {
   RAZORPAY: false,
   UPI: true,
   COD: true,
-  MANUAL: true,
 };
 
-/* ================= MAIN API ================= */
+/* ================= HELPERS ================= */
+const round = (n) => Math.round(n * 100) / 100;
+
+/* ================= MAIN ================= */
 export async function POST(req) {
   try {
     await dbConnect();
@@ -33,30 +31,19 @@ export async function POST(req) {
       address = {},
       coupon = null,
       paymentMethod = "RAZORPAY",
-      gstNumber = null,
     } = body;
 
-    console.log("🛒 RAW CART:", cart);
-
-    /* ================= BLOCK RAZORPAY ================= */
-    if (paymentMethod === "RAZORPAY" && !PAYMENT_CONFIG.RAZORPAY) {
-      return NextResponse.json(
-        { success: false, message: "Razorpay disabled. Use UPI / COD" },
-        { status: 400 }
-      );
-    }
-
-    /* ================= SAFE CART ================= */
+    /* ================= CART VALIDATION ================= */
     cart = validateCart(cart);
 
-    if (!cart.length) {
+    if (!Array.isArray(cart) || cart.length === 0) {
       return NextResponse.json(
-        { success: false, message: "Cart empty after validation" },
+        { success: false, message: "Cart is empty" },
         { status: 400 }
       );
     }
 
-    /* ================= ADDRESS VALIDATION ================= */
+    /* ================= SAFE ADDRESS ================= */
     const safeAddress = {
       name: address?.name || "",
       phone: address?.phone || "",
@@ -86,13 +73,13 @@ export async function POST(req) {
       if (!productId) continue;
 
       let product = null;
-      
-      // 1️⃣ Try ObjectId ONLY if valid
+
+      // SAFE ObjectId check (FIX CRASH)
       if (mongoose.Types.ObjectId.isValid(productId)) {
         product = await Product.findById(productId).lean();
       }
-      
-      // 2️⃣ fallback → SKU lookup
+
+      // fallback SKU
       if (!product) {
         product = await Product.findOne({
           productKey: productId,
@@ -106,7 +93,6 @@ export async function POST(req) {
       const price =
         Number(product?.primaryVariant?.sellingPrice) ||
         Number(product?.pricing?.sellingPrice) ||
-        Number(product?.price) ||
         0;
 
       const gstPercent = Number(product?.tax || 0);
@@ -118,7 +104,7 @@ export async function POST(req) {
         productId: product._id,
         productKey: product.productKey,
         name: product.name,
-        image: product.primaryImage || product.images?.[0] || "",
+        image: product.primaryImage || "",
         price,
         qty,
         gstPercent,
@@ -127,7 +113,7 @@ export async function POST(req) {
       });
     }
 
-    if (!items.length) {
+    if (items.length === 0) {
       return NextResponse.json(
         { success: false, message: "No valid products found" },
         { status: 400 }
@@ -144,19 +130,21 @@ export async function POST(req) {
       });
 
       if (c && subtotal >= (c.minCartValue || 0)) {
-        discount = Number(c.value || 0);
+        discount =
+          c.type === "percent"
+            ? (subtotal * c.value) / 100
+            : c.value;
       }
     }
 
     const discountRatio = subtotal ? discount / subtotal : 0;
 
+    /* ================= GST + TOTAL ================= */
     let totalTaxable = 0;
     let totalGST = 0;
 
     for (const item of items) {
-      const discounted = item.baseAmount * discountRatio;
-      const taxable = item.baseAmount - discounted;
-
+      const taxable = item.baseAmount - item.baseAmount * discountRatio;
       const gst = (taxable * item.gstPercent) / 100;
 
       item.total = round(taxable + gst);
@@ -174,9 +162,10 @@ export async function POST(req) {
       );
     }
 
+    /* ================= ORDER ID ================= */
     const orderId = await generateOrderId();
 
-    /* ================= SAFE ORDER CREATION ================= */
+    /* ================= SAFE ORDER CREATE ================= */
     const orderDoc = await createOrderSafe({
       orderId,
       items,
@@ -202,6 +191,7 @@ export async function POST(req) {
 
       orderDoc.payment = {
         razorpay_order_id: razorpayOrder.id,
+        method: "RAZORPAY",
       };
 
       await orderDoc.save();
