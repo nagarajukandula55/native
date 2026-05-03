@@ -26,14 +26,16 @@ export default function ProductsPage() {
       try {
         if (!p) return;
   
-        const id = p._id || p.productKey;
+        const id = p.mongoId || p._id;
         if (!id) return;
   
         setAddingId(id);
   
         const item = {
           _id: id,                     // ✅ unified key (VERY IMPORTANT)
+          productId: p.mongoId || p._id,
           productKey: p.productKey || id,
+          _id: p.productKey,
           name: p.name || "Product",
           price: Number(p.displayPrice || 0),
           mrp: Number(p.mrp || 0),
