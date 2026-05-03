@@ -14,7 +14,7 @@ const round = (n) => Math.round(n * 100) / 100;
 
 /* ================= PAYMENT CONFIG ================= */
 const PAYMENT_CONFIG = {
-  RAZORPAY: false, // 🔥 DISABLED SAFELY (only change)
+  RAZORPAY: false, // ✅ disabled
   UPI: true,
   COD: true,
   MANUAL: true,
@@ -35,30 +35,36 @@ export async function POST(req) {
       gstNumber = null,
     } = body;
 
-    console.log("🛒 RAW CART:", cart);
+    console.log("🛒 RAW CART:", JSON.stringify(cart, null, 2));
 
-    /* ================= BLOCK RAZORPAY SAFELY ================= */
-    if (paymentMethod === "RAZORPAY" && PAYMENT_CONFIG.RAZORPAY === false) {
+    /* ================= BLOCK RAZORPAY ================= */
+    if (paymentMethod === "RAZORPAY" && !PAYMENT_CONFIG.RAZORPAY) {
       return NextResponse.json(
         {
           success: false,
-          message:
-            "Razorpay is temporarily disabled. Please choose UPI or COD.",
+          message: "Razorpay disabled. Use UPI / COD",
         },
         { status: 400 }
       );
     }
 
-    /* ================= SAFE CART VALIDATION ================= */
+    /* ================= SAFE CART ================= */
     cart = validateCart(cart);
+
+    console.log("✅ CLEANED CART:", cart);
 
     if (!cart.length) {
       return NextResponse.json(
-        { success: false, message: "Cart empty after validation" },
+        {
+          success: false,
+          message: "Cart empty after validation",
+          debug: cart,
+        },
         { status: 400 }
       );
     }
 
+    /* ================= ADDRESS ================= */
     if (!address?.state || !address?.pincode) {
       return NextResponse.json(
         { success: false, message: "Invalid address" },
@@ -71,19 +77,25 @@ export async function POST(req) {
     let items = [];
 
     for (const item of cart) {
-      if (!item.productId) continue;
+      const productId =
+        item.productId || item._id || item.productKey;
+
+      if (!productId) {
+        console.warn("❌ Missing productId:", item);
+        continue;
+      }
 
       let product;
 
       try {
-        product = await Product.findById(item.productId).lean();
+        product = await Product.findById(productId).lean();
       } catch (err) {
-        console.error("Product lookup error:", item.productId, err);
+        console.error("❌ Product lookup error:", productId, err);
         continue;
       }
 
       if (!product) {
-        console.warn("Product missing:", item.productId);
+        console.warn("❌ Product not found:", productId);
         continue;
       }
 
@@ -97,6 +109,7 @@ export async function POST(req) {
       items.push({
         productId: product._id,
         name: product.name,
+        image: product.image || "",
         price,
         qty,
         gstPercent,
@@ -105,9 +118,15 @@ export async function POST(req) {
       });
     }
 
+    console.log("🧾 FINAL ITEMS:", items);
+
     if (!items.length) {
       return NextResponse.json(
-        { success: false, message: "No valid products found" },
+        {
+          success: false,
+          message: "No valid products found",
+          debug: cart,
+        },
         { status: 400 }
       );
     }
@@ -116,10 +135,17 @@ export async function POST(req) {
     let discount = 0;
 
     if (coupon) {
-      const c = await Coupon.findOne({ code: coupon, active: true });
+      try {
+        const c = await Coupon.findOne({
+          code: coupon,
+          active: true,
+        });
 
-      if (c && subtotal >= (c.minOrder || 0)) {
-        discount = Number(c.discount || 0);
+        if (c && subtotal >= (c.minOrder || 0)) {
+          discount = Number(c.discount || 0);
+        }
+      } catch (err) {
+        console.error("Coupon error:", err);
       }
     }
 
@@ -141,6 +167,8 @@ export async function POST(req) {
     }
 
     const finalAmount = round(totalTaxable + totalGST);
+
+    console.log("💰 FINAL AMOUNT:", finalAmount);
 
     if (!isFinite(finalAmount) || finalAmount <= 0) {
       return NextResponse.json(
@@ -168,28 +196,38 @@ export async function POST(req) {
       console.error("Notify failed:", err);
     }
 
-    /* ================= RAZORPAY DISABLED ================= */
+    /* ================= RAZORPAY (DISABLED) ================= */
     let razorpayOrder = null;
 
-    if (paymentMethod === "RAZORPAY" && PAYMENT_CONFIG.RAZORPAY === true) {
-      const razorpay = new Razorpay({
-        key_id: process.env.RAZORPAY_KEY_ID,
-        key_secret: process.env.RAZORPAY_KEY_SECRET,
-      });
+    if (paymentMethod === "RAZORPAY" && PAYMENT_CONFIG.RAZORPAY) {
+      try {
+        const razorpay = new Razorpay({
+          key_id: process.env.RAZORPAY_KEY_ID,
+          key_secret: process.env.RAZORPAY_KEY_SECRET,
+        });
 
-      razorpayOrder = await razorpay.orders.create({
-        amount: Math.round(finalAmount * 100),
-        currency: "INR",
-        receipt: orderId,
-      });
+        razorpayOrder = await razorpay.orders.create({
+          amount: Math.round(finalAmount * 100),
+          currency: "INR",
+          receipt: orderId,
+        });
 
-      orderDoc.payment = {
-        razorpay_order_id: razorpayOrder.id,
-      };
+        orderDoc.payment = {
+          razorpay_order_id: razorpayOrder.id,
+        };
 
-      await orderDoc.save();
+        await orderDoc.save();
+      } catch (err) {
+        console.error("Razorpay error:", err);
+
+        return NextResponse.json(
+          { success: false, message: "Payment gateway error" },
+          { status: 500 }
+        );
+      }
     }
 
+    /* ================= RESPONSE ================= */
     return NextResponse.json({
       success: true,
       orderId: orderDoc.orderId,
@@ -198,7 +236,7 @@ export async function POST(req) {
     });
 
   } catch (err) {
-    console.error("ORDER CREATE ERROR:", err);
+    console.error("🔥 ORDER CREATE ERROR:", err);
 
     return NextResponse.json(
       {
