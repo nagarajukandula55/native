@@ -215,49 +215,63 @@ export default function CheckoutPage() {
   };
 
   /* ================= ORDER ================= */
-  const handleOrder = async () => {
-    if (!form.name || !form.phone || !form.address) {
-      alert("Please fill all details");
+const handleOrder = async () => {
+  if (!form.name || !form.phone || !form.address) {
+    alert("Please fill all details");
+    return;
+  }
+
+  if (!validateGST(form.gstNumber)) {
+    alert("Invalid GST Number");
+    return;
+  }
+
+  try {
+    setLoading(true);
+
+    if (!safeCart.length) {
+      alert("Cart is empty");
       return;
     }
-
-    if (!validateGST(form.gstNumber)) {
-      alert("Invalid GST Number");
-      return;
-    }
-
-    try {
-      setLoading(true);
-
-      if (!safeCart.length) {alert("Cart is empty");return;}
 
     const cleanedCart = safeCart
       .map(item => {
-        const productId = item.productId || item._id || item.product?._id;
-    
+        // ✅ FIX: correct priority
+        const productId =
+          item.product?._id ||   // 🔥 MOST IMPORTANT
+          item.productId ||
+          item._id;
+
         if (!productId) {
           console.error("❌ Missing productId:", item);
-          return null; // 🚨 important
+          return null;
         }
-    
+
         return {
           productId,
           qty: item.qty || 1,
           variant: item.variant || "default"
         };
       })
-      .filter(Boolean); // 🚨 removes nulls
-    
+      .filter(Boolean);
+
     if (!cleanedCart.length) {
       alert("Cart invalid. Please refresh.");
       return;
     }
-    
+
+    // ✅ DEBUG (keep this for now)
+    console.log("🚀 FINAL PAYLOAD:", {
+      cart: cleanedCart,
+      address: form,
+      amount: finalAmount,
+    });
+
     const res = await fetch("/api/orders/create", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        cart: cleanedCart, // ✅ FIXED
+        cart: cleanedCart,
         taxItems,
         address: form,
         email: form.email,
@@ -270,76 +284,85 @@ export default function CheckoutPage() {
       }),
     });
 
-      const data = await res.json();
+    const data = await res.json();
 
-      if (!data.success) {
-        alert("Order failed");
+    if (!data.success) {
+      console.error("❌ ORDER ERROR:", data);
+      alert(data.message || "Order failed");
+      return;
+    }
+
+    const orderId = data.orderId;
+
+    /* ================= RAZORPAY ================= */
+    if (paymentMethod === "RAZORPAY") {
+      if (!data.razorpayOrder) {
+        alert("Razorpay is temporarily disabled. Use UPI.");
         return;
       }
 
-      const orderId = data.orderId;
-      
-      if (paymentMethod === "RAZORPAY") {
-        if (!data.razorpayOrder) {alert("Razorpay is temporarily disabled. Use UPI.");
-        return;}
-        new window.Razorpay({
-          key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-          amount: Math.round(finalAmount * 100),
-          order_id: data.razorpayOrder?.id,
-      
-          handler: async function (response) {
-            try {
-              const verifyRes = await fetch("/api/payment/verify", {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                  razorpay_order_id: response.razorpay_order_id,
-                  razorpay_payment_id: response.razorpay_payment_id,
-                  razorpay_signature: response.razorpay_signature,
-                  orderId: orderId,
-                }),
-              });
-      
-              const verifyData = await verifyRes.json();
-      
-              if (verifyData.success) {
-                setCart([]);
-                closeCart();
-                router.push(`/order-success?orderId=${orderId}`);
-              } else {
-                alert("Payment verification failed ❌");
-              }
-            } catch (err) {
-              console.error("Verify error:", err);
-              alert("Payment verification error");
+      new window.Razorpay({
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+        amount: Math.round(finalAmount * 100),
+        order_id: data.razorpayOrder?.id,
+
+        handler: async function (response) {
+          try {
+            const verifyRes = await fetch("/api/payment/verify", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+                orderId: orderId,
+              }),
+            });
+
+            const verifyData = await verifyRes.json();
+
+            if (verifyData.success) {
+              setCart([]);
+              closeCart();
+              router.push(`/order-success?orderId=${orderId}`);
+            } else {
+              alert("Payment verification failed ❌");
             }
-          },
-        }).open();
-      }
-      
-      if (paymentMethod === "UPI") {
-        const isMobile = /Android|iPhone/i.test(navigator.userAgent);
-      
-        if (isMobile) {
-          setTimeout(() => {
-            window.location.href = upiLink;
-          }, 300);
-        } else {
-          alert("Open on mobile or scan QR to pay 📱");
-        }
-      
+          } catch (err) {
+            console.error("Verify error:", err);
+            alert("Payment verification error");
+          }
+        },
+      }).open();
+    }
+
+    /* ================= UPI ================= */
+    if (paymentMethod === "UPI") {
+      const isMobile = /Android|iPhone/i.test(navigator.userAgent);
+
+      // ✅ IMPORTANT: order already created at this point
+
+      if (isMobile) {
+        // ✅ open UPI first
+        window.location.href = upiLink;
+
+        // ✅ delay navigation (CRITICAL FIX)
+        setTimeout(() => {
+          router.push(`/order-pending?orderId=${orderId}`);
+        }, 1500);
+      } else {
+        alert("Open on mobile or scan QR to pay 📱");
         router.push(`/order-pending?orderId=${orderId}`);
       }
-    } catch (err) {
-      console.error(err);
-      alert("Error placing order");
-    } finally {
-      setLoading(false);
     }
-  };
 
+  } catch (err) {
+    console.error(err);
+    alert("Error placing order");
+  } finally {
+    setLoading(false);
+  }
+};
   return (
     <div className="checkout">
       <div className="box">
