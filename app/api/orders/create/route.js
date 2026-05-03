@@ -6,8 +6,8 @@ import Coupon from "@/models/Coupon";
 import Razorpay from "razorpay";
 import { generateOrderId } from "@/lib/orderId";
 
-/* ================= EMAIL ================= */
-import { sendInvoiceEmail } from "@/lib/notifications/email";
+/* ================= NOTIFICATIONS (HOOK READY) ================= */
+import { notifyOrderEvent } from "@/lib/notifications/notifyOrderEvent";
 
 /* ================= CONFIG ================= */
 const SELLER_STATE = "Andhra Pradesh";
@@ -90,7 +90,6 @@ export async function POST(req) {
       const gstPercent = Number(product.tax || 0);
 
       const baseAmount = price * qty;
-
       subtotal += baseAmount;
 
       items.push({
@@ -132,23 +131,24 @@ export async function POST(req) {
     }
 
     /* ================= GST MODE ================= */
-    const sellerCode = STATE_CODE_MAP[SELLER_STATE];
+    const sellerCode = STATE_CODE_MAP[SELLER_STATE] || null;
 
-    let buyerCode = address.state
+    const buyerCode = address?.state
       ? STATE_CODE_MAP[address.state]
       : null;
 
-    if (gstNumber) {
-      buyerCode = gstStateCode;
-    }
+    const gstOverrideCode = gstNumber ? gstStateCode : null;
 
-    const isInterState = sellerCode && buyerCode
-      ? sellerCode !== buyerCode
-      : false;
+    const finalBuyerCode = gstOverrideCode || buyerCode;
+
+    const isInterState =
+      sellerCode && finalBuyerCode
+        ? sellerCode !== finalBuyerCode
+        : false;
 
     const gstMode = isInterState ? "IGST" : "CGST_SGST";
 
-    /* ================= DISCOUNT ================= */
+    /* ================= DISCOUNT DISTRIBUTION ================= */
     const discountRatio = subtotal > 0 ? discount / subtotal : 0;
 
     let totalTaxable = 0;
@@ -234,12 +234,11 @@ export async function POST(req) {
       status: "PENDING_PAYMENT",
     });
 
-    /* ================= EMAIL TRIGGER (IMPORTANT) ================= */
+    /* ================= NOTIFICATION HOOK (SAFE) ================= */
     try {
-      await sendInvoiceEmail(orderDoc);
-    } catch (emailErr) {
-      console.error("EMAIL FAILED:", emailErr);
-      // DO NOT fail order if email fails
+      await notifyOrderEvent(orderDoc, null);
+    } catch (notifyErr) {
+      console.error("NOTIFICATION FAILED:", notifyErr);
     }
 
     /* ================= RAZORPAY ================= */
