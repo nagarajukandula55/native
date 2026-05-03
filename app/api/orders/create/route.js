@@ -7,16 +7,19 @@ import Razorpay from "razorpay";
 import { generateOrderId } from "@/lib/orderId";
 
 import { notifyOrderEvent } from "@/lib/notifications/notifyOrderEvent";
+import { validateCart } from "@/lib/validators/validateCart";
 
+/* ================= HELPERS ================= */
 const round = (n) => Math.round(n * 100) / 100;
 
+/* ================= MAIN API ================= */
 export async function POST(req) {
   try {
     await dbConnect();
 
     const body = await req.json();
 
-    const {
+    let {
       cart = [],
       address = {},
       coupon = null,
@@ -24,12 +27,14 @@ export async function POST(req) {
       gstNumber = null,
     } = body;
 
-    console.log("🛒 CART RECEIVED:", cart);
+    console.log("🛒 RAW CART:", cart);
 
-    /* ================= VALIDATION (UNCHANGED) ================= */
-    if (!Array.isArray(cart) || cart.length === 0) {
+    /* ================= SAFE CART VALIDATION ================= */
+    cart = validateCart(cart);
+
+    if (!cart.length) {
       return NextResponse.json(
-        { success: false, message: "Cart is empty or invalid format" },
+        { success: false, message: "Cart empty after validation" },
         { status: 400 }
       );
     }
@@ -41,22 +46,24 @@ export async function POST(req) {
       );
     }
 
-    /* ================= BUILD ITEMS (FIXED SAFELY) ================= */
+    /* ================= BUILD ITEMS ================= */
     let subtotal = 0;
     let items = [];
 
     for (const item of cart) {
-      const productId = item.productId || item._id;
+      if (!item.productId) continue;
 
-      if (!productId) {
-        console.error("❌ Missing productId:", item);
+      let product;
+
+      try {
+        product = await Product.findById(item.productId).lean();
+      } catch (err) {
+        console.error("Product lookup error:", item.productId, err);
         continue;
       }
 
-      const product = await Product.findById(productId).lean();
-
       if (!product) {
-        console.error("❌ Product not found:", productId);
+        console.warn("Product missing:", item.productId);
         continue;
       }
 
@@ -70,182 +77,106 @@ export async function POST(req) {
       items.push({
         productId: product._id,
         name: product.name,
-        sku: product.productKey || "",
-        hsn: product.hsn || "NA",
-
         price,
         qty,
         gstPercent,
-
         baseAmount,
-
-        discountAllocated: 0,
-        taxableAmount: 0,
-
-        cgst: 0,
-        sgst: 0,
-        igst: 0,
-
         total: 0,
       });
     }
 
-    /* ================= IMPORTANT FIX ================= */
-    if (items.length === 0) {
+    if (!items.length) {
       return NextResponse.json(
-        {
-          success: false,
-          message: "No valid products found in cart",
-        },
+        { success: false, message: "No valid products found" },
         { status: 400 }
       );
     }
 
-    /* ================= COUPON (UNCHANGED) ================= */
+    /* ================= COUPON ================= */
     let discount = 0;
 
     if (coupon) {
       const c = await Coupon.findOne({ code: coupon, active: true });
 
-      if (
-        c &&
-        (!c.expiry || new Date(c.expiry) > new Date()) &&
-        subtotal >= (c.minOrder || 0)
-      ) {
+      if (c && subtotal >= (c.minOrder || 0)) {
         discount = Number(c.discount || 0);
       }
     }
 
-    /* ================= GST (UNCHANGED LOGIC) ================= */
-    const STATE_CODE_MAP = {
-      "Andhra Pradesh": "37",
-      "Tamil Nadu": "33",
-      "Karnataka": "29",
-      "Telangana": "36",
-    };
-
-    const SELLER_STATE = "Andhra Pradesh";
-
-    const sellerCode = STATE_CODE_MAP[SELLER_STATE];
-    const buyerCode = address?.state ? STATE_CODE_MAP[address.state] : null;
-
-    const gstStateCode = gstNumber ? gstNumber.slice(0, 2) : null;
-
-    const finalBuyerCode = gstStateCode || buyerCode;
-
-    const isInterState =
-      sellerCode && finalBuyerCode
-        ? sellerCode !== finalBuyerCode
-        : false;
-
-    const gstMode = isInterState ? "IGST" : "CGST_SGST";
-
-    /* ================= TAX CALC (UNCHANGED) ================= */
-    const discountRatio = subtotal > 0 ? discount / subtotal : 0;
+    const discountRatio = subtotal ? discount / subtotal : 0;
 
     let totalTaxable = 0;
-    let cgstTotal = 0;
-    let sgstTotal = 0;
-    let igstTotal = 0;
+    let totalGST = 0;
 
     for (let item of items) {
-      const itemDiscount = item.baseAmount * discountRatio;
-      const taxable = item.baseAmount - itemDiscount;
+      const discounted = item.baseAmount * discountRatio;
+      const taxable = item.baseAmount - discounted;
 
-      const gstValue = (taxable * item.gstPercent) / 100;
+      const gst = (taxable * item.gstPercent) / 100;
 
-      let cgst = 0, sgst = 0, igst = 0;
-
-      if (isInterState) {
-        igst = gstValue;
-      } else {
-        cgst = gstValue / 2;
-        sgst = gstValue / 2;
-      }
-
-      const total = taxable + gstValue;
-
-      item.discountAllocated = round(itemDiscount);
-      item.taxableAmount = round(taxable);
-
-      item.cgst = round(cgst);
-      item.sgst = round(sgst);
-      item.igst = round(igst);
-
-      item.total = round(total);
+      item.total = round(taxable + gst);
 
       totalTaxable += taxable;
-      cgstTotal += cgst;
-      sgstTotal += sgst;
-      igstTotal += igst;
+      totalGST += gst;
     }
 
-    const finalAmount = round(totalTaxable + cgstTotal + sgstTotal + igstTotal);
+    const finalAmount = round(totalTaxable + totalGST);
 
-    if (finalAmount <= 0) {
+    if (!isFinite(finalAmount) || finalAmount <= 0) {
       return NextResponse.json(
-        { success: false, message: "Invalid amount" },
+        { success: false, message: "Invalid amount calculated" },
         { status: 400 }
       );
     }
 
-    /* ================= ORDER ================= */
     const orderId = await generateOrderId();
 
+    /* ================= ORDER ================= */
     const orderDoc = await Order.create({
       orderId,
       items,
       amount: finalAmount,
-
-      billing: {
-        subtotal,
-        discount,
-        taxableAmount: totalTaxable,
-        cgst: cgstTotal,
-        sgst: sgstTotal,
-        igst: igstTotal,
-        total: finalAmount,
-        itemCount: items.reduce((a, b) => a + b.qty, 0),
-      },
-
-      gstDetails: {
-        gstNumber,
-        gstType: gstNumber ? "B2B" : "B2C",
-        gstMode,
-        isInterState,
-      },
-
       address,
-      paymentMethod,
       status: "PENDING_PAYMENT",
+      paymentMethod,
     });
 
+    /* ================= NOTIFY ================= */
     try {
       await notifyOrderEvent(orderDoc, null);
     } catch (err) {
       console.error("Notify failed:", err);
     }
 
-    /* ================= RAZORPAY ================= */
+    /* ================= RAZORPAY SAFE ================= */
     let razorpayOrder = null;
 
     if (paymentMethod === "RAZORPAY") {
-      const razorpay = new Razorpay({
-        key_id: process.env.RAZORPAY_KEY_ID,
-        key_secret: process.env.RAZORPAY_KEY_SECRET,
-      });
+      try {
+        const razorpay = new Razorpay({
+          key_id: process.env.RAZORPAY_KEY_ID,
+          key_secret: process.env.RAZORPAY_KEY_SECRET,
+        });
 
-      razorpayOrder = await razorpay.orders.create({
-        amount: Math.round(finalAmount * 100),
-        currency: "INR",
-        receipt: orderId,
-      });
+        razorpayOrder = await razorpay.orders.create({
+          amount: Math.round(finalAmount * 100),
+          currency: "INR",
+          receipt: orderId,
+        });
 
-      orderDoc.payment = {
-        razorpay_order_id: razorpayOrder.id,
-      };
+        orderDoc.payment = {
+          razorpay_order_id: razorpayOrder.id,
+        };
 
-      await orderDoc.save();
+        await orderDoc.save();
+      } catch (err) {
+        console.error("Razorpay create failed:", err);
+
+        return NextResponse.json(
+          { success: false, message: "Payment gateway error" },
+          { status: 500 }
+        );
+      }
     }
 
     return NextResponse.json({
@@ -259,7 +190,10 @@ export async function POST(req) {
     console.error("ORDER CREATE ERROR:", err);
 
     return NextResponse.json(
-      { success: false, message: err.message || "Order failed" },
+      {
+        success: false,
+        message: err.message || "Order creation failed",
+      },
       { status: 500 }
     );
   }
