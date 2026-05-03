@@ -11,7 +11,7 @@ export default function ANuDashboard() {
     setLoading(true);
 
     const res = await fetch(
-      "https://YOUR-RENDER-URL.onrender.com/anu/analyze",
+      "https://native-3u3v.onrender.com//anu/analyze",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -30,7 +30,7 @@ export default function ANuDashboard() {
 
   const createPR = async () => {
     const res = await fetch(
-      "https://YOUR-RENDER-URL.onrender.com/anu/create-pr",
+      "https://native-3u3v.onrender.com//anu/create-pr",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
