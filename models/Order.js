@@ -19,6 +19,8 @@ const WarehouseSchema = new mongoose.Schema({
   assignedTo: String,
   packedAt: Date,
   dispatchedAt: Date,
+  outForDeliveryAt: Date,
+  deliveredAt: Date,
 });
 
 /* ================= RECEIPT ================= */
