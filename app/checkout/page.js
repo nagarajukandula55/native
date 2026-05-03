@@ -248,7 +248,7 @@ const handleOrder = async () => {
         }
 
         return {
-          productId,
+          productId: item.productId,   // MUST be Mongo ID
           qty: item.qty || 1,
           variant: item.variant || "default"
         };
