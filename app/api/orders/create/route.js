@@ -84,15 +84,21 @@ export async function POST(req) {
         continue;
       }
 
-      let product;
+      let product = null;
 
       try {
-        // ✅ Try Mongo ID
+        // ✅ Try Mongo _id first
         product = await Product.findById(productId).lean();
+      } catch (err) {
+        console.warn("⚠️ Not a valid ObjectId, trying productKey...");
+      }
 
+      try {
         // ✅ Fallback to productKey
         if (!product) {
-          product = await Product.findOne({ productKey: productId }).lean();
+          product = await Product.findOne({
+            productKey: productId,
+          }).lean();
         }
       } catch (err) {
         console.error("❌ Product lookup error:", productId, err);
@@ -105,7 +111,13 @@ export async function POST(req) {
       }
 
       const qty = Math.max(Number(item.qty || 1), 1);
-      const price = Number(product.price || 0);
+
+      // 🔥 IMPORTANT FIX (your schema uses variants)
+      const price =
+        Number(product?.primaryVariant?.sellingPrice) ||
+        Number(product.price) ||
+        0;
+
       const gstPercent = Number(product.tax || 0);
 
       const baseAmount = price * qty;
@@ -114,7 +126,10 @@ export async function POST(req) {
       items.push({
         productId: product._id,
         name: product.name,
-        image: product.image || "",
+        image:
+          product.primaryImage ||
+          product.images?.[0] ||
+          "",
         price,
         qty,
         gstPercent,
@@ -190,7 +205,7 @@ export async function POST(req) {
       items,
       amount: finalAmount,
       address,
-      status: "PENDING_PAYMENT",
+      status: "PENDING_PAYMENT", // ✅ UPI will stay pending
       paymentMethod,
     });
 
