@@ -231,34 +231,44 @@ export default function CheckoutPage() {
 
       if (!safeCart.length) {alert("Cart is empty");return;}
 
-      const res = await fetch("/api/orders/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          cart: safeCart.map(item => {
-            const productId = item.productId || item._id || item.product?._id;
-          
-            if (!productId) {
-              console.error("Missing productId:", item);
-            }
-          
-            return {
-              productId,
-              qty: item.qty || 1,
-              variant: item.variant || "default"
-            };
-          }),
-          taxItems,
-          address: form,
-          email: form.email,
-          coupon,
-          discount,
-          paymentMethod,
-          gstType: form.gstNumber ? "B2B" : "B2C",
-          gstMode: isInterState ? "IGST" : "CGST_SGST",
-          amount: finalAmount,
-        }),
-      });
+    const cleanedCart = safeCart
+      .map(item => {
+        const productId = item.productId || item._id || item.product?._id;
+    
+        if (!productId) {
+          console.error("❌ Missing productId:", item);
+          return null; // 🚨 important
+        }
+    
+        return {
+          productId,
+          qty: item.qty || 1,
+          variant: item.variant || "default"
+        };
+      })
+      .filter(Boolean); // 🚨 removes nulls
+    
+    if (!cleanedCart.length) {
+      alert("Cart invalid. Please refresh.");
+      return;
+    }
+    
+    const res = await fetch("/api/orders/create", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        cart: cleanedCart, // ✅ FIXED
+        taxItems,
+        address: form,
+        email: form.email,
+        coupon,
+        discount,
+        paymentMethod,
+        gstType: form.gstNumber ? "B2B" : "B2C",
+        gstMode: isInterState ? "IGST" : "CGST_SGST",
+        amount: finalAmount,
+      }),
+    });
 
       const data = await res.json();
 
