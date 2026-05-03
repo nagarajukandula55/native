@@ -5,7 +5,7 @@ import { useCart } from "@/context/CartContext";
 import { useRouter } from "next/navigation";
 import QRCode from "react-qr-code";
 
-const UPI_ID = "9000528462@ybl";
+const UPI_ID = "nraj.k55@ybl";
 const UPI_NAME = "Native";
 const SELLER_STATE = "Andhra Pradesh";
 
