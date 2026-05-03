@@ -49,6 +49,17 @@ export default function InvoicePage() {
         <button onClick={() => window.open(`/api/invoice/${id}`)}>
           ⬇ Download PDF
         </button>
+        <button
+          onClick={() => resendEmail(o._id)}
+        >
+          Resend Email
+        </button>
+        
+        <button
+          onClick={() => resendWhatsApp(o._id)}
+        >
+          Resend WhatsApp
+        </button>
       </div>
 
       <div className="invoice">
