@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { safePlugin } from "@/lib/mongoose/safePlugin";
 
 /* ================= ORDER ITEM ================= */
 const OrderItemSchema = new mongoose.Schema(
@@ -179,6 +180,9 @@ const OrderSchema = new mongoose.Schema(
     /* 🔥 SAFETY FIX (prevents strict crash on unknown fields) */
     strict: true,
   }
+  
+  OrderSchema.plugin(safePlugin);
+
 );
 
 /* ================= SAFE EXPORT ================= */
