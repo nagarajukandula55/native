@@ -9,6 +9,8 @@ import { generateOrderId } from "@/lib/orderId";
 import { notifyOrderEvent } from "@/lib/notifications/notifyOrderEvent";
 import { validateCart } from "@/lib/validators/validateCart";
 
+import { createOrderSafe } from "@/lib/safe/createOrderSafe";
+
 /* ================= HELPERS ================= */
 const round = (n) => Math.round(n * 100) / 100;
 
@@ -200,27 +202,12 @@ export async function POST(req) {
     const orderId = await generateOrderId();
 
     /* ================= CREATE ORDER ================= */
-    const orderDoc = await Order.create({
+    const orderDoc = await createOrderSafe({
       orderId,
       items,
       amount: finalAmount,
-    
-      address: {
-        name: address?.name || "",
-        phone: address?.phone || "",
-        email: address?.email || "",
-        address: address?.address || "",
-        city: address?.city || "",
-        state: address?.state || "",
-        pincode: address?.pincode || "",
-        gstNumber: address?.gstNumber || null,
-      },
-    
-      status: "PENDING_PAYMENT",
-    
-      payment: {
-        method: paymentMethod,
-      },
+      address,
+      paymentMethod,
     });
 
     /* ================= NOTIFICATION ================= */
