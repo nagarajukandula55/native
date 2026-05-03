@@ -2,14 +2,6 @@ import dbConnect from "@/lib/db";
 import Order from "@/models/Order";
 import AuditLog from "@/models/AuditLog";
 
-  await AuditLog.create({
-    orderId: order.orderId,
-    action: "STATUS_CHANGE",
-    from: order.status,
-    to: status,
-    performedBy: "ADMIN",
-  });
-
 /* ================= CORE STATUS HANDLER ================= */
 async function handleStatusChange(order, newStatus) {
   const now = new Date();
@@ -37,18 +29,15 @@ async function handleStatusChange(order, newStatus) {
       const { sendInvoiceEmail } = await import("@/lib/notifications/email");
       const { sendWhatsAppInvoice } = await import("@/lib/notifications/whatsapp");
 
-      /* ================= GENERATE INVOICE ================= */
       if (!order.invoiceHTML) {
         order.invoiceHTML = generateInvoiceHTML(order.toObject());
       }
 
-      /* ================= EMAIL (IDEMPOTENT) ================= */
       if (!order.invoiceSentAt) {
         await sendInvoiceEmail(order);
         order.invoiceSentAt = now;
       }
 
-      /* ================= WHATSAPP (IDEMPOTENT) ================= */
       if (!order.whatsappInvoiceSentAt) {
         await sendWhatsAppInvoice(order);
         order.whatsappInvoiceSentAt = now;
@@ -108,6 +97,16 @@ export async function POST(req) {
 
     /* ================= BUSINESS LOGIC ================= */
     await handleStatusChange(order, status);
+
+    /* ================= AUDIT LOG (FIXED LOCATION) ================= */
+    await AuditLog.create({
+      orderId: order.orderId,
+      action: "STATUS_CHANGE",
+      from: previousStatus,
+      to: status,
+      performedBy: "ADMIN",
+      createdAt: new Date(),
+    });
 
     /* ================= SAVE ================= */
     await order.save();
