@@ -8,6 +8,8 @@ import { generateOrderId } from "@/lib/orderId";
 import { validateCart } from "@/lib/validators/validateCart";
 import { createOrderSafe } from "@/lib/safe/createOrderSafe";
 
+import mongoose from "mongoose";
+
 /* ================= HELPERS ================= */
 const round = (n) => Math.round(n * 100) / 100;
 
@@ -83,9 +85,19 @@ export async function POST(req) {
 
       if (!productId) continue;
 
-      let product =
-        (await Product.findById(productId).lean()) ||
-        (await Product.findOne({ productKey: productId }).lean());
+      let product = null;
+      
+      // 1️⃣ Try ObjectId ONLY if valid
+      if (mongoose.Types.ObjectId.isValid(productId)) {
+        product = await Product.findById(productId).lean();
+      }
+      
+      // 2️⃣ fallback → SKU lookup
+      if (!product) {
+        product = await Product.findOne({
+          productKey: productId,
+        }).lean();
+      }
 
       if (!product) continue;
 
