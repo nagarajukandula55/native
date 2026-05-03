@@ -12,6 +12,14 @@ import { validateCart } from "@/lib/validators/validateCart";
 /* ================= HELPERS ================= */
 const round = (n) => Math.round(n * 100) / 100;
 
+/* ================= PAYMENT CONFIG ================= */
+const PAYMENT_CONFIG = {
+  RAZORPAY: false,   // 🚫 disabled safely
+  UPI: true,
+  COD: true,
+  MANUAL: true,
+};
+
 /* ================= MAIN API ================= */
 export async function POST(req) {
   try {
@@ -28,6 +36,17 @@ export async function POST(req) {
     } = body;
 
     console.log("🛒 RAW CART:", cart);
+
+    /* ================= BLOCK RAZORPAY EARLY ================= */
+    if (paymentMethod === "RAZORPAY" && !PAYMENT_CONFIG.RAZORPAY) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Razorpay is temporarily disabled. Please use UPI or COD.",
+        },
+        { status: 400 }
+      );
+    }
 
     /* ================= SAFE CART VALIDATION ================= */
     cart = validateCart(cart);
@@ -148,10 +167,10 @@ export async function POST(req) {
       console.error("Notify failed:", err);
     }
 
-    /* ================= RAZORPAY SAFE ================= */
+    /* ================= RAZORPAY (DISABLED SAFELY) ================= */
     let razorpayOrder = null;
 
-    if (paymentMethod === "RAZORPAY") {
+    if (paymentMethod === "RAZORPAY" && PAYMENT_CONFIG.RAZORPAY) {
       try {
         const razorpay = new Razorpay({
           key_id: process.env.RAZORPAY_KEY_ID,
@@ -183,7 +202,7 @@ export async function POST(req) {
       success: true,
       orderId: orderDoc.orderId,
       amount: orderDoc.amount,
-      razorpayOrder,
+      razorpayOrder, // will be null now
     });
 
   } catch (err) {
