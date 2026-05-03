@@ -204,11 +204,22 @@ export async function POST(req) {
       orderId,
       items,
       amount: finalAmount,
-      address,
+    
+      address: {
+        name: address?.name || "",
+        phone: address?.phone || "",
+        email: address?.email || "",
+        address: address?.address || "",
+        city: address?.city || "",
+        state: address?.state || "",
+        pincode: address?.pincode || "",
+        gstNumber: address?.gstNumber || null,
+      },
+    
       status: "PENDING_PAYMENT",
     
       payment: {
-        method: paymentMethod, // ✅ FIX HERE
+        method: paymentMethod,
       },
     });
 
