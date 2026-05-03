@@ -45,6 +45,7 @@ export async function GET(req) {
       {
         $group: {
           _id: "$productKey",
+          mongoId: { $first: "$_id" }, // ✅ preserve real ID
 
           name: { $first: "$name" },
           productKey: { $first: "$productKey" },
