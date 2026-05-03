@@ -1,6 +1,9 @@
 import dbConnect from "@/lib/db";
 import Order from "@/models/Order";
 
+order.status = "DISPATCHED";
+order.dispatchedAt = new Date();
+
 /* ================= CORE STATUS HANDLER ================= */
 async function handleStatusChange(order, newStatus) {
   let changed = false;
