@@ -51,7 +51,7 @@ export default function CheckoutPage() {
     gstNumber: "", // ✅ added back
   });
 
-  const [paymentMethod, setPaymentMethod] = useState("razorpay");
+  const [paymentMethod, setPaymentMethod] = useState("RAZORPAY");
   const [coupon, setCoupon] = useState("");
   const [discount, setDiscount] = useState(0);
 
@@ -170,9 +170,12 @@ export default function CheckoutPage() {
 
   const finalAmount = subtotal + gstTotal - discount;
 
-  const upiLink = `upi://pay?pa=${UPI_ID}&pn=${UPI_NAME}&am=${finalAmount.toFixed(
-    2
-  )}&cu=INR`;
+  const upiLink = `upi://pay?pa=${encodeURIComponent(UPI_ID)}&pn=${encodeURIComponent(UPI_NAME)}&am=${Number(finalAmount).toFixed(2)}&cu=INR`;
+  const upiApps = {
+    gpay: `tez://upi/pay?pa=${UPI_ID}&pn=${UPI_NAME}&am=${finalAmount.toFixed(2)}&cu=INR`,
+    phonepe: `phonepe://pay?pa=${UPI_ID}&pn=${UPI_NAME}&am=${finalAmount.toFixed(2)}&cu=INR`,
+    paytm: `paytmmp://pay?pa=${UPI_ID}&pn=${UPI_NAME}&am=${finalAmount.toFixed(2)}&cu=INR`,
+  };
 
   const verifyGST = async () => {
     if (!form.gstNumber) return;
@@ -252,7 +255,7 @@ export default function CheckoutPage() {
 
       const orderId = data.orderId;
       
-      if (paymentMethod === "razorpay") {
+      if (paymentMethod === "RAZORPAY") {
         new window.Razorpay({
           key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
           amount: Math.round(finalAmount * 100),
@@ -290,8 +293,17 @@ export default function CheckoutPage() {
         }).open();
       }
       
-      if (paymentMethod === "upi") {
-        window.location.href = upiLink;
+      if (paymentMethod === "UPI") {
+        const isMobile = /Android|iPhone/i.test(navigator.userAgent);
+      
+        if (isMobile) {
+          setTimeout(() => {
+            window.location.href = upiLink;
+          }, 300);
+        } else {
+          alert("Open on mobile or scan QR to pay 📱");
+        }
+      
         router.push(`/order-pending?orderId=${orderId}`);
       }
     } catch (err) {
@@ -330,8 +342,8 @@ export default function CheckoutPage() {
         <label>
           <input
             type="radio"
-            checked={paymentMethod === "razorpay"}
-            onChange={() => setPaymentMethod("razorpay")}
+            checked={paymentMethod === "RAZORPAY"}
+            onChange={() => setPaymentMethod("RAZORPAY")}
           />
           Razorpay
         </label>
@@ -339,8 +351,8 @@ export default function CheckoutPage() {
         <label>
           <input
             type="radio"
-            checked={paymentMethod === "upi"}
-            onChange={() => setPaymentMethod("upi")}
+            checked={paymentMethod === "UPI"}
+            onChange={() => setPaymentMethod("UPI")}
           />
           UPI
         </label>
@@ -420,7 +432,19 @@ export default function CheckoutPage() {
         {paymentMethod === "upi" && (
           <div>
             <QRCode value={upiLink} />
-            <a href={upiLink} className="btn">Open UPI App</a>
+            <a
+                href={upiLink}
+                className="btn"
+                onClick={(e) => {
+                  const isMobile = /Android|iPhone/i.test(navigator.userAgent);
+                  if (!isMobile) {
+                    e.preventDefault();
+                    alert("Open this on your mobile to complete payment 📱");
+                  }
+                }}
+              >
+                Open UPI App
+              </a>
           </div>
         )}
       </div>
