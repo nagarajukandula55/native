@@ -14,9 +14,26 @@ export async function POST(req) {
     await dbConnect();
 
     const rawBody = await req.text();
-    const signature = req.headers.get("x-razorpay-signature");
+    let event;
 
+    try {
+      event = JSON.parse(rawBody);
+    } catch (err) {
+      return NextResponse.json(
+        { success: false, message: "Invalid JSON payload" },
+        { status: 400 }
+      );
+    }
+
+    const signature = req.headers.get("x-razorpay-signature");
     const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
+
+    if (!secret) {
+      return NextResponse.json(
+        { success: false, message: "Webhook secret not configured" },
+        { status: 500 }
+      );
+    }
 
     /* ================= VERIFY SIGNATURE ================= */
     const expectedSignature = crypto
@@ -26,12 +43,10 @@ export async function POST(req) {
 
     const isValidSignature = expectedSignature === signature;
 
-    const event = JSON.parse(rawBody);
-
-    /* ================= SAVE WEBHOOK LOG (ALWAYS FIRST) ================= */
+    /* ================= LOG WEBHOOK ================= */
     const log = await WebhookLog.create({
       provider: "razorpay",
-      event: event.event,
+      event: event?.event || "unknown",
       payload: event,
       signatureValid: isValidSignature,
       status: "RECEIVED",
@@ -48,7 +63,7 @@ export async function POST(req) {
       );
     }
 
-    /* ================= ONLY HANDLE PAYMENT SUCCESS ================= */
+    /* ================= ONLY PAYMENT SUCCESS ================= */
     if (event.event !== "payment.captured") {
       log.status = "PROCESSED";
       await log.save();
@@ -56,7 +71,19 @@ export async function POST(req) {
       return NextResponse.json({ success: true });
     }
 
-    const payment = event.payload.payment.entity;
+    const payment = event?.payload?.payment?.entity;
+
+    if (!payment?.order_id) {
+      log.status = "FAILED";
+      log.error = "Missing order_id in payment payload";
+      await log.save();
+
+      return NextResponse.json(
+        { success: false, message: "Invalid payload" },
+        { status: 400 }
+      );
+    }
+
     const razorpayOrderId = payment.order_id;
 
     /* ================= FIND ORDER ================= */
@@ -75,10 +102,10 @@ export async function POST(req) {
       );
     }
 
-    /* ================= DUPLICATE PROTECTION ================= */
+    /* ================= IDENTITY CHECK (HARD STOP DUPLICATES) ================= */
     if (order.status === "PAID") {
       log.status = "PROCESSED";
-      log.error = "Duplicate webhook ignored (already PAID)";
+      log.error = "Duplicate webhook ignored (order already PAID)";
       await log.save();
 
       return NextResponse.json({
@@ -101,6 +128,7 @@ export async function POST(req) {
 
     await order.save();
 
+    /* ================= UPDATE LOG ================= */
     log.status = "PROCESSED";
     log.orderId = order.orderId;
     await log.save();
@@ -111,11 +139,15 @@ export async function POST(req) {
     } catch (notifyErr) {
       console.error("NOTIFY ERROR:", notifyErr);
 
-      // fallback queue (retry system)
+      /* ================= FALLBACK QUEUE ================= */
       await NotificationQueue.create({
         type: "EMAIL",
         orderId: order.orderId,
-        payload: order,
+        payload: {
+          orderId: order.orderId,
+          email: order.address?.email,
+          amount: order.amount,
+        },
         attempts: 0,
         status: "PENDING",
       });
