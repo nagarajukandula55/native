@@ -14,7 +14,7 @@ const round = (n) => Math.round(n * 100) / 100;
 
 /* ================= PAYMENT CONFIG ================= */
 const PAYMENT_CONFIG = {
-  RAZORPAY: false, // ✅ disabled
+  RAZORPAY: false,
   UPI: true,
   COD: true,
   MANUAL: true,
@@ -50,7 +50,6 @@ export async function POST(req) {
 
     /* ================= SAFE CART ================= */
     cart = validateCart(cart);
-
     console.log("✅ CLEANED CART:", cart);
 
     if (!cart.length) {
@@ -88,18 +87,20 @@ export async function POST(req) {
       let product;
 
       try {
+        // ✅ Try Mongo ID
         product = await Product.findById(productId).lean();
+
+        // ✅ Fallback to productKey
+        if (!product) {
+          product = await Product.findOne({ productKey: productId }).lean();
+        }
       } catch (err) {
         console.error("❌ Product lookup error:", productId, err);
         continue;
       }
 
       if (!product) {
-        product = await Product.findOne({ productKey: productId }).lean();
-      }
-
-      } catch (err) {
-        console.error("❌ Product lookup error:", productId, err);
+        console.warn("❌ Product not found:", productId);
         continue;
       }
 
@@ -200,7 +201,7 @@ export async function POST(req) {
       console.error("Notify failed:", err);
     }
 
-    /* ================= RAZORPAY (DISABLED) ================= */
+    /* ================= RAZORPAY ================= */
     let razorpayOrder = null;
 
     if (paymentMethod === "RAZORPAY" && PAYMENT_CONFIG.RAZORPAY) {
