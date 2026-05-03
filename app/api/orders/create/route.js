@@ -10,21 +10,9 @@ import { generateOrderId } from "@/lib/orderId";
 import { notifyOrderEvent } from "@/lib/notifications/notifyOrderEvent";
 
 /* ================= CONFIG ================= */
-const SELLER_STATE = "Andhra Pradesh";
-
-const STATE_CODE_MAP = {
-  "Andhra Pradesh": "37",
-  "Tamil Nadu": "33",
-  "Karnataka": "29",
-  "Telangana": "36",
-};
-
-/* ================= HELPERS ================= */
 const round = (n) => Math.round(n * 100) / 100;
 
-const GST_REGEX =
-  /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[A-Z0-9]{3}$/;
-
+/* ================= MAIN API ================= */
 export async function POST(req) {
   try {
     await dbConnect();
@@ -39,31 +27,47 @@ export async function POST(req) {
       gstNumber = null,
     } = body;
 
+    console.log("🛒 CART RECEIVED:", JSON.stringify(cart, null, 2));
+
     /* ================= VALIDATION ================= */
-    if (!cart.length) {
-      return NextResponse.json({ success: false, message: "Cart empty" }, { status: 400 });
+    if (!Array.isArray(cart) || cart.length === 0) {
+      return NextResponse.json(
+        { success: false, message: "Cart is empty or invalid format" },
+        { status: 400 }
+      );
     }
 
     if (!address?.state || !address?.pincode) {
-      return NextResponse.json({ success: false, message: "Invalid address" }, { status: 400 });
+      return NextResponse.json(
+        { success: false, message: "Invalid address" },
+        { status: 400 }
+      );
     }
 
-    /* ================= ITEMS ================= */
+    /* ================= BUILD ITEMS ================= */
     let subtotal = 0;
     let items = [];
 
     for (const item of cart) {
-      if (!item.productId) continue;
+      const productId = item.productId || item._id; // 🔥 FIX for your frontend bug
 
-      let product;
-      try {
-        product = await Product.findById(item.productId).lean();
-      } catch (e) {
-        console.error("Product fetch error:", e);
+      if (!productId) {
+        console.log("❌ Missing productId:", item);
         continue;
       }
 
-      if (!product) continue;
+      let product;
+      try {
+        product = await Product.findById(productId).lean();
+      } catch (err) {
+        console.error("Product fetch error:", err);
+        continue;
+      }
+
+      if (!product) {
+        console.log("❌ Product not found:", productId);
+        continue;
+      }
 
       const qty = Math.max(Number(item.qty || 1), 1);
       const price = Number(product.price || 0);
@@ -83,8 +87,12 @@ export async function POST(req) {
       });
     }
 
-    if (!items.length) {
-      return NextResponse.json({ success: false, message: "No valid products" }, { status: 400 });
+    /* ================= VALIDATION ================= */
+    if (items.length === 0) {
+      return NextResponse.json(
+        { success: false, message: "No valid products found in cart" },
+        { status: 400 }
+      );
     }
 
     /* ================= COUPON ================= */
@@ -97,19 +105,20 @@ export async function POST(req) {
         if (c && subtotal >= (c.minOrder || 0)) {
           discount = Number(c.discount || 0);
         }
-      } catch (e) {
-        console.error("Coupon error:", e);
+      } catch (err) {
+        console.error("Coupon error:", err);
       }
     }
 
-    const discountRatio = subtotal ? discount / subtotal : 0;
+    const discountRatio = subtotal > 0 ? discount / subtotal : 0;
 
+    /* ================= TOTAL CALC ================= */
     let totalTaxable = 0;
     let totalGST = 0;
 
     for (let item of items) {
-      const discounted = item.baseAmount * discountRatio;
-      const taxable = item.baseAmount - discounted;
+      const discountAmount = item.baseAmount * discountRatio;
+      const taxable = item.baseAmount - discountAmount;
 
       const gst = (taxable * item.gstPercent) / 100;
 
@@ -119,19 +128,23 @@ export async function POST(req) {
       totalGST += gst;
     }
 
-    const finalAmount = totalTaxable + totalGST;
+    const finalAmount = round(totalTaxable + totalGST);
 
     if (finalAmount <= 0) {
-      return NextResponse.json({ success: false, message: "Invalid amount" }, { status: 400 });
+      return NextResponse.json(
+        { success: false, message: "Invalid order amount" },
+        { status: 400 }
+      );
     }
 
+    /* ================= ORDER ID ================= */
     const orderId = await generateOrderId();
 
-    /* ================= ORDER CREATE ================= */
+    /* ================= CREATE ORDER ================= */
     const orderDoc = await Order.create({
       orderId,
       items,
-      amount: round(finalAmount),
+      amount: finalAmount,
       address,
       status: "PENDING_PAYMENT",
       paymentMethod,
@@ -141,7 +154,7 @@ export async function POST(req) {
     try {
       await notifyOrderEvent(orderDoc, null);
     } catch (err) {
-      console.error("Notify failed (ignored):", err);
+      console.error("Notify failed:", err);
     }
 
     /* ================= RAZORPAY ================= */
@@ -150,8 +163,8 @@ export async function POST(req) {
     try {
       if (paymentMethod === "RAZORPAY") {
         const razorpay = new Razorpay({
-          key_id: process.env.RAZORPAY_KEY_ID || "",
-          key_secret: process.env.RAZORPAY_KEY_SECRET || "",
+          key_id: process.env.RAZORPAY_KEY_ID,
+          key_secret: process.env.RAZORPAY_KEY_SECRET,
         });
 
         razorpayOrder = await razorpay.orders.create({
@@ -166,10 +179,11 @@ export async function POST(req) {
 
         await orderDoc.save();
       }
-    } catch (razorErr) {
-      console.error("Razorpay error:", razorErr);
+    } catch (err) {
+      console.error("Razorpay error:", err);
     }
 
+    /* ================= RESPONSE ================= */
     return NextResponse.json({
       success: true,
       orderId: orderDoc.orderId,
@@ -181,7 +195,10 @@ export async function POST(req) {
     console.error("ORDER CREATE ERROR:", err);
 
     return NextResponse.json(
-      { success: false, message: err.message || "Order failed" },
+      {
+        success: false,
+        message: err.message || "Order creation failed",
+      },
       { status: 500 }
     );
   }
