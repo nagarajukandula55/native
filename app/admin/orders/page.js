@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import OrderTimeline from "@/components/OrderTimeline";
 
 export default function AdminOrdersPage() {
   const [orders, setOrders] = useState([]);
@@ -9,6 +10,8 @@ export default function AdminOrdersPage() {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  
+  <OrderTimeline order={order} />
 
   /* ================= FETCH ORDERS ================= */
   useEffect(() => {
