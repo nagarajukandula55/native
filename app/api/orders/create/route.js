@@ -14,7 +14,7 @@ const round = (n) => Math.round(n * 100) / 100;
 
 /* ================= PAYMENT CONFIG ================= */
 const PAYMENT_CONFIG = {
-  RAZORPAY: false,   // 🚫 disabled safely
+  RAZORPAY: false, // 🔥 DISABLED SAFELY (only change)
   UPI: true,
   COD: true,
   MANUAL: true,
@@ -37,12 +37,13 @@ export async function POST(req) {
 
     console.log("🛒 RAW CART:", cart);
 
-    /* ================= BLOCK RAZORPAY EARLY ================= */
-    if (paymentMethod === "RAZORPAY" && !PAYMENT_CONFIG.RAZORPAY) {
+    /* ================= BLOCK RAZORPAY SAFELY ================= */
+    if (paymentMethod === "RAZORPAY" && PAYMENT_CONFIG.RAZORPAY === false) {
       return NextResponse.json(
         {
           success: false,
-          message: "Razorpay is temporarily disabled. Please use UPI or COD.",
+          message:
+            "Razorpay is temporarily disabled. Please choose UPI or COD.",
         },
         { status: 400 }
       );
@@ -150,7 +151,7 @@ export async function POST(req) {
 
     const orderId = await generateOrderId();
 
-    /* ================= ORDER ================= */
+    /* ================= CREATE ORDER ================= */
     const orderDoc = await Order.create({
       orderId,
       items,
@@ -160,49 +161,40 @@ export async function POST(req) {
       paymentMethod,
     });
 
-    /* ================= NOTIFY ================= */
+    /* ================= NOTIFICATION ================= */
     try {
       await notifyOrderEvent(orderDoc, null);
     } catch (err) {
       console.error("Notify failed:", err);
     }
 
-    /* ================= RAZORPAY (DISABLED SAFELY) ================= */
+    /* ================= RAZORPAY DISABLED ================= */
     let razorpayOrder = null;
 
-    if (paymentMethod === "RAZORPAY" && PAYMENT_CONFIG.RAZORPAY) {
-      try {
-        const razorpay = new Razorpay({
-          key_id: process.env.RAZORPAY_KEY_ID,
-          key_secret: process.env.RAZORPAY_KEY_SECRET,
-        });
+    if (paymentMethod === "RAZORPAY" && PAYMENT_CONFIG.RAZORPAY === true) {
+      const razorpay = new Razorpay({
+        key_id: process.env.RAZORPAY_KEY_ID,
+        key_secret: process.env.RAZORPAY_KEY_SECRET,
+      });
 
-        razorpayOrder = await razorpay.orders.create({
-          amount: Math.round(finalAmount * 100),
-          currency: "INR",
-          receipt: orderId,
-        });
+      razorpayOrder = await razorpay.orders.create({
+        amount: Math.round(finalAmount * 100),
+        currency: "INR",
+        receipt: orderId,
+      });
 
-        orderDoc.payment = {
-          razorpay_order_id: razorpayOrder.id,
-        };
+      orderDoc.payment = {
+        razorpay_order_id: razorpayOrder.id,
+      };
 
-        await orderDoc.save();
-      } catch (err) {
-        console.error("Razorpay create failed:", err);
-
-        return NextResponse.json(
-          { success: false, message: "Payment gateway error" },
-          { status: 500 }
-        );
-      }
+      await orderDoc.save();
     }
 
     return NextResponse.json({
       success: true,
       orderId: orderDoc.orderId,
       amount: orderDoc.amount,
-      razorpayOrder, // will be null now
+      razorpayOrder,
     });
 
   } catch (err) {
