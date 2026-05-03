@@ -11,7 +11,6 @@ const OrderItemSchema = new mongoose.Schema(
 
     productKey: String, // ✅ IMPORTANT fallback support
 
-    name: String,
     image: String,
 
     price: Number,
@@ -21,7 +20,8 @@ const OrderItemSchema = new mongoose.Schema(
     baseAmount: Number,
     total: Number,
   },
-  { _id: false }
+  { _id: false,
+  strict: true, }
 );
 
 /* ================= WAREHOUSE ================= */
