@@ -8,9 +8,8 @@ async function handleStatusChange(order, newStatus) {
 
   /* ================= PAID ================= */
   if (newStatus === "PAID") {
-    const { handleOrderPaid } = await import("@/lib/handleOrderPaid");
-
     try {
+      const { handleOrderPaid } = await import("@/lib/handleOrderPaid");
       await handleOrderPaid(order, { mode: "MANUAL" });
     } catch (err) {
       console.error("PAID handler failed:", err);
@@ -29,8 +28,10 @@ async function handleStatusChange(order, newStatus) {
       const { sendInvoiceEmail } = await import("@/lib/notifications/email");
       const { sendWhatsAppInvoice } = await import("@/lib/notifications/whatsapp");
 
+      const freshOrder = order.toObject(); // safer snapshot
+
       if (!order.invoiceHTML) {
-        order.invoiceHTML = generateInvoiceHTML(order.toObject());
+        order.invoiceHTML = generateInvoiceHTML(freshOrder);
       }
 
       if (!order.invoiceSentAt) {
@@ -51,9 +52,16 @@ async function handleStatusChange(order, newStatus) {
   }
 
   /* ================= OTHER STATUSES ================= */
-  if (newStatus === "PACKED") order.packedAt = order.packedAt || now;
-  if (newStatus === "OUT_FOR_DELIVERY") order.outForDeliveryAt = order.outForDeliveryAt || now;
-  if (newStatus === "DELIVERED") order.deliveredAt = order.deliveredAt || now;
+  const statusTimeMap = {
+    PACKED: "packedAt",
+    OUT_FOR_DELIVERY: "outForDeliveryAt",
+    DELIVERED: "deliveredAt",
+  };
+
+  if (statusTimeMap[newStatus]) {
+    order[statusTimeMap[newStatus]] =
+      order[statusTimeMap[newStatus]] || now;
+  }
 }
 
 /* ================= API ROUTE ================= */
@@ -92,24 +100,22 @@ export async function POST(req) {
 
     const previousStatus = order.status;
 
-    /* ================= UPDATE STATUS ================= */
     order.status = status;
 
     /* ================= BUSINESS LOGIC ================= */
     await handleStatusChange(order, status);
 
-    /* ================= AUDIT LOG (FIXED LOCATION) ================= */
+    /* ================= SAVE FIRST (IMPORTANT FIX) ================= */
+    await order.save();
+
+    /* ================= AUDIT LOG (SAFE) ================= */
     await AuditLog.create({
       orderId: order.orderId,
       action: "STATUS_CHANGE",
       from: previousStatus,
       to: status,
       performedBy: "ADMIN",
-      createdAt: new Date(),
     });
-
-    /* ================= SAVE ================= */
-    await order.save();
 
     return Response.json({
       success: true,
