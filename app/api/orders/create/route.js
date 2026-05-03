@@ -6,13 +6,10 @@ import Coupon from "@/models/Coupon";
 import Razorpay from "razorpay";
 import { generateOrderId } from "@/lib/orderId";
 
-/* ================= NOTIFICATION ================= */
 import { notifyOrderEvent } from "@/lib/notifications/notifyOrderEvent";
 
-/* ================= CONFIG ================= */
 const round = (n) => Math.round(n * 100) / 100;
 
-/* ================= MAIN API ================= */
 export async function POST(req) {
   try {
     await dbConnect();
@@ -27,12 +24,12 @@ export async function POST(req) {
       gstNumber = null,
     } = body;
 
-    console.log("🛒 CART RECEIVED:", JSON.stringify(cart, null, 2));
+    console.log("🛒 CART RECEIVED:", cart);
 
     /* ================= VALIDATION ================= */
     if (!Array.isArray(cart) || cart.length === 0) {
       return NextResponse.json(
-        { success: false, message: "Cart is empty or invalid format" },
+        { success: false, message: "Cart is empty" },
         { status: 400 }
       );
     }
@@ -47,25 +44,20 @@ export async function POST(req) {
     /* ================= BUILD ITEMS ================= */
     let subtotal = 0;
     let items = [];
+    let errors = [];
 
     for (const item of cart) {
-      const productId = item.productId || item._id; // 🔥 FIX for your frontend bug
+      const productId = item.productId || item._id;
 
       if (!productId) {
-        console.log("❌ Missing productId:", item);
+        errors.push({ item, reason: "Missing productId" });
         continue;
       }
 
-      let product;
-      try {
-        product = await Product.findById(productId).lean();
-      } catch (err) {
-        console.error("Product fetch error:", err);
-        continue;
-      }
+      const product = await Product.findById(productId).lean();
 
       if (!product) {
-        console.log("❌ Product not found:", productId);
+        errors.push({ productId, reason: "Product not found" });
         continue;
       }
 
@@ -87,38 +79,41 @@ export async function POST(req) {
       });
     }
 
-    /* ================= VALIDATION ================= */
+    /* ================= HARD STOP IF INVALID ================= */
     if (items.length === 0) {
       return NextResponse.json(
-        { success: false, message: "No valid products found in cart" },
+        {
+          success: false,
+          message: "No valid products found",
+          errors, // 🔥 IMPORTANT DEBUG
+        },
         { status: 400 }
       );
+    }
+
+    if (errors.length > 0) {
+      console.warn("⚠️ Cart validation issues:", errors);
     }
 
     /* ================= COUPON ================= */
     let discount = 0;
 
     if (coupon) {
-      try {
-        const c = await Coupon.findOne({ code: coupon, active: true });
-
-        if (c && subtotal >= (c.minOrder || 0)) {
-          discount = Number(c.discount || 0);
-        }
-      } catch (err) {
-        console.error("Coupon error:", err);
+      const c = await Coupon.findOne({ code: coupon, active: true });
+      if (c && subtotal >= (c.minOrder || 0)) {
+        discount = Number(c.discount || 0);
       }
     }
 
-    const discountRatio = subtotal > 0 ? discount / subtotal : 0;
+    const discountRatio = subtotal ? discount / subtotal : 0;
 
     /* ================= TOTAL CALC ================= */
     let totalTaxable = 0;
     let totalGST = 0;
 
     for (let item of items) {
-      const discountAmount = item.baseAmount * discountRatio;
-      const taxable = item.baseAmount - discountAmount;
+      const discounted = item.baseAmount * discountRatio;
+      const taxable = item.baseAmount - discounted;
 
       const gst = (taxable * item.gstPercent) / 100;
 
@@ -132,15 +127,14 @@ export async function POST(req) {
 
     if (finalAmount <= 0) {
       return NextResponse.json(
-        { success: false, message: "Invalid order amount" },
+        { success: false, message: "Invalid amount" },
         { status: 400 }
       );
     }
 
-    /* ================= ORDER ID ================= */
+    /* ================= ORDER ================= */
     const orderId = await generateOrderId();
 
-    /* ================= CREATE ORDER ================= */
     const orderDoc = await Order.create({
       orderId,
       items,
@@ -150,7 +144,6 @@ export async function POST(req) {
       paymentMethod,
     });
 
-    /* ================= SAFE NOTIFICATION ================= */
     try {
       await notifyOrderEvent(orderDoc, null);
     } catch (err) {
@@ -160,30 +153,25 @@ export async function POST(req) {
     /* ================= RAZORPAY ================= */
     let razorpayOrder = null;
 
-    try {
-      if (paymentMethod === "RAZORPAY") {
-        const razorpay = new Razorpay({
-          key_id: process.env.RAZORPAY_KEY_ID,
-          key_secret: process.env.RAZORPAY_KEY_SECRET,
-        });
+    if (paymentMethod === "RAZORPAY") {
+      const razorpay = new Razorpay({
+        key_id: process.env.RAZORPAY_KEY_ID,
+        key_secret: process.env.RAZORPAY_KEY_SECRET,
+      });
 
-        razorpayOrder = await razorpay.orders.create({
-          amount: Math.round(finalAmount * 100),
-          currency: "INR",
-          receipt: orderId,
-        });
+      razorpayOrder = await razorpay.orders.create({
+        amount: Math.round(finalAmount * 100),
+        currency: "INR",
+        receipt: orderId,
+      });
 
-        orderDoc.payment = {
-          razorpay_order_id: razorpayOrder.id,
-        };
+      orderDoc.payment = {
+        razorpay_order_id: razorpayOrder.id,
+      };
 
-        await orderDoc.save();
-      }
-    } catch (err) {
-      console.error("Razorpay error:", err);
+      await orderDoc.save();
     }
 
-    /* ================= RESPONSE ================= */
     return NextResponse.json({
       success: true,
       orderId: orderDoc.orderId,
@@ -197,7 +185,7 @@ export async function POST(req) {
     return NextResponse.json(
       {
         success: false,
-        message: err.message || "Order creation failed",
+        message: err.message || "Order failed",
       },
       { status: 500 }
     );
