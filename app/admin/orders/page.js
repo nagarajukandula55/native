@@ -10,8 +10,6 @@ export default function AdminOrdersPage() {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  
-  <OrderTimeline order={order} />
 
   /* ================= FETCH ORDERS ================= */
   useEffect(() => {
@@ -92,95 +90,67 @@ export default function AdminOrdersPage() {
   };
 
   /* ================= ACTION BUTTONS ================= */
-const ActionButtons = ({ o }) => {
+  const ActionButtons = ({ o }) => {
+    const btn = (bg) => ({
+      padding: "6px 10px",
+      border: "none",
+      borderRadius: 8,
+      cursor: "pointer",
+      fontSize: 12,
+      fontWeight: 600,
+      background: bg,
+      color: "#fff",
+    });
 
-  const btn = (bg) => ({
-    padding: "6px 10px",
-    border: "none",
-    borderRadius: 8,
-    cursor: "pointer",
-    fontSize: 12,
-    fontWeight: 600,
-    background: bg,
-    color: "#fff",
-  });
+    return (
+      <span style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+        {o.status === "PENDING" && (
+          <button style={btn("#16a34a")} onClick={() => updateStatus(o._id, "PAID")}>
+            Mark Paid
+          </button>
+        )}
 
-  return (
-    <span style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+        {o.status === "PAID" && (
+          <button style={btn("#2563eb")} onClick={() => updateStatus(o._id, "PROCESSING")}>
+            Start Processing
+          </button>
+        )}
 
-      {/* ONLY NEXT VALID ACTION */}
+        {o.status === "PROCESSING" && (
+          <button style={btn("#7c3aed")} onClick={() => updateStatus(o._id, "ASSIGNED_TO_WH")}>
+            Assign WH
+          </button>
+        )}
 
-      {o.status === "PENDING" && (
-        <button
-          style={btn("#16a34a")}
-          onClick={() => updateStatus(o._id, "PAID")}
-        >
-          Mark Paid
-        </button>
-      )}
+        {o.status === "ASSIGNED_TO_WH" && (
+          <button style={btn("#f97316")} onClick={() => updateStatus(o._id, "SHIPPED")}>
+            Ship Order
+          </button>
+        )}
 
-      {o.status === "PAID" && (
-        <button
-          style={btn("#2563eb")}
-          onClick={() => updateStatus(o._id, "PROCESSING")}
-        >
-          Start Processing
-        </button>
-      )}
+        {o.status === "SHIPPED" && (
+          <button style={btn("#111")} onClick={() => updateStatus(o._id, "DELIVERED")}>
+            Mark Delivered
+          </button>
+        )}
 
-      {o.status === "PROCESSING" && (
-        <button
-          style={btn("#7c3aed")}
-          onClick={() => updateStatus(o._id, "ASSIGNED_TO_WH")}
-        >
-          Assign WH
-        </button>
-      )}
-
-      {o.status === "ASSIGNED_TO_WH" && (
-        <button
-          style={btn("#f97316")}
-          onClick={() => updateStatus(o._id, "SHIPPED")}
-        >
-          Ship Order
-        </button>
-      )}
-
-      {o.status === "SHIPPED" && (
-        <button
-          style={btn("#111")}
-          onClick={() => updateStatus(o._id, "DELIVERED")}
-        >
-          Mark Delivered
-        </button>
-      )}
-
-      {/* FINAL STATE */}
-      {o.status === "DELIVERED" && (
-        <span style={{
-          padding: "4px 10px",
-          borderRadius: 20,
-          fontSize: 12,
-          fontWeight: 600,
-          background:
-            o.status === "DELIVERED"
-              ? "#dcfce7"
-              : o.status === "SHIPPED"
-              ? "#dbeafe"
-              : o.status === "PROCESSING"
-              ? "#ede9fe"
-              : o.status === "PAID"
-              ? "#fef3c7"
-              : "#fee2e2",
-          color: "#111",
-        }}>
-          Completed ✔
-        </span>
-      )}
-
-    </span>
-  );
-};
+        {o.status === "DELIVERED" && (
+          <span
+            style={{
+              padding: "4px 10px",
+              borderRadius: 20,
+              fontSize: 12,
+              fontWeight: 600,
+              background: "#dcfce7",
+              color: "#111",
+            }}
+          >
+            Completed ✔
+          </span>
+        )}
+      </span>
+    );
+  };
 
   return (
     <div style={container}>
@@ -197,7 +167,6 @@ const ActionButtons = ({ o }) => {
         />
       </div>
 
-      {/* ERROR */}
       {error && <p style={{ color: "red" }}>{error}</p>}
 
       {/* FILTERS */}
@@ -235,22 +204,27 @@ const ActionButtons = ({ o }) => {
           </div>
 
           {filtered.map((o) => (
-            <div key={o._id} style={row}>
-              <span>{o.orderId}</span>
+            <div key={o._id}>
+              <div style={row}>
+                <span>{o.orderId}</span>
 
-              <span>
-                {o.address?.name || "N/A"}
-                <br />
-                <small>{o.address?.phone || "N/A"}</small>
-              </span>
+                <span>
+                  {o.address?.name || "N/A"}
+                  <br />
+                  <small>{o.address?.phone || "N/A"}</small>
+                </span>
 
-              <span>₹{o.amount}</span>
+                <span>₹{o.amount}</span>
 
-              <span>
-                <b>{o.status}</b>
-              </span>
+                <span><b>{o.status}</b></span>
 
-              <ActionButtons o={o} />
+                <ActionButtons o={o} />
+              </div>
+
+              {/* ✅ FIXED: Timeline INSIDE map */}
+              <div style={{ marginTop: 8, marginBottom: 12 }}>
+                <OrderTimeline order={o} />
+              </div>
             </div>
           ))}
         </div>
@@ -261,11 +235,7 @@ const ActionButtons = ({ o }) => {
 
 /* ================= STYLES ================= */
 
-const container = {
-  padding: 20,
-  maxWidth: 1200,
-  margin: "auto",
-};
+const container = { padding: 20, maxWidth: 1200, margin: "auto" };
 
 const header = {
   display: "flex",
