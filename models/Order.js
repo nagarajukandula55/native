@@ -21,7 +21,7 @@ const OrderItemSchema = new mongoose.Schema(
     total: Number,
   },
   { _id: false,
-  strict: true, }
+  strict: false, }
 );
 
 /* ================= WAREHOUSE ================= */
