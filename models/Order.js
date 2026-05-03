@@ -180,10 +180,10 @@ const OrderSchema = new mongoose.Schema(
     /* 🔥 SAFETY FIX (prevents strict crash on unknown fields) */
     strict: true,
   }
-  
-  OrderSchema.plugin(safePlugin);
-
 );
+
+/* ================= APPLY PLUGIN PROPERLY ================= */
+OrderSchema.plugin(safePlugin);
 
 /* ================= SAFE EXPORT ================= */
 const Order =
