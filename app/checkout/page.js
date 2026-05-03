@@ -48,7 +48,7 @@ export default function CheckoutPage() {
     pincode: "",
     city: "",
     state: "",
-    gstNumber: "",
+    gstNumber: "", // ✅ added back
   });
 
   const [paymentMethod, setPaymentMethod] = useState("RAZORPAY");
@@ -168,14 +168,50 @@ export default function CheckoutPage() {
   const sgstTotal = taxItems.reduce((a, b) => a + b.sgst, 0);
   const igstTotal = taxItems.reduce((a, b) => a + b.igst, 0);
 
-  const finalAmount = Number(subtotal + gstTotal - discount) || 0;
+  const finalAmount = subtotal + gstTotal - discount;
 
-  const upiLink = `upi://pay?pa=${encodeURIComponent(UPI_ID)}&pn=${encodeURIComponent(UPI_NAME)}&am=${finalAmount.toFixed(2)}&cu=INR&tn=${encodeURIComponent("Order Payment")}`;
-
+  const upiLink = `upi://pay?pa=${encodeURIComponent(UPI_ID)}&pn=${encodeURIComponent(UPI_NAME)}&am=${Number(finalAmount).toFixed(2)}&cu=INR&tn=${encodeURIComponent("Order Payment")}`;
   const upiApps = {
     gpay: `tez://upi/pay?pa=${UPI_ID}&pn=${UPI_NAME}&am=${finalAmount.toFixed(2)}&cu=INR`,
     phonepe: `phonepe://pay?pa=${UPI_ID}&pn=${UPI_NAME}&am=${finalAmount.toFixed(2)}&cu=INR`,
     paytm: `paytmmp://pay?pa=${UPI_ID}&pn=${UPI_NAME}&am=${finalAmount.toFixed(2)}&cu=INR`,
+  };
+
+  const verifyGST = async () => {
+    if (!form.gstNumber) return;
+  
+    setGstLoading(true);
+  
+    try {
+      const res = await fetch("/api/gst/verify", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          gstNumber: form.gstNumber,
+        }),
+      });
+  
+      const data = await res.json();
+  
+      if (data.success) {
+        setGstData(data.data);
+  
+        setForm((prev) => ({
+          ...prev,
+          gstVerified: true,
+        }));
+      } else {
+        setGstData(null);
+        alert(data.message);
+      }
+    } catch (err) {
+      console.error(err);
+      alert("GST verification failed");
+    } finally {
+      setGstLoading(false);
+    }
   };
 
   /* ================= ORDER ================= */
@@ -193,17 +229,25 @@ export default function CheckoutPage() {
     try {
       setLoading(true);
 
+      if (!safeCart.length) {alert("Cart is empty");return;}
+
       const res = await fetch("/api/orders/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          cart: safeCart.map(item => ({
-            productId: item.productId || item._id || item.product?._id,
-            name: item.name,
-            price: item.price,
-            qty: item.qty,
-            variant: item.variant || "default"
-          })),
+          cart: safeCart.map(item => {
+            const productId = item.productId || item._id || item.product?._id;
+          
+            if (!productId) {
+              console.error("Missing productId:", item);
+            }
+          
+            return {
+              productId,
+              qty: item.qty || 1,
+              variant: item.variant || "default"
+            };
+          }),
           taxItems,
           address: form,
           email: form.email,
@@ -224,45 +268,50 @@ export default function CheckoutPage() {
       }
 
       const orderId = data.orderId;
-
+      
       if (paymentMethod === "RAZORPAY") {
-        if (!data.razorpayOrder) {
-          alert("Razorpay is temporarily disabled. Use UPI.");
-          return;
-        }
-
+        if (!data.razorpayOrder) {alert("Razorpay is temporarily disabled. Use UPI.");
+        return;}
         new window.Razorpay({
           key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
           amount: Math.round(finalAmount * 100),
-          order_id: data.razorpayOrder.id,
+          order_id: data.razorpayOrder?.id,
+      
           handler: async function (response) {
-            const verifyRes = await fetch("/api/payment/verify", {
-              method: "POST",
-              headers: {"Content-Type": "application/json"},
-              body: JSON.stringify({
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_signature: response.razorpay_signature,
-                orderId
-              })
-            });
-
-            const verifyData = await verifyRes.json();
-
-            if (verifyData.success) {
-              setCart([]);
-              closeCart();
-              router.push(`/order-success?orderId=${orderId}`);
-            } else {
-              alert("Payment verification failed ❌");
+            try {
+              const verifyRes = await fetch("/api/payment/verify", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  razorpay_order_id: response.razorpay_order_id,
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_signature: response.razorpay_signature,
+                  orderId: orderId,
+                }),
+              });
+      
+              const verifyData = await verifyRes.json();
+      
+              if (verifyData.success) {
+                setCart([]);
+                closeCart();
+                router.push(`/order-success?orderId=${orderId}`);
+              } else {
+                alert("Payment verification failed ❌");
+              }
+            } catch (err) {
+              console.error("Verify error:", err);
+              alert("Payment verification error");
             }
-          }
+          },
         }).open();
       }
-
+      
       if (paymentMethod === "UPI") {
         const isMobile = /Android|iPhone/i.test(navigator.userAgent);
-
+      
         if (isMobile) {
           setTimeout(() => {
             window.location.href = upiLink;
@@ -270,10 +319,9 @@ export default function CheckoutPage() {
         } else {
           alert("Open on mobile or scan QR to pay 📱");
         }
-
+      
         router.push(`/order-pending?orderId=${orderId}`);
       }
-
     } catch (err) {
       console.error(err);
       alert("Error placing order");
@@ -296,11 +344,13 @@ export default function CheckoutPage() {
         <input value={form.city} disabled placeholder="City" />
         <input value={form.state} disabled placeholder="State" />
 
+        {/* ✅ GST FIELD */}
         <input
           name="gstNumber"
           placeholder="GST Number (for B2B)"
           value={form.gstNumber}
           onChange={handleChange}
+          onBlur={verifyGST}
         />
 
         <h4>Payment</h4>
@@ -323,34 +373,165 @@ export default function CheckoutPage() {
           UPI
         </label>
 
+        {gstData && (
+          <div className="gstBox">
+            <strong>GST Format Verified ✅</strong>     
+        
+            <div className="gstRow">
+              <span>State:</span>
+              <span>{gstData.state || gstData.pradr?.addr?.st || "N/A"}</span>
+            </div>
+        
+            <div className="gstRow">
+              <span>State Code:</span>
+              <span>{gstData.stateCode}</span>
+            </div>
+        
+            <div className="gstRow">
+              <span>GSTIN:</span>
+              <span>{form.gstNumber}</span>
+            </div>
+          </div>
+        )}
+
+        {/* ✅ COUPON */}
+        <div className="coupon">
+          <input
+            value={coupon}
+            onChange={(e) => setCoupon(e.target.value)}
+            placeholder="Coupon"
+          />
+          <button onClick={applyCoupon}>Apply</button>
+        </div>
+
         <button onClick={handleOrder} disabled={loading}>
           {loading ? "Processing..." : `Pay ₹${finalAmount.toFixed(2)}`}
         </button>
       </div>
 
+      {/* SUMMARY */}
       <div className="box">
         <h3>Order Summary</h3>
+
+        {taxItems.map((item, i) => (
+          <div key={i}>
+            <div className="row">
+              <span>{item.name} x {item.qty}</span>
+              <span>₹{item.base}</span>
+            </div>
+
+            <small>
+              HSN: {item.hsn} | GST: {item.gstPercent}%
+            </small>
+          </div>
+        ))}
+
+        <hr />
+
+        <div className="row"><span>Subtotal</span><span>₹{subtotal}</span></div>
+
+        {!isInterState ? (
+          <>
+            <div className="row"><span>CGST</span><span>₹{cgstTotal}</span></div>
+            <div className="row"><span>SGST</span><span>₹{sgstTotal}</span></div>
+          </>
+        ) : (
+          <div className="row"><span>IGST</span><span>₹{igstTotal}</span></div>
+        )}
 
         <div className="row total">
           <b>Total</b>
           <b>₹{finalAmount}</b>
         </div>
 
-        {paymentMethod === "UPI" && (
-          <>
-            <div>
-              {finalAmount > 0 && <QRCode value={upiLink} />}
-              <a href={upiLink} className="btn">Open UPI App</a>
-            </div>
+      {/* ✅ UPI */}
+      {paymentMethod === "UPI" && (
+        <>
+          <div>
+            {finalAmount > 0 && <QRCode value={upiLink} />}
+            <a
+              href={upiLink}
+              className="btn"
+              onClick={(e) => {
+                const isMobile = /Android|iPhone/i.test(navigator.userAgent);
+                if (!isMobile) {
+                  e.preventDefault();
+                  alert("Open this on your mobile to complete payment 📱");
+                }
+              }}
+            >
+              Open UPI App
+            </a>
+          </div>
+      
+          <div style={{ marginTop: 10 }}>
+            <a href={upiApps.gpay} className="btn">Pay with GPay</a>
+            <a href={upiApps.phonepe} className="btn">Pay with PhonePe</a>
+            <a href={upiApps.paytm} className="btn">Pay with Paytm</a>
+          </div>
+        </>
+      )}
 
-            <div style={{ marginTop: 10 }}>
-              <a href={upiApps.gpay} className="btn">Pay with GPay</a>
-              <a href={upiApps.phonepe} className="btn">Pay with PhonePe</a>
-              <a href={upiApps.paytm} className="btn">Pay with Paytm</a>
-            </div>
-          </>
-        )}
-      </div>
+      <style jsx>{`
+        .checkout {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 20px;
+        }
+
+        .box {
+          padding: 20px;
+          border: 1px solid #eee;
+          border-radius: 12px;
+        }
+
+        input {
+          width: 100%;
+          padding: 10px;
+          margin: 5px 0;
+        }
+
+        .row {
+          display: flex;
+          justify-content: space-between;
+        }
+
+        .coupon {
+          display: flex;
+          gap: 10px;
+        }
+
+        button {
+          width: 100%;
+          padding: 10px;
+          background: black;
+          color: white;
+        }
+
+        .btn {
+          display: block;
+          margin-top: 10px;
+          background: green;
+          color: white;
+          padding: 10px;
+          text-align: center;
+        }
+
+        .gstBox {
+          margin-top: 10px;
+          padding: 10px;
+          background: #f1fff1;
+          border: 1px solid #b6e3b6;
+          border-radius: 8px;
+          font-size: 13px;
+        }
+        
+        .gstRow {
+          display: flex;
+          justify-content: space-between;
+          margin-top: 4px;
+        }
+     `}</style>
     </div>
   );
 }
