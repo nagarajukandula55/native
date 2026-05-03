@@ -48,7 +48,7 @@ export default function CheckoutPage() {
     pincode: "",
     city: "",
     state: "",
-    gstNumber: "",
+    gstNumber: "", // ✅ added back
   });
 
   const [paymentMethod, setPaymentMethod] = useState("razorpay");
@@ -170,15 +170,9 @@ export default function CheckoutPage() {
 
   const finalAmount = subtotal + gstTotal - discount;
 
-  /* ✅ FIXED UPI LINK */
-  const upiLink = `upi://pay?pa=${encodeURIComponent(UPI_ID)}&pn=${encodeURIComponent(UPI_NAME)}&am=${Number(finalAmount).toFixed(2)}&cu=INR`;
-
-  /* ✅ APP SPECIFIC LINKS */
-  const upiApps = {
-    gpay: `tez://upi/pay?pa=${UPI_ID}&pn=${UPI_NAME}&am=${finalAmount.toFixed(2)}&cu=INR`,
-    phonepe: `phonepe://pay?pa=${UPI_ID}&pn=${UPI_NAME}&am=${finalAmount.toFixed(2)}&cu=INR`,
-    paytm: `paytmmp://pay?pa=${UPI_ID}&pn=${UPI_NAME}&am=${finalAmount.toFixed(2)}&cu=INR`,
-  };
+  const upiLink = `upi://pay?pa=${UPI_ID}&pn=${UPI_NAME}&am=${finalAmount.toFixed(
+    2
+  )}&cu=INR`;
 
   const verifyGST = async () => {
     if (!form.gstNumber) return;
@@ -242,7 +236,7 @@ export default function CheckoutPage() {
           email: form.email,
           coupon,
           discount,
-          paymentMethod: paymentMethod.toUpperCase(), // ✅ FIX
+          paymentMethod,
           gstType: form.gstNumber ? "B2B" : "B2C",
           gstMode: isInterState ? "IGST" : "CGST_SGST",
           amount: finalAmount,
@@ -297,14 +291,7 @@ export default function CheckoutPage() {
       }
       
       if (paymentMethod === "upi") {
-        const isMobile = /Android|iPhone/i.test(navigator.userAgent);
-
-        if (isMobile) {
-          window.location.href = upiLink;
-        } else {
-          alert("Open on mobile or scan QR to pay 📱");
-        }
-
+        window.location.href = upiLink;
         router.push(`/order-pending?orderId=${orderId}`);
       }
     } catch (err) {
@@ -329,6 +316,7 @@ export default function CheckoutPage() {
         <input value={form.city} disabled placeholder="City" />
         <input value={form.state} disabled placeholder="State" />
 
+        {/* ✅ GST FIELD */}
         <input
           name="gstNumber"
           placeholder="GST Number (for B2B)"
@@ -357,6 +345,28 @@ export default function CheckoutPage() {
           UPI
         </label>
 
+        {gstData && (
+          <div className="gstBox">
+            <strong>GST Format Verified ✅</strong>     
+        
+            <div className="gstRow">
+              <span>State:</span>
+              <span>{gstData.state || gstData.pradr?.addr?.st || "N/A"}</span>
+            </div>
+        
+            <div className="gstRow">
+              <span>State Code:</span>
+              <span>{gstData.stateCode}</span>
+            </div>
+        
+            <div className="gstRow">
+              <span>GSTIN:</span>
+              <span>{form.gstNumber}</span>
+            </div>
+          </div>
+        )}
+
+        {/* ✅ COUPON */}
         <div className="coupon">
           <input
             value={coupon}
@@ -371,40 +381,110 @@ export default function CheckoutPage() {
         </button>
       </div>
 
+      {/* SUMMARY */}
       <div className="box">
         <h3>Order Summary</h3>
+
+        {taxItems.map((item, i) => (
+          <div key={i}>
+            <div className="row">
+              <span>{item.name} x {item.qty}</span>
+              <span>₹{item.base}</span>
+            </div>
+
+            <small>
+              HSN: {item.hsn} | GST: {item.gstPercent}%
+            </small>
+          </div>
+        ))}
+
+        <hr />
+
+        <div className="row"><span>Subtotal</span><span>₹{subtotal}</span></div>
+
+        {!isInterState ? (
+          <>
+            <div className="row"><span>CGST</span><span>₹{cgstTotal}</span></div>
+            <div className="row"><span>SGST</span><span>₹{sgstTotal}</span></div>
+          </>
+        ) : (
+          <div className="row"><span>IGST</span><span>₹{igstTotal}</span></div>
+        )}
 
         <div className="row total">
           <b>Total</b>
           <b>₹{finalAmount}</b>
         </div>
 
+        {/* ✅ UPI */}
         {paymentMethod === "upi" && (
           <div>
-            <QRCode value={upiLink} size={180} />
-
-            <a
-              href={upiLink}
-              className="btn"
-              onClick={(e) => {
-                const isMobile = /Android|iPhone/i.test(navigator.userAgent);
-                if (!isMobile) {
-                  e.preventDefault();
-                  alert("Open on mobile to pay 📱");
-                }
-              }}
-            >
-              Open UPI App
-            </a>
-
-            <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
-              <a href={upiApps.gpay} className="btn">GPay</a>
-              <a href={upiApps.phonepe} className="btn">PhonePe</a>
-              <a href={upiApps.paytm} className="btn">Paytm</a>
-            </div>
+            <QRCode value={upiLink} />
+            <a href={upiLink} className="btn">Open UPI App</a>
           </div>
         )}
       </div>
+
+      <style jsx>{`
+        .checkout {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 20px;
+        }
+
+        .box {
+          padding: 20px;
+          border: 1px solid #eee;
+          border-radius: 12px;
+        }
+
+        input {
+          width: 100%;
+          padding: 10px;
+          margin: 5px 0;
+        }
+
+        .row {
+          display: flex;
+          justify-content: space-between;
+        }
+
+        .coupon {
+          display: flex;
+          gap: 10px;
+        }
+
+        button {
+          width: 100%;
+          padding: 10px;
+          background: black;
+          color: white;
+        }
+
+        .btn {
+          display: block;
+          margin-top: 10px;
+          background: green;
+          color: white;
+          padding: 10px;
+          text-align: center;
+        }
+
+        .gstBox {
+          margin-top: 10px;
+          padding: 10px;
+          background: #f1fff1;
+          border: 1px solid #b6e3b6;
+          border-radius: 8px;
+          font-size: 13px;
+        }
+        
+        .gstRow {
+          display: flex;
+          justify-content: space-between;
+          margin-top: 4px;
+        }
+     `}</style>
     </div>
   );
 }
