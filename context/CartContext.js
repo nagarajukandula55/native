@@ -33,11 +33,13 @@ export function CartProvider({ children }) {
   const addToCart = (product) => {
     if (!product) return;
 
-    // 🔥 STANDARDIZE ID
-    const productId = product.productId || product._id;
+    // ✅ FIXED: always prefer real Mongo _id
+    const productId = product._id || product.productId || null;
+
+    // keep productKey separately (DO NOT use as productId)
     const productKey = product.productKey || product._id;
 
-    if (!productId && !productKey) return;
+    if (!productId) return;
 
     setCart((prev) => {
       const exists = prev.find(
@@ -55,11 +57,10 @@ export function CartProvider({ children }) {
         );
       }
 
-      // ✅ KEEP CART LIGHT (IMPORTANT)
       return [
         ...prev,
         {
-          productId,
+          productId, // ✅ correct id stored
           productKey,
           name: product.name || "Product",
           price: Number(product.price || 0),
