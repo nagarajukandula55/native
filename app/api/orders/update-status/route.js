@@ -1,5 +1,17 @@
 import dbConnect from "@/lib/db";
 import Order from "@/models/Order";
+import mongoose from "mongoose";
+
+  const AuditSchema = new mongoose.Schema({
+    orderId: String,
+    action: String,
+    from: String,
+    to: String,
+    performedBy: String,
+  }, { timestamps: true });
+  
+  export default mongoose.models.AuditLog ||
+    mongoose.model("AuditLog", AuditSchema);
 
 /* ================= CORE STATUS HANDLER ================= */
 async function handleStatusChange(order, newStatus) {
