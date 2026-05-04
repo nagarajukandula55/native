@@ -248,9 +248,12 @@ const handleOrder = async () => {
         }
 
         return {
-          productId: item.productId,   // MUST be Mongo ID
+          productId: item.product?._id || item.productId, // ✅ ALWAYS Mongo ID
+          productKey: item.productKey || null,
           qty: item.qty || 1,
-          variant: item.variant || "default"
+          variant: item.variant || "default",
+          price: item.price || 0,
+          name: item.name || item.product?.name || null // optional only
         };
       })
       .filter(Boolean);
