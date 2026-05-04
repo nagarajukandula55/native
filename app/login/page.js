@@ -56,7 +56,7 @@ export default function LoginPage() {
       router.push("/admin"); // redirect after login
     } catch (err) {
       console.error(err);
-      setError("Something went wrong");
+      setError("Something went wrong here");
     } finally {
       setLoading(false);
     }
