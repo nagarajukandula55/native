@@ -3,11 +3,11 @@ import dbConnect from "@/lib/db";
 import Product from "@/models/Product";
 import Coupon from "@/models/Coupon";
 import Razorpay from "razorpay";
-import { generateOrderId } from "@/lib/orderId";
+import mongoose from "mongoose";
 
+import { generateOrderId } from "@/lib/orderId";
 import { validateCart } from "@/lib/validators/validateCart";
 import { createOrderSafe } from "@/lib/safe/createOrderSafe";
-import mongoose from "mongoose";
 
 /* ================= CONFIG ================= */
 const PAYMENT_CONFIG = {
@@ -45,13 +45,13 @@ export async function POST(req) {
 
     /* ================= SAFE ADDRESS ================= */
     const safeAddress = {
-      name: address?.name || "",
-      phone: address?.phone || "",
-      email: address?.email || "",
-      address: address?.address || "",
-      city: address?.city || "",
-      state: address?.state || "",
-      pincode: address?.pincode || "",
+      name: String(address?.name || ""),
+      phone: String(address?.phone || ""),
+      email: String(address?.email || ""),
+      address: String(address?.address || ""),
+      city: String(address?.city || ""),
+      state: String(address?.state || ""),
+      pincode: String(address?.pincode || ""),
       gstNumber: address?.gstNumber || null,
     };
 
@@ -74,10 +74,12 @@ export async function POST(req) {
 
       let product = null;
 
+      // ✅ SAFE ObjectId check
       if (mongoose.Types.ObjectId.isValid(productId)) {
         product = await Product.findById(productId).lean();
       }
 
+      // ✅ fallback: productKey
       if (!product) {
         product = await Product.findOne({
           productKey: productId,
@@ -99,10 +101,10 @@ export async function POST(req) {
       const baseAmount = price * qty;
       subtotal += baseAmount;
 
-      /* 🚨 IMPORTANT: NO "name" or extra fields beyond schema */
+      // 🔒 STRICT SAFE ITEM (NO EXTRA FIELDS)
       items.push({
         productId: product._id,
-        productKey: product.productKey,
+        productKey: product.productKey || null,
         image: product.primaryImage || "",
         price,
         qty,
@@ -164,7 +166,7 @@ export async function POST(req) {
     /* ================= ORDER ID ================= */
     const orderId = await generateOrderId();
 
-    /* ================= CREATE ORDER (SAFE LAYER) ================= */
+    /* ================= CREATE ORDER ================= */
     const orderDoc = await createOrderSafe({
       orderId,
       items,
@@ -206,7 +208,6 @@ export async function POST(req) {
 
   } catch (err) {
     console.error("🔥 ORDER CREATE ERROR:", err);
-    console.error("🔥 FULL ERROR:", JSON.stringify(err, null, 2));
 
     return NextResponse.json(
       {
