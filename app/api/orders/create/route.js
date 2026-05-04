@@ -206,6 +206,7 @@ export async function POST(req) {
 
   } catch (err) {
     console.error("🔥 ORDER CREATE ERROR:", err);
+    console.error("🔥 FULL ERROR:", JSON.stringify(err, null, 2));
 
     return NextResponse.json(
       {
