@@ -5,23 +5,27 @@ import { safePlugin } from "@/lib/mongoose/safePlugin";
 const OrderItemSchema = new mongoose.Schema(
   {
     productId: {
-      type: mongoose.Schema.Types.ObjectId, // ✅ FIXED (was String)
+      type: mongoose.Schema.Types.ObjectId,
       ref: "Product",
+      required: true,
     },
 
-    productKey: String, // ✅ IMPORTANT fallback support
+    productKey: {
+      type: String,
+      default: null,
+    },
 
     image: String,
-
     price: Number,
     qty: Number,
-
     gstPercent: Number,
     baseAmount: Number,
     total: Number,
   },
-  { _id: false,
-  strict: false, }
+  {
+    _id: false,
+    strict: true, // ✅ IMPORTANT: keep strict inside subdocs
+  }
 );
 
 /* ================= WAREHOUSE ================= */
@@ -29,8 +33,8 @@ const WarehouseSchema = new mongoose.Schema(
   {
     status: {
       type: String,
-      default: "NEW",
       enum: ["NEW", "PICKING", "PACKED", "DISPATCHED"],
+      default: "NEW",
     },
     assignedTo: String,
     packedAt: Date,
@@ -92,9 +96,6 @@ const OrderSchema = new mongoose.Schema(
       index: true,
     },
 
-    /* ✅ ADD ROOT NAME (FIX FOR STRICT ERROR) */
-    name: String, // 🔥 prevents "name not in schema" crash
-
     items: {
       type: [OrderItemSchema],
       default: [],
@@ -107,7 +108,6 @@ const OrderSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      default: "PENDING_PAYMENT",
       enum: [
         "PENDING_PAYMENT",
         "PAID",
@@ -118,9 +118,9 @@ const OrderSchema = new mongoose.Schema(
         "CANCELLED",
         "FAILED",
       ],
+      default: "PENDING_PAYMENT",
     },
 
-    /* ================= PAYMENT ================= */
     payment: {
       razorpay_order_id: String,
       razorpay_payment_id: String,
@@ -130,13 +130,11 @@ const OrderSchema = new mongoose.Schema(
       utr: String,
     },
 
-    /* ================= RECEIPT ================= */
     receipt: {
       type: ReceiptSchema,
       default: null,
     },
 
-    /* ================= INVOICE ================= */
     invoice: {
       type: InvoiceSchema,
       default: null,
@@ -147,13 +145,11 @@ const OrderSchema = new mongoose.Schema(
       default: "",
     },
 
-    /* ================= BILLING ================= */
     billing: {
       type: BillingSchema,
       default: null,
     },
 
-    /* ================= ADDRESS ================= */
     address: {
       name: String,
       phone: String,
@@ -165,7 +161,6 @@ const OrderSchema = new mongoose.Schema(
       gstNumber: String,
     },
 
-    /* ================= WAREHOUSE ================= */
     warehouse: {
       type: WarehouseSchema,
       default: {
@@ -177,15 +172,16 @@ const OrderSchema = new mongoose.Schema(
   {
     timestamps: true,
 
-    /* 🔥 SAFETY FIX (prevents strict crash on unknown fields) */
-    strict: "throw",
+    // 🔥 CRITICAL FIX
+    strict: true,
+    minimize: false,
   }
 );
 
-/* ================= APPLY PLUGIN PROPERLY ================= */
+/* ================= SAFETY PLUGIN ================= */
 OrderSchema.plugin(safePlugin);
 
-/* ================= SAFE EXPORT ================= */
+/* ================= MODEL EXPORT ================= */
 const Order =
   mongoose.models.Order || mongoose.model("Order", OrderSchema);
 
