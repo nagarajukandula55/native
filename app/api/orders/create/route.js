@@ -30,10 +30,10 @@ export async function POST(req) {
       cart = [],
       address = {},
       coupon = null,
-      paymentMethod = "RAZORPAY",
+      paymentMethod = "UPI",
     } = body;
 
-    /* ================= CART VALIDATION ================= */
+    /* ================= VALIDATE CART ================= */
     cart = validateCart(cart);
 
     if (!Array.isArray(cart) || cart.length === 0) {
@@ -74,12 +74,10 @@ export async function POST(req) {
 
       let product = null;
 
-      // SAFE ObjectId check (FIX CRASH)
       if (mongoose.Types.ObjectId.isValid(productId)) {
         product = await Product.findById(productId).lean();
       }
 
-      // fallback SKU
       if (!product) {
         product = await Product.findOne({
           productKey: productId,
@@ -93,6 +91,7 @@ export async function POST(req) {
       const price =
         Number(product?.primaryVariant?.sellingPrice) ||
         Number(product?.pricing?.sellingPrice) ||
+        Number(product?.price) ||
         0;
 
       const gstPercent = Number(product?.tax || 0);
@@ -100,10 +99,10 @@ export async function POST(req) {
       const baseAmount = price * qty;
       subtotal += baseAmount;
 
+      /* 🚨 IMPORTANT: NO "name" or extra fields beyond schema */
       items.push({
         productId: product._id,
         productKey: product.productKey,
-        name: product.name,
         image: product.primaryImage || "",
         price,
         qty,
@@ -139,7 +138,7 @@ export async function POST(req) {
 
     const discountRatio = subtotal ? discount / subtotal : 0;
 
-    /* ================= GST + TOTAL ================= */
+    /* ================= TAX CALCULATION ================= */
     let totalTaxable = 0;
     let totalGST = 0;
 
@@ -165,17 +164,14 @@ export async function POST(req) {
     /* ================= ORDER ID ================= */
     const orderId = await generateOrderId();
 
-    /* ================= SAFE ORDER CREATE ================= */
-    const safeItems = (data.cart || []).map((item) => ({
-      productId: String(item.productId || ""),
-      productKey: item.productKey ? String(item.productKey) : undefined,
-      qty: Number(item.qty || 1),
-      price: Number(item.price || 0),
-      gstPercent: Number(item.gstPercent || 0),
-      baseAmount: Number(item.baseAmount || 0),
-      total: Number(item.total || 0),
-      image: item.image ? String(item.image) : undefined,
-    }));
+    /* ================= CREATE ORDER (SAFE LAYER) ================= */
+    const orderDoc = await createOrderSafe({
+      orderId,
+      items,
+      amount: finalAmount,
+      address: safeAddress,
+      paymentMethod,
+    });
 
     /* ================= RAZORPAY ================= */
     let razorpayOrder = null;
