@@ -7,20 +7,12 @@ export default function AdminDashboard() {
   const socketRef = useRef(null);
   const mounted = useRef(false);
 
-  const [activeTab, setActiveTab] = useState("ANU");
-
-  const [events, setEvents] = useState([]);
-  const [aiLogs, setAiLogs] = useState([]);
-  const [prs, setPrs] = useState([]);
+  const [activeTab, setActiveTab] = useState("ORDERS");
   const [orders, setOrders] = useState([]);
+  const [selectedOrder, setSelectedOrder] = useState(null);
 
   const [status, setStatus] = useState("connecting...");
   const [connected, setConnected] = useState(false);
-
-  /* ================= SAFE ADD ================= */
-  const addToState = (setter, data) => {
-    setter((prev) => [data, ...prev].slice(0, 50));
-  };
 
   /* ================= SOCKET ================= */
   useEffect(() => {
@@ -28,10 +20,7 @@ export default function AdminDashboard() {
     mounted.current = true;
 
     const socket = io(
-      process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:5000",
-      {
-        transports: ["websocket"],
-      }
+      process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:5000"
     );
 
     socketRef.current = socket;
@@ -47,37 +36,19 @@ export default function AdminDashboard() {
       setConnected(false);
     });
 
-    socket.on("ci_event", (data) =>
-      addToState(setEvents, { ...data, time: new Date().toLocaleTimeString() })
-    );
-
-    socket.on("ai_patch", (data) =>
-      addToState(setAiLogs, { ...data, time: new Date().toLocaleTimeString() })
-    );
-
-    socket.on("pr_created", (data) =>
-      addToState(setPrs, { ...data, time: new Date().toLocaleTimeString() })
-    );
-
-    return () => {
-      socket.disconnect();
-    };
+    return () => socket.disconnect();
   }, []);
 
   /* ================= FETCH ORDERS ================= */
   const fetchOrders = async () => {
-    try {
-      const res = await fetch("/api/admin/orders");
-      const data = await res.json();
-      if (data.success) setOrders(data.orders);
-    } catch (err) {
-      console.error(err);
-    }
+    const res = await fetch("/api/admin/orders");
+    const data = await res.json();
+    if (data.success) setOrders(data.orders);
   };
 
   useEffect(() => {
-    if (activeTab === "ORDERS") fetchOrders();
-  }, [activeTab]);
+    fetchOrders();
+  }, []);
 
   /* ================= STATUS UPDATE ================= */
   const updateStatus = async (orderId, status) => {
@@ -91,123 +62,130 @@ export default function AdminDashboard() {
 
     const data = await res.json();
 
-    if (data.success) fetchOrders();
-    else alert(data.message);
+    if (data.success) {
+      fetchOrders();
+      setSelectedOrder(null);
+    } else {
+      alert(data.message);
+    }
   };
 
   /* ================= UI ================= */
   return (
     <div className="container">
-      {/* HEADER */}
-      <div className="header">
-        <h1>Admin Dashboard</h1>
-        <div className={`status ${connected ? "ok" : "bad"}`}>
-          {status}
-        </div>
-      </div>
 
-      {/* TABS */}
-      <div className="tabs">
-        <button
-          className={activeTab === "ANU" ? "active" : ""}
-          onClick={() => setActiveTab("ANU")}
-        >
-          🧠 ANu
-        </button>
+      <h1>📦 Orders Dashboard</h1>
 
-        <button
-          className={activeTab === "ORDERS" ? "active" : ""}
-          onClick={() => setActiveTab("ORDERS")}
-        >
-          📦 Orders
-        </button>
-      </div>
+      {/* TABLE */}
+      <table>
+        <thead>
+          <tr>
+            <th>Order</th>
+            <th>Name</th>
+            <th>Amount</th>
+            <th>Status</th>
+          </tr>
+        </thead>
 
-      {/* ================= ANU TAB ================= */}
-      {activeTab === "ANU" && (
-        <div className="grid">
-          <div className="card">
-            <h2>🚨 CI Events</h2>
-            {events.map((e, i) => (
-              <pre key={i}>{JSON.stringify(e, null, 2)}</pre>
+        <tbody>
+          {orders.map((o) => (
+            <tr key={o._id} onClick={() => setSelectedOrder(o)}>
+              <td>{o.orderId}</td>
+              <td>{o.address?.name}</td>
+              <td>₹{o.amount}</td>
+              <td>{o.status}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      {/* ================= DRAWER ================= */}
+      {selectedOrder && (
+        <div className="drawer">
+          <div className="drawerContent">
+
+            <button className="close" onClick={() => setSelectedOrder(null)}>
+              ✖
+            </button>
+
+            <h2>Order: {selectedOrder.orderId}</h2>
+
+            {/* CUSTOMER */}
+            <h3>👤 Customer</h3>
+            <p>{selectedOrder.address?.name}</p>
+            <p>{selectedOrder.address?.phone}</p>
+            <p>{selectedOrder.address?.address}</p>
+
+            {/* ITEMS */}
+            <h3>🛒 Items</h3>
+            {selectedOrder.items.map((item, i) => (
+              <div key={i} className="item">
+                <div>{item.name || item.productKey}</div>
+                <div>₹{item.price} × {item.qty}</div>
+                <div>GST: {item.gstPercent}%</div>
+                <div>Total: ₹{item.total}</div>
+              </div>
             ))}
-          </div>
 
-          <div className="card">
-            <h2>🧠 AI Logs</h2>
-            {aiLogs.map((a, i) => (
-              <pre key={i}>{JSON.stringify(a, null, 2)}</pre>
+            {/* BILLING */}
+            <h3>💰 Billing</h3>
+            <p>Subtotal: ₹{selectedOrder.billing?.subtotal}</p>
+            <p>Discount: ₹{selectedOrder.billing?.discount}</p>
+            <p>Taxable: ₹{selectedOrder.billing?.taxableAmount}</p>
+
+            <p>CGST: ₹{selectedOrder.billing?.cgst}</p>
+            <p>SGST: ₹{selectedOrder.billing?.sgst}</p>
+            <p>IGST: ₹{selectedOrder.billing?.igst}</p>
+
+            <h2>Total: ₹{selectedOrder.billing?.grandTotal}</h2>
+
+            {/* PAYMENT */}
+            <h3>💳 Payment</h3>
+            <p>Method: {selectedOrder.payment?.method}</p>
+            <p>Status: {selectedOrder.payment?.status}</p>
+
+            {/* STATUS ACTION */}
+            <h3>⚙️ Actions</h3>
+
+            {selectedOrder.status === "PENDING_PAYMENT" && (
+              <button onClick={() => updateStatus(selectedOrder.orderId, "PAID")}>
+                Mark Paid
+              </button>
+            )}
+
+            {selectedOrder.status === "PAID" && (
+              <button onClick={() => updateStatus(selectedOrder.orderId, "PROCESSING")}>
+                Process
+              </button>
+            )}
+
+            {selectedOrder.status === "PROCESSING" && (
+              <button onClick={() => updateStatus(selectedOrder.orderId, "PACKED")}>
+                Pack
+              </button>
+            )}
+
+            {selectedOrder.status === "PACKED" && (
+              <button onClick={() => updateStatus(selectedOrder.orderId, "DISPATCHED")}>
+                Dispatch
+              </button>
+            )}
+
+            {selectedOrder.status === "DISPATCHED" && (
+              <button onClick={() => updateStatus(selectedOrder.orderId, "DELIVERED")}>
+                Deliver
+              </button>
+            )}
+
+            {/* AUDIT LOG */}
+            <h3>📜 Audit</h3>
+            {selectedOrder.auditLogs?.map((log, i) => (
+              <div key={i}>
+                {log.action} ({log.from} → {log.to})
+              </div>
             ))}
+
           </div>
-
-          <div className="card">
-            <h2>🚀 PRs</h2>
-            {prs.map((p, i) => (
-              <pre key={i}>{JSON.stringify(p, null, 2)}</pre>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* ================= ORDERS TAB ================= */}
-      {activeTab === "ORDERS" && (
-        <div>
-          <h2>Orders</h2>
-
-          <table>
-            <thead>
-              <tr>
-                <th>Order</th>
-                <th>Name</th>
-                <th>Amount</th>
-                <th>Status</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {orders.map((o) => (
-                <tr key={o._id}>
-                  <td>{o.orderId}</td>
-                  <td>{o.address?.name}</td>
-                  <td>₹{o.amount}</td>
-                  <td>{o.status}</td>
-
-                  <td>
-                    {o.status === "PENDING_PAYMENT" && (
-                      <button onClick={() => updateStatus(o.orderId, "PAID")}>
-                        Mark Paid
-                      </button>
-                    )}
-
-                    {o.status === "PAID" && (
-                      <button onClick={() => updateStatus(o.orderId, "PROCESSING")}>
-                        Process
-                      </button>
-                    )}
-
-                    {o.status === "PROCESSING" && (
-                      <button onClick={() => updateStatus(o.orderId, "PACKED")}>
-                        Pack
-                      </button>
-                    )}
-
-                    {o.status === "PACKED" && (
-                      <button onClick={() => updateStatus(o.orderId, "DISPATCHED")}>
-                        Dispatch
-                      </button>
-                    )}
-
-                    {o.status === "DISPATCHED" && (
-                      <button onClick={() => updateStatus(o.orderId, "DELIVERED")}>
-                        Deliver
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
         </div>
       )}
 
@@ -215,54 +193,8 @@ export default function AdminDashboard() {
       <style jsx>{`
         .container {
           padding: 20px;
-          font-family: Arial;
           background: #0a0a0a;
           color: white;
-          min-height: 100vh;
-        }
-
-        .header {
-          display: flex;
-          justify-content: space-between;
-        }
-
-        .status {
-          padding: 5px 10px;
-        }
-
-        .ok {
-          background: green;
-        }
-
-        .bad {
-          background: red;
-        }
-
-        .tabs {
-          margin-top: 20px;
-        }
-
-        .tabs button {
-          margin-right: 10px;
-          padding: 10px;
-          cursor: pointer;
-        }
-
-        .active {
-          background: white;
-          color: black;
-        }
-
-        .grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr 1fr;
-          gap: 20px;
-          margin-top: 20px;
-        }
-
-        .card {
-          background: #111;
-          padding: 10px;
         }
 
         table {
@@ -274,12 +206,44 @@ export default function AdminDashboard() {
         td, th {
           border: 1px solid #333;
           padding: 10px;
+          cursor: pointer;
+        }
+
+        .drawer {
+          position: fixed;
+          top: 0;
+          right: 0;
+          width: 400px;
+          height: 100%;
+          background: #111;
+          box-shadow: -2px 0 10px rgba(0,0,0,0.5);
+          overflow-y: auto;
+        }
+
+        .drawerContent {
+          padding: 20px;
+        }
+
+        .close {
+          float: right;
+          background: red;
+          color: white;
+          border: none;
+          padding: 5px;
+        }
+
+        .item {
+          border-bottom: 1px solid #333;
+          margin-bottom: 10px;
+          padding-bottom: 10px;
         }
 
         button {
-          padding: 5px 10px;
+          margin-top: 10px;
+          padding: 8px;
           background: black;
           color: white;
+          width: 100%;
         }
       `}</style>
     </div>
