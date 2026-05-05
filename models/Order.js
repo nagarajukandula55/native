@@ -20,7 +20,6 @@ const OrderItemSchema = new mongoose.Schema(
 
     baseAmount: Number,
     discountAmount: { type: Number, default: 0 },
-
     taxableAmount: Number,
 
     cgst: Number,
@@ -28,6 +27,13 @@ const OrderItemSchema = new mongoose.Schema(
     igst: Number,
 
     total: Number,
+
+    /* 🔒 SNAPSHOT LOCK (prevents future product changes affecting past orders) */
+    snapshot: {
+      brand: String,
+      category: String,
+      hsn: String,
+    },
   },
   { _id: false }
 );
@@ -38,11 +44,20 @@ const AddressSchema = new mongoose.Schema(
     name: String,
     phone: String,
     email: String,
+
     address: String,
     city: String,
     state: String,
     pincode: String,
+
     gstNumber: String,
+
+    /* GST TYPE */
+    gstType: {
+      type: String,
+      enum: ["B2C", "B2B"],
+      default: "B2C",
+    },
   },
   { _id: false }
 );
@@ -50,8 +65,11 @@ const AddressSchema = new mongoose.Schema(
 /* ================= BILLING ================= */
 const BillingSchema = new mongoose.Schema(
   {
+    currency: { type: String, default: "INR" },
+
     subtotal: Number,
     discount: Number,
+
     taxableAmount: Number,
 
     cgst: Number,
@@ -59,7 +77,13 @@ const BillingSchema = new mongoose.Schema(
     igst: Number,
 
     totalGST: Number,
+
+    roundOff: { type: Number, default: 0 },
+
     grandTotal: Number,
+
+    /* 🔒 FINAL LOCK FLAG */
+    locked: { type: Boolean, default: true },
   },
   { _id: false }
 );
@@ -75,17 +99,30 @@ const PaymentSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["PENDING", "SUCCESS", "FAILED"],
+      enum: ["PENDING", "SUCCESS", "FAILED", "REFUNDED"],
       default: "PENDING",
     },
 
+    amountPaid: { type: Number, default: 0 },
+
+    /* Gateway */
     razorpay_order_id: String,
     razorpay_payment_id: String,
     razorpay_signature: String,
 
+    /* UPI */
     utr: String,
 
     paidAt: Date,
+
+    /* 🔒 FULL PAYMENT LOG */
+    logs: [
+      {
+        status: String,
+        message: String,
+        at: { type: Date, default: Date.now },
+      },
+    ],
   },
   { _id: false }
 );
@@ -96,6 +133,9 @@ const InvoiceSchema = new mongoose.Schema(
     invoiceNumber: String,
     generatedAt: Date,
     invoiceUrl: String,
+
+    /* 🔒 SNAPSHOT COPY (legal compliance) */
+    billingSnapshot: Object,
   },
   { _id: false }
 );
@@ -124,6 +164,7 @@ const WarehouseSchema = new mongoose.Schema(
 
     packedAt: Date,
     dispatchedAt: Date,
+    outForDeliveryAt: Date,
     deliveredAt: Date,
   },
   { _id: false }
@@ -136,6 +177,7 @@ const AuditSchema = new mongoose.Schema(
     from: String,
     to: String,
     by: String,
+    meta: Object,
     at: { type: Date, default: Date.now },
   },
   { _id: false }
@@ -150,6 +192,12 @@ const OrderSchema = new mongoose.Schema(
       type: String,
       required: true,
       unique: true,
+      index: true,
+    },
+
+    /* 🔒 IDEMPOTENCY (prevents duplicate orders) */
+    idempotencyKey: {
+      type: String,
       index: true,
     },
 
@@ -176,8 +224,19 @@ const OrderSchema = new mongoose.Schema(
         "DELIVERED",
         "CANCELLED",
         "FAILED",
+        "REFUNDED",
       ],
       default: "PENDING_PAYMENT",
+    },
+
+    /* STATUS TIMESTAMPS (VERY IMPORTANT) */
+    statusTimeline: {
+      paidAt: Date,
+      processedAt: Date,
+      packedAt: Date,
+      dispatchedAt: Date,
+      deliveredAt: Date,
+      cancelledAt: Date,
     },
 
     address: AddressSchema,
@@ -196,15 +255,30 @@ const OrderSchema = new mongoose.Schema(
       type: [AuditSchema],
       default: [],
     },
+
+    /* 🔒 SOFT DELETE */
+    isDeleted: { type: Boolean, default: false },
+
+    /* 🔒 INTERNAL FLAGS */
+    flags: {
+      fraud: { type: Boolean, default: false },
+      manualReview: { type: Boolean, default: false },
+    },
   },
   {
     timestamps: true,
 
-    /* ✅ IMPORTANT: prevents your previous crash */
-    strict: false,
+    /* ✅ FINAL DECISION */
+    strict: true, // 🔥 now SAFE because we fully control payload
   }
 );
 
+/* ================= INDEXES ================= */
+OrderSchema.index({ "payment.razorpay_order_id": 1 });
+OrderSchema.index({ "payment.razorpay_payment_id": 1 });
+OrderSchema.index({ createdAt: -1 });
+
+/* ================= EXPORT ================= */
 const Order =
   mongoose.models.Order || mongoose.model("Order", OrderSchema);
 
