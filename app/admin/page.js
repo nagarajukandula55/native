@@ -3,148 +3,285 @@
 import { useEffect, useRef, useState } from "react";
 import { io } from "socket.io-client";
 
-// -----------------------------
-// 🔥 SOCKET (PRODUCTION SAFE)
-// -----------------------------
-const socket = io("https://YOUR-RENDER-URL.onrender.com", {
-  transports: ["websocket"], // 🚀 avoids polling CORS issues
-  reconnection: true,
-  reconnectionAttempts: Infinity,
-  reconnectionDelay: 1000,
-  reconnectionDelayMax: 5000,
-  timeout: 20000
-});
-
 export default function AdminDashboard() {
+  const socketRef = useRef(null);
+  const mounted = useRef(false);
+
+  const [activeTab, setActiveTab] = useState("ANU");
+
   const [events, setEvents] = useState([]);
   const [aiLogs, setAiLogs] = useState([]);
   const [prs, setPrs] = useState([]);
+  const [orders, setOrders] = useState([]);
+
   const [status, setStatus] = useState("connecting...");
+  const [connected, setConnected] = useState(false);
 
-  const mounted = useRef(false);
-
-  // -----------------------------
-  // 🧠 SAFE STATE UPDATER (prevents duplicates)
-  // -----------------------------
+  /* ================= SAFE ADD ================= */
   const addToState = (setter, data) => {
-    setter((prev) => [data, ...prev].slice(0, 50)); // limit memory
+    setter((prev) => [data, ...prev].slice(0, 50));
   };
 
-  // -----------------------------
-  // 🚀 SOCKET INIT
-  // -----------------------------
+  /* ================= SOCKET ================= */
   useEffect(() => {
     if (mounted.current) return;
     mounted.current = true;
 
-    // 🟢 CONNECTION EVENTS
+    const socket = io(
+      process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:5000",
+      {
+        transports: ["websocket"],
+      }
+    );
+
+    socketRef.current = socket;
+
     socket.on("connect", () => {
       setStatus("connected 🟢");
-
-      // IMPORTANT: register tenant (matches backend multi-tenant system)
+      setConnected(true);
       socket.emit("register", "shopnative");
     });
 
     socket.on("disconnect", () => {
       setStatus("disconnected 🔴");
+      setConnected(false);
     });
 
-    socket.on("connect_error", () => {
-      setStatus("connection error ⚠️");
-    });
+    socket.on("ci_event", (data) =>
+      addToState(setEvents, { ...data, time: new Date().toLocaleTimeString() })
+    );
 
-    // -----------------------------
-    // 🚨 CI EVENT (backend: ci_event)
-    // -----------------------------
-    socket.on("ci_event", (data) => {
-      addToState(setEvents, {
-        type: "CI_EVENT",
-        ...data,
-        time: new Date().toISOString()
-      });
-    });
+    socket.on("ai_patch", (data) =>
+      addToState(setAiLogs, { ...data, time: new Date().toLocaleTimeString() })
+    );
 
-    // -----------------------------
-    // 🧠 AI PATCH (backend: ai_patch)
-    // -----------------------------
-    socket.on("ai_patch", (data) => {
-      addToState(setAiLogs, {
-        type: "AI_PATCH",
-        ...data,
-        time: new Date().toISOString()
-      });
-    });
-
-    // -----------------------------
-    // 🚀 PR CREATED (backend: pr_created)
-    // -----------------------------
-    socket.on("pr_created", (data) => {
-      addToState(setPrs, {
-        type: "PR_CREATED",
-        ...data,
-        time: new Date().toISOString()
-      });
-    });
-
-    // -----------------------------
-    // ⚠️ GLOBAL ERRORS
-    // -----------------------------
-    socket.on("error", (err) => {
-      console.error("ANu error:", err);
-    });
+    socket.on("pr_created", (data) =>
+      addToState(setPrs, { ...data, time: new Date().toLocaleTimeString() })
+    );
 
     return () => {
-      socket.off();
       socket.disconnect();
     };
   }, []);
 
-  // -----------------------------
-  // 🎨 UI
-  // -----------------------------
+  /* ================= FETCH ORDERS ================= */
+  const fetchOrders = async () => {
+    try {
+      const res = await fetch("/api/admin/orders");
+      const data = await res.json();
+      if (data.success) setOrders(data.orders);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === "ORDERS") fetchOrders();
+  }, [activeTab]);
+
+  /* ================= STATUS UPDATE ================= */
+  const updateStatus = async (orderId, status) => {
+    const res = await fetch("/api/orders/status", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ orderId, status }),
+    });
+
+    const data = await res.json();
+
+    if (data.success) fetchOrders();
+    else alert(data.message);
+  };
+
+  /* ================= UI ================= */
   return (
-    <div style={{ padding: 20, fontFamily: "Arial" }}>
-      
+    <div className="container">
       {/* HEADER */}
-      <h1>🧠 ANu Live DevOps Dashboard</h1>
-      <p>Status: {status}</p>
-
-      {/* CI EVENTS */}
-      <div style={{ marginTop: 30 }}>
-        <h2>🚨 Live CI Events</h2>
-        {events.length === 0 && <p>No events yet...</p>}
-
-        {events.map((e, i) => (
-          <div key={i} style={{ background: "#111", color: "#fff", padding: 10, marginBottom: 10 }}>
-            <pre>{JSON.stringify(e, null, 2)}</pre>
-          </div>
-        ))}
+      <div className="header">
+        <h1>Admin Dashboard</h1>
+        <div className={`status ${connected ? "ok" : "bad"}`}>
+          {status}
+        </div>
       </div>
 
-      {/* AI LOGS */}
-      <div style={{ marginTop: 30 }}>
-        <h2>🧠 AI Analysis</h2>
-        {aiLogs.length === 0 && <p>No AI logs yet...</p>}
+      {/* TABS */}
+      <div className="tabs">
+        <button
+          className={activeTab === "ANU" ? "active" : ""}
+          onClick={() => setActiveTab("ANU")}
+        >
+          🧠 ANu
+        </button>
 
-        {aiLogs.map((a, i) => (
-          <div key={i} style={{ background: "#0b0b0b", color: "#0f0", padding: 10, marginBottom: 10 }}>
-            <div><b>{a.repo}</b></div>
-            <pre>{a.patch}</pre>
-          </div>
-        ))}
+        <button
+          className={activeTab === "ORDERS" ? "active" : ""}
+          onClick={() => setActiveTab("ORDERS")}
+        >
+          📦 Orders
+        </button>
       </div>
 
-      {/* PR TRACKING */}
-      <div style={{ marginTop: 30 }}>
-        <h2>🚀 Pull Requests</h2>
-        {prs.length === 0 && <p>No PRs yet...</p>}
-
-        {prs.map((p, i) => (
-          <div key={i} style={{ background: "#001a33", color: "#fff", padding: 10, marginBottom: 10 }}>
-            <pre>{JSON.stringify(p, null, 2)}</pre>
+      {/* ================= ANU TAB ================= */}
+      {activeTab === "ANU" && (
+        <div className="grid">
+          <div className="card">
+            <h2>🚨 CI Events</h2>
+            {events.map((e, i) => (
+              <pre key={i}>{JSON.stringify(e, null, 2)}</pre>
+            ))}
           </div>
-        ))}
-      </div>
+
+          <div className="card">
+            <h2>🧠 AI Logs</h2>
+            {aiLogs.map((a, i) => (
+              <pre key={i}>{JSON.stringify(a, null, 2)}</pre>
+            ))}
+          </div>
+
+          <div className="card">
+            <h2>🚀 PRs</h2>
+            {prs.map((p, i) => (
+              <pre key={i}>{JSON.stringify(p, null, 2)}</pre>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ================= ORDERS TAB ================= */}
+      {activeTab === "ORDERS" && (
+        <div>
+          <h2>Orders</h2>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Order</th>
+                <th>Name</th>
+                <th>Amount</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {orders.map((o) => (
+                <tr key={o._id}>
+                  <td>{o.orderId}</td>
+                  <td>{o.address?.name}</td>
+                  <td>₹{o.amount}</td>
+                  <td>{o.status}</td>
+
+                  <td>
+                    {o.status === "PENDING_PAYMENT" && (
+                      <button onClick={() => updateStatus(o.orderId, "PAID")}>
+                        Mark Paid
+                      </button>
+                    )}
+
+                    {o.status === "PAID" && (
+                      <button onClick={() => updateStatus(o.orderId, "PROCESSING")}>
+                        Process
+                      </button>
+                    )}
+
+                    {o.status === "PROCESSING" && (
+                      <button onClick={() => updateStatus(o.orderId, "PACKED")}>
+                        Pack
+                      </button>
+                    )}
+
+                    {o.status === "PACKED" && (
+                      <button onClick={() => updateStatus(o.orderId, "DISPATCHED")}>
+                        Dispatch
+                      </button>
+                    )}
+
+                    {o.status === "DISPATCHED" && (
+                      <button onClick={() => updateStatus(o.orderId, "DELIVERED")}>
+                        Deliver
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* STYLES */}
+      <style jsx>{`
+        .container {
+          padding: 20px;
+          font-family: Arial;
+          background: #0a0a0a;
+          color: white;
+          min-height: 100vh;
+        }
+
+        .header {
+          display: flex;
+          justify-content: space-between;
+        }
+
+        .status {
+          padding: 5px 10px;
+        }
+
+        .ok {
+          background: green;
+        }
+
+        .bad {
+          background: red;
+        }
+
+        .tabs {
+          margin-top: 20px;
+        }
+
+        .tabs button {
+          margin-right: 10px;
+          padding: 10px;
+          cursor: pointer;
+        }
+
+        .active {
+          background: white;
+          color: black;
+        }
+
+        .grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr 1fr;
+          gap: 20px;
+          margin-top: 20px;
+        }
+
+        .card {
+          background: #111;
+          padding: 10px;
+        }
+
+        table {
+          width: 100%;
+          margin-top: 20px;
+          border-collapse: collapse;
+        }
+
+        td, th {
+          border: 1px solid #333;
+          padding: 10px;
+        }
+
+        button {
+          padding: 5px 10px;
+          background: black;
+          color: white;
+        }
+      `}</style>
     </div>
   );
 }
