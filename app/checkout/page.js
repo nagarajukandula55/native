@@ -530,7 +530,7 @@ const handleOrder = async () => {
       </div> {/* ✅ closes .box (summary box) */}
 
       {/* ================= STYLES ================= */}
-      <style jsx>{`
+      <style jsx>{
         .checkout {
           display: grid;
           grid-template-columns: 1fr 1fr;
@@ -589,8 +589,7 @@ const handleOrder = async () => {
           justify-content: space-between;
           margin-top: 4px;
         }
-      `}</style>
-
+      }</style>
     </div>
   );
 }
