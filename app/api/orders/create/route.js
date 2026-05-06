@@ -5,24 +5,16 @@ import dbConnect from "@/lib/db";
 import Product from "@/models/Product";
 import mongoose from "mongoose";
 
-import Razorpay from "razorpay";
 import { generateOrderId } from "@/lib/generateOrderId";
 import { createOrderSafe } from "@/lib/safe/createOrderSafe";
 
 const round = (n) => Math.round(n * 100) / 100;
-
-/* ================= RAZORPAY INIT ================= */
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET,
-});
 
 export async function POST(req) {
   console.log("🔥 ORDER API HIT");
 
   try {
     await dbConnect();
-    console.log("✅ DB Connected");
 
     const body = await req.json();
     console.log("📦 BODY:", body);
@@ -31,6 +23,7 @@ export async function POST(req) {
       cart = [],
       address = {},
       paymentMethod = "UPI",
+      email,
     } = body;
 
     /* ================= VALIDATION ================= */
@@ -41,19 +34,11 @@ export async function POST(req) {
       );
     }
 
-    if (!address?.phone || !address?.pincode) {
-      return NextResponse.json(
-        { success: false, message: "Invalid address" },
-        { status: 400 }
-      );
-    }
-
     /* ================= BUILD ITEMS ================= */
     let items = [];
 
     for (const item of cart) {
-      const productId =
-        item.productId || item._id || item.productKey;
+      const productId = item.productId || item._id || item.productKey;
 
       let product = null;
 
@@ -62,9 +47,7 @@ export async function POST(req) {
       }
 
       if (!product) {
-        product = await Product.findOne({
-          productKey: productId,
-        }).lean();
+        product = await Product.findOne({ productKey: productId }).lean();
       }
 
       if (!product) continue;
@@ -82,26 +65,15 @@ export async function POST(req) {
       const baseAmount = price * qty;
       const gst = (baseAmount * gstPercent) / 100;
 
-      const final = round(baseAmount + gst);
-
       items.push({
         productId: product._id,
         productKey: product.productKey,
         name: product.name,
-        image: product.primaryImage || "",
-
         price,
         qty,
         gstPercent,
-
         baseAmount,
-        taxableAmount: baseAmount,
-
-        cgst: gst / 2,
-        sgst: gst / 2,
-        igst: 0,
-
-        total: final,
+        total: round(baseAmount + gst),
       });
     }
 
@@ -112,34 +84,11 @@ export async function POST(req) {
       );
     }
 
-    /* ================= TOTAL ================= */
-    const amount = round(
-      items.reduce((sum, i) => sum + i.total, 0)
-    );
+    const amount = round(items.reduce((s, i) => s + i.total, 0));
 
-    console.log("💰 FINAL AMOUNT:", amount);
-
-    /* ================= ORDER ID ================= */
     const orderId = await generateOrderId();
-    console.log("🆔 ORDER ID:", orderId);
 
-    /* ================= RAZORPAY ORDER (ONLY IF SELECTED) ================= */
-    let razorpayOrder = null;
-
-    if (paymentMethod === "RAZORPAY") {
-      console.log("💳 Creating Razorpay order...");
-
-      razorpayOrder = await razorpay.orders.create({
-        amount: Math.round(amount * 100), // paise
-        currency: "INR",
-        receipt: orderId,
-        payment_capture: 1,
-      });
-
-      console.log("✅ RAZORPAY ORDER:", razorpayOrder.id);
-    }
-
-    /* ================= SAVE ORDER ================= */
+    /* ================= CREATE ORDER ================= */
     const order = await createOrderSafe({
       orderId,
       items,
@@ -148,14 +97,31 @@ export async function POST(req) {
       paymentMethod,
     });
 
-    console.log("✅ ORDER SAVED:", order.orderId);
+    /* ================= RAZORPAY ENABLE ================= */
+    let razorpayOrder = null;
 
-    /* ================= RESPONSE ================= */
+    if (paymentMethod === "RAZORPAY") {
+      const Razorpay = (await import("razorpay")).default;
+
+      const rzp = new Razorpay({
+        key_id: process.env.RAZORPAY_KEY_ID,
+        key_secret: process.env.RAZORPAY_SECRET,
+      });
+
+      razorpayOrder = await rzp.orders.create({
+        amount: amount * 100,
+        currency: "INR",
+        receipt: orderId,
+      });
+
+      console.log("💳 RAZORPAY ORDER:", razorpayOrder.id);
+    }
+
     return NextResponse.json({
       success: true,
       orderId: order.orderId,
       amount,
-      razorpayOrder: razorpayOrder || null,
+      razorpayOrder,
     });
 
   } catch (err) {
