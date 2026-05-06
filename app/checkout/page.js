@@ -55,6 +55,31 @@ export default function CheckoutPage() {
   const [coupon, setCoupon] = useState("");
   const [discount, setDiscount] = useState(0);
 
+  const payload = {
+    cart: cleanedCart,
+    taxItems: taxItems || [],
+    address: {
+      name: form.name,
+      phone: form.phone,
+      email: form.email || "",
+      address: form.address,
+      pincode: form.pincode,
+      city: form.city,
+      state: form.state,
+      gstNumber: form.gstNumber || ""
+    },
+    email: form.email || "",
+    coupon: coupon || "",
+    discount: Number(discount || 0),
+    paymentMethod,
+    gstType: form.gstNumber ? "B2B" : "B2C",
+    gstMode: isInterState ? "IGST" : "CGST_SGST",
+    amount: Number(finalAmount || 0),
+  };
+  
+  console.log("ORDER PAYLOAD SENT:", payload);
+  
+
   /* ================= CART ENRICHMENT ================= */
   useEffect(() => {
     const enrichCart = async () => {
