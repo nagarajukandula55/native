@@ -6,34 +6,69 @@ import Link from "next/link";
 
 export default function OrderSuccess() {
   const params = useSearchParams();
-  const [orderId, setOrderId] = useState("");
 
+  const [orderId, setOrderId] = useState("");
+  const [status, setStatus] = useState("LOADING");
+  const [loading, setLoading] = useState(true);
+
+  /* ================= LOAD ORDER ================= */
   useEffect(() => {
     const id =
       params.get("orderId") ||
       sessionStorage.getItem("lastOrderId");
 
-    setOrderId(id || "");
+    if (!id) {
+      setStatus("NOT_FOUND");
+      setLoading(false);
+      return;
+    }
+
+    setOrderId(id);
+
+    // 🔥 store for reload safety
+    sessionStorage.setItem("lastOrderId", id);
+
+    fetchOrder(id);
   }, [params]);
 
+  /* ================= FETCH ORDER ================= */
+  const fetchOrder = async (id) => {
+    try {
+      const res = await fetch(`/api/orders/get?orderId=${id}`);
+      const data = await res.json();
+
+      if (!data.success) {
+        setStatus("NOT_FOUND");
+      } else {
+        setStatus(data.order.status);
+      }
+    } catch (err) {
+      console.error(err);
+      setStatus("ERROR");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /* ================= COPY ================= */
   const copyOrderId = () => {
     if (!orderId) return;
     navigator.clipboard.writeText(orderId);
     alert("Order ID copied");
   };
 
+  /* ================= UI ================= */
   return (
     <div style={styles.container}>
-
       <div style={styles.card}>
 
         <h1 style={styles.title}>
-          🎉 Order Placed Successfully
+          {status === "PAID"
+            ? "🎉 Payment Successful"
+            : "⏳ Order Created"}
         </h1>
 
-        <p style={styles.subText}>
-          Your Order ID
-        </p>
+        <p style={styles.subText}>Your Order ID</p>
 
         <div style={styles.orderBox}>
           <h2 style={styles.orderId}>
@@ -45,14 +80,43 @@ export default function OrderSuccess() {
           </button>
         </div>
 
-        <p style={styles.note}>
-          💡 Keep this Order ID for tracking & support
-        </p>
+        {/* STATUS BADGE */}
+        <div style={styles.statusBox}>
+          Status: <b>{status}</b>
+        </div>
 
+        {/* INFO */}
         <div style={styles.infoBox}>
-          <p>✔ Payment Method Selected (Razorpay / UPI / Manual)</p>
-          <p>✔ You will receive confirmation via WhatsApp</p>
-          <p>✔ Admin will verify manual payments (if selected)</p>
+          {status === "PAID" && (
+            <>
+              <p>✔ Payment received successfully</p>
+              <p>✔ Order will be processed soon</p>
+            </>
+          )}
+
+          {status === "PENDING_PAYMENT" && (
+            <>
+              <p>⏳ Payment pending</p>
+              <p>✔ If paid via UPI, click below to refresh</p>
+            </>
+          )}
+
+          {status === "FAILED" && (
+            <>
+              <p>❌ Payment failed</p>
+              <p>Please retry payment</p>
+            </>
+          )}
+        </div>
+
+        {/* ACTIONS */}
+        <div style={{ marginTop: 20 }}>
+          <button
+            onClick={() => fetchOrder(orderId)}
+            style={styles.refreshBtn}
+          >
+            🔄 Refresh Status
+          </button>
         </div>
 
         <Link href="/products">
@@ -62,7 +126,6 @@ export default function OrderSuccess() {
         </Link>
 
       </div>
-
     </div>
   );
 }
@@ -115,10 +178,11 @@ const styles = {
     borderRadius: "6px",
   },
 
-  note: {
+  statusBox: {
     marginTop: "10px",
-    fontSize: "14px",
-    color: "#777",
+    padding: "10px",
+    background: "#f1f1f1",
+    borderRadius: "6px",
   },
 
   infoBox: {
@@ -128,6 +192,15 @@ const styles = {
     background: "#f9f9f9",
     padding: "15px",
     borderRadius: "8px",
+  },
+
+  refreshBtn: {
+    padding: "10px 15px",
+    background: "#333",
+    color: "#fff",
+    border: "none",
+    borderRadius: "6px",
+    cursor: "pointer",
   },
 
   button: {
