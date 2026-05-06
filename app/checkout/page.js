@@ -579,12 +579,12 @@ const handleOrder = async () => {
           font-size: 13px;
         }
         
-        .gstRow {
-          display: flex;
-          justify-content: space-between;
-          margin-top: 4px;
-        }
-      `}</style>
-    </div>
-  );
+          .gstRow {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 4px;
+          }
+        `}</style>
+      </div>
+    );
 }
