@@ -498,12 +498,12 @@ const handleOrder = async () => {
           <b>₹{finalAmount}</b>
         </div>
 
-        {/* ✅ UPI */}
+        {/* ================= UPI ================= */}
         {paymentMethod === "UPI" && (
           <>
             <div>
               {finalAmount > 0 && <QRCode value={upiLink} />}
-        
+
               <a
                 href={upiLink}
                 className="btn"
@@ -518,7 +518,7 @@ const handleOrder = async () => {
                 Open UPI App
               </a>
             </div>
-        
+
             <div style={{ marginTop: 10 }}>
               <a href={upiApps.gpay} className="btn">Pay with GPay</a>
               <a href={upiApps.phonepe} className="btn">Pay with PhonePe</a>
@@ -526,69 +526,71 @@ const handleOrder = async () => {
             </div>
           </>
         )}
-        
-        </div> {/* ✅ THIS CLOSES .box (summary box) */}
-        
-        <style jsx>{`
-          .checkout {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-          }
-        
-          .box {
-            padding: 20px;
-            border: 1px solid #eee;
-            border-radius: 12px;
-          }
-        
-          input {
-            width: 100%;
-            padding: 10px;
-            margin: 5px 0;
-          }
-        
-          .row {
-            display: flex;
-            justify-content: space-between;
-          }
-        
-          .coupon {
-            display: flex;
-            gap: 10px;
-          }
-        
-          button {
-            width: 100%;
-            padding: 10px;
-            background: black;
-            color: white;
-          }
-        
-          .btn {
-            display: block;
-            margin-top: 10px;
-            background: green;
-            color: white;
-            padding: 10px;
-            text-align: center;
-          }
-        
-          .gstBox {
-            margin-top: 10px;
-            padding: 10px;
-            background: #f1fff1;
-            border: 1px solid #b6e3b6;
-            border-radius: 8px;
-            font-size: 13px;
-          }
-        
-          .gstRow {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 4px;
-          }
-        `}</style>
-      </div>
-    );
+
+      </div> {/* ✅ closes .box (summary box) */}
+
+      {/* ================= STYLES ================= */}
+      <style jsx>{`
+        .checkout {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 20px;
+        }
+
+        .box {
+          padding: 20px;
+          border: 1px solid #eee;
+          border-radius: 12px;
+        }
+
+        input {
+          width: 100%;
+          padding: 10px;
+          margin: 5px 0;
+        }
+
+        .row {
+          display: flex;
+          justify-content: space-between;
+        }
+
+        .coupon {
+          display: flex;
+          gap: 10px;
+        }
+
+        button {
+          width: 100%;
+          padding: 10px;
+          background: black;
+          color: white;
+        }
+
+        .btn {
+          display: block;
+          margin-top: 10px;
+          background: green;
+          color: white;
+          padding: 10px;
+          text-align: center;
+        }
+
+        .gstBox {
+          margin-top: 10px;
+          padding: 10px;
+          background: #f1fff1;
+          border: 1px solid #b6e3b6;
+          border-radius: 8px;
+          font-size: 13px;
+        }
+
+        .gstRow {
+          display: flex;
+          justify-content: space-between;
+          margin-top: 4px;
+        }
+      `}</style>
+
+    </div>
+  );
 }
