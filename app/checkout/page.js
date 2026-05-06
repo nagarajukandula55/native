@@ -139,7 +139,11 @@ export default function CheckoutPage() {
   };
 
   /* ================= SAFE CART ================= */
-  const safeCart = enrichedCart?.length ? enrichedCart : cart || [];
+  const safeCart = Array.isArray(enrichedCart) && enrichedCart.length
+    ? enrichedCart
+    : Array.isArray(cart)
+    ? cart
+    : [];
 
   const isInterState =
     form.state && form.state !== SELLER_STATE;
@@ -236,23 +240,23 @@ const handleOrder = async () => {
 
     const cleanedCart = safeCart
       .map(item => {
-        // ✅ FIX: correct priority
         const productId =
-          item.product?._id || item.productId
-          item._id;
-
+          item.product?._id ||
+          item.productId ||
+          item._id;   // ✅ FIXED
+    
         if (!productId) {
           console.error("❌ Missing productId:", item);
           return null;
         }
-
+    
         return {
-          productId: item.product?._id || item.productId, // ✅ ALWAYS Mongo ID
+          productId: item.product?._id || item.productId,
           productKey: item.productKey || null,
           qty: item.qty || 1,
           variant: item.variant || "default",
           price: item.price || 0,
-          name: item.name || item.product?.name || null // optional only
+          name: item.name || item.product?.name || "" // unchanged logic
         };
       })
       .filter(Boolean);
@@ -294,6 +298,10 @@ const handleOrder = async () => {
       return;
     }
 
+    // ✅ FIX: ALWAYS CLEAR CART AFTER ORDER CREATED
+    setCart([]);
+    closeCart();
+
     const orderId = data.orderId;
 
     /* ================= RAZORPAY ================= */
@@ -310,6 +318,8 @@ const handleOrder = async () => {
 
         handler: async function (response) {
           try {
+            console.log("💳 Razorpay Success:", response);
+              
             const verifyRes = await fetch("/api/payment/verify", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -335,8 +345,14 @@ const handleOrder = async () => {
             alert("Payment verification error");
           }
         },
-      }).open();
-    }
+      theme: {
+        color: "#3399cc",
+      },
+    };
+  
+    const rzp = new window.Razorpay(options);
+    rzp.open();
+  }
 
     /* ================= UPI ================= */
     if (paymentMethod === "UPI") {
