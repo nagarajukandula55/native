@@ -95,7 +95,7 @@ export default function AdminDashboard() {
   return (
     <div className="container">
 
-      <h1>📦 Orders Dashboard</h1>
+      <h1>📦 Orders</h1>
 
       {/* TABLE */}
       <table>
