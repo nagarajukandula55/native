@@ -11,45 +11,40 @@ export default function AdminOrdersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  /* ================= FETCH ORDERS ================= */
+  /* ================= FETCH ================= */
   useEffect(() => {
-    const fetchOrders = async () => {
-      try {
-        setLoading(true);
-        setError("");
-
-        const res = await fetch("/api/orders/list");
-
-        if (!res.ok) throw new Error("Failed to fetch orders");
-
-        const data = await res.json();
-
-        if (data?.success && Array.isArray(data.orders)) {
-          setOrders(data.orders);
-          setFiltered(data.orders);
-        } else {
-          setOrders([]);
-          setFiltered([]);
-        }
-      } catch (err) {
-        console.error(err);
-        setError("Unable to load orders");
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchOrders();
   }, []);
 
-  /* ================= FILTER LOGIC ================= */
+  const fetchOrders = async () => {
+    try {
+      setLoading(true);
+      setError("");
+
+      const res = await fetch("/api/orders/list");
+      const data = await res.json();
+
+      if (data?.success) {
+        setOrders(data.orders || []);
+        setFiltered(data.orders || []);
+      } else {
+        setOrders([]);
+        setFiltered([]);
+      }
+    } catch (err) {
+      console.error(err);
+      setError("Failed to load orders");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /* ================= FILTER ================= */
   useEffect(() => {
     let temp = [...orders];
 
     if (status !== "ALL") {
-      temp = temp.filter(
-        (o) => (o.status || "").toUpperCase() === status
-      );
+      temp = temp.filter((o) => o.status === status);
     }
 
     if (search) {
@@ -63,7 +58,7 @@ export default function AdminOrdersPage() {
     setFiltered(temp);
   }, [status, search, orders]);
 
-  /* ================= STATUS UPDATE ================= */
+  /* ================= UPDATE STATUS ================= */
   const updateStatus = async (id, newStatus) => {
     try {
       const res = await fetch("/api/orders/update-status", {
@@ -89,7 +84,33 @@ export default function AdminOrdersPage() {
     }
   };
 
-  /* ================= ACTION BUTTONS ================= */
+  /* ================= MARK PAID ================= */
+  const markAsPaid = async (order) => {
+    try {
+      const res = await fetch("/api/payment/mark-paid", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          orderId: order.orderId,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data?.success) {
+        fetchOrders();
+      } else {
+        alert("Failed to mark as paid");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error marking paid");
+    }
+  };
+
+  /* ================= BUTTONS ================= */
   const ActionButtons = ({ o }) => {
     const btn = (bg) => ({
       padding: "6px 10px",
@@ -103,13 +124,19 @@ export default function AdminOrdersPage() {
     });
 
     return (
-      <span style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-        {o.status === "PENDING" && (
-          <button style={btn("#16a34a")} onClick={() => updateStatus(o._id, "PAID")}>
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+
+        {/* MANUAL PAYMENT */}
+        {o.payment?.status !== "SUCCESS" && (
+          <button
+            style={btn("#16a34a")}
+            onClick={() => markAsPaid(o)}
+          >
             Mark Paid
           </button>
         )}
 
+        {/* FLOW */}
         {o.status === "PAID" && (
           <button style={btn("#2563eb")} onClick={() => updateStatus(o._id, "PROCESSING")}>
             Start Processing
@@ -117,38 +144,35 @@ export default function AdminOrdersPage() {
         )}
 
         {o.status === "PROCESSING" && (
-          <button style={btn("#7c3aed")} onClick={() => updateStatus(o._id, "ASSIGNED_TO_WH")}>
-            Assign WH
+          <button style={btn("#7c3aed")} onClick={() => updateStatus(o._id, "PACKED")}>
+            Mark Packed
           </button>
         )}
 
-        {o.status === "ASSIGNED_TO_WH" && (
-          <button style={btn("#f97316")} onClick={() => updateStatus(o._id, "SHIPPED")}>
-            Ship Order
+        {o.status === "PACKED" && (
+          <button style={btn("#f97316")} onClick={() => updateStatus(o._id, "DISPATCHED")}>
+            Dispatch
           </button>
         )}
 
-        {o.status === "SHIPPED" && (
+        {o.status === "DISPATCHED" && (
           <button style={btn("#111")} onClick={() => updateStatus(o._id, "DELIVERED")}>
-            Mark Delivered
+            Delivered
           </button>
         )}
 
         {o.status === "DELIVERED" && (
-          <span
-            style={{
-              padding: "4px 10px",
-              borderRadius: 20,
-              fontSize: 12,
-              fontWeight: 600,
-              background: "#dcfce7",
-              color: "#111",
-            }}
-          >
+          <span style={{
+            padding: "4px 10px",
+            borderRadius: 20,
+            fontSize: 12,
+            fontWeight: 600,
+            background: "#dcfce7",
+          }}>
             Completed ✔
           </span>
         )}
-      </span>
+      </div>
     );
   };
 
@@ -157,7 +181,7 @@ export default function AdminOrdersPage() {
 
       {/* HEADER */}
       <div style={header}>
-        <h2>Orders Dashboard</h2>
+        <h2>📦 Orders Dashboard</h2>
 
         <input
           placeholder="Search Order ID / Phone"
@@ -169,36 +193,43 @@ export default function AdminOrdersPage() {
 
       {error && <p style={{ color: "red" }}>{error}</p>}
 
-      {/* FILTERS */}
+      {/* FILTER */}
       <div style={filters}>
-        {["ALL", "PAID", "PROCESSING", "ASSIGNED_TO_WH", "SHIPPED", "DELIVERED"].map(
-          (s) => (
-            <button
-              key={s}
-              onClick={() => setStatus(s)}
-              style={{
-                ...filterBtn,
-                background: status === s ? "#c28b45" : "#eee",
-                color: status === s ? "#fff" : "#000",
-              }}
-            >
-              {s}
-            </button>
-          )
-        )}
+        {[
+          "ALL",
+          "PENDING_PAYMENT",
+          "PAID",
+          "PROCESSING",
+          "PACKED",
+          "DISPATCHED",
+          "DELIVERED",
+        ].map((s) => (
+          <button
+            key={s}
+            onClick={() => setStatus(s)}
+            style={{
+              ...filterBtn,
+              background: status === s ? "#c28b45" : "#eee",
+              color: status === s ? "#fff" : "#000",
+            }}
+          >
+            {s}
+          </button>
+        ))}
       </div>
 
       {/* TABLE */}
       {loading ? (
-        <p>Loading orders...</p>
+        <p>Loading...</p>
       ) : filtered.length === 0 ? (
-        <p>No orders found</p>
+        <p>No orders</p>
       ) : (
         <div style={table}>
           <div style={rowHead}>
             <span>Order ID</span>
             <span>Customer</span>
             <span>Amount</span>
+            <span>Payment</span>
             <span>Status</span>
             <span>Actions</span>
           </div>
@@ -216,12 +247,18 @@ export default function AdminOrdersPage() {
 
                 <span>₹{o.amount}</span>
 
-                <span><b>{o.status}</b></span>
+                <span>
+                  <b>{o.payment?.status || "PENDING"}</b>
+                </span>
+
+                <span>
+                  <b>{o.status}</b>
+                </span>
 
                 <ActionButtons o={o} />
               </div>
 
-              {/* ✅ FIXED: Timeline INSIDE map */}
+              {/* TIMELINE */}
               <div style={{ marginTop: 8, marginBottom: 12 }}>
                 <OrderTimeline order={o} />
               </div>
@@ -240,7 +277,6 @@ const container = { padding: 20, maxWidth: 1200, margin: "auto" };
 const header = {
   display: "flex",
   justifyContent: "space-between",
-  alignItems: "center",
   marginBottom: 20,
 };
 
@@ -248,7 +284,6 @@ const input = {
   padding: 10,
   border: "1px solid #ddd",
   borderRadius: 8,
-  width: 250,
 };
 
 const filters = {
@@ -273,7 +308,7 @@ const table = {
 
 const rowHead = {
   display: "grid",
-  gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr",
+  gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr 1fr",
   fontWeight: "bold",
   padding: 10,
   background: "#f5f5f5",
@@ -282,7 +317,7 @@ const rowHead = {
 
 const row = {
   display: "grid",
-  gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr",
+  gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr 1fr",
   padding: 10,
   background: "#fff",
   border: "1px solid #eee",
