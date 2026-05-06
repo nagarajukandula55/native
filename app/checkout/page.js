@@ -359,32 +359,34 @@ const handleOrder = async () => {
     }
 
     /* ================= UPI ================= */
-    if (paymentMethod === "UPI") {
-      const isMobile = /Android|iPhone/i.test(navigator.userAgent);
-
-      // ✅ IMPORTANT: order already created at this point
-
+  if (paymentMethod === "UPI") {
+    const isMobile = /Android|iPhone/i.test(navigator.userAgent);
+  
+    try {
+      // ✅ ALWAYS CLEAR CART FIRST (IMPORTANT FIX)
+      setCart([]);
+      closeCart();
+  
       if (isMobile) {
-        // ✅ open UPI first
-        window.location.href = upiLink;
-
-        // ✅ delay navigation (CRITICAL FIX)
+        // small delay ensures state updates flush
+        setTimeout(() => {
+          window.location.href = upiLink;
+        }, 100);
+  
+        // fallback navigation (won't block UPI redirect)
         setTimeout(() => {
           router.push(`/order-pending?orderId=${orderId}`);
-        }, 1500);
+        }, 1200);
       } else {
         alert("Open on mobile or scan QR to pay 📱");
         router.push(`/order-pending?orderId=${orderId}`);
       }
+  
+    } catch (err) {
+      console.error("UPI flow error:", err);
+      router.push(`/order-pending?orderId=${orderId}`);
     }
-
-  } catch (err) {
-    console.error(err);
-    alert("Error placing order");
-  } finally {
-    setLoading(false);
   }
-};
   return (
     <div className="checkout">
       <div className="box">
