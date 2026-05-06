@@ -315,7 +315,7 @@ const handleOrder = async () => {
         key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
         amount: Math.round(finalAmount * 100),
         currency: "INR",
-        name: "Native Store",
+        name: "Native",
         description: "Order Payment",
         order_id: data.razorpayOrder.id,
     
@@ -379,11 +379,11 @@ const handleOrder = async () => {
       } catch (err) {
         console.error("UPI flow error:", err);
         router.push(`/order-pending?orderId=${orderId}`);
-      }
+      } finally {
+        setLoading(false);
     }
-    
-    /* ✅ THIS IS THE MISSING PIECE */
   };
+  
   return (
     <div className="checkout">
       <div className="box">
