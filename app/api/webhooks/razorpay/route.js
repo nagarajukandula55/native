@@ -6,8 +6,6 @@ import Order from "@/models/Order";
 import WebhookLog from "@/models/WebhookLog";
 import NotificationQueue from "@/models/NotificationQueue";
 
-import { notifyOrderEvent } from "@/lib/notifications/notifyOrderEvent";
-
 /* ================= WEBHOOK ================= */
 export async function POST(req) {
   try {
@@ -132,12 +130,6 @@ export async function POST(req) {
     log.status = "PROCESSED";
     log.orderId = order.orderId;
     await log.save();
-
-    /* ================= NOTIFICATIONS ================= */
-    try {
-      await notifyOrderEvent(order, prevStatus);
-    } catch (notifyErr) {
-      console.error("NOTIFY ERROR:", notifyErr);
 
       /* ================= FALLBACK QUEUE ================= */
       await NotificationQueue.create({
