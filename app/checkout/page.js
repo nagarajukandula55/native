@@ -382,7 +382,7 @@ const handleOrder = async () => {
       } finally {
         setLoading(false);
     }
-  };
+  }
   
   return (
     <div className="checkout">
