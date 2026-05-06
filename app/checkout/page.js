@@ -276,23 +276,6 @@ export default function CheckoutPage() {
         return;
       }
 
-      const res = await fetch("/api/orders/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          cart: cleanedCart,
-          taxItems,
-          address: form,
-          email: form.email,
-          coupon,
-          discount,
-          paymentMethod,
-          gstType: form.gstNumber ? "B2B" : "B2C",
-          gstMode: isInterState ? "IGST" : "CGST_SGST",
-          amount: finalAmount,
-        }),
-      });
-
     const res = await fetch("/api/orders/create", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
