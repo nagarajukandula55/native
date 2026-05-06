@@ -4,7 +4,6 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db";
 import Product from "@/models/Product";
 import mongoose from "mongoose";
-
 import { generateOrderId } from "@/lib/generateOrderId";
 import { createOrderSafe } from "@/lib/safe/createOrderSafe";
 
@@ -17,7 +16,7 @@ export async function POST(req) {
     await dbConnect();
 
     const body = await req.json();
-    console.log("📦 BODY:", body);
+    console.log("📦 BODY:", JSON.stringify(body, null, 2));
 
     let {
       cart = [],
@@ -27,7 +26,7 @@ export async function POST(req) {
     } = body;
 
     /* ================= VALIDATION ================= */
-    if (!Array.isArray(cart) || !cart.length) {
+    if (!Array.isArray(cart) || cart.length === 0) {
       return NextResponse.json(
         { success: false, message: "Cart empty" },
         { status: 400 }
@@ -40,17 +39,27 @@ export async function POST(req) {
     for (const item of cart) {
       const productId = item.productId || item._id || item.productKey;
 
+      if (!productId) {
+        console.log("❌ Missing productId in item:", item);
+        continue;
+      }
+
       let product = null;
 
+      // SAFE ObjectId check
       if (mongoose.Types.ObjectId.isValid(productId)) {
         product = await Product.findById(productId).lean();
       }
 
-      if (!product) {
+      // fallback search
+      if (!product && typeof productId === "string") {
         product = await Product.findOne({ productKey: productId }).lean();
       }
 
-      if (!product) continue;
+      if (!product) {
+        console.log("❌ Product not found:", productId);
+        continue;
+      }
 
       const qty = Math.max(Number(item.qty || 1), 1);
 
@@ -77,9 +86,13 @@ export async function POST(req) {
       });
     }
 
-    if (!items.length) {
+    /* ================= CRITICAL CHECK ================= */
+    if (items.length === 0) {
       return NextResponse.json(
-        { success: false, message: "No valid products" },
+        {
+          success: false,
+          message: "No valid products found in cart",
+        },
         { status: 400 }
       );
     }
@@ -97,7 +110,7 @@ export async function POST(req) {
       paymentMethod,
     });
 
-    /* ================= RAZORPAY ENABLE ================= */
+    /* ================= RAZORPAY ================= */
     let razorpayOrder = null;
 
     if (paymentMethod === "RAZORPAY") {
@@ -109,7 +122,7 @@ export async function POST(req) {
       });
 
       razorpayOrder = await rzp.orders.create({
-        amount: amount * 100,
+        amount: Math.round(amount * 100),
         currency: "INR",
         receipt: orderId,
       });
@@ -130,8 +143,7 @@ export async function POST(req) {
     return NextResponse.json(
       {
         success: false,
-        message: err.message,
-        stack: err.stack,
+        message: err.message || "Server error",
       },
       { status: 500 }
     );
