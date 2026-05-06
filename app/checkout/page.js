@@ -259,11 +259,13 @@ export default function CheckoutPage() {
           }
 
           return {
-            productId: item.product?._id || item.productId,
-            productKey: item.productKey || null,
+            productId:
+              item.product?._id ||
+              item.productId ||
+              item._id,   // ✅ THIS WAS MISSING
             qty: item.qty || 1,
             variant: item.variant || "default",
-            price: item.price || 0,
+            price: Number(item.price) || 0,
             name: item.name || item.product?.name || "",
           };
         })
@@ -291,12 +293,34 @@ export default function CheckoutPage() {
         }),
       });
 
-      const data = await res.json();
-
-      if (!data.success) {
-        alert(data.message || "Order failed");
-        return;
-      }
+    const res = await fetch("/api/orders/create", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        cart: cleanedCart,
+        taxItems,
+        address: form,
+        email: form.email,
+        coupon,
+        discount,
+        paymentMethod,
+        gstType: form.gstNumber ? "B2B" : "B2C",
+        gstMode: isInterState ? "IGST" : "CGST_SGST",
+        amount: finalAmount,
+      }),
+    });
+    
+    console.log("🌐 STATUS:", res.status);
+    
+    const data = await res.json();
+    
+    console.log("📦 RESPONSE:", data);
+    
+    if (!data.success) {
+      console.error("❌ ORDER FAILED:", data);
+      alert(data.message || "Order failed");
+      return;
+    }
 
       setCart([]);
       closeCart();
