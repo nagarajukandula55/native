@@ -359,6 +359,7 @@ const handleOrder = async () => {
     }
 
     /* ================= UPI ================= */
+    
     if (paymentMethod === "UPI") {
       const isMobile = /Android|iPhone/i.test(navigator.userAgent);
     
@@ -375,15 +376,13 @@ const handleOrder = async () => {
           alert("Open on mobile or scan QR to pay 📱");
           router.push(`/order-pending?orderId=${orderId}`);
         }
-    
       } catch (err) {
         console.error("UPI flow error:", err);
         router.push(`/order-pending?orderId=${orderId}`);
       } finally {
         setLoading(false);
+      }
     }
-  }
-  console.log("CHECK JSX START");
  
     return (
     <div className="checkout">
