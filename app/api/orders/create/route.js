@@ -6,64 +6,62 @@ import Product from "@/models/Product";
 import mongoose from "mongoose";
 import { createOrderSafe } from "@/lib/safe/createOrderSafe";
 
-/* ================= HELPERS ================= */
 const round = (n) => Math.round(n * 100) / 100;
 
-/* ================= MAIN ================= */
 export async function POST(req) {
-  console.log("🚀 ORDER V3 HIT");
+  console.log("🚀 STEP 1: ORDER API HIT");
 
   try {
     await dbConnect();
+    console.log("✅ STEP 2: DB CONNECTED");
 
     const body = await req.json();
+    console.log("📦 STEP 3: REQUEST BODY:", JSON.stringify(body, null, 2));
 
     let { cart = [], address = {}, paymentMethod = "UPI" } = body;
 
-    /* ================= VALIDATION ================= */
     if (!Array.isArray(cart) || cart.length === 0) {
+      console.log("❌ STEP 4: EMPTY CART");
       return NextResponse.json(
         { success: false, message: "Cart empty" },
         { status: 400 }
       );
     }
 
-    if (!address?.name || !address?.phone || !address?.pincode) {
-      return NextResponse.json(
-        { success: false, message: "Invalid address" },
-        { status: 400 }
-      );
-    }
+    console.log("🛒 STEP 5: CART LENGTH:", cart.length);
 
-    /* ================= BUILD ITEMS ================= */
     let subtotal = 0;
     const items = [];
 
     for (const item of cart) {
+      console.log("🔎 STEP 6: PROCESS ITEM:", item);
+
       try {
         const productId =
           item.productId || item._id || item.productKey;
 
-        if (!productId) continue;
+        console.log("🔑 STEP 7: PRODUCT ID:", productId);
 
         let product = null;
 
-        // ✅ Try ObjectId
         if (mongoose.Types.ObjectId.isValid(productId)) {
+          console.log("🧠 STEP 8: FIND BY ID");
           product = await Product.findById(productId).lean();
         }
 
-        // ✅ Fallback productKey
         if (!product) {
+          console.log("🧠 STEP 9: FIND BY productKey");
           product = await Product.findOne({
             productKey: productId,
           }).lean();
         }
 
-        if (!product?._id) {
-          console.warn("❌ Product not found:", productId);
+        if (!product) {
+          console.log("❌ STEP 10: PRODUCT NOT FOUND");
           continue;
         }
+
+        console.log("✅ STEP 11: PRODUCT FOUND:", product.name);
 
         const qty = Math.max(Number(item.qty || 1), 1);
 
@@ -80,10 +78,10 @@ export async function POST(req) {
 
         subtotal += baseAmount;
 
-        items.push({
+        const builtItem = {
           productId: product._id,
           productKey: product.productKey,
-          name: product.name || "", // ✅ SAFE NOW
+          name: product.name || "",
           image: product.primaryImage || "",
 
           price,
@@ -99,24 +97,32 @@ export async function POST(req) {
           igst: 0,
 
           total: round(baseAmount + gst),
-        });
+        };
+
+        console.log("📦 STEP 12: BUILT ITEM:", builtItem);
+
+        items.push(builtItem);
 
       } catch (err) {
-        console.error("❌ Item build error:", err);
+        console.error("❌ ITEM ERROR:", err);
       }
     }
 
+    console.log("📊 STEP 13: FINAL ITEMS:", items);
+
     if (!items.length) {
+      console.log("❌ STEP 14: NO VALID ITEMS");
       return NextResponse.json(
         { success: false, message: "No valid products" },
         { status: 400 }
       );
     }
 
-    /* ================= BILLING ================= */
     const totalAmount = round(
       items.reduce((sum, i) => sum + i.total, 0)
     );
+
+    console.log("💰 STEP 15: TOTAL:", totalAmount);
 
     const billing = {
       subtotal,
@@ -127,11 +133,14 @@ export async function POST(req) {
       sgst: items.reduce((a, b) => a + b.sgst, 0),
       igst: 0,
 
-      totalGST: items.reduce((a, b) => a + b.cgst + b.sgst + b.igst, 0),
+      totalGST: items.reduce((a, b) => a + b.cgst + b.sgst, 0),
       grandTotal: totalAmount,
     };
 
-    /* ================= SAFE ORDER CREATE ================= */
+    console.log("🧾 STEP 16: BILLING:", billing);
+
+    console.log("🏠 STEP 17: ADDRESS:", address);
+
     const order = await createOrderSafe({
       items,
       address,
@@ -140,7 +149,8 @@ export async function POST(req) {
       paymentMethod,
     });
 
-    /* ================= RESPONSE ================= */
+    console.log("🎉 STEP 18: ORDER CREATED:", order.orderId);
+
     return NextResponse.json({
       success: true,
       orderId: order.orderId,
@@ -148,13 +158,14 @@ export async function POST(req) {
     });
 
   } catch (err) {
-    console.error("🔥 ORDER ERROR:", err);
+    console.error("🔥 FINAL ERROR:", err);
     console.error("🔥 STACK:", err.stack);
 
     return NextResponse.json(
       {
         success: false,
-        message: err.message || "Order failed",
+        message: err.message,
+        stack: err.stack,
       },
       { status: 500 }
     );
