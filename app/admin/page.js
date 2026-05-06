@@ -70,6 +70,27 @@ export default function AdminDashboard() {
     }
   };
 
+  /* ================= Update as Paid ================= */
+  const markAsPaid = async (orderId, utr) => {
+    const res = await fetch("/api/orders/mark-paid", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ orderId, utr }),
+    });
+  
+    const data = await res.json();
+  
+    if (data.success) {
+      alert("Marked as Paid ✅");
+      fetchOrders();
+      setSelectedOrder(null);
+    } else {
+      alert(data.message);
+    }
+  };
+
   /* ================= UI ================= */
   return (
     <div className="container">
@@ -148,9 +169,22 @@ export default function AdminDashboard() {
             <h3>⚙️ Actions</h3>
 
             {selectedOrder.status === "PENDING_PAYMENT" && (
-              <button onClick={() => updateStatus(selectedOrder.orderId, "PAID")}>
-                Mark Paid
-              </button>
+              <>
+                <input
+                  placeholder="Enter UTR / Ref No"
+                  id="utrInput"
+                  style={{ marginTop: 10, padding: 8, width: "100%" }}
+                />
+            
+                <button
+                  onClick={() => {
+                    const utr = document.getElementById("utrInput").value;
+                    markAsPaid(selectedOrder.orderId, utr);
+                  }}
+                >
+                  ✅ Mark as Paid
+                </button>
+              </>
             )}
 
             {selectedOrder.status === "PAID" && (
