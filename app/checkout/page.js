@@ -383,7 +383,7 @@ const handleOrder = async () => {
         setLoading(false);
     }
   }
-  
+  console.log("CHECK JSX START");
   return (
     <div className="checkout">
       <div className="box">
