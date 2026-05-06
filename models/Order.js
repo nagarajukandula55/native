@@ -1,5 +1,11 @@
 import mongoose from "mongoose";
 
+/* ================= SAFE NUMBER HELPER ================= */
+const safeNumber = (v) => {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+};
+
 /* ================= ORDER ITEM ================= */
 const OrderItemSchema = new mongoose.Schema(
   {
@@ -13,22 +19,31 @@ const OrderItemSchema = new mongoose.Schema(
     name: String,
     image: String,
 
-    price: { type: Number, required: true },
-    qty: { type: Number, required: true },
+    price: {
+      type: Number,
+      required: true,
+      set: safeNumber,
+    },
+
+    qty: {
+      type: Number,
+      required: true,
+      set: safeNumber,
+    },
 
     gstPercent: { type: Number, default: 0 },
 
-    baseAmount: Number,
+    baseAmount: { type: Number, default: 0 },
     discountAmount: { type: Number, default: 0 },
-    taxableAmount: Number,
+    taxableAmount: { type: Number, default: 0 },
 
-    cgst: Number,
-    sgst: Number,
-    igst: Number,
+    cgst: { type: Number, default: 0 },
+    sgst: { type: Number, default: 0 },
+    igst: { type: Number, default: 0 },
 
-    total: Number,
+    total: { type: Number, default: 0 },
 
-    /* 🔒 SNAPSHOT LOCK (prevents future product changes affecting past orders) */
+    /* 🔒 SNAPSHOT LOCK */
     snapshot: {
       brand: String,
       category: String,
@@ -50,9 +65,12 @@ const AddressSchema = new mongoose.Schema(
     state: String,
     pincode: String,
 
-    gstNumber: String,
+    gstNumber: {
+      type: String,
+      uppercase: true,
+      trim: true,
+    },
 
-    /* GST TYPE */
     gstType: {
       type: String,
       enum: ["B2C", "B2B"],
@@ -67,22 +85,21 @@ const BillingSchema = new mongoose.Schema(
   {
     currency: { type: String, default: "INR" },
 
-    subtotal: Number,
-    discount: Number,
+    subtotal: { type: Number, default: 0 },
+    discount: { type: Number, default: 0 },
 
-    taxableAmount: Number,
+    taxableAmount: { type: Number, default: 0 },
 
-    cgst: Number,
-    sgst: Number,
-    igst: Number,
+    cgst: { type: Number, default: 0 },
+    sgst: { type: Number, default: 0 },
+    igst: { type: Number, default: 0 },
 
-    totalGST: Number,
+    totalGST: { type: Number, default: 0 },
 
     roundOff: { type: Number, default: 0 },
 
-    grandTotal: Number,
+    grandTotal: { type: Number, default: 0 },
 
-    /* 🔒 FINAL LOCK FLAG */
     locked: { type: Boolean, default: true },
   },
   { _id: false }
@@ -105,17 +122,14 @@ const PaymentSchema = new mongoose.Schema(
 
     amountPaid: { type: Number, default: 0 },
 
-    /* Gateway */
     razorpay_order_id: String,
     razorpay_payment_id: String,
     razorpay_signature: String,
 
-    /* UPI */
     utr: String,
 
     paidAt: Date,
 
-    /* 🔒 FULL PAYMENT LOG */
     logs: [
       {
         status: String,
@@ -134,7 +148,6 @@ const InvoiceSchema = new mongoose.Schema(
     generatedAt: Date,
     invoiceUrl: String,
 
-    /* 🔒 SNAPSHOT COPY (legal compliance) */
     billingSnapshot: Object,
   },
   { _id: false }
@@ -195,7 +208,6 @@ const OrderSchema = new mongoose.Schema(
       index: true,
     },
 
-    /* 🔒 IDEMPOTENCY (prevents duplicate orders) */
     idempotencyKey: {
       type: String,
       index: true,
@@ -211,6 +223,7 @@ const OrderSchema = new mongoose.Schema(
     amount: {
       type: Number,
       required: true,
+      set: safeNumber,
     },
 
     status: {
@@ -229,7 +242,6 @@ const OrderSchema = new mongoose.Schema(
       default: "PENDING_PAYMENT",
     },
 
-    /* STATUS TIMESTAMPS (VERY IMPORTANT) */
     statusTimeline: {
       paidAt: Date,
       processedAt: Date,
@@ -256,10 +268,8 @@ const OrderSchema = new mongoose.Schema(
       default: [],
     },
 
-    /* 🔒 SOFT DELETE */
     isDeleted: { type: Boolean, default: false },
 
-    /* 🔒 INTERNAL FLAGS */
     flags: {
       fraud: { type: Boolean, default: false },
       manualReview: { type: Boolean, default: false },
@@ -267,15 +277,20 @@ const OrderSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-
-    /* ✅ FINAL DECISION */
-    strict: false, // 🔥 now SAFE because we fully control payload
+    strict: true, // ✅ FIXED (was your hidden crash source)
   }
 );
 
+/* ================= MIDDLEWARE (FIXED ORDER) ================= */
 OrderSchema.pre("save", function (next) {
-  console.log("💾 MONGOOSE SAVE ORDER:", this);
+  console.log("💾 MONGOOSE SAVE ORDER:", this.orderId);
   next();
+});
+
+OrderSchema.pre("findOneAndUpdate", function () {
+  console.log("🚨 findOneAndUpdate CALLED");
+  console.log("🚨 QUERY:", this.getQuery());
+  console.log("🚨 UPDATE:", this.getUpdate());
 });
 
 /* ================= INDEXES ================= */
@@ -288,9 +303,3 @@ const Order =
   mongoose.models.Order || mongoose.model("Order", OrderSchema);
 
 export default Order;
-
-OrderSchema.pre("findOneAndUpdate", function () {
-  console.log("🚨 findOneAndUpdate CALLED");
-  console.log("🚨 QUERY:", this.getQuery());
-  console.log("🚨 UPDATE:", this.getUpdate());
-});
