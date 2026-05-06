@@ -5,10 +5,17 @@ import dbConnect from "@/lib/db";
 import Product from "@/models/Product";
 import mongoose from "mongoose";
 
+import Razorpay from "razorpay";
 import { generateOrderId } from "@/lib/generateOrderId";
 import { createOrderSafe } from "@/lib/safe/createOrderSafe";
 
 const round = (n) => Math.round(n * 100) / 100;
+
+/* ================= RAZORPAY INIT ================= */
+const razorpay = new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID,
+  key_secret: process.env.RAZORPAY_KEY_SECRET,
+});
 
 export async function POST(req) {
   console.log("🔥 ORDER API HIT");
@@ -20,11 +27,14 @@ export async function POST(req) {
     const body = await req.json();
     console.log("📦 BODY:", body);
 
-    let { cart = [], address = {}, paymentMethod = "UPI" } = body;
+    let {
+      cart = [],
+      address = {},
+      paymentMethod = "UPI",
+    } = body;
 
     /* ================= VALIDATION ================= */
     if (!Array.isArray(cart) || !cart.length) {
-      console.log("❌ Cart empty");
       return NextResponse.json(
         { success: false, message: "Cart empty" },
         { status: 400 }
@@ -32,7 +42,6 @@ export async function POST(req) {
     }
 
     if (!address?.phone || !address?.pincode) {
-      console.log("❌ Invalid address");
       return NextResponse.json(
         { success: false, message: "Invalid address" },
         { status: 400 }
@@ -43,14 +52,11 @@ export async function POST(req) {
     let items = [];
 
     for (const item of cart) {
-      console.log("🔍 Processing item:", item);
-
       const productId =
         item.productId || item._id || item.productKey;
 
       let product = null;
 
-      /* 🔎 FIND PRODUCT */
       if (mongoose.Types.ObjectId.isValid(productId)) {
         product = await Product.findById(productId).lean();
       }
@@ -61,10 +67,7 @@ export async function POST(req) {
         }).lean();
       }
 
-      if (!product) {
-        console.log("❌ Product not found:", productId);
-        continue;
-      }
+      if (!product) continue;
 
       const qty = Math.max(Number(item.qty || 1), 1);
 
@@ -103,7 +106,6 @@ export async function POST(req) {
     }
 
     if (!items.length) {
-      console.log("❌ No valid items");
       return NextResponse.json(
         { success: false, message: "No valid products" },
         { status: 400 }
@@ -121,7 +123,23 @@ export async function POST(req) {
     const orderId = await generateOrderId();
     console.log("🆔 ORDER ID:", orderId);
 
-    /* ================= CREATE ORDER ================= */
+    /* ================= RAZORPAY ORDER (ONLY IF SELECTED) ================= */
+    let razorpayOrder = null;
+
+    if (paymentMethod === "RAZORPAY") {
+      console.log("💳 Creating Razorpay order...");
+
+      razorpayOrder = await razorpay.orders.create({
+        amount: Math.round(amount * 100), // paise
+        currency: "INR",
+        receipt: orderId,
+        payment_capture: 1,
+      });
+
+      console.log("✅ RAZORPAY ORDER:", razorpayOrder.id);
+    }
+
+    /* ================= SAVE ORDER ================= */
     const order = await createOrderSafe({
       orderId,
       items,
@@ -130,13 +148,14 @@ export async function POST(req) {
       paymentMethod,
     });
 
-    console.log("✅ ORDER CREATED:", order.orderId);
+    console.log("✅ ORDER SAVED:", order.orderId);
 
     /* ================= RESPONSE ================= */
     return NextResponse.json({
       success: true,
       orderId: order.orderId,
-      amount: order.amount,
+      amount,
+      razorpayOrder: razorpayOrder || null,
     });
 
   } catch (err) {
