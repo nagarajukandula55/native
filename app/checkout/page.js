@@ -310,16 +310,19 @@ const handleOrder = async () => {
         alert("Razorpay is temporarily disabled. Use UPI.");
         return;
       }
-
-      new window.Razorpay({
+    
+      const options = {
         key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
         amount: Math.round(finalAmount * 100),
-        order_id: data.razorpayOrder?.id,
-
+        currency: "INR",
+        name: "Native Store",
+        description: "Order Payment",
+        order_id: data.razorpayOrder.id,
+    
         handler: async function (response) {
           try {
             console.log("💳 Razorpay Success:", response);
-              
+    
             const verifyRes = await fetch("/api/payment/verify", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -330,9 +333,9 @@ const handleOrder = async () => {
                 orderId: orderId,
               }),
             });
-
+    
             const verifyData = await verifyRes.json();
-
+    
             if (verifyData.success) {
               setCart([]);
               closeCart();
@@ -345,14 +348,15 @@ const handleOrder = async () => {
             alert("Payment verification error");
           }
         },
-      theme: {
-        color: "#3399cc",
-      },
-    };
-  
-    const rzp = new window.Razorpay(options);
-    rzp.open();
-  }
+    
+        theme: {
+          color: "#3399cc",
+        },
+      };
+    
+      const rzp = new window.Razorpay(options);
+      rzp.open();
+    }
 
     /* ================= UPI ================= */
     if (paymentMethod === "UPI") {
