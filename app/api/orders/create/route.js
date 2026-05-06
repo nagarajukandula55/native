@@ -3,8 +3,10 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db";
 import Product from "@/models/Product";
-import Order from "@/models/Order"; // ✅ FIXED
 import mongoose from "mongoose";
+
+import { generateOrderId } from "@/lib/orderId"; // ✅ NEW
+import { createOrderSafe } from "@/lib/safe/createOrderSafe"; // ✅ NEW
 
 const round = (n) => Math.round(n * 100) / 100;
 
@@ -20,6 +22,7 @@ export async function POST(req) {
 
     let { cart = [], address = {}, paymentMethod = "UPI" } = body;
 
+    /* ================= VALIDATE CART ================= */
     if (!Array.isArray(cart) || !cart.length) {
       console.log("❌ Empty cart");
       return NextResponse.json(
@@ -39,12 +42,15 @@ export async function POST(req) {
 
       let product = null;
 
+      /* ---------- FIND PRODUCT ---------- */
       if (mongoose.Types.ObjectId.isValid(productId)) {
         product = await Product.findById(productId).lean();
       }
 
       if (!product) {
-        product = await Product.findOne({ productKey: productId }).lean();
+        product = await Product.findOne({
+          productKey: productId,
+        }).lean();
       }
 
       if (!product) {
@@ -52,6 +58,7 @@ export async function POST(req) {
         continue;
       }
 
+      /* ---------- CALCULATIONS ---------- */
       const qty = Math.max(Number(item.qty || 1), 1);
 
       const price =
@@ -67,10 +74,11 @@ export async function POST(req) {
 
       const final = round(baseAmount + gst);
 
+      /* ---------- PUSH ITEM ---------- */
       items.push({
         productId: product._id,
         productKey: product.productKey,
-        name: product.name, // ✅ allowed now
+        name: product.name,
         image: product.primaryImage || "",
 
         price,
@@ -88,6 +96,7 @@ export async function POST(req) {
       });
     }
 
+    /* ================= VALIDATE ITEMS ================= */
     if (!items.length) {
       console.log("❌ No valid items");
       return NextResponse.json(
@@ -96,36 +105,29 @@ export async function POST(req) {
       );
     }
 
+    /* ================= TOTAL ================= */
     const totalAmount = round(
       items.reduce((sum, i) => sum + i.total, 0)
     );
 
     console.log("💰 TOTAL:", totalAmount);
 
-    /* ================= CREATE ORDER ================= */
-    const order = await Order.create({
-      orderId: "NA-" + Date.now(), // temporary simple ID
+    /* ================= ORDER ID ================= */
+    const orderId = await generateOrderId();
+    console.log("🆔 ORDER ID:", orderId);
+
+    /* ================= CREATE ORDER (SAFE) ================= */
+    const order = await createOrderSafe({
+      orderId,
       items,
-      amount: totalAmount,
       address,
-
-      status: "PENDING_PAYMENT",
-
-      payment: {
-        method: paymentMethod,
-        status: "PENDING",
-      },
-
-      auditLogs: [
-        {
-          action: "ORDER_CREATED",
-          by: "SYSTEM",
-        },
-      ],
+      amount: totalAmount,
+      paymentMethod,
     });
 
     console.log("✅ ORDER CREATED:", order.orderId);
 
+    /* ================= RESPONSE ================= */
     return NextResponse.json({
       success: true,
       orderId: order.orderId,
@@ -139,7 +141,7 @@ export async function POST(req) {
       {
         success: false,
         message: err.message,
-        stack: err.stack, // 👈 important for debugging
+        stack: err.stack, // debug
       },
       { status: 500 }
     );
