@@ -6,7 +6,7 @@ import Razorpay from "razorpay";
 import mongoose from "mongoose";
 
 import { createOrderSafe } from "@/lib/safe/createOrderSafe";
-
+console.log("🔥 V3 ORDER ROUTE HIT");
 /* ================= CONFIG ================= */
 const PAYMENT_CONFIG = {
   RAZORPAY: false,
