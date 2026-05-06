@@ -283,3 +283,9 @@ const Order =
   mongoose.models.Order || mongoose.model("Order", OrderSchema);
 
 export default Order;
+
+OrderSchema.pre("findOneAndUpdate", function () {
+  console.log("🚨 findOneAndUpdate CALLED");
+  console.log("🚨 QUERY:", this.getQuery());
+  console.log("🚨 UPDATE:", this.getUpdate());
+});
