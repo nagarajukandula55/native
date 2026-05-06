@@ -47,8 +47,12 @@ export async function POST(req) {
       let product = null;
 
       // SAFE ObjectId check
-      if (mongoose.Types.ObjectId.isValid(productId)) {
-        product = await Product.findById(productId).lean();
+      try {
+        if (mongoose.Types.ObjectId.isValid(productId)) {
+          product = await Product.findById(productId).lean();
+        }
+      } catch (e) {
+        console.error("❌ findById error:", e.message);
       }
 
       // fallback search
@@ -68,6 +72,9 @@ export async function POST(req) {
         Number(product?.pricing?.sellingPrice) ||
         Number(product?.price) ||
         0;
+      if (!price) {
+      console.warn("⚠️ INVALID PRICE FOR PRODUCT:", productId);
+    }
 
       const gstPercent = Number(product?.tax || 0);
 
@@ -87,12 +94,10 @@ export async function POST(req) {
     }
 
     /* ================= CRITICAL CHECK ================= */
-    if (items.length === 0) {
+    if (!items.length) {
+      console.error("❌ NO VALID ITEMS AFTER PROCESSING");
       return NextResponse.json(
-        {
-          success: false,
-          message: "No valid products found in cart",
-        },
+        { success: false, message: "No valid products found" },
         { status: 400 }
       );
     }
@@ -138,12 +143,14 @@ export async function POST(req) {
     });
 
   } catch (err) {
-    console.error("🔥 ORDER ERROR:", err);
+      console.error("🔥 FULL ORDER ERROR:", err);
+      console.error("🔥 STACK:", err.stack);
 
     return NextResponse.json(
       {
         success: false,
-        message: err.message || "Server error",
+        message: err.message,
+        stack: err.stack,
       },
       { status: 500 }
     );
