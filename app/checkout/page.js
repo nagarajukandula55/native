@@ -592,4 +592,5 @@ const handleOrder = async () => {
           }
         `}</style>
     </div>
+};
 }
