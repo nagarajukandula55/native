@@ -360,30 +360,30 @@ const handleOrder = async () => {
 
     /* ================= UPI ================= */
     
-    if (paymentMethod === "UPI") {
-      const isMobile = /Android|iPhone/i.test(navigator.userAgent);
-    
-      try {
-        if (isMobile) {
-          window.location.href = upiLink;
-    
-          setTimeout(() => {
-            setCart([]);
-            closeCart();
-            router.push(`/order-pending?orderId=${orderId}`);
-          }, 1500);
-        } else {
-          alert("Open on mobile or scan QR to pay 📱");
+  if (paymentMethod === "UPI") {
+    const isMobile = /Android|iPhone/i.test(navigator.userAgent);
+  
+    try {
+      if (isMobile) {
+        window.location.href = upiLink;
+  
+        setTimeout(() => {
+          setCart([]);
+          closeCart();
           router.push(`/order-pending?orderId=${orderId}`);
-        }
-      } catch (err) {
-        console.error("UPI flow error:", err);
+        }, 1500);
+      } else {
+        alert("Open on mobile or scan QR to pay 📱");
         router.push(`/order-pending?orderId=${orderId}`);
-      } finally {
-        setLoading(false);
       }
+    } catch (err) {
+      console.error("UPI flow error:", err);
+      router.push(`/order-pending?orderId=${orderId}`);
+    } finally {
+      setLoading(false);
     }
- 
+  }
+   
     return (
     <div className="checkout">
       <div className="box">
