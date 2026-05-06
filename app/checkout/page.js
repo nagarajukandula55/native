@@ -378,12 +378,12 @@ const handleOrder = async () => {
         }
       } catch (err) {
         console.error("UPI flow error:", err);
-        router.push(`/order-pending?orderId=${orderId}`);
       } finally {
-        setLoading(false);
-      }
+      setLoading(false);
     }
-};
+  };
+
+  return (
     <div className="checkout">
       <div className="box">
         <h2>Checkout</h2>
@@ -527,6 +527,8 @@ const handleOrder = async () => {
         )}
 
       </div> {/* ✅ closes .box (summary box) */}
+
+return(
 
       {/* ================= STYLES ================= */}
       <style jsx>{`
