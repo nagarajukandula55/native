@@ -86,27 +86,24 @@ export default function AdminOrdersPage() {
 
   /* ================= MARK PAID ================= */
   const markAsPaid = async (order) => {
-    try {
-      const res = await fetch("/api/payment/mark-paid", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          orderId: order.orderId,
-        }),
-      });
-
-      const data = await res.json();
-
-      if (data?.success) {
-        fetchOrders();
-      } else {
-        alert("Failed to mark as paid");
-      }
-    } catch (err) {
-      console.error(err);
-      alert("Error marking paid");
+    const utr = prompt("Enter UTR / Reference (optional)");
+  
+    const res = await fetch("/api/payment/mark-paid", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orderId: order.orderId,
+        utr,
+      }),
+    });
+  
+    const data = await res.json();
+  
+    if (data.success) {
+      alert("Marked as Paid ✅");
+      location.reload();
+    } else {
+      alert("Failed ❌");
     }
   };
 
