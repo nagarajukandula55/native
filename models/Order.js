@@ -269,9 +269,14 @@ const OrderSchema = new mongoose.Schema(
     timestamps: true,
 
     /* ✅ FINAL DECISION */
-    strict: true, // 🔥 now SAFE because we fully control payload
+    strict: false, // 🔥 now SAFE because we fully control payload
   }
 );
+
+OrderSchema.pre("save", function (next) {
+  console.log("💾 MONGOOSE SAVE ORDER:", this);
+  next();
+});
 
 /* ================= INDEXES ================= */
 OrderSchema.index({ "payment.razorpay_order_id": 1 });
