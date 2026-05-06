@@ -5,8 +5,8 @@ import dbConnect from "@/lib/db";
 import Product from "@/models/Product";
 import mongoose from "mongoose";
 
-import { generateOrderId } from "@/lib/orderId"; // ✅ NEW
-import { createOrderSafe } from "@/lib/safe/createOrderSafe"; // ✅ NEW
+import { generateOrderId } from "@/lib/generateOrderId";
+import { createOrderSafe } from "@/lib/safe/createOrderSafe";
 
 const round = (n) => Math.round(n * 100) / 100;
 
@@ -22,11 +22,19 @@ export async function POST(req) {
 
     let { cart = [], address = {}, paymentMethod = "UPI" } = body;
 
-    /* ================= VALIDATE CART ================= */
+    /* ================= VALIDATION ================= */
     if (!Array.isArray(cart) || !cart.length) {
-      console.log("❌ Empty cart");
+      console.log("❌ Cart empty");
       return NextResponse.json(
         { success: false, message: "Cart empty" },
+        { status: 400 }
+      );
+    }
+
+    if (!address?.phone || !address?.pincode) {
+      console.log("❌ Invalid address");
+      return NextResponse.json(
+        { success: false, message: "Invalid address" },
         { status: 400 }
       );
     }
@@ -42,7 +50,7 @@ export async function POST(req) {
 
       let product = null;
 
-      /* ---------- FIND PRODUCT ---------- */
+      /* 🔎 FIND PRODUCT */
       if (mongoose.Types.ObjectId.isValid(productId)) {
         product = await Product.findById(productId).lean();
       }
@@ -58,7 +66,6 @@ export async function POST(req) {
         continue;
       }
 
-      /* ---------- CALCULATIONS ---------- */
       const qty = Math.max(Number(item.qty || 1), 1);
 
       const price =
@@ -74,7 +81,6 @@ export async function POST(req) {
 
       const final = round(baseAmount + gst);
 
-      /* ---------- PUSH ITEM ---------- */
       items.push({
         productId: product._id,
         productKey: product.productKey,
@@ -96,7 +102,6 @@ export async function POST(req) {
       });
     }
 
-    /* ================= VALIDATE ITEMS ================= */
     if (!items.length) {
       console.log("❌ No valid items");
       return NextResponse.json(
@@ -106,22 +111,22 @@ export async function POST(req) {
     }
 
     /* ================= TOTAL ================= */
-    const totalAmount = round(
+    const amount = round(
       items.reduce((sum, i) => sum + i.total, 0)
     );
 
-    console.log("💰 TOTAL:", totalAmount);
+    console.log("💰 FINAL AMOUNT:", amount);
 
     /* ================= ORDER ID ================= */
     const orderId = await generateOrderId();
     console.log("🆔 ORDER ID:", orderId);
 
-    /* ================= CREATE ORDER (SAFE) ================= */
+    /* ================= CREATE ORDER ================= */
     const order = await createOrderSafe({
       orderId,
       items,
       address,
-      amount: totalAmount,
+      amount,
       paymentMethod,
     });
 
@@ -141,7 +146,7 @@ export async function POST(req) {
       {
         success: false,
         message: err.message,
-        stack: err.stack, // debug
+        stack: err.stack,
       },
       { status: 500 }
     );
