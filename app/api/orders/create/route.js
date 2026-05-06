@@ -1,3 +1,7 @@
+export const dynamic = "force-dynamic";
+
+console.log("🔥 V3 ORDER ROUTE HIT");
+
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db";
 import Product from "@/models/Product";
@@ -6,7 +10,7 @@ import Razorpay from "razorpay";
 import mongoose from "mongoose";
 
 import { createOrderSafe } from "@/lib/safe/createOrderSafe";
-console.log("🔥 V3 ORDER ROUTE HIT");
+
 /* ================= CONFIG ================= */
 const PAYMENT_CONFIG = {
   RAZORPAY: false,
