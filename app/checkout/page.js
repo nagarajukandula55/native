@@ -384,7 +384,8 @@ const handleOrder = async () => {
     }
   }
   console.log("CHECK JSX START");
-  return (
+ 
+    return (
     <div className="checkout">
       <div className="box">
         <h2>Checkout</h2>
@@ -530,66 +531,66 @@ const handleOrder = async () => {
       </div> {/* ✅ closes .box (summary box) */}
 
       {/* ================= STYLES ================= */}
-      <style jsx>{
-        .checkout {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 20px;
-        }
-
-        .box {
-          padding: 20px;
-          border: 1px solid #eee;
-          border-radius: 12px;
-        }
-
-        input {
-          width: 100%;
-          padding: 10px;
-          margin: 5px 0;
-        }
-
-        .row {
-          display: flex;
-          justify-content: space-between;
-        }
-
-        .coupon {
-          display: flex;
-          gap: 10px;
-        }
-
-        button {
-          width: 100%;
-          padding: 10px;
-          background: black;
-          color: white;
-        }
-
-        .btn {
-          display: block;
-          margin-top: 10px;
-          background: green;
-          color: white;
-          padding: 10px;
-          text-align: center;
-        }
-
-        .gstBox {
-          margin-top: 10px;
-          padding: 10px;
-          background: #f1fff1;
-          border: 1px solid #b6e3b6;
-          border-radius: 8px;
-          font-size: 13px;
-        }
-
-        .gstRow {
-          display: flex;
-          justify-content: space-between;
-          margin-top: 4px;
-        }
-      }</style>
+      <style jsx>{`
+          .checkout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+          }
+        
+          .box {
+            padding: 20px;
+            border: 1px solid #eee;
+            border-radius: 12px;
+          }
+        
+          input {
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0;
+          }
+        
+          .row {
+            display: flex;
+            justify-content: space-between;
+          }
+        
+          .coupon {
+            display: flex;
+            gap: 10px;
+          }
+        
+          button {
+            width: 100%;
+            padding: 10px;
+            background: black;
+            color: white;
+          }
+        
+          .btn {
+            display: block;
+            margin-top: 10px;
+            background: green;
+            color: white;
+            padding: 10px;
+            text-align: center;
+          }
+        
+          .gstBox {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f1fff1;
+            border: 1px solid #b6e3b6;
+            border-radius: 8px;
+            font-size: 13px;
+          }
+        
+          .gstRow {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 4px;
+          }
+        `}</style>
     </div>
   );
 }
