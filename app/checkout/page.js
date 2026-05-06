@@ -238,8 +238,7 @@ const handleOrder = async () => {
       .map(item => {
         // ✅ FIX: correct priority
         const productId =
-          item.product?._id ||   // 🔥 MOST IMPORTANT
-          item.productId ||
+          item.product?._id || item.productId
           item._id;
 
         if (!productId) {
