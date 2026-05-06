@@ -363,20 +363,14 @@ const handleOrder = async () => {
     const isMobile = /Android|iPhone/i.test(navigator.userAgent);
   
     try {
-      // ✅ ALWAYS CLEAR CART FIRST (IMPORTANT FIX)
-      setCart([]);
-      closeCart();
-  
       if (isMobile) {
-        // small delay ensures state updates flush
-        setTimeout(() => {
-          window.location.href = upiLink;
-        }, 100);
+        window.location.href = upiLink;
   
-        // fallback navigation (won't block UPI redirect)
         setTimeout(() => {
+          setCart([]);
+          closeCart();
           router.push(`/order-pending?orderId=${orderId}`);
-        }, 1200);
+        }, 1500);
       } else {
         alert("Open on mobile or scan QR to pay 📱");
         router.push(`/order-pending?orderId=${orderId}`);
@@ -590,7 +584,7 @@ const handleOrder = async () => {
           justify-content: space-between;
           margin-top: 4px;
         }
-       }</style>
+      `}</style>
     </div>
   );
 }
