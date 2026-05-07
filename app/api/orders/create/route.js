@@ -1,20 +1,26 @@
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
-import dbConnect from "@/lib/db";
-import Product from "@/models/Product";
-import Order from "@/models/Order";
 import mongoose from "mongoose";
 
-const round = (n) => Math.round(n * 100) / 100;
+import dbConnect from "@/lib/db";
+
+import Product from "@/models/Product";
+import Order from "@/models/Order";
+
+const round = (n) => Math.round(Number(n || 0) * 100) / 100;
 
 /* ================= SAFE ORDER ID ================= */
 function generateSafeOrderId() {
-  const random = Math.random().toString(36).substring(2, 8).toUpperCase();
+  const random = Math.random()
+    .toString(36)
+    .substring(2, 8)
+    .toUpperCase();
 
   return `NA-${Date.now()}-${random}`;
 }
 
+/* ================= API ================= */
 export async function POST(req) {
   console.log("\n==============================");
   console.log("🔥 ORDER API HIT");
@@ -22,8 +28,9 @@ export async function POST(req) {
   console.log("==============================\n");
 
   try {
-    /* ================= DB CONNECT ================= */
+    /* ================= DB ================= */
     await dbConnect();
+
     console.log("✅ DB CONNECTED");
 
     /* ================= BODY ================= */
@@ -43,7 +50,7 @@ export async function POST(req) {
 
     /* ================= VALIDATION ================= */
     if (!Array.isArray(cart) || cart.length === 0) {
-      console.log("❌ CART EMPTY");
+      console.log("❌ EMPTY CART");
 
       return NextResponse.json(
         {
@@ -56,14 +63,14 @@ export async function POST(req) {
 
     console.log("🛒 CART COUNT:", cart.length);
 
-    /* ================= PROCESS ITEMS ================= */
-    let items = [];
+    /* ================= BUILD ITEMS ================= */
+    const items = [];
 
     for (const item of cart) {
       try {
-        console.log("\n-------------------");
+        console.log("\n-------------------------");
         console.log("🔍 PROCESSING ITEM");
-        console.log("-------------------");
+        console.log("-------------------------");
 
         console.log("📦 ITEM:", item);
 
@@ -75,7 +82,7 @@ export async function POST(req) {
         console.log("🆔 PRODUCT ID:", productId);
 
         if (!productId) {
-          console.log("❌ NO PRODUCT ID FOUND");
+          console.log("❌ PRODUCT ID MISSING");
           continue;
         }
 
@@ -84,22 +91,24 @@ export async function POST(req) {
         /* ================= FIND PRODUCT ================= */
         try {
           if (mongoose.Types.ObjectId.isValid(productId)) {
-            console.log("🔎 SEARCHING BY OBJECT ID");
+            console.log("🔎 FIND BY OBJECT ID");
 
-            product = await Product.findById(productId).lean();
+            product = await Product.findById(
+              productId
+            ).lean();
           }
 
           if (!product && typeof productId === "string") {
-            console.log("🔎 SEARCHING BY PRODUCT KEY");
+            console.log("🔎 FIND BY PRODUCT KEY");
 
             product = await Product.findOne({
               productKey: productId,
             }).lean();
           }
-        } catch (fetchErr) {
+        } catch (findErr) {
           console.error(
             "❌ PRODUCT FETCH ERROR:",
-            fetchErr
+            findErr
           );
 
           continue;
@@ -114,15 +123,16 @@ export async function POST(req) {
           continue;
         }
 
-        console.log("✅ PRODUCT FOUND:", product.name);
+        console.log(
+          "✅ PRODUCT FOUND:",
+          product.name
+        );
 
         /* ================= QTY ================= */
         const qty = Math.max(
           Number(item.qty || 1),
           1
         );
-
-        console.log("🔢 QTY:", qty);
 
         /* ================= PRICE ================= */
         const price =
@@ -135,7 +145,7 @@ export async function POST(req) {
 
         if (!price) {
           console.log(
-            "⚠️ INVALID PRICE FOR:",
+            "⚠️ INVALID PRICE:",
             product.name
           );
         }
@@ -145,39 +155,66 @@ export async function POST(req) {
 
         const baseAmount = round(price * qty);
 
-        const gst = round(
+        const gstAmount = round(
           (baseAmount * gstPercent) / 100
         );
 
-        const total = round(baseAmount + gst);
+        const cgst = round(gstAmount / 2);
 
-        console.log("🧾 GST %:", gstPercent);
-        console.log("🧾 BASE:", baseAmount);
-        console.log("🧾 GST:", gst);
-        console.log("🧾 TOTAL:", total);
+        const sgst = round(gstAmount / 2);
 
+        const total = round(baseAmount + gstAmount);
+
+        /* ================= ITEM ================= */
         items.push({
           productId: product._id,
+
           productKey: product.productKey,
+
           name: product.name,
+
+          image:
+            product?.images?.[0]?.url ||
+            product?.thumbnail ||
+            "",
+
           price,
+
           qty,
+
           gstPercent,
+
           baseAmount,
-          gst,
+
+          taxableAmount: baseAmount,
+
+          cgst,
+
+          sgst,
+
+          igst: 0,
+
           total,
+
+          snapshot: {
+            brand: product?.brand || "",
+
+            category: product?.category || "",
+
+            hsn: product?.hsn || "",
+          },
         });
 
         console.log("✅ ITEM ADDED");
       } catch (itemErr) {
         console.error(
-          "❌ ITEM PROCESSING ERROR:",
+          "❌ ITEM PROCESS ERROR:",
           itemErr
         );
       }
     }
 
-    /* ================= FINAL ITEM CHECK ================= */
+    /* ================= ITEM CHECK ================= */
     console.log("\n==============================");
     console.log("📦 FINAL ITEMS");
     console.log("==============================");
@@ -198,14 +235,48 @@ export async function POST(req) {
       );
     }
 
-    /* ================= TOTAL ================= */
-    const amount = round(
-      items.reduce((sum, item) => sum + item.total, 0)
+    /* ================= TOTALS ================= */
+    const subtotal = round(
+      items.reduce(
+        (sum, item) => sum + item.baseAmount,
+        0
+      )
     );
 
-    console.log("💰 FINAL AMOUNT:", amount);
+    const totalCGST = round(
+      items.reduce(
+        (sum, item) => sum + item.cgst,
+        0
+      )
+    );
 
-    /* ================= SAFE ORDER CREATE ================= */
+    const totalSGST = round(
+      items.reduce(
+        (sum, item) => sum + item.sgst,
+        0
+      )
+    );
+
+    const totalIGST = round(
+      items.reduce(
+        (sum, item) => sum + item.igst,
+        0
+      )
+    );
+
+    const totalGST = round(
+      totalCGST + totalSGST + totalIGST
+    );
+
+    const grandTotal = round(
+      subtotal + totalGST
+    );
+
+    console.log("💰 SUBTOTAL:", subtotal);
+    console.log("🧾 GST:", totalGST);
+    console.log("💰 GRAND TOTAL:", grandTotal);
+
+    /* ================= ORDER CREATE ================= */
     let order = null;
 
     let retries = 3;
@@ -214,46 +285,125 @@ export async function POST(req) {
       try {
         const orderId = generateSafeOrderId();
 
-        console.log("🆔 GENERATED ORDER ID:", orderId);
+        console.log(
+          "🆔 GENERATED ORDER ID:",
+          orderId
+        );
 
         order = await Order.create({
           orderId,
 
           items,
 
-          address,
+          amount: grandTotal,
 
-          email,
+          address: {
+            name: address?.name || "",
 
-          amount,
+            phone: address?.phone || "",
 
-          paymentMethod,
+            email:
+              address?.email || email || "",
 
-          paymentStatus:
+            address: address?.address || "",
+
+            city: address?.city || "",
+
+            state: address?.state || "",
+
+            pincode:
+              address?.pincode || "",
+
+            gstNumber:
+              address?.gstNumber || "",
+
+            gstType:
+              address?.gstType || "B2C",
+          },
+
+          billing: {
+            currency: "INR",
+
+            subtotal,
+
+            discount: 0,
+
+            taxableAmount: subtotal,
+
+            cgst: totalCGST,
+
+            sgst: totalSGST,
+
+            igst: totalIGST,
+
+            totalGST,
+
+            roundOff: 0,
+
+            grandTotal,
+
+            locked: true,
+          },
+
+          payment: {
+            method: paymentMethod || "UNKNOWN",
+
+            status: "PENDING",
+
+            amountPaid: 0,
+
+            logs: [
+              {
+                status: "PENDING",
+
+                message: "Order initiated",
+
+                at: new Date(),
+              },
+            ],
+          },
+
+          status:
             paymentMethod === "COD"
-              ? "Pending"
-              : "Initiated",
+              ? "PROCESSING"
+              : "PENDING_PAYMENT",
 
-          orderStatus: "Placed",
+          warehouse: {
+            status: "NEW",
+          },
 
-          createdAt: new Date(),
+          auditLogs: [
+            {
+              action: "ORDER_CREATED",
+
+              by: "SYSTEM",
+
+              meta: {
+                paymentMethod,
+              },
+
+              at: new Date(),
+            },
+          ],
         });
 
         console.log(
-          "✅ ORDER CREATED SUCCESSFULLY"
+          "✅ ORDER CREATED:",
+          order.orderId
         );
 
         break;
       } catch (orderErr) {
         console.error(
-          "❌ ORDER CREATE ERROR:",
-          orderErr
+          "❌ ORDER CREATE ERROR:"
         );
 
-        /* DUPLICATE ORDER ID */
-        if (orderErr.code === 11000) {
+        console.error(orderErr);
+
+        /* ================= DUPLICATE ================= */
+        if (orderErr?.code === 11000) {
           console.log(
-            "⚠️ DUPLICATE ORDER ID — RETRYING..."
+            "⚠️ DUPLICATE ORDER ID - RETRYING"
           );
 
           retries--;
@@ -267,7 +417,7 @@ export async function POST(req) {
 
     if (!order) {
       throw new Error(
-        "Failed to create order after retries"
+        "Order creation failed after retries"
       );
     }
 
@@ -275,26 +425,43 @@ export async function POST(req) {
     let razorpayOrder = null;
 
     if (paymentMethod === "RAZORPAY") {
-      console.log("💳 CREATING RAZORPAY ORDER");
+      console.log(
+        "💳 CREATING RAZORPAY ORDER"
+      );
 
       const Razorpay = (await import("razorpay"))
         .default;
 
       const rzp = new Razorpay({
         key_id: process.env.RAZORPAY_KEY_ID,
-        key_secret: process.env.RAZORPAY_SECRET,
+
+        key_secret:
+          process.env.RAZORPAY_SECRET,
       });
 
-      razorpayOrder = await rzp.orders.create({
-        amount: Math.round(amount * 100),
-        currency: "INR",
-        receipt: order.orderId,
-      });
+      razorpayOrder =
+        await rzp.orders.create({
+          amount: Math.round(
+            grandTotal * 100
+          ),
+
+          currency: "INR",
+
+          receipt: order.orderId,
+        });
 
       console.log(
-        "✅ RAZORPAY ORDER CREATED:",
+        "✅ RAZORPAY ORDER:",
         razorpayOrder.id
       );
+
+      /* SAVE RAZORPAY ORDER ID */
+      await Order.findByIdAndUpdate(order._id, {
+        $set: {
+          "payment.razorpay_order_id":
+            razorpayOrder.id,
+        },
+      });
     }
 
     /* ================= SUCCESS ================= */
@@ -303,12 +470,14 @@ export async function POST(req) {
     console.log("==============================");
 
     console.log("🆔 ORDER:", order.orderId);
-    console.log("💰 AMOUNT:", amount);
 
     return NextResponse.json({
       success: true,
+
       orderId: order.orderId,
-      amount,
+
+      amount: grandTotal,
+
       razorpayOrder,
     });
   } catch (err) {
@@ -316,23 +485,26 @@ export async function POST(req) {
     console.error("🔥 FULL ORDER ERROR");
     console.error("==============================");
 
-    console.error("❌ MESSAGE:", err.message);
-
-    console.error("❌ STACK:", err.stack);
-
-    if (err.code) {
-      console.error("❌ CODE:", err.code);
-    }
+    console.error(err);
 
     return NextResponse.json(
       {
         success: false,
-        message: err.message,
-        code: err.code || null,
+
+        message:
+          err?.message || "Unknown error",
+
+        name: err?.name || null,
+
+        code: err?.code || null,
+
+        errors: err?.errors || null,
+
         stack:
-          process.env.NODE_ENV === "development"
-            ? err.stack
-            : undefined,
+          process.env.NODE_ENV ===
+          "development"
+            ? err?.stack
+            : null,
       },
       { status: 500 }
     );
