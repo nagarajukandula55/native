@@ -266,13 +266,32 @@ const OrderSchema = new mongoose.Schema(
     receipt: ReceiptSchema,
 
     shipping: {
+    
       courier: String,
+    
       awb: String,
-      trackingUrl: String,
-      labelUrl: String,
-      pickupScheduled: Boolean,
+    
       shipmentId: String,
-    }
+    
+      trackingUrl: String,
+    
+      labelUrl: String,
+    
+      invoiceCopyUrl: String,
+    
+      pickupScheduled: {
+        type: Boolean,
+        default: false,
+      },
+    
+      pickupAt: Date,
+    
+      manifestUrl: String,
+    
+      trackingStatus: String,
+    
+      deliveredAt: Date,
+    },
 
     warehouse: {
       type: WarehouseSchema,
