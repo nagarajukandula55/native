@@ -9,6 +9,12 @@ const UPI_ID = "nraj.k55@ybl";
 const UPI_NAME = "Native";
 const SELLER_STATE = "Andhra Pradesh";
 
+const [paymentSettings, setPaymentSettings] = useState({
+  razorpay: true,
+  cod: true,
+  upi: true,
+});
+
 /* ================= GST ================= */
 const getGST = (base, gstPercent = 0, isInterState) => {
   const gst = (base * gstPercent) / 100;
@@ -54,6 +60,42 @@ export default function CheckoutPage() {
   const [paymentMethod, setPaymentMethod] = useState("RAZORPAY");
   const [coupon, setCoupon] = useState("");
   const [discount, setDiscount] = useState(0);
+
+  /* ===================       ================= */
+
+  useEffect(() => {
+
+    fetchPaymentSettings();
+  
+  }, []);
+  
+  const fetchPaymentSettings = async () => {
+  
+    try {
+  
+      const res = await fetch(
+        "/api/admin/payment-settings"
+      );
+  
+      const data = await res.json();
+  
+      if (data.success) {
+  
+        setPaymentSettings({
+          razorpay: data.settings?.razorpay,
+          cod: data.settings?.cod,
+          upi: data.settings?.upi,
+        });
+      }
+  
+    } catch (err) {
+  
+      console.log(
+        "PAYMENT SETTINGS ERROR",
+        err
+      );
+    }
+  };
   
 
   /* ================= CART ENRICHMENT ================= */
@@ -419,25 +461,64 @@ export default function CheckoutPage() {
           onBlur={verifyGST}
         />
   
-        <h4>Payment</h4>
+  <h4>Payment</h4>
   
-        <label>
-          <input
-            type="radio"
-            checked={paymentMethod === "RAZORPAY"}
-            onChange={() => setPaymentMethod("RAZORPAY")}
-          />
-          Razorpay
-        </label>
+  {/* ================= RAZORPAY ================= */}
+  {paymentSettings?.razorpay && (
   
-        <label>
-          <input
-            type="radio"
-            checked={paymentMethod === "UPI"}
-            onChange={() => setPaymentMethod("UPI")}
-          />
-          UPI
-        </label>
+    <label className="paymentOption">
+  
+      <input
+        type="radio"
+        checked={paymentMethod === "RAZORPAY"}
+        onChange={() =>
+          setPaymentMethod("RAZORPAY")
+        }
+      />
+  
+      Razorpay
+  
+    </label>
+  
+  )}
+  
+  {/* ================= UPI ================= */}
+  {paymentSettings?.upi && (
+  
+    <label className="paymentOption">
+  
+      <input
+        type="radio"
+        checked={paymentMethod === "UPI"}
+        onChange={() =>
+          setPaymentMethod("UPI")
+        }
+      />
+  
+      UPI
+  
+    </label>
+  
+  )}
+  
+  {/* ================= COD ================= */}
+  {paymentSettings?.cod && (
+  
+    <label className="paymentOption">
+  
+      <input
+        type="radio"
+        checked={paymentMethod === "COD"}
+        onChange={() =>
+          setPaymentMethod("COD")
+        }
+      />
+  
+      Cash On Delivery
+  
+    </label>
+  
+  )}
   
         {gstData && (
           <div className="gstBox">
