@@ -40,23 +40,26 @@ export default function InvoicePage() {
   
   const gst = order.gstDetails;
 
-  const verifyUrl = `${window.location.origin}/verify/${order.orderId}`;
+  const verifyUrl =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/verify/${order.orderId}`
+      : "";
 
   return (
     <div className="page">
 
       <div className="topbar">
-        <button onClick={() => window.open(`/api/invoice/${id}`)}>
+        <button onClick={() => window.open(`/api/invoice/${id}?download=1`)}>
           ⬇ Download PDF
         </button>
         <button
-          onClick={() => resendEmail(o._id)}
+          onClick={() => resendEmail(order._id)}
         >
           Resend Email
         </button>
         
         <button
-          onClick={() => resendWhatsApp(o._id)}
+          onClick={() => resendWhatsApp(order._id)}
         >
           Resend WhatsApp
         </button>
@@ -81,6 +84,20 @@ export default function InvoicePage() {
             <h1>TAX INVOICE</h1>
             <p>Invoice: {order.invoice?.invoiceNumber}</p>
             <p>Date: {new Date(order.createdAt).toLocaleString()}</p>
+            <p>
+              Payment: {order.payment?.method}
+            </p>
+            
+            <p>
+              Status: {order.payment?.status}
+            </p>
+            
+            {order.payment?.razorpay_payment_id && (
+              <p>
+                Txn ID:
+                {order.payment.razorpay_payment_id}
+              </p>
+            )}
           </div>
         </div>
 
@@ -125,7 +142,7 @@ export default function InvoicePage() {
               <tr key={idx}>
                 <td>{idx + 1}</td>
                 <td>{i.name}</td>
-                <td>{i.hsn}</td>
+                <td>{i.snapshot?.hsn || "-"}</td>
                 <td>{i.qty}</td>
                 <td>₹{i.price}</td>
                 <td>₹{i.discountAllocated || 0}</td>
@@ -148,7 +165,7 @@ export default function InvoicePage() {
             <p>Discount: ₹{billing.discount}</p>
             <p>Taxable: ₹{billing.taxableAmount}</p>
 
-            {!gst.isInterState ? (
+            {!gst?.isInterState ? (
               <>
                 <p>CGST: ₹{billing.cgst}</p>
                 <p>SGST: ₹{billing.sgst}</p>
@@ -177,6 +194,26 @@ export default function InvoicePage() {
         </div>
 
       </div>
+
+        @media (max-width: 768px) {
+      
+          .header,
+          .addr,
+          .summary,
+          .footer {
+        
+            flex-direction: column;
+            gap: 20px;
+          }
+        
+          table {
+            font-size: 11px;
+          }
+        
+          .invoice {
+            padding: 12px;
+          }
+        }
 
       <style jsx>{`
         .invoice { background:white; padding:25px; max-width:900px; margin:auto; position:relative; }
