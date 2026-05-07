@@ -8,6 +8,7 @@ import dbConnect from "@/lib/db";
 
 import Product from "@/models/Product";
 import Order from "@/models/Order";
+import { sendTelegramMessage } from "@/lib/telegram";
 
 /* ================= ROUND ================= */
 const round = (n) =>
@@ -419,6 +420,24 @@ export async function POST(req) {
 
     const invoiceNumber =
       await generateInvoiceNumber();
+
+    /* ================= Telegram ================= */
+    
+    await sendTelegramMessage(`
+    🛒 NEW ORDER
+    
+    Order: ${order.orderId}
+    
+    Customer: ${order.address.name}
+    
+    Phone: ${order.address.phone}
+    
+    Amount: ₹${grandTotal}
+    
+    Payment: ${paymentMethod}
+    
+    Status: ${order.status}
+    `);
 
     /* ================= CREATE ORDER ================= */
 
