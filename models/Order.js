@@ -128,6 +128,8 @@ const PaymentSchema = new mongoose.Schema(
 
     utr: String,
 
+    transactionId: String,
+
     paidAt: Date,
 
     logs: [
@@ -157,9 +159,14 @@ const InvoiceSchema = new mongoose.Schema(
 const ReceiptSchema = new mongoose.Schema(
   {
     receiptNumber: String,
+
     generatedAt: Date,
+
     amountPaid: Number,
+
     paymentMode: String,
+
+    receiptUrl: String, // ✅ ADD THIS
   },
   { _id: false }
 );
