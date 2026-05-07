@@ -33,6 +33,8 @@ export async function POST(req) {
       );
     }
 
+    console.log("🛒 RAW CART RECEIVED:", cart);
+
     /* ================= BUILD ITEMS ================= */
     let items = [];
 
@@ -44,26 +46,28 @@ export async function POST(req) {
         continue;
       }
 
-      let product = null;
-
-      // SAFE ObjectId check
-      try {
-        if (mongoose.Types.ObjectId.isValid(productId)) {
-          product = await Product.findById(productId).lean();
-        }
-      } catch (e) {
-        console.error("❌ findById error:", e.message);
+    let product = null;
+    
+    try {
+      if (mongoose.Types.ObjectId.isValid(productId)) {
+        product = await Product.findById(productId).lean();
       }
-
-      // fallback search
+    
       if (!product && typeof productId === "string") {
         product = await Product.findOne({ productKey: productId }).lean();
       }
+    } catch (err) {
+      console.error("❌ PRODUCT FETCH ERROR:", productId, err.message);
+      continue; // skip this item instead of crashing
+    }
 
-      if (!product) {
-        console.log("❌ Product not found:", productId);
-        continue;
-      }
+    console.log("🔍 CHECKING ITEM:", item);
+    console.log("🆔 PRODUCT ID:", productId);
+    
+    if (!product) {
+      console.error("❌ PRODUCT NOT FOUND:", productId);
+      continue;
+    }
 
       const qty = Math.max(Number(item.qty || 1), 1);
 
