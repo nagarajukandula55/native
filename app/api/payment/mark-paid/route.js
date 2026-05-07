@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
+
 import dbConnect from "@/lib/db";
+
 import Order from "@/models/Order";
+import Company from "@/models/CompanySettings";
+
+import generateInvoiceNumber from "@/lib/generateInvoiceNumber";
+import generateReceiptNumber from "@/lib/generateReceiptNumber";
 
 export async function POST(req) {
 
@@ -8,17 +14,10 @@ export async function POST(req) {
 
     await dbConnect();
 
-    const body = await req.json();
-
     const {
       orderId,
       utr,
-    } = body;
-
-    console.log(
-      "🟡 MARK PAID HIT:",
-      body
-    );
+    } = await req.json();
 
     /* ================= VALIDATION ================= */
 
@@ -61,74 +60,91 @@ export async function POST(req) {
     ) {
 
       return NextResponse.json({
-
         success: true,
-
         message:
-          "Already marked as paid",
-
-        orderId:
-          order.orderId,
-
+          "Already marked paid",
       });
     }
 
-    const prevStatus =
-      order.status;
+    /* ================= GENERATE DOCS ================= */
 
-    /* ================= PAYMENT UPDATE ================= */
+    const invoiceNumber =
+      await generateInvoiceNumber(
+        Company,
+        Order
+      );
 
-    order.payment = {
+    const receiptNumber =
+      await generateReceiptNumber(
+        Company,
+        Order
+      );
 
-      ...order.payment,
+    /* ================= PAYMENT ================= */
 
+    order.payment.status =
+      "SUCCESS";
+
+    order.payment.amountPaid =
+      order.amount || 0;
+
+    order.payment.utr =
+      utr || "";
+
+    order.payment.transactionId =
+      utr || "";
+
+    order.payment.paidAt =
+      new Date();
+
+    order.payment.logs.push({
       status: "SUCCESS",
+      message:
+        "Manual payment marked",
+      at: new Date(),
+    });
 
-      method:
-        order.payment?.method ||
-        "MANUAL",
-
-      utr:
-        utr || null,
-
-      amountPaid:
-        order.billing?.grandTotal ||
-        order.amount ||
-        0,
-
-      paidAt:
-        new Date(),
-
-      logs: [
-
-        ...(order.payment?.logs || []),
-
-        {
-          status: "SUCCESS",
-
-          message:
-            "Marked paid manually by admin",
-
-          at: new Date(),
-        },
-      ],
-    };
-
-    /* ================= ORDER STATUS ================= */
+    /* ================= STATUS ================= */
 
     order.status = "PAID";
 
-    /* ================= STATUS TIMELINE ================= */
+    order.statusTimeline.paidAt =
+      new Date();
 
-    order.statusTimeline = {
+    /* ================= INVOICE ================= */
 
-      ...order.statusTimeline,
+    order.invoice = {
 
-      paidAt:
-        new Date(),
+      invoiceNumber,
+
+      generatedAt: new Date(),
+
+      invoiceUrl:
+        `/invoice/${order.orderId}`,
+
+      billingSnapshot:
+        order.billing,
     };
 
-    /* ================= AUDIT LOG ================= */
+    /* ================= RECEIPT ================= */
+
+    order.receipt = {
+
+      receiptNumber,
+
+      generatedAt: new Date(),
+
+      amountPaid:
+        order.amount || 0,
+
+      paymentMode:
+        order.payment.method,
+
+      receiptUrl:
+        `/receipt/${order.orderId}`,
+    };
+
+    /* ================= AUDIT ================= */
 
     order.auditLogs.push({
 
@@ -136,60 +152,38 @@ export async function POST(req) {
         "MANUAL_PAYMENT_MARKED",
 
       from:
-        prevStatus,
+        "PENDING_PAYMENT",
 
-      to:
-        "PAID",
+      to: "PAID",
 
-      by:
-        "ADMIN",
-
-      at:
-        new Date(),
+      by: "ADMIN",
 
       meta: {
-
-        utr:
-          utr || null,
+        utr,
       },
+
+      at: new Date(),
     });
 
     /* ================= SAVE ================= */
 
     await order.save();
 
-    console.log(
-      "🟢 ORDER MARKED PAID:",
-      order.orderId
-    );
-
-    /* ================= RESPONSE ================= */
-
     return NextResponse.json({
-
       success: true,
-
-      orderId:
-        order.orderId,
-
-      paymentStatus:
-        order.payment.status,
-
-      orderStatus:
-        order.status,
+      orderId: order.orderId,
     });
 
   } catch (err) {
 
     console.error(
-      "🔴 MARK PAID ERROR:",
+      "MARK PAID ERROR:",
       err
     );
 
     return NextResponse.json(
       {
         success: false,
-
         message:
           err.message ||
           "Failed to mark paid",
