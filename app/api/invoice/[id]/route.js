@@ -1,32 +1,28 @@
+export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
-
 import PDFDocument from "pdfkit";
 
 import dbConnect from "@/lib/db";
 
 import Order from "@/models/Order";
-import Company from "@/models/CompanySettings";
+import CompanySettings from "@/models/CompanySettings";
 
-/* ================= HELPER ================= */
 const money = (n) =>
-  Number(n || 0).toFixed(2);
+  `₹${Number(n || 0).toFixed(2)}`;
 
-/* ================= API ================= */
 export async function GET(req, { params }) {
-
   try {
-
     await dbConnect();
 
-    /* ================= ORDER ================= */
+    const { id } = params;
+
     const order = await Order.findOne({
-      orderId: params.id,
+      orderId: id,
     }).lean();
 
     if (!order) {
-
       return NextResponse.json(
         {
           success: false,
@@ -36,452 +32,360 @@ export async function GET(req, { params }) {
       );
     }
 
-    /* ================= COMPANY ================= */
     const company =
-      await Company.findOne().lean();
+      await CompanySettings.findOne().lean();
 
-    /* ================= DOWNLOAD MODE ================= */
-    const download =
-      req.nextUrl.searchParams.get(
-        "download"
-      );
-
-    /* ================= PDF ================= */
-    const doc = new PDFDocument({
+    const pdf = new PDFDocument({
       size: "A4",
       margin: 40,
     });
 
-    /* ================= BUFFER ================= */
-    const pdfBuffer = await new Promise(
-      (resolve, reject) => {
+    const buffers = [];
 
+    pdf.on("data", buffers.push.bind(buffers));
+
+    /* ================= HEADER ================= */
+
+    if (company?.logoUrl) {
+      try {
+        pdf.image(
+          `public${company.logoUrl}`,
+          40,
+          35,
+          {
+            width: 55,
+          }
+        );
+      } catch (e) {
+        console.log("LOGO ERROR");
+      }
+    }
+
+    pdf
+      .fontSize(20)
+      .text(
+        company?.companyName || "Native",
+        110,
+        40
+      );
+
+    pdf
+      .fontSize(10)
+      .text(
+        company?.brandTagline || "",
+        110,
+        65
+      );
+
+    pdf.moveDown(2);
+
+    /* ================= INVOICE TITLE ================= */
+
+    pdf
+      .fontSize(22)
+      .text("TAX INVOICE", {
+        align: "right",
+      });
+
+    pdf.moveDown();
+
+    /* ================= COMPANY ================= */
+
+    pdf
+      .fontSize(10)
+      .text(
+        `${company?.addressLine1 || ""}`
+      );
+
+    pdf.text(
+      `${company?.city || ""} - ${
+        company?.pincode || ""
+      }`
+    );
+
+    pdf.text(
+      `GSTIN: ${company?.gstin || ""}`
+    );
+
+    pdf.text(
+      `Phone: ${company?.phone || ""}`
+    );
+
+    pdf.text(
+      `Email: ${company?.email || ""}`
+    );
+
+    pdf.moveDown();
+
+    /* ================= ORDER ================= */
+
+    pdf.text(
+      `Invoice No: ${
+        order.invoice?.invoiceNumber || "NA"
+      }`
+    );
+
+    pdf.text(`Order ID: ${order.orderId}`);
+
+    pdf.text(
+      `Date: ${new Date(
+        order.createdAt
+      ).toLocaleString()}`
+    );
+
+    pdf.text(
+      `Payment Method: ${
+        order.payment?.method || "-"
+      }`
+    );
+
+    if (
+      order.payment?.razorpay_payment_id
+    ) {
+      pdf.text(
+        `Transaction ID: ${order.payment.razorpay_payment_id}`
+      );
+    }
+
+    pdf.moveDown();
+
+    /* ================= BILL TO ================= */
+
+    pdf
+      .fontSize(12)
+      .text("Bill To");
+
+    pdf
+      .fontSize(10)
+      .text(order.address?.name || "");
+
+    pdf.text(order.address?.phone || "");
+
+    pdf.text(order.address?.address || "");
+
+    pdf.text(
+      `${order.address?.city || ""} - ${
+        order.address?.pincode || ""
+      }`
+    );
+
+    pdf.text(order.address?.state || "");
+
+    if (order.address?.gstNumber) {
+      pdf.text(
+        `GSTIN: ${order.address.gstNumber}`
+      );
+    }
+
+    pdf.moveDown(1.5);
+
+    /* ================= TABLE ================= */
+
+    const tableTop = pdf.y;
+
+    pdf
+      .fontSize(10)
+      .text("#", 40, tableTop);
+
+    pdf.text("Item", 70, tableTop);
+
+    pdf.text("HSN", 240, tableTop);
+
+    pdf.text("Qty", 320, tableTop);
+
+    pdf.text("GST%", 370, tableTop);
+
+    pdf.text("Total", 450, tableTop);
+
+    let y = tableTop + 20;
+
+    order.items?.forEach((item, idx) => {
+      pdf.text(String(idx + 1), 40, y);
+
+      pdf.text(
+        item.name || "",
+        70,
+        y,
+        {
+          width: 150,
+        }
+      );
+
+      pdf.text(
+        item.snapshot?.hsn || "-",
+        240,
+        y
+      );
+
+      pdf.text(
+        String(item.qty || 1),
+        320,
+        y
+      );
+
+      pdf.text(
+        `${item.gstPercent || 0}%`,
+        370,
+        y
+      );
+
+      pdf.text(
+        money(item.total),
+        450,
+        y
+      );
+
+      y += 24;
+    });
+
+    pdf.moveDown(3);
+
+    /* ================= SUMMARY ================= */
+
+    pdf.text(
+      `Subtotal: ${money(
+        order.billing?.subtotal
+      )}`,
+      {
+        align: "right",
+      }
+    );
+
+    pdf.text(
+      `Discount: ${money(
+        order.billing?.discount
+      )}`,
+      {
+        align: "right",
+      }
+    );
+
+    if (
+      Number(order.billing?.igst || 0) > 0
+    ) {
+      pdf.text(
+        `IGST: ${money(
+          order.billing?.igst
+        )}`,
+        {
+          align: "right",
+        }
+      );
+    } else {
+      pdf.text(
+        `CGST: ${money(
+          order.billing?.cgst
+        )}`,
+        {
+          align: "right",
+        }
+      );
+
+      pdf.text(
+        `SGST: ${money(
+          order.billing?.sgst
+        )}`,
+        {
+          align: "right",
+        }
+      );
+    }
+
+    pdf
+      .fontSize(14)
+      .text(
+        `Grand Total: ${money(
+          order.billing?.grandTotal
+        )}`,
+        {
+          align: "right",
+        }
+      );
+
+    pdf.moveDown(2);
+
+    /* ================= DECLARATION ================= */
+
+    pdf
+      .fontSize(11)
+      .text("Declaration");
+
+    pdf
+      .fontSize(9)
+      .text(
+        "We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct."
+      );
+
+    pdf.moveDown(2);
+
+    /* ================= FOOTER ================= */
+
+    if (company?.logoUrl) {
+      try {
+        pdf.image(
+          `public${company.logoUrl}`,
+          60,
+          pdf.y,
+          {
+            width: 45,
+          }
+        );
+      } catch (e) {}
+    }
+
+    if (company?.signatureUrl) {
+      try {
+        pdf.image(
+          `public${company.signatureUrl}`,
+          420,
+          pdf.y - 10,
+          {
+            width: 100,
+          }
+        );
+      } catch (e) {}
+    }
+
+    pdf.moveDown(4);
+
+    pdf.text(
+      "Authorised Signatory",
+      400
+    );
+
+    /* ================= END ================= */
+
+    pdf.end();
+
+    const pdfBuffer =
+      await new Promise((resolve) => {
         const chunks = [];
 
-        doc.on("data", (chunk) => {
-          chunks.push(chunk);
-        });
+        pdf.on("data", (chunk) =>
+          chunks.push(chunk)
+        );
 
-        doc.on("end", () => {
+        pdf.on("end", () => {
           resolve(Buffer.concat(chunks));
         });
-
-        doc.on("error", reject);
-
-        /* =======================================================
-           HEADER
-        ======================================================= */
-
-        doc
-          .fontSize(22)
-          .font("Helvetica-Bold")
-          .text(
-            company?.companyName ||
-              "NATIVE",
-            {
-              align: "left",
-            }
-          );
-
-        doc.moveDown(0.2);
-
-        doc
-          .fontSize(10)
-          .font("Helvetica")
-          .text(
-            company?.brandTagline || ""
-          );
-
-        doc.text(
-          company?.addressLine1 || ""
-        );
-
-        doc.text(
-          `${company?.city || ""} - ${
-            company?.pincode || ""
-          }`
-        );
-
-        doc.text(
-          `GSTIN: ${
-            company?.gstin || "NA"
-          }`
-        );
-
-        doc.moveDown();
-
-        /* =======================================================
-           INVOICE HEADER
-        ======================================================= */
-
-        doc
-          .fontSize(20)
-          .font("Helvetica-Bold")
-          .text("TAX INVOICE", {
-            align: "right",
-          });
-
-        doc.moveDown(0.5);
-
-        doc
-          .fontSize(11)
-          .font("Helvetica");
-
-        doc.text(
-          `Invoice No: ${
-            order.invoice?.invoiceNumber ||
-            "NA"
-          }`
-        );
-
-        doc.text(
-          `Order ID: ${order.orderId}`
-        );
-
-        doc.text(
-          `Date: ${new Date(
-            order.createdAt
-          ).toLocaleString()}`
-        );
-
-        doc.text(
-          `Order Status: ${
-            order.status || "NA"
-          }`
-        );
-
-        doc.moveDown();
-
-        /* =======================================================
-           CUSTOMER
-        ======================================================= */
-
-        doc
-          .fontSize(13)
-          .font("Helvetica-Bold")
-          .text("Bill To");
-
-        doc
-          .fontSize(10)
-          .font("Helvetica");
-
-        doc.text(
-          order.address?.name || ""
-        );
-
-        doc.text(
-          order.address?.phone || ""
-        );
-
-        doc.text(
-          order.address?.email || ""
-        );
-
-        doc.text(
-          order.address?.address || ""
-        );
-
-        doc.text(
-          `${order.address?.city || ""} - ${
-            order.address?.pincode || ""
-          }`
-        );
-
-        doc.text(
-          order.address?.state || ""
-        );
-
-        if (order.address?.gstNumber) {
-
-          doc.text(
-            `Customer GSTIN: ${order.address.gstNumber}`
-          );
-        }
-
-        doc.moveDown();
-
-        /* =======================================================
-           ITEMS
-        ======================================================= */
-
-        doc
-          .fontSize(13)
-          .font("Helvetica-Bold")
-          .text("Items");
-
-        doc.moveDown(0.5);
-
-        order.items?.forEach(
-          (item, idx) => {
-
-            doc
-              .fontSize(11)
-              .font("Helvetica-Bold")
-              .text(
-                `${idx + 1}. ${
-                  item.name
-                }`
-              );
-
-            doc
-              .fontSize(10)
-              .font("Helvetica");
-
-            doc.text(
-              `HSN: ${
-                item.snapshot?.hsn ||
-                "-"
-              }`
-            );
-
-            doc.text(
-              `Qty: ${item.qty}`
-            );
-
-            doc.text(
-              `Price: ₹${money(
-                item.price
-              )}`
-            );
-
-            doc.text(
-              `GST: ${
-                item.gstPercent || 0
-              }%`
-            );
-
-            doc.text(
-              `Base Amount: ₹${money(
-                item.baseAmount
-              )}`
-            );
-
-            doc.text(
-              `Taxable Amount: ₹${money(
-                item.taxableAmount
-              )}`
-            );
-
-            doc.text(
-              `Total: ₹${money(
-                item.total
-              )}`
-            );
-
-            doc.moveDown(0.8);
-          }
-        );
-
-        /* =======================================================
-           BILLING SUMMARY
-        ======================================================= */
-
-        doc.moveDown();
-
-        doc
-          .fontSize(13)
-          .font("Helvetica-Bold")
-          .text("Billing Summary");
-
-        doc.moveDown(0.5);
-
-        doc
-          .fontSize(10)
-          .font("Helvetica");
-
-        doc.text(
-          `Subtotal: ₹${money(
-            order.billing?.subtotal
-          )}`
-        );
-
-        doc.text(
-          `Discount: ₹${money(
-            order.billing?.discount
-          )}`
-        );
-
-        doc.text(
-          `Taxable Amount: ₹${money(
-            order.billing
-              ?.taxableAmount
-          )}`
-        );
-
-        /* ================= GST ================= */
-
-        if (
-          Number(order.billing?.igst || 0) >
-          0
-        ) {
-
-          doc.text(
-            `IGST: ₹${money(
-              order.billing?.igst
-            )}`
-          );
-
-        } else {
-
-          doc.text(
-            `CGST: ₹${money(
-              order.billing?.cgst
-            )}`
-          );
-
-          doc.text(
-            `SGST: ₹${money(
-              order.billing?.sgst
-            )}`
-          );
-        }
-
-        doc.text(
-          `Total GST: ₹${money(
-            order.billing?.totalGST
-          )}`
-        );
-
-        doc.moveDown(0.5);
-
-        doc
-          .fontSize(15)
-          .font("Helvetica-Bold")
-          .text(
-            `GRAND TOTAL: ₹${money(
-              order.billing?.grandTotal
-            )}`
-          );
-
-        /* =======================================================
-           PAYMENT
-        ======================================================= */
-
-        doc.moveDown();
-
-        doc
-          .fontSize(13)
-          .font("Helvetica-Bold")
-          .text("Payment Details");
-
-        doc.moveDown(0.5);
-
-        doc
-          .fontSize(10)
-          .font("Helvetica");
-
-        doc.text(
-          `Method: ${
-            order.payment?.method ||
-            "NA"
-          }`
-        );
-
-        doc.text(
-          `Status: ${
-            order.payment?.status ||
-            "NA"
-          }`
-        );
-
-        if (
-          order.payment
-            ?.razorpay_order_id
-        ) {
-
-          doc.text(
-            `Razorpay Order ID: ${order.payment.razorpay_order_id}`
-          );
-        }
-
-        if (
-          order.payment
-            ?.razorpay_payment_id
-        ) {
-
-          doc.text(
-            `Transaction ID: ${order.payment.razorpay_payment_id}`
-          );
-        }
-
-        if (order.payment?.utr) {
-
-          doc.text(
-            `UTR: ${order.payment.utr}`
-          );
-        }
-
-        if (order.payment?.paidAt) {
-
-          doc.text(
-            `Paid At: ${new Date(
-              order.payment.paidAt
-            ).toLocaleString()}`
-          );
-        }
-
-        /* =======================================================
-           FOOTER
-        ======================================================= */
-
-        doc.moveDown(3);
-
-        doc
-          .fontSize(10)
-          .font("Helvetica")
-          .text(
-            "Thank you for shopping with us!",
-            {
-              align: "center",
-            }
-          );
-
-        doc.moveDown(0.5);
-
-        doc.text(
-          "This is a computer generated invoice.",
-          {
-            align: "center",
-          }
-        );
-
-        /* =======================================================
-           END PDF
-        ======================================================= */
-
-        doc.end();
-      }
-    );
-
-    /* ================= RESPONSE ================= */
-    return new NextResponse(
-      pdfBuffer,
-      {
-        headers: {
-          "Content-Type":
-            "application/pdf",
-
-          "Content-Disposition":
-            download
-              ? `attachment; filename=invoice-${order.orderId}.pdf`
-              : `inline; filename=invoice-${order.orderId}.pdf`,
-        },
-      }
-    );
-
+      });
+
+    return new NextResponse(pdfBuffer, {
+      headers: {
+        "Content-Type":
+          "application/pdf",
+
+        "Content-Disposition": `inline; filename=${order.invoice?.invoiceNumber || order.orderId}.pdf`,
+      },
+    });
   } catch (err) {
-
-    console.error(
-      "🔥 INVOICE ERROR:",
-      err
-    );
+    console.log("INVOICE PDF ERROR:", err);
 
     return NextResponse.json(
       {
         success: false,
         message:
-          err?.message ||
-          "Invoice generation failed",
+          "Failed to generate invoice",
       },
       { status: 500 }
     );
