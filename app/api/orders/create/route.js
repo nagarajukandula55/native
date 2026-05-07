@@ -15,12 +15,63 @@ const round = (n) =>
 
 /* ================= ORDER ID ================= */
 function generateSafeOrderId() {
+
   const random = Math.random()
     .toString(36)
     .substring(2, 8)
     .toUpperCase();
 
   return `NA-${Date.now()}-${random}`;
+}
+
+/* ================= INVOICE NUMBER ================= */
+async function generateInvoiceNumber() {
+
+  const now = new Date();
+
+  const yy = String(
+    now.getFullYear()
+  ).slice(-2);
+
+  const mm = String(
+    now.getMonth() + 1
+  ).padStart(2, "0");
+
+  const dd = String(
+    now.getDate()
+  ).padStart(2, "0");
+
+  const dateCode =
+    `${yy}${mm}${dd}`;
+
+  /* ================= DAILY COUNT ================= */
+
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+
+  const end = new Date();
+  end.setHours(23, 59, 59, 999);
+
+  const count =
+    await Order.countDocuments({
+      createdAt: {
+        $gte: start,
+        $lte: end,
+      },
+    });
+
+  const sequence = String(
+    count + 1
+  ).padStart(6, "0");
+
+  /* ================= RANDOM ================= */
+
+  const random = Math.random()
+    .toString(36)
+    .substring(2, 8)
+    .toUpperCase();
+
+  return `NA-${dateCode}-${sequence}-${random}`;
 }
 
 /* ================= API ================= */
@@ -32,24 +83,33 @@ export async function POST(req) {
 
   try {
 
-    /* ================= STEP 1 ================= */
+    /* ================= DB ================= */
+
     console.log("1️⃣ CONNECTING DB");
 
     await dbConnect();
 
     console.log("✅ DB CONNECTED");
 
-    /* ================= STEP 2 ================= */
+    /* ================= BODY ================= */
+
     console.log("2️⃣ READING BODY");
 
     let body = {};
 
     try {
+
       body = await req.json();
-      console.log("✅ BODY READ SUCCESS");
+
+      console.log(
+        "✅ BODY READ SUCCESS"
+      );
+
     } catch (jsonErr) {
 
-      console.log("❌ JSON PARSE FAILED");
+      console.log(
+        "❌ JSON PARSE FAILED"
+      );
 
       return NextResponse.json(
         {
@@ -61,8 +121,7 @@ export async function POST(req) {
       );
     }
 
-    /* ================= SAFE BODY LOG ================= */
-    console.log("📦 BODY RECEIVED");
+    /* ================= BODY DATA ================= */
 
     let {
       cart = [],
@@ -71,12 +130,14 @@ export async function POST(req) {
       email = "",
     } = body;
 
-    /* ================= STEP 3 ================= */
+    /* ================= VALIDATE CART ================= */
+
     console.log("3️⃣ VALIDATING CART");
 
-    if (!Array.isArray(cart) || cart.length === 0) {
-
-      console.log("❌ EMPTY CART");
+    if (
+      !Array.isArray(cart) ||
+      cart.length === 0
+    ) {
 
       return NextResponse.json(
         {
@@ -87,30 +148,28 @@ export async function POST(req) {
       );
     }
 
-    console.log("✅ CART VALID");
-    console.log("🛒 ITEMS:", cart.length);
+    console.log(
+      "✅ CART VALID"
+    );
 
     /* ================= BUILD ITEMS ================= */
+
     const items = [];
 
     for (const item of cart) {
 
       try {
 
-        console.log("\n-----------------------");
-        console.log("🔍 PROCESS ITEM");
-        console.log("-----------------------");
-
         const productId =
           item.productId ||
           item._id ||
           item.productKey;
 
-        console.log("🆔 PRODUCT ID:", productId);
-
         if (!productId) {
 
-          console.log("❌ PRODUCT ID MISSING");
+          console.log(
+            "❌ PRODUCT ID MISSING"
+          );
 
           continue;
         }
@@ -118,28 +177,30 @@ export async function POST(req) {
         let product = null;
 
         /* ================= OBJECT ID ================= */
+
         if (
-          mongoose.Types.ObjectId.isValid(productId)
+          mongoose.Types.ObjectId.isValid(
+            productId
+          )
         ) {
 
-          console.log("🔎 FIND OBJECT ID");
-
-          product = await Product.findById(
-            productId
-          ).lean();
+          product =
+            await Product.findById(
+              productId
+            ).lean();
         }
 
         /* ================= PRODUCT KEY ================= */
+
         if (
           !product &&
           typeof productId === "string"
         ) {
 
-          console.log("🔎 FIND PRODUCT KEY");
-
-          product = await Product.findOne({
-            productKey: productId,
-          }).lean();
+          product =
+            await Product.findOne({
+              productKey: productId,
+            }).lean();
         }
 
         if (!product) {
@@ -152,56 +213,85 @@ export async function POST(req) {
           continue;
         }
 
-        console.log(
-          "✅ PRODUCT:",
-          product.name
-        );
+        /* ================= QTY ================= */
 
-        /* ================= PRICE ================= */
         const qty = Math.max(
           Number(item.qty || 1),
           1
         );
 
+        /* ================= PRICE ================= */
+
         const price =
           Number(
-            product?.primaryVariant?.sellingPrice
+            product?.primaryVariant
+              ?.sellingPrice
           ) ||
           Number(
-            product?.pricing?.sellingPrice
+            product?.pricing
+              ?.sellingPrice
           ) ||
           Number(product?.price) ||
           0;
-
-        console.log("💰 PRICE:", price);
 
         const gstPercent = Number(
           product?.tax || 0
         );
 
-        const baseAmount = round(price * qty);
+        /* ================= GST MODE ================= */
 
-        const gstAmount = round(
-          (baseAmount * gstPercent) / 100
-        );
+        const isInterState =
+          address?.state &&
+          address.state !==
+            "Andhra Pradesh";
 
-        const cgst = round(gstAmount / 2);
+        /* ================= AMOUNTS ================= */
 
-        const sgst = round(gstAmount / 2);
+        const baseAmount =
+          round(price * qty);
 
-        const total = round(
-          baseAmount + gstAmount
-        );
+        const gstAmount =
+          round(
+            (baseAmount *
+              gstPercent) /
+              100
+          );
 
-        /* ================= PUSH ITEM ================= */
+        let cgst = 0;
+        let sgst = 0;
+        let igst = 0;
+
+        if (isInterState) {
+
+          igst = gstAmount;
+
+        } else {
+
+          cgst =
+            round(gstAmount / 2);
+
+          sgst =
+            round(gstAmount / 2);
+        }
+
+        const total =
+          round(
+            baseAmount +
+              gstAmount
+          );
+
+        /* ================= ITEM ================= */
+
         items.push({
 
-          productId: product._id,
+          productId:
+            product._id,
 
           productKey:
             product.productKey || "",
 
-          name: product.name || "",
+          name:
+            product.name || "",
 
           image:
             product?.images?.[0]?.url ||
@@ -218,43 +308,43 @@ export async function POST(req) {
 
           discountAmount: 0,
 
-          taxableAmount: baseAmount,
+          taxableAmount:
+            baseAmount,
 
           cgst,
 
           sgst,
 
-          igst: 0,
+          igst,
 
           total,
 
           snapshot: {
-            brand: product?.brand || "",
+
+            brand:
+              product?.brand || "",
 
             category:
               product?.category || "",
 
-            hsn: product?.hsn || "",
+            hsn:
+              product?.hsn || "",
           },
         });
 
-        console.log("✅ ITEM ADDED");
-
       } catch (itemErr) {
 
-        console.log("❌ ITEM ERROR");
+        console.log(
+          "❌ ITEM ERROR"
+        );
 
-        console.log(String(itemErr));
+        console.log(
+          String(itemErr)
+        );
       }
     }
 
-    /* ================= STEP 4 ================= */
-    console.log("4️⃣ FINAL ITEM CHECK");
-
-    console.log(
-      "📦 VALID ITEMS:",
-      items.length
-    );
+    /* ================= FINAL CHECK ================= */
 
     if (!items.length) {
 
@@ -269,49 +359,68 @@ export async function POST(req) {
     }
 
     /* ================= TOTALS ================= */
-    const subtotal = round(
-      items.reduce(
-        (sum, item) =>
-          sum + item.baseAmount,
-        0
-      )
+
+    const subtotal =
+      round(
+        items.reduce(
+          (sum, item) =>
+            sum +
+            item.baseAmount,
+          0
+        )
+      );
+
+    const totalCGST =
+      round(
+        items.reduce(
+          (sum, item) =>
+            sum + item.cgst,
+          0
+        )
+      );
+
+    const totalSGST =
+      round(
+        items.reduce(
+          (sum, item) =>
+            sum + item.sgst,
+          0
+        )
+      );
+
+    const totalIGST =
+      round(
+        items.reduce(
+          (sum, item) =>
+            sum + item.igst,
+          0
+        )
+      );
+
+    const totalGST =
+      round(
+        totalCGST +
+          totalSGST +
+          totalIGST
+      );
+
+    const grandTotal =
+      round(
+        subtotal +
+          totalGST
+      );
+
+    console.log(
+      "💰 GRAND TOTAL:",
+      grandTotal
     );
 
-    const totalCGST = round(
-      items.reduce(
-        (sum, item) => sum + item.cgst,
-        0
-      )
-    );
+    /* ================= IDS ================= */
 
-    const totalSGST = round(
-      items.reduce(
-        (sum, item) => sum + item.sgst,
-        0
-      )
-    );
+    const invoiceNumber =
+      await generateInvoiceNumber();
 
-    const totalIGST = round(
-      items.reduce(
-        (sum, item) => sum + item.igst,
-        0
-      )
-    );
-
-    const totalGST = round(
-      totalCGST +
-      totalSGST +
-      totalIGST
-    );
-
-    const grandTotal = round(
-      subtotal + totalGST
-    );
-
-    console.log("💰 GRAND TOTAL:", grandTotal);
-
-    /* ================= STEP 5 ================= */
-    console.log("5️⃣ CREATING ORDER");
+    /* ================= CREATE ORDER ================= */
 
     let order = null;
 
@@ -324,124 +433,196 @@ export async function POST(req) {
         const orderId =
           generateSafeOrderId();
 
-        console.log(
-          "🆔 ORDER ID:",
-          orderId
-        );
+        order =
+          await Order.create({
 
-        order = await Order.create({
+            orderId,
 
-          orderId,
+            amount:
+              grandTotal,
 
-          amount: grandTotal,
+            items,
 
-          items,
+            /* ================= ADDRESS ================= */
 
-          address: {
+            address: {
 
-            name:
-              address?.name || "",
+              name:
+                address?.name ||
+                "",
 
-            phone:
-              address?.phone || "",
+              phone:
+                address?.phone ||
+                "",
 
-            email:
-              address?.email ||
-              email ||
-              "",
+              email:
+                address?.email ||
+                email ||
+                "",
 
-            address:
-              address?.address || "",
+              address:
+                address?.address ||
+                "",
 
-            city:
-              address?.city || "",
+              city:
+                address?.city ||
+                "",
 
-            state:
-              address?.state || "",
+              state:
+                address?.state ||
+                "",
 
-            pincode:
-              address?.pincode || "",
+              pincode:
+                address?.pincode ||
+                "",
 
-            gstNumber:
-              address?.gstNumber || "",
+              gstNumber:
+                address?.gstNumber ||
+                "",
 
-            gstType:
-              address?.gstType ||
-              "B2C",
-          },
+              gstType:
+                address?.gstNumber
+                  ? "B2B"
+                  : "B2C",
 
-          billing: {
+              placeOfSupply:
+                address?.state ||
+                "",
+            },
 
-            currency: "INR",
+            /* ================= BILLING ================= */
 
-            subtotal,
+            billing: {
 
-            discount: 0,
+              currency: "INR",
 
-            taxableAmount:
               subtotal,
 
-            cgst: totalCGST,
+              discount: 0,
 
-            sgst: totalSGST,
+              taxableAmount:
+                subtotal,
 
-            igst: totalIGST,
+              cgst:
+                totalCGST,
 
-            totalGST,
+              sgst:
+                totalSGST,
 
-            roundOff: 0,
+              igst:
+                totalIGST,
 
-            grandTotal,
+              totalGST,
 
-            locked: true,
-          },
+              roundOff: 0,
 
-          payment: {
+              grandTotal,
 
-            method:
-              paymentMethod ||
-              "UNKNOWN",
+              locked: true,
+            },
 
-            status: "PENDING",
+            /* ================= GST ================= */
 
-            amountPaid: 0,
+            gstDetails: {
 
-            logs: [
+              isInterState:
+                totalIGST > 0,
+
+              gstType:
+                address?.gstNumber
+                  ? "B2B"
+                  : "B2C",
+
+              placeOfSupply:
+                address?.state ||
+                "",
+
+              gstin:
+                address?.gstNumber ||
+                "",
+            },
+
+            /* ================= PAYMENT ================= */
+
+            payment: {
+
+              method:
+                paymentMethod ||
+                "UNKNOWN",
+
+              status:
+                "PENDING",
+
+              amountPaid: 0,
+
+              logs: [
+
+                {
+                  status:
+                    "PENDING",
+
+                  message:
+                    "Order initiated",
+
+                  at:
+                    new Date(),
+                },
+              ],
+            },
+
+            /* ================= ORDER STATUS ================= */
+
+            status:
+              paymentMethod ===
+              "COD"
+                ? "PROCESSING"
+                : "PENDING_PAYMENT",
+
+            statusTimeline: {
+
+              createdAt:
+                new Date(),
+            },
+
+            /* ================= WAREHOUSE ================= */
+
+            warehouse: {
+
+              status:
+                "NEW",
+            },
+
+            /* ================= INVOICE ================= */
+
+            invoice: {
+
+              invoiceNumber,
+
+              generatedAt:
+                new Date(),
+            },
+
+            /* ================= AUDIT ================= */
+
+            auditLogs: [
+
               {
-                status: "PENDING",
+                action:
+                  "ORDER_CREATED",
 
-                message:
-                  "Order initiated",
+                by:
+                  "SYSTEM",
 
-                at: new Date(),
+                meta: {
+
+                  paymentMethod,
+                },
+
+                at:
+                  new Date(),
               },
             ],
-          },
-
-          status:
-            paymentMethod === "COD"
-              ? "PROCESSING"
-              : "PENDING_PAYMENT",
-
-          warehouse: {
-            status: "NEW",
-          },
-
-          auditLogs: [
-            {
-              action:
-                "ORDER_CREATED",
-
-              by: "SYSTEM",
-
-              meta: {
-                paymentMethod,
-              },
-
-              at: new Date(),
-            },
-          ],
-        });
+          });
 
         console.log(
           "✅ ORDER SAVED:",
@@ -452,17 +633,16 @@ export async function POST(req) {
 
       } catch (saveErr) {
 
-        console.log("❌ SAVE ERROR");
-
-        console.log(String(saveErr));
+        console.log(
+          "❌ SAVE ERROR"
+        );
 
         console.log(saveErr);
 
-        if (saveErr?.code === 11000) {
-
-          console.log(
-            "⚠️ DUPLICATE ORDER ID"
-          );
+        if (
+          saveErr?.code ===
+          11000
+        ) {
 
           retries--;
 
@@ -473,27 +653,23 @@ export async function POST(req) {
           {
             success: false,
 
-            step: "ORDER_CREATE",
+            step:
+              "ORDER_CREATE",
 
-            message: String(saveErr),
-
-            error:
+            message:
               saveErr?.message ||
               "SAVE FAILED",
 
-            name:
-              saveErr?.name || null,
-
             code:
-              saveErr?.code || null,
-
-            errors:
-              saveErr?.errors || null,
+              saveErr?.code ||
+              null,
           },
           { status: 500 }
         );
       }
     }
+
+    /* ================= NULL CHECK ================= */
 
     if (!order) {
 
@@ -508,116 +684,110 @@ export async function POST(req) {
       );
     }
 
-/* ================= RAZORPAY ================= */
+    /* ================= RAZORPAY ================= */
 
-let razorpayOrder = null;
+    let razorpayOrder = null;
 
-if (paymentMethod === "RAZORPAY") {
+    if (
+      paymentMethod ===
+      "RAZORPAY"
+    ) {
 
-  try {
+      try {
 
-    console.log("💳 STARTING RAZORPAY");
+        console.log(
+          "💳 STARTING RAZORPAY"
+        );
 
-    console.log(
-      "KEY:",
-      process.env.RAZORPAY_KEY_ID
-        ? "FOUND"
-        : "MISSING"
-    );
+        const Razorpay =
+          (
+            await import(
+              "razorpay"
+            )
+          ).default;
 
-    console.log(
-      "SECRET:",
-      process.env.RAZORPAY_SECRET
-        ? "FOUND"
-        : "MISSING"
-    );
+        const rzp =
+          new Razorpay({
 
-    const Razorpay =
-      (await import("razorpay")).default;
+            key_id:
+              process.env
+                .RAZORPAY_KEY_ID,
 
-    console.log("✅ RAZORPAY IMPORT OK");
+            key_secret:
+              process.env
+                .RAZORPAY_SECRET,
+          });
 
-    const rzp = new Razorpay({
+        razorpayOrder =
+          await rzp.orders.create({
 
-      key_id:
-        process.env.RAZORPAY_KEY_ID,
+            amount:
+              Math.round(
+                grandTotal *
+                  100
+              ),
 
-      key_secret:
-        process.env.RAZORPAY_SECRET,
-    });
+            currency:
+              "INR",
 
-    console.log("✅ INSTANCE CREATED");
+            receipt:
+              order.orderId.substring(
+                0,
+                40
+              ),
+          });
 
-    console.log("💰 AMOUNT:", grandTotal);
+        /* ================= UPDATE ORDER ================= */
 
-    console.log(
-      "🧾 RECEIPT:",
-      order.orderId
-    );
+        await Order.findByIdAndUpdate(
+          order._id,
+          {
+            $set: {
+              "payment.razorpay_order_id":
+                razorpayOrder.id,
+            },
+          }
+        );
 
-    razorpayOrder =
-      await rzp.orders.create({
+        console.log(
+          "✅ RAZORPAY SUCCESS"
+        );
 
-        amount: Math.round(
-          grandTotal * 100
-        ),
+      } catch (rzpErr) {
 
-        currency: "INR",
+        console.log(
+          "❌ RAZORPAY ERROR"
+        );
 
-        receipt: order.orderId.substring(0, 40),
-      });
+        console.log(rzpErr);
 
-    console.log(
-      "✅ RAZORPAY SUCCESS"
-    );
+        return NextResponse.json(
+          {
+            success: false,
 
-    console.log(razorpayOrder);
+            step:
+              "RAZORPAY",
 
-    await Order.findByIdAndUpdate(
-      order._id,
-      {
-        $set: {
-          "payment.razorpay_order_id":
-            razorpayOrder.id,
-        },
+            message:
+              rzpErr?.error
+                ?.description ||
+              rzpErr?.message ||
+              "Razorpay failed",
+
+            full:
+              JSON.stringify(
+                rzpErr,
+                null,
+                2
+              ),
+          },
+          { status: 500 }
+        );
       }
-    );
-
-  } catch (rzpErr) {
-
-    console.log(
-      "❌ RAZORPAY FULL ERROR"
-    );
-
-    console.log(rzpErr);
-
-    console.log(
-      JSON.stringify(rzpErr, null, 2)
-    );
-
-    return NextResponse.json(
-      {
-        success: false,
-
-        step: "RAZORPAY",
-
-        message:
-          rzpErr?.error?.description ||
-          rzpErr?.message ||
-          "Razorpay failed",
-
-        full: JSON.stringify(
-          rzpErr,
-          null,
-          2
-        ),
-      },
-      { status: 500 }
-    );
-  }
-}
+    }
 
     /* ================= SUCCESS ================= */
+
     console.log("\n==================================");
     console.log("🎉 ORDER SUCCESS");
     console.log("==================================");
@@ -626,9 +796,15 @@ if (paymentMethod === "RAZORPAY") {
 
       success: true,
 
-      orderId: order.orderId,
+      orderId:
+        order.orderId,
 
-      amount: grandTotal,
+      invoiceNumber:
+        order.invoice
+          ?.invoiceNumber,
+
+      amount:
+        grandTotal,
 
       razorpayOrder,
     });
@@ -639,15 +815,18 @@ if (paymentMethod === "RAZORPAY") {
     console.log("💥 FINAL CRASH");
     console.log("==================================");
 
-    console.log(String(err));
+    console.log(err);
 
     return NextResponse.json(
       {
         success: false,
 
-        step: "FINAL_CATCH",
+        step:
+          "FINAL_CATCH",
 
-        message: String(err),
+        message:
+          err?.message ||
+          String(err),
       },
       { status: 500 }
     );
