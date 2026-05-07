@@ -8,6 +8,10 @@ import Company from "@/models/CompanySettings";
 import generateInvoiceNumber from "@/lib/generateInvoiceNumber";
 import generateReceiptNumber from "@/lib/generateReceiptNumber";
 
+import { sendReceiptEmail } from "@/lib/email";
+
+/* ================= VERIFY PAYMENT ================= */
+
 export async function POST(req) {
 
   try {
@@ -21,6 +25,24 @@ export async function POST(req) {
       razorpay_signature,
     } = await req.json();
 
+    console.log(
+      "🟡 PAYMENT VERIFY START:",
+      orderId
+    );
+
+    /* ================= VALIDATION ================= */
+
+    if (!orderId) {
+
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Order ID missing",
+        },
+        { status: 400 }
+      );
+    }
+
     /* ================= FIND ORDER ================= */
 
     const order =
@@ -29,6 +51,10 @@ export async function POST(req) {
       });
 
     if (!order) {
+
+      console.log(
+        "❌ ORDER NOT FOUND"
+      );
 
       return NextResponse.json(
         {
@@ -46,66 +72,98 @@ export async function POST(req) {
       "SUCCESS"
     ) {
 
+      console.log(
+        "⚠️ ORDER ALREADY PAID"
+      );
+
       return NextResponse.json({
         success: true,
         alreadyPaid: true,
+        orderId: order.orderId,
       });
     }
 
-    /* ================= GENERATE DOC NUMBERS ================= */
+    /* ================= COMPANY ================= */
+
+    const company =
+      await Company.findOne();
+
+    /* ================= GENERATE NUMBERS ================= */
 
     const invoiceNumber =
       await generateInvoiceNumber(
-        Company,
+        company,
         Order
       );
 
     const receiptNumber =
       await generateReceiptNumber(
-        Company,
+        company,
         Order
       );
 
-    /* ================= PAYMENT ================= */
+    console.log(
+      "🧾 INVOICE:",
+      invoiceNumber
+    );
 
-    order.payment.status =
-      "SUCCESS";
+    console.log(
+      "🧾 RECEIPT:",
+      receiptNumber
+    );
 
-    order.payment.amountPaid =
-      order.amount || 0;
+    /* ================= PAYMENT UPDATE ================= */
 
-    order.payment.razorpay_payment_id =
-      razorpay_payment_id;
+    order.payment = {
 
-    order.payment.razorpay_order_id =
-      razorpay_order_id;
+      ...order.payment,
 
-    order.payment.razorpay_signature =
-      razorpay_signature;
+      status: "SUCCESS",
 
-    order.payment.transactionId =
-      razorpay_payment_id;
+      amountPaid:
+        order.amount || 0,
 
-    order.payment.paidAt =
-      new Date();
+      razorpay_payment_id,
 
-    order.receipt = {
-      receiptNumber,
-      generatedAt: new Date(),
-      amountPaid: order.amount,
-      paymentMode: order.payment.method,
+      razorpay_order_id,
+
+      razorpay_signature,
+
+      transactionId:
+        razorpay_payment_id,
+
+      paidAt: new Date(),
     };
 
+    /* ================= PAYMENT LOGS ================= */
+
+    if (
+      !Array.isArray(
+        order.payment.logs
+      )
+    ) {
+
+      order.payment.logs = [];
+    }
+
     order.payment.logs.push({
+
       status: "SUCCESS",
+
       message:
         "Razorpay payment successful",
+
       at: new Date(),
     });
 
-    /* ================= STATUS ================= */
+    /* ================= ORDER STATUS ================= */
 
     order.status = "PAID";
+
+    if (!order.statusTimeline) {
+
+      order.statusTimeline = {};
+    }
 
     order.statusTimeline.paidAt =
       new Date();
@@ -122,7 +180,7 @@ export async function POST(req) {
         `/invoice/${order.orderId}`,
 
       billingSnapshot:
-        order.billing,
+        order.billing || {},
     };
 
     /* ================= RECEIPT ================= */
@@ -137,13 +195,24 @@ export async function POST(req) {
         order.amount || 0,
 
       paymentMode:
-        order.payment.method,
+        order.payment.method ||
+
+        "RAZORPAY",
 
       receiptUrl:
         `/receipt/${order.orderId}`,
     };
 
     /* ================= AUDIT ================= */
+
+    if (
+      !Array.isArray(
+        order.auditLogs
+      )
+    ) {
+
+      order.auditLogs = [];
+    }
 
     order.auditLogs.push({
 
@@ -156,8 +225,12 @@ export async function POST(req) {
       by: "SYSTEM",
 
       meta: {
+
         paymentId:
           razorpay_payment_id,
+
+        razorpayOrderId:
+          razorpay_order_id,
       },
 
       at: new Date(),
@@ -167,24 +240,76 @@ export async function POST(req) {
 
     await order.save();
 
+    console.log(
+      "✅ ORDER MARKED PAID:",
+      order.orderId
+    );
+
+    /* ================= EMAIL ================= */
+
+    try {
+
+      if (order.address?.email) {
+
+        const siteUrl =
+          process.env
+            .NEXT_PUBLIC_SITE_URL ||
+          "https://shopnative.in";
+
+        const receiptUrl =
+          `${siteUrl}/api/receipt/${order.orderId}`;
+
+        await sendReceiptEmail({
+
+          to: order.address.email,
+
+          orderId:
+            order.orderId,
+
+          receiptUrl,
+        });
+
+        console.log(
+          "📧 RECEIPT EMAIL SENT"
+        );
+      }
+
+    } catch (mailErr) {
+
+      console.log(
+        "❌ EMAIL ERROR:",
+        mailErr
+      );
+    }
+
+    /* ================= SUCCESS ================= */
+
     return NextResponse.json({
+
       success: true,
-      orderId: order.orderId,
+
+      orderId:
+        order.orderId,
+
+      invoiceNumber,
+
+      receiptNumber,
     });
 
   } catch (err) {
 
     console.error(
-      "PAYMENT VERIFY ERROR:",
+      "🔴 PAYMENT VERIFY ERROR:",
       err
     );
 
     return NextResponse.json(
       {
         success: false,
+
         message:
           err.message ||
-          "Payment verify failed",
+          "Payment verification failed",
       },
       { status: 500 }
     );
