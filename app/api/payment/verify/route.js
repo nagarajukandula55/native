@@ -89,6 +89,13 @@ export async function POST(req) {
     order.payment.paidAt =
       new Date();
 
+    order.receipt = {
+      receiptNumber,
+      generatedAt: new Date(),
+      amountPaid: order.amount,
+      paymentMode: order.payment.method,
+    };
+
     order.payment.logs.push({
       status: "SUCCESS",
       message:
