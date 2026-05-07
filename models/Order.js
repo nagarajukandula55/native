@@ -265,6 +265,15 @@ const OrderSchema = new mongoose.Schema(
     invoice: InvoiceSchema,
     receipt: ReceiptSchema,
 
+    shipping: {
+      courier: String,
+      awb: String,
+      trackingUrl: String,
+      labelUrl: String,
+      pickupScheduled: Boolean,
+      shipmentId: String,
+    }
+
     warehouse: {
       type: WarehouseSchema,
       default: () => ({}),
