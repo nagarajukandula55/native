@@ -9,12 +9,6 @@ const UPI_ID = "nraj.k55@ybl";
 const UPI_NAME = "Native";
 const SELLER_STATE = "Andhra Pradesh";
 
-const [paymentSettings, setPaymentSettings] = useState({
-  razorpay: true,
-  cod: true,
-  upi: true,
-});
-
 /* ================= GST ================= */
 const getGST = (base, gstPercent = 0, isInterState) => {
   const gst = (base * gstPercent) / 100;
@@ -40,6 +34,12 @@ const validateGST = (gst) => {
 export default function CheckoutPage() {
   const router = useRouter();
   const { cart, cartTotal, setCart, closeCart } = useCart();
+
+  const [paymentSettings, setPaymentSettings] = useState({
+    razorpay: true,
+    cod: true,
+    upi: true,
+  });
   
   const [gstData, setGstData] = useState(null);
   const [gstLoading, setGstLoading] = useState(false);
