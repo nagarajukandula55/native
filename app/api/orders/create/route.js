@@ -508,85 +508,114 @@ export async function POST(req) {
       );
     }
 
-    /* ================= STEP 6 ================= */
-    console.log("6️⃣ RAZORPAY");
+/* ================= RAZORPAY ================= */
 
-    let razorpayOrder = null;
+let razorpayOrder = null;
 
-    if (paymentMethod === "RAZORPAY") {
+if (paymentMethod === "RAZORPAY") {
 
-      try {
+  try {
 
-        console.log(
-          "💳 IMPORTING RAZORPAY"
-        );
+    console.log("💳 STARTING RAZORPAY");
 
-        const Razorpay =
-          (await import("razorpay"))
-            .default;
+    console.log(
+      "KEY:",
+      process.env.RAZORPAY_KEY_ID
+        ? "FOUND"
+        : "MISSING"
+    );
 
-        console.log(
-          "✅ RAZORPAY IMPORTED"
-        );
+    console.log(
+      "SECRET:",
+      process.env.RAZORPAY_SECRET
+        ? "FOUND"
+        : "MISSING"
+    );
 
-        const rzp = new Razorpay({
+    const Razorpay =
+      (await import("razorpay")).default;
 
-          key_id:
-            process.env
-              .RAZORPAY_KEY_ID,
+    console.log("✅ RAZORPAY IMPORT OK");
 
-          key_secret:
-            process.env
-              .RAZORPAY_SECRET,
-        });
+    const rzp = new Razorpay({
 
-        razorpayOrder =
-          await rzp.orders.create({
+      key_id:
+        process.env.RAZORPAY_KEY_ID,
 
-            amount: Math.round(
-              grandTotal * 100
-            ),
+      key_secret:
+        process.env.RAZORPAY_SECRET,
+    });
 
-            currency: "INR",
+    console.log("✅ INSTANCE CREATED");
 
-            receipt:
-              order.orderId,
-          });
+    console.log("💰 AMOUNT:", grandTotal);
 
-        console.log(
-          "✅ RAZORPAY CREATED"
-        );
+    console.log(
+      "🧾 RECEIPT:",
+      order.orderId
+    );
 
-        await Order.findByIdAndUpdate(
-          order._id,
-          {
-            $set: {
-              "payment.razorpay_order_id":
-                razorpayOrder.id,
-            },
-          }
-        );
+    razorpayOrder =
+      await rzp.orders.create({
 
-      } catch (rzpErr) {
+        amount: Math.round(
+          grandTotal * 100
+        ),
 
-        console.log(
-          "❌ RAZORPAY ERROR"
-        );
+        currency: "INR",
 
-        console.log(String(rzpErr));
+        receipt: order.orderId.substring(0, 40),
+      });
 
-        return NextResponse.json(
-          {
-            success: false,
+    console.log(
+      "✅ RAZORPAY SUCCESS"
+    );
 
-            step: "RAZORPAY",
+    console.log(razorpayOrder);
 
-            message: String(rzpErr),
-          },
-          { status: 500 }
-        );
+    await Order.findByIdAndUpdate(
+      order._id,
+      {
+        $set: {
+          "payment.razorpay_order_id":
+            razorpayOrder.id,
+        },
       }
-    }
+    );
+
+  } catch (rzpErr) {
+
+    console.log(
+      "❌ RAZORPAY FULL ERROR"
+    );
+
+    console.log(rzpErr);
+
+    console.log(
+      JSON.stringify(rzpErr, null, 2)
+    );
+
+    return NextResponse.json(
+      {
+        success: false,
+
+        step: "RAZORPAY",
+
+        message:
+          rzpErr?.error?.description ||
+          rzpErr?.message ||
+          "Razorpay failed",
+
+        full: JSON.stringify(
+          rzpErr,
+          null,
+          2
+        ),
+      },
+      { status: 500 }
+    );
+  }
+}
 
     /* ================= SUCCESS ================= */
     console.log("\n==================================");
