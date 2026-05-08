@@ -8,7 +8,10 @@ import dbConnect from "@/lib/db";
 
 import Product from "@/models/Product";
 import Order from "@/models/Order";
+import CompanySettings from "@/models/CompanySettings";
+
 import { sendTelegramMessage } from "@/lib/telegram";
+import { sendOrderPlacedEmail } from "@/lib/email";
 
 /* ================= ROUND ================= */
 const round = (n) =>
@@ -27,6 +30,12 @@ function generateSafeOrderId() {
 
 /* ================= INVOICE NUMBER ================= */
 async function generateInvoiceNumber() {
+
+  const company =
+    await CompanySettings.findOne().lean();
+
+  const prefix =
+    company?.invoicePrefix || "NA";
 
   const now = new Date();
 
@@ -65,17 +74,68 @@ async function generateInvoiceNumber() {
     count + 1
   ).padStart(6, "0");
 
-  /* ================= RANDOM ================= */
-
   const random = Math.random()
     .toString(36)
     .substring(2, 8)
     .toUpperCase();
 
-  return `NA-${dateCode}-${sequence}-${random}`;
+  return `${prefix}-${dateCode}-${sequence}-${random}`;
+}
+
+/* ================= TELEGRAM FORMAT ================= */
+
+function buildTelegramMessage({
+  order,
+  grandTotal,
+  paymentMethod,
+}) {
+
+  return `
+🛒 NEW ORDER RECEIVED
+
+━━━━━━━━━━━━━━━
+
+📦 Order ID:
+${order.orderId}
+
+👤 Customer:
+${order.address?.name || "-"}
+
+📞 Phone:
+${order.address?.phone || "-"}
+
+📧 Email:
+${order.address?.email || "-"}
+
+💰 Amount:
+₹${grandTotal}
+
+💳 Payment:
+${paymentMethod}
+
+📍 City:
+${order.address?.city || "-"}
+
+🧾 GST:
+${order.address?.gstNumber || "N/A"}
+
+📦 Items:
+${order.items
+  .map(
+    (i) =>
+      `• ${i.name} x ${i.qty}`
+  )
+  .join("\n")}
+
+━━━━━━━━━━━━━━━
+
+⚡ Status:
+${order.status}
+`;
 }
 
 /* ================= API ================= */
+
 export async function POST(req) {
 
   console.log("\n==================================");
@@ -421,24 +481,6 @@ export async function POST(req) {
     const invoiceNumber =
       await generateInvoiceNumber();
 
-    /* ================= Telegram ================= */
-    
-    await sendTelegramMessage(`
-    🛒 NEW ORDER
-    
-    Order: ${order.orderId}
-    
-    Customer: ${order.address.name}
-    
-    Phone: ${order.address.phone}
-    
-    Amount: ₹${grandTotal}
-    
-    Payment: ${paymentMethod}
-    
-    Status: ${order.status}
-    `);
-
     /* ================= CREATE ORDER ================= */
 
     let order = null;
@@ -603,6 +645,20 @@ export async function POST(req) {
                 new Date(),
             },
 
+            /* ================= SHIPPING ================= */
+
+            shipping: {
+
+              dispatchType:
+                "COURIER",
+
+              trackingStatus:
+                "ORDER_CREATED",
+
+              pickupScheduled:
+                false,
+            },
+
             /* ================= WAREHOUSE ================= */
 
             warehouse: {
@@ -619,6 +675,9 @@ export async function POST(req) {
 
               generatedAt:
                 new Date(),
+
+              invoiceUrl:
+                `/invoice/${orderId}`,
             },
 
             /* ================= AUDIT ================= */
@@ -701,6 +760,59 @@ export async function POST(req) {
         },
         { status: 500 }
       );
+    }
+
+    /* ================= TELEGRAM ================= */
+
+    try {
+
+      await sendTelegramMessage(
+        buildTelegramMessage({
+          order,
+          grandTotal,
+          paymentMethod,
+        })
+      );
+
+      console.log(
+        "✅ TELEGRAM SENT"
+      );
+
+    } catch (telegramErr) {
+
+      console.log(
+        "❌ TELEGRAM FAILED"
+      );
+
+      console.log(telegramErr);
+    }
+
+    /* ================= EMAIL ================= */
+
+    try {
+
+      if (order.address?.email) {
+
+        await sendOrderPlacedEmail({
+
+          to:
+            order.address.email,
+
+          order,
+        });
+
+        console.log(
+          "✅ ORDER EMAIL SENT"
+        );
+      }
+
+    } catch (emailErr) {
+
+      console.log(
+        "❌ EMAIL FAILED"
+      );
+
+      console.log(emailErr);
     }
 
     /* ================= RAZORPAY ================= */
