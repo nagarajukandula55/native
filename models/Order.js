@@ -265,33 +265,48 @@ const OrderSchema = new mongoose.Schema(
     invoice: InvoiceSchema,
     receipt: ReceiptSchema,
 
-    shipping: {
+  shipping: {
     
-      courier: String,
+      dispatchType: {
+        type: String,
+        enum: [
+          "COURIER",
+          "BY_HAND",
+          "LOCAL_DELIVERY"
+        ],
+      },
     
-      awb: String,
+      courierPartner: String,
     
-      shipmentId: String,
+      awbNumber: String,
     
       trackingUrl: String,
     
+      shipmentId: String,
+    
       labelUrl: String,
     
-      invoiceCopyUrl: String,
+      invoiceUrl: String,
     
-      pickupScheduled: {
-        type: Boolean,
-        default: false,
-      },
+      pickupScheduled: Boolean,
     
       pickupAt: Date,
     
-      manifestUrl: String,
+      shippingCost: Number,
+    
+      packageWeight: Number,
+    
+      dimensions: {
+    
+        length: Number,
+        breadth: Number,
+        height: Number,
+      },
     
       trackingStatus: String,
     
       deliveredAt: Date,
-    },
+    }
 
     warehouse: {
       type: WarehouseSchema,
