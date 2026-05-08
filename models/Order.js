@@ -302,6 +302,27 @@ const OrderSchema = new mongoose.Schema(
         breadth: Number,
         height: Number,
       },
+
+    ewayBill: {
+
+        ewbNumber: String,
+      
+        generatedAt: Date,
+      
+        validUpto: Date,
+      
+        transporterId: String,
+      
+        transporterName: String,
+      
+        ewbPdfUrl: String,
+      
+        status: String,
+      
+        distance: Number,
+      
+        vehicleNumber: String,
+      },
     
       trackingStatus: String,
     
