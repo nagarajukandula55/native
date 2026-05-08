@@ -16,8 +16,14 @@ const OrderItemSchema = new mongoose.Schema(
     },
 
     productKey: String,
+
     name: String,
+
     image: String,
+
+    sku: String,
+
+    variant: String,
 
     price: {
       type: Number,
@@ -31,23 +37,57 @@ const OrderItemSchema = new mongoose.Schema(
       set: safeNumber,
     },
 
-    gstPercent: { type: Number, default: 0 },
+    gstPercent: {
+      type: Number,
+      default: 0,
+    },
 
-    baseAmount: { type: Number, default: 0 },
-    discountAmount: { type: Number, default: 0 },
-    taxableAmount: { type: Number, default: 0 },
+    baseAmount: {
+      type: Number,
+      default: 0,
+    },
 
-    cgst: { type: Number, default: 0 },
-    sgst: { type: Number, default: 0 },
-    igst: { type: Number, default: 0 },
+    discountAmount: {
+      type: Number,
+      default: 0,
+    },
 
-    total: { type: Number, default: 0 },
+    taxableAmount: {
+      type: Number,
+      default: 0,
+    },
+
+    cgst: {
+      type: Number,
+      default: 0,
+    },
+
+    sgst: {
+      type: Number,
+      default: 0,
+    },
+
+    igst: {
+      type: Number,
+      default: 0,
+    },
+
+    total: {
+      type: Number,
+      default: 0,
+    },
 
     /* 🔒 SNAPSHOT LOCK */
     snapshot: {
       brand: String,
+
       category: String,
+
       hsn: String,
+
+      sku: String,
+
+      weight: Number,
     },
   },
   { _id: false }
@@ -57,12 +97,22 @@ const OrderItemSchema = new mongoose.Schema(
 const AddressSchema = new mongoose.Schema(
   {
     name: String,
+
     phone: String,
+
     email: String,
 
     address: String,
+
     city: String,
+
     state: String,
+
+    country: {
+      type: String,
+      default: "India",
+    },
+
     pincode: String,
 
     gstNumber: {
@@ -83,24 +133,60 @@ const AddressSchema = new mongoose.Schema(
 /* ================= BILLING ================= */
 const BillingSchema = new mongoose.Schema(
   {
-    currency: { type: String, default: "INR" },
+    currency: {
+      type: String,
+      default: "INR",
+    },
 
-    subtotal: { type: Number, default: 0 },
-    discount: { type: Number, default: 0 },
+    subtotal: {
+      type: Number,
+      default: 0,
+    },
 
-    taxableAmount: { type: Number, default: 0 },
+    discount: {
+      type: Number,
+      default: 0,
+    },
 
-    cgst: { type: Number, default: 0 },
-    sgst: { type: Number, default: 0 },
-    igst: { type: Number, default: 0 },
+    taxableAmount: {
+      type: Number,
+      default: 0,
+    },
 
-    totalGST: { type: Number, default: 0 },
+    cgst: {
+      type: Number,
+      default: 0,
+    },
 
-    roundOff: { type: Number, default: 0 },
+    sgst: {
+      type: Number,
+      default: 0,
+    },
 
-    grandTotal: { type: Number, default: 0 },
+    igst: {
+      type: Number,
+      default: 0,
+    },
 
-    locked: { type: Boolean, default: true },
+    totalGST: {
+      type: Number,
+      default: 0,
+    },
+
+    roundOff: {
+      type: Number,
+      default: 0,
+    },
+
+    grandTotal: {
+      type: Number,
+      default: 0,
+    },
+
+    locked: {
+      type: Boolean,
+      default: true,
+    },
   },
   { _id: false }
 );
@@ -120,10 +206,15 @@ const PaymentSchema = new mongoose.Schema(
       default: "PENDING",
     },
 
-    amountPaid: { type: Number, default: 0 },
+    amountPaid: {
+      type: Number,
+      default: 0,
+    },
 
     razorpay_order_id: String,
+
     razorpay_payment_id: String,
+
     razorpay_signature: String,
 
     utr: String,
@@ -132,11 +223,20 @@ const PaymentSchema = new mongoose.Schema(
 
     paidAt: Date,
 
+    refundedAt: Date,
+
+    refundId: String,
+
     logs: [
       {
         status: String,
+
         message: String,
-        at: { type: Date, default: Date.now },
+
+        at: {
+          type: Date,
+          default: Date.now,
+        },
       },
     ],
   },
@@ -147,8 +247,12 @@ const PaymentSchema = new mongoose.Schema(
 const InvoiceSchema = new mongoose.Schema(
   {
     invoiceNumber: String,
+
     generatedAt: Date,
+
     invoiceUrl: String,
+
+    pdfUrl: String,
 
     billingSnapshot: Object,
   },
@@ -166,7 +270,109 @@ const ReceiptSchema = new mongoose.Schema(
 
     paymentMode: String,
 
-    receiptUrl: String, // ✅ ADD THIS
+    receiptUrl: String,
+
+    pdfUrl: String,
+  },
+  { _id: false }
+);
+
+/* ================= SHIPPING ================= */
+const ShippingSchema = new mongoose.Schema(
+  {
+    dispatchType: {
+      type: String,
+      enum: [
+        "COURIER",
+        "BY_HAND",
+        "LOCAL_DELIVERY",
+      ],
+    },
+
+    courierPartner: String,
+
+    courierCode: String,
+
+    awbNumber: String,
+
+    shipmentId: String,
+
+    orderShipmentId: String,
+
+    trackingUrl: String,
+
+    trackingStatus: String,
+
+    labelUrl: String,
+
+    manifestUrl: String,
+
+    invoiceUrl: String,
+
+    pickupScheduled: {
+      type: Boolean,
+      default: false,
+    },
+
+    pickupAt: Date,
+
+    shippingCost: {
+      type: Number,
+      default: 0,
+    },
+
+    packageWeight: {
+      type: Number,
+      default: 0,
+    },
+
+    dimensions: {
+      length: Number,
+
+      breadth: Number,
+
+      height: Number,
+    },
+
+    transporterId: String,
+
+    transporterName: String,
+
+    vehicleNumber: String,
+
+    deliveryAgent: String,
+
+    deliveryPhone: String,
+
+    deliveredAt: Date,
+
+    shippedAt: Date,
+
+    notes: String,
+  },
+  { _id: false }
+);
+
+/* ================= EWAY BILL ================= */
+const EwayBillSchema = new mongoose.Schema(
+  {
+    ewbNumber: String,
+
+    generatedAt: Date,
+
+    validUpto: Date,
+
+    transporterId: String,
+
+    transporterName: String,
+
+    ewbPdfUrl: String,
+
+    status: String,
+
+    distance: Number,
+
+    vehicleNumber: String,
   },
   { _id: false }
 );
@@ -176,15 +382,30 @@ const WarehouseSchema = new mongoose.Schema(
   {
     status: {
       type: String,
-      enum: ["NEW", "PICKING", "PACKED", "DISPATCHED", "DELIVERED"],
+      enum: [
+        "NEW",
+        "PICKING",
+        "PACKED",
+        "DISPATCHED",
+        "DELIVERED",
+      ],
       default: "NEW",
     },
 
     assignedTo: String,
 
+    pickerName: String,
+
+    packerName: String,
+
+    packingNotes: String,
+
     packedAt: Date,
+
     dispatchedAt: Date,
+
     outForDeliveryAt: Date,
+
     deliveredAt: Date,
   },
   { _id: false }
@@ -194,11 +415,19 @@ const WarehouseSchema = new mongoose.Schema(
 const AuditSchema = new mongoose.Schema(
   {
     action: String,
+
     from: String,
+
     to: String,
+
     by: String,
+
     meta: Object,
-    at: { type: Date, default: Date.now },
+
+    at: {
+      type: Date,
+      default: Date.now,
+    },
   },
   { _id: false }
 );
@@ -206,7 +435,10 @@ const AuditSchema = new mongoose.Schema(
 /* ================= MAIN ORDER ================= */
 const OrderSchema = new mongoose.Schema(
   {
-    userId: { type: String, default: null },
+    userId: {
+      type: String,
+      default: null,
+    },
 
     orderId: {
       type: String,
@@ -240,7 +472,10 @@ const OrderSchema = new mongoose.Schema(
         "PAID",
         "PROCESSING",
         "PACKED",
+        "AWB_GENERATED",
+        "PICKUP_SCHEDULED",
         "DISPATCHED",
+        "OUT_FOR_DELIVERY",
         "DELIVERED",
         "CANCELLED",
         "FAILED",
@@ -251,10 +486,21 @@ const OrderSchema = new mongoose.Schema(
 
     statusTimeline: {
       paidAt: Date,
+
       processedAt: Date,
+
       packedAt: Date,
+
+      awbGeneratedAt: Date,
+
+      pickupScheduledAt: Date,
+
       dispatchedAt: Date,
+
+      outForDeliveryAt: Date,
+
       deliveredAt: Date,
+
       cancelledAt: Date,
     },
 
@@ -263,71 +509,12 @@ const OrderSchema = new mongoose.Schema(
     payment: PaymentSchema,
 
     invoice: InvoiceSchema,
+
     receipt: ReceiptSchema,
 
-  shipping: {
-    
-      dispatchType: {
-        type: String,
-        enum: [
-          "COURIER",
-          "BY_HAND",
-          "LOCAL_DELIVERY"
-        ],
-      },
-    
-      courierPartner: String,
-    
-      awbNumber: String,
-    
-      trackingUrl: String,
-    
-      shipmentId: String,
-    
-      labelUrl: String,
-    
-      invoiceUrl: String,
-    
-      pickupScheduled: Boolean,
-    
-      pickupAt: Date,
-    
-      shippingCost: Number,
-    
-      packageWeight: Number,
-    
-      dimensions: {
-    
-        length: Number,
-        breadth: Number,
-        height: Number,
-      },
+    shipping: ShippingSchema,
 
-    ewayBill: {
-
-        ewbNumber: String,
-      
-        generatedAt: Date,
-      
-        validUpto: Date,
-      
-        transporterId: String,
-      
-        transporterName: String,
-      
-        ewbPdfUrl: String,
-      
-        status: String,
-      
-        distance: Number,
-      
-        vehicleNumber: String,
-      },
-    
-      trackingStatus: String,
-    
-      deliveredAt: Date,
-    }
+    ewayBill: EwayBillSchema,
 
     warehouse: {
       type: WarehouseSchema,
@@ -339,38 +526,108 @@ const OrderSchema = new mongoose.Schema(
       default: [],
     },
 
-    isDeleted: { type: Boolean, default: false },
+    telegramNotified: {
+      type: Boolean,
+      default: false,
+    },
+
+    receiptEmailSent: {
+      type: Boolean,
+      default: false,
+    },
+
+    invoiceEmailSent: {
+      type: Boolean,
+      default: false,
+    },
+
+    shippingLabelPrinted: {
+      type: Boolean,
+      default: false,
+    },
+
+    packingSlipPrinted: {
+      type: Boolean,
+      default: false,
+    },
+
+    isDeleted: {
+      type: Boolean,
+      default: false,
+    },
 
     flags: {
-      fraud: { type: Boolean, default: false },
-      manualReview: { type: Boolean, default: false },
+      fraud: {
+        type: Boolean,
+        default: false,
+      },
+
+      manualReview: {
+        type: Boolean,
+        default: false,
+      },
     },
   },
   {
     timestamps: true,
-    strict: true, // ✅ FIXED (was your hidden crash source)
+
+    strict: true,
   }
 );
 
-/* ================= MIDDLEWARE (FIXED ORDER) ================= */
+/* ================= MIDDLEWARE ================= */
 OrderSchema.pre("save", function (next) {
-  console.log("💾 MONGOOSE SAVE ORDER:", this.orderId);
+  console.log(
+    "💾 MONGOOSE SAVE ORDER:",
+    this.orderId
+  );
+
   next();
 });
 
 OrderSchema.pre("findOneAndUpdate", function () {
-  console.log("🚨 findOneAndUpdate CALLED");
-  console.log("🚨 QUERY:", this.getQuery());
-  console.log("🚨 UPDATE:", this.getUpdate());
+  console.log(
+    "🚨 findOneAndUpdate CALLED"
+  );
+
+  console.log(
+    "🚨 QUERY:",
+    this.getQuery()
+  );
+
+  console.log(
+    "🚨 UPDATE:",
+    this.getUpdate()
+  );
 });
 
 /* ================= INDEXES ================= */
-OrderSchema.index({ "payment.razorpay_order_id": 1 });
-OrderSchema.index({ "payment.razorpay_payment_id": 1 });
-OrderSchema.index({ createdAt: -1 });
+OrderSchema.index({
+  "payment.razorpay_order_id": 1,
+});
+
+OrderSchema.index({
+  "payment.razorpay_payment_id": 1,
+});
+
+OrderSchema.index({
+  "shipping.awbNumber": 1,
+});
+
+OrderSchema.index({
+  status: 1,
+});
+
+OrderSchema.index({
+  createdAt: -1,
+});
 
 /* ================= EXPORT ================= */
 const Order =
-  mongoose.models.Order || mongoose.model("Order", OrderSchema);
+  mongoose.models.Order ||
+  mongoose.model(
+    "Order",
+    OrderSchema
+  );
 
 export default Order;
