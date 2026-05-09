@@ -73,6 +73,13 @@ export async function GET(
 
     if (order) {
 
+      const shipmentTrack =
+
+        tracking?.tracking_data
+          ?.shipment_track?.[0] ||
+
+        {};
+
       const activities =
 
         tracking?.tracking_data
@@ -81,10 +88,11 @@ export async function GET(
         [];
 
       const latest =
-
         activities?.[0] || {};
 
       const currentStatus =
+
+        shipmentTrack?.current_status ||
 
         latest?.activity ||
 
@@ -102,6 +110,15 @@ export async function GET(
 
         trackingRaw:
           tracking,
+
+        lastTrackingSync:
+          new Date(),
+
+        latestTrackingActivity:
+          latest,
+
+        latestTrackingDate:
+          latest?.date || null,
       };
 
       /* =========================================
@@ -135,6 +152,9 @@ export async function GET(
         order.shipping.deliveredAt =
           new Date();
 
+        order.shipping.lastTrackingSync =
+          new Date();
+
         order.statusTimeline.deliveredAt =
           new Date();
 
@@ -156,6 +176,30 @@ export async function GET(
             new Date(),
         });
       }
+
+      /* =========================================
+         TRACKING AUDIT
+      ========================================= */
+
+      order.auditLogs.push({
+
+        action:
+          "TRACKING_SYNC",
+
+        by:
+          "SYSTEM",
+
+        meta: {
+
+          awb,
+
+          status:
+            currentStatus,
+        },
+
+        at:
+          new Date(),
+      });
 
       await order.save();
     }
