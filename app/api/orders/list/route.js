@@ -1,60 +1,43 @@
-export const dynamic = "force-dynamic"; // 🚀 disables caching
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
+
 import dbConnect from "@/lib/db";
 import Order from "@/models/Order";
 
 export async function GET() {
-  console.log("📡 /api/orders/list HIT");
 
   try {
-    /* ================= DB CONNECT ================= */
+
     await dbConnect();
-    console.log("✅ DB Connected");
 
-    console.log("🌍 MONGO URI:", process.env.MONGO_URI);
+    const orders =
+      await Order.find({})
+        .sort({
+          createdAt: -1,
+        })
+        .lean();
 
-    /* ================= FETCH ================= */
-    const orders = await Order.find({})
-      .sort({ createdAt: -1 })
-      .lean();
+    return NextResponse.json({
 
-    console.log("📦 ORDERS COUNT:", orders.length);
+      success: true,
 
-    if (orders.length > 0) {
-      console.log("🧾 SAMPLE ORDER:", {
-        orderId: orders[0].orderId,
-        amount: orders[0].amount,
-        createdAt: orders[0].createdAt,
-      });
-    } else {
-      console.log("⚠️ NO ORDERS FOUND IN DB");
-    }
-
-    /* ================= RESPONSE ================= */
-    return NextResponse.json(
-      {
-        success: true,
-        count: orders.length,
-        orders,
-      },
-      {
-        status: 200,
-        headers: {
-          "Cache-Control": "no-store, no-cache, must-revalidate",
-        },
-      }
-    );
+      orders,
+    });
 
   } catch (err) {
-    console.error("🔴 LIST ORDERS ERROR:", err);
-    console.error("🔴 ERROR STACK:", err.stack);
+
+    console.log(
+      "LIST ORDER ERROR:",
+      err
+    );
 
     return NextResponse.json(
       {
         success: false,
-        message: err.message || "Failed to fetch orders",
-        stack: err.stack, // 👈 important for debugging
+        message:
+          err.message,
       },
       { status: 500 }
     );
