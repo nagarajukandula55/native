@@ -23,39 +23,60 @@ export default function DispatchPanel({ order }) {
      LOAD COURIERS
   ========================================= */
 
-  const loadCouriers = async () => {
+const loadCouriers = async () => {
 
-    try {
+  try {
 
-      setLoading(true);
+    setLoading(true);
 
-      const res = await fetch(
-        `/api/shipping/available-couriers?orderId=${order.orderId}`
+    const res = await fetch(
+      "/api/shipping/couriers",
+      {
+
+        method: "POST",
+
+        headers: {
+          "Content-Type":
+            "application/json",
+        },
+
+        body: JSON.stringify({
+
+          orderId:
+            order.orderId,
+        }),
+      }
+    );
+
+    const data =
+      await res.json();
+
+    if (data.success) {
+
+      setCouriers(
+        data.couriers || []
       );
 
-      const data =
-        await res.json();
-
-      if (data.success) {
-
-        setCouriers(
-          data.couriers || []
-        );
-      }
-
-    } catch (err) {
-
-      console.log(err);
+    } else {
 
       alert(
-        "Failed loading couriers"
+        data.message
       );
-
-    } finally {
-
-      setLoading(false);
     }
-  };
+
+  } catch (err) {
+
+    console.log(err);
+
+    alert(
+      "Failed loading couriers"
+    );
+
+  } finally {
+
+    setLoading(false);
+  }
+};
 
   /* =========================================
      CREATE SHIPMENT
