@@ -12,11 +12,17 @@ import {
 } from "@/lib/telegram";
 
 import {
+
   sendShipmentDeliveredEmail,
+
+  sendShipmentOutForDeliveryEmail,
+
+  sendShipmentFailedEmail,
+
 } from "@/lib/email";
 
 /* =========================================
-   SHIPROCKET / COURIER WEBHOOK
+   SHIPROCKET WEBHOOK
 ========================================= */
 
 export async function POST(req) {
@@ -25,30 +31,56 @@ export async function POST(req) {
 
     await dbConnect();
 
-    const payload = await req.json();
+    const payload =
+      await req.json();
 
     console.log(
       "🚚 SHIPPING WEBHOOK:",
-      JSON.stringify(payload, null, 2)
+      JSON.stringify(
+        payload,
+        null,
+        2
+      )
     );
 
-    /*
-      Shiprocket usually sends:
-      awb
-      current_status
-      shipment_status
-      courier_name
-    */
+    /* =====================================
+       PAYLOAD
+    ===================================== */
 
     const awb =
+
       payload?.awb ||
+
       payload?.awb_code ||
-      payload?.data?.awb;
+
+      payload?.data?.awb ||
+
+      "";
 
     const currentStatus =
+
       payload?.current_status ||
+
       payload?.shipment_status ||
+
       payload?.status ||
+
+      "";
+
+    const courierName =
+
+      payload?.courier_name ||
+
+      payload?.data?.courier_name ||
+
+      "";
+
+    const trackingUrl =
+
+      payload?.tracking_url ||
+
+      payload?.data?.tracking_url ||
+
       "";
 
     if (!awb) {
@@ -56,19 +88,22 @@ export async function POST(req) {
       return NextResponse.json(
         {
           success: false,
-          message: "AWB missing",
+          message:
+            "AWB missing",
         },
         { status: 400 }
       );
     }
 
-    /* =========================================
-       FIND ORDER
-    ========================================= */
+    /* =====================================
+       ORDER
+    ===================================== */
 
     const order =
       await Order.findOne({
-        "shipping.awbNumber": awb,
+
+        "shipping.awbNumber":
+          awb,
       });
 
     if (!order) {
@@ -76,30 +111,89 @@ export async function POST(req) {
       return NextResponse.json(
         {
           success: false,
-          message: "Order not found",
+          message:
+            "Order not found",
         },
         { status: 404 }
       );
     }
 
-    /* =========================================
-       UPDATE TRACKING
-    ========================================= */
+    /* =====================================
+       DUPLICATE CHECK
+    ===================================== */
+
+    const lastStatus =
+      order.shipping
+        ?.trackingStatus;
+
+    if (
+      lastStatus ===
+      currentStatus
+    ) {
+
+      return NextResponse.json({
+
+        success: true,
+
+        duplicate: true,
+      });
+    }
+
+    /* =====================================
+       TRACKING UPDATE
+    ===================================== */
 
     order.shipping = {
 
       ...order.shipping,
 
+      courierPartner:
+        courierName ||
+
+        order.shipping
+          ?.courierPartner,
+
       trackingStatus:
         currentStatus,
+
+      trackingUrl:
+        trackingUrl ||
+
+        order.shipping
+          ?.trackingUrl,
 
       lastTrackingWebhook:
         payload,
     };
 
-    /* =========================================
-       DELIVERY DETECT
-    ========================================= */
+    /* =====================================
+       TRACKING HISTORY
+    ===================================== */
+
+    if (
+      !order.shipping
+        ?.trackingHistory
+    ) {
+
+      order.shipping
+        .trackingHistory = [];
+    }
+
+    order.shipping
+      .trackingHistory.push({
+
+        status:
+          currentStatus,
+
+        payload,
+
+        at:
+          new Date(),
+      });
+
+    /* =====================================
+       STATUS MAP
+    ===================================== */
 
     const deliveredStatuses = [
 
@@ -111,6 +205,99 @@ export async function POST(req) {
 
       "Order Delivered",
     ];
+
+    const ofdStatuses = [
+
+      "Out For Delivery",
+
+      "OFD",
+
+      "OUT_FOR_DELIVERY",
+    ];
+
+    const transitStatuses = [
+
+      "In Transit",
+
+      "Shipped",
+
+      "Manifested",
+
+      "Pickup Scheduled",
+    ];
+
+    const failedStatuses = [
+
+      "Delivery Failed",
+
+      "NDR",
+
+      "RTO Initiated",
+
+      "Undelivered",
+    ];
+
+    /* =====================================
+       OUT FOR DELIVERY
+    ===================================== */
+
+    if (
+      ofdStatuses.includes(
+        currentStatus
+      )
+    ) {
+
+      order.status =
+        "DISPATCHED";
+
+      order.shipping.outForDeliveryAt =
+        new Date();
+
+      order.auditLogs.push({
+
+        action:
+          "OUT_FOR_DELIVERY",
+
+        by:
+          "COURIER_WEBHOOK",
+
+        meta: {
+          awb,
+          status:
+            currentStatus,
+        },
+
+        at:
+          new Date(),
+      });
+
+      try {
+
+        if (
+          order.address?.email
+        ) {
+
+          await sendShipmentOutForDeliveryEmail({
+
+            to:
+              order.address.email,
+
+            order,
+          });
+        }
+
+      } catch (e) {
+
+        console.log(
+          "OFD EMAIL ERROR:",
+          e
+        );
+      }
+    }
+
+    /* =====================================
+       DELIVERED
+    ===================================== */
 
     if (
       deliveredStatuses.includes(
@@ -154,9 +341,7 @@ export async function POST(req) {
           new Date(),
       });
 
-      /* =========================================
-         EMAIL
-      ========================================= */
+      /* ================= EMAIL ================= */
 
       try {
 
@@ -181,9 +366,7 @@ export async function POST(req) {
         );
       }
 
-      /* =========================================
-         TELEGRAM
-      ========================================= */
+      /* ================= TELEGRAM ================= */
 
       try {
 
@@ -201,12 +384,12 @@ ${order.address?.name}
 ${awb}
 
 🚚 Courier:
-${order.shipping?.courierPartner || "-"}
+${courierName}
 
 📍 Status:
 ${currentStatus}
 
-        `);
+          `);
 
       } catch (tgErr) {
 
@@ -217,9 +400,93 @@ ${currentStatus}
       }
     }
 
-    /* =========================================
-       IN TRANSIT
-    ========================================= */
+    /* =====================================
+       FAILED DELIVERY
+    ===================================== */
+
+    else if (
+      failedStatuses.includes(
+        currentStatus
+      )
+    ) {
+
+      order.auditLogs.push({
+
+        action:
+          "DELIVERY_FAILED",
+
+        by:
+          "COURIER_WEBHOOK",
+
+        meta: {
+          awb,
+          status:
+            currentStatus,
+        },
+
+        at:
+          new Date(),
+      });
+
+      try {
+
+        if (
+          order.address?.email
+        ) {
+
+          await sendShipmentFailedEmail({
+
+            to:
+              order.address.email,
+
+            order,
+          });
+        }
+
+      } catch (e) {
+
+        console.log(
+          "FAILED EMAIL ERROR:",
+          e
+        );
+      }
+    }
+
+    /* =====================================
+       TRANSIT
+    ===================================== */
+
+    else if (
+      transitStatuses.includes(
+        currentStatus
+      )
+    ) {
+
+      order.status =
+        "DISPATCHED";
+
+      order.auditLogs.push({
+
+        action:
+          "SHIPMENT_IN_TRANSIT",
+
+        by:
+          "COURIER_WEBHOOK",
+
+        meta: {
+          awb,
+          status:
+            currentStatus,
+        },
+
+        at:
+          new Date(),
+      });
+    }
+
+    /* =====================================
+       GENERIC TRACK UPDATE
+    ===================================== */
 
     else {
 
@@ -242,9 +509,9 @@ ${currentStatus}
       });
     }
 
-    /* =========================================
+    /* =====================================
        SAVE
-    ========================================= */
+    ===================================== */
 
     await order.save();
 
