@@ -1,12 +1,15 @@
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 import { NextResponse } from "next/server";
 
 import dbConnect from "@/lib/db";
 
 import Order from "@/models/Order";
-import Company from "@/models/CompanySettings";
 
-import generateInvoiceNumber from "@/lib/generateInvoiceNumber";
-import generateReceiptNumber from "@/lib/generateReceiptNumber";
+import {
+  sendTelegramMessage,
+} from "@/lib/telegram";
 
 export async function POST(req) {
 
@@ -14,26 +17,13 @@ export async function POST(req) {
 
     await dbConnect();
 
+    const body =
+      await req.json();
+
     const {
       orderId,
       utr,
-    } = await req.json();
-
-    /* ================= VALIDATION ================= */
-
-    if (!orderId) {
-
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            "OrderId required",
-        },
-        { status: 400 }
-      );
-    }
-
-    /* ================= FIND ORDER ================= */
+    } = body;
 
     const order =
       await Order.findOne({
@@ -52,116 +42,34 @@ export async function POST(req) {
       );
     }
 
-    /* ================= ALREADY PAID ================= */
-
-    if (
-      order.payment?.status ===
-      "SUCCESS"
-    ) {
-
-      return NextResponse.json({
-        success: true,
-        message:
-          "Already marked paid",
-      });
-    }
-
-    /* ================= GENERATE DOCS ================= */
-
-    const invoiceNumber =
-      await generateInvoiceNumber(
-        Company,
-        Order
-      );
-
-    const receiptNumber =
-      await generateReceiptNumber(
-        Company,
-        Order
-      );
-
-    /* ================= PAYMENT ================= */
-
     order.payment.status =
       "SUCCESS";
 
-    order.payment.amountPaid =
-      order.amount || 0;
-
     order.payment.utr =
-      utr || "";
-
-    order.payment.transactionId =
       utr || "";
 
     order.payment.paidAt =
       new Date();
 
-    order.receipt = {
-      receiptNumber,
-      generatedAt: new Date(),
-      amountPaid: order.amount,
-      paymentMode: order.payment.method,
-    };
-
     order.payment.logs.push({
+
       status: "SUCCESS",
+
       message:
-        "Manual payment marked",
+        "Payment marked manually",
+
       at: new Date(),
     });
-
-    /* ================= STATUS ================= */
 
     order.status = "PAID";
 
     order.statusTimeline.paidAt =
       new Date();
 
-    /* ================= INVOICE ================= */
-
-    order.invoice = {
-
-      invoiceNumber,
-
-      generatedAt: new Date(),
-
-      invoiceUrl:
-        `/invoice/${order.orderId}`,
-
-      billingSnapshot:
-        order.billing,
-    };
-
-    /* ================= RECEIPT ================= */
-
-    order.receipt = {
-
-      receiptNumber,
-
-      generatedAt: new Date(),
-
-      amountPaid:
-        order.amount || 0,
-
-      paymentMode:
-        order.payment.method,
-
-      receiptUrl:
-        `/receipt/${order.orderId}`,
-    };
-
-    /* ================= AUDIT ================= */
-
     order.auditLogs.push({
 
       action:
-        "MANUAL_PAYMENT_MARKED",
-
-      from:
-        "PENDING_PAYMENT",
-
-      to: "PAID",
+        "PAYMENT_MARKED_SUCCESS",
 
       by: "ADMIN",
 
@@ -172,18 +80,35 @@ export async function POST(req) {
       at: new Date(),
     });
 
-    /* ================= SAVE ================= */
-
     await order.save();
 
+    try {
+
+      await sendTelegramMessage(`
+
+💰 PAYMENT RECEIVED
+
+🧾 ${order.orderId}
+
+👤 ${order.address?.name}
+
+₹ ${order.amount}
+
+UTR:
+${utr || "-"}
+
+      `);
+
+    } catch (e) {}
+
     return NextResponse.json({
+
       success: true,
-      orderId: order.orderId,
     });
 
   } catch (err) {
 
-    console.error(
+    console.log(
       "MARK PAID ERROR:",
       err
     );
@@ -192,8 +117,7 @@ export async function POST(req) {
       {
         success: false,
         message:
-          err.message ||
-          "Failed to mark paid",
+          err.message,
       },
       { status: 500 }
     );
