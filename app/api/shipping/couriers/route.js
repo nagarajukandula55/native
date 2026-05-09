@@ -11,6 +11,10 @@ import {
   getCourierServices,
 } from "@/lib/shiprocket";
 
+/* =========================================
+   GET AVAILABLE COURIERS
+========================================= */
+
 export async function POST(req) {
 
   try {
@@ -24,6 +28,10 @@ export async function POST(req) {
       orderId,
     } = body;
 
+    /* =====================================
+       VALIDATION
+    ===================================== */
+
     if (!orderId) {
 
       return NextResponse.json(
@@ -36,7 +44,9 @@ export async function POST(req) {
       );
     }
 
-    /* ================= ORDER ================= */
+    /* =====================================
+       ORDER
+    ===================================== */
 
     const order =
       await Order.findOne({
@@ -55,9 +65,11 @@ export async function POST(req) {
       );
     }
 
-    /* ================= COURIERS ================= */
+    /* =====================================
+       SHIPROCKET
+    ===================================== */
 
-    const couriers =
+    const response =
       await getCourierServices({
 
         pickup_postcode:
@@ -74,53 +86,129 @@ export async function POST(req) {
             : 0,
 
         weight:
-          order.shipping
-            ?.packageWeight || 0.5,
+          Number(
+            order.shipping
+              ?.packageWeight
+          ) || 0.5,
 
         declared_value:
-          order.amount || 1,
+          Number(
+            order.amount
+          ) || 1,
       });
 
     console.log(
       "🚚 COURIERS:",
-      couriers
+      JSON.stringify(
+        response,
+        null,
+        2
+      )
     );
 
-    const available =
-      couriers?.data
+    /* =====================================
+       RAW LIST
+    ===================================== */
+
+    let available =
+      response?.data
         ?.available_courier_companies || [];
+
+    /* =====================================
+       EMPTY
+    ===================================== */
+
+    if (!available.length) {
+
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "No courier available",
+        },
+        { status: 404 }
+      );
+    }
+
+    /* =====================================
+       SORT CHEAPEST FIRST
+    ===================================== */
+
+    available.sort(
+      (a, b) =>
+        Number(a.rate || 0) -
+        Number(b.rate || 0)
+    );
+
+    /* =====================================
+       FORMAT
+    ===================================== */
+
+    const couriers =
+      available.map((c, index) => ({
+
+        courier_name:
+          c.courier_name,
+
+        courier_company_id:
+          c.courier_company_id,
+
+        rate:
+          Number(
+            c.rate || 0
+          ),
+
+        etd:
+          c.etd || "",
+
+        estimated_delivery_days:
+          c.estimated_delivery_days || "",
+
+        cod:
+          !!c.cod,
+
+        air:
+          !c.is_surface,
+
+        surface:
+          !!c.is_surface,
+
+        rating:
+          c.rating || null,
+
+        freight_charge:
+          c.freight_charge || 0,
+
+        rto_charges:
+          c.rto_charges || 0,
+
+        insurance_charges:
+          c.insurance_charges || 0,
+
+        pickup_performance:
+          c.pickup_performance || "",
+
+        tracking_supported: true,
+
+        recommended:
+          index === 0,
+      }));
+
+    /* =====================================
+       SUCCESS
+    ===================================== */
 
     return NextResponse.json({
 
       success: true,
 
-      couriers:
-        available.map((c) => ({
+      total:
+        couriers.length,
 
-          courier_name:
-            c.courier_name,
+      recommended:
+        couriers[0] || null,
 
-          courier_company_id:
-            c.courier_company_id,
-
-          rate:
-            c.rate,
-
-          estimated_delivery_days:
-            c.estimated_delivery_days,
-
-          etd:
-            c.etd,
-
-          cod:
-            c.cod,
-
-          surface:
-            c.is_surface,
-
-          air:
-            !c.is_surface,
-        })),
+      couriers,
     });
 
   } catch (err) {
@@ -133,6 +221,7 @@ export async function POST(req) {
     return NextResponse.json(
       {
         success: false,
+
         message:
           err.message ||
           "Courier fetch failed",
