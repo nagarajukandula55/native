@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 
 import OrderTimeline from "@/components/OrderTimeline";
 
+import DispatchPanel from "@/components/admin/DispatchPanel";
+
 export default function AdminOrdersPage() {
 
   const [orders, setOrders] =
@@ -875,6 +877,7 @@ export default function AdminOrdersPage() {
                 />
 
               </div>
+                    <DispatchPanel order={o} />
 
             </div>
           ))}
