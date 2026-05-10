@@ -10,7 +10,7 @@ export default function FulfillmentPage() {
   const [search, setSearch] = useState("");
   const [creating, setCreating] = useState("");
   const [couriers, setCouriers] = useState({});
-  const [expanded, setExpanded] = useState(null);
+  const [expandedCourier, setExpandedCourier] = useState(null);
 
   /* ================= FETCH ================= */
 
@@ -24,9 +24,7 @@ export default function FulfillmentPage() {
 
       const data = await res.json();
 
-      if (data?.success) {
-        setOrders(data.orders || []);
-      }
+      if (data?.success) setOrders(data.orders || []);
     } finally {
       setLoading(false);
     }
@@ -76,7 +74,7 @@ export default function FulfillmentPage() {
     };
   }, [orders]);
 
-  /* ================= STATUS ================= */
+  /* ================= ACTIONS ================= */
 
   const updateStatus = async (id, newStatus) => {
     await fetch("/api/admin/orders/update-status", {
@@ -87,8 +85,6 @@ export default function FulfillmentPage() {
 
     fetchOrders();
   };
-
-  /* ================= PAYMENT ================= */
 
   const markAsPaid = async (order) => {
     const utr = prompt("Enter UTR (optional)");
@@ -105,8 +101,6 @@ export default function FulfillmentPage() {
     fetchOrders();
   };
 
-  /* ================= COURIERS ================= */
-
   const loadCouriers = async (order) => {
     const res = await fetch("/api/shipping/couriers", {
       method: "POST",
@@ -116,13 +110,11 @@ export default function FulfillmentPage() {
 
     const data = await res.json();
 
-    setCouriers((p) => ({
-      ...p,
+    setCouriers((prev) => ({
+      ...prev,
       [order.orderId]: data.couriers || [],
     }));
   };
-
-  /* ================= SHIPMENT ================= */
 
   const createShipment = async (order, courierId) => {
     setCreating(order.orderId);
@@ -148,24 +140,26 @@ export default function FulfillmentPage() {
 
   return (
     <div style={styles.page}>
-      
-      {/* HEADER (Stripe style sticky feel) */}
+
+      {/* HEADER */}
       <div style={styles.header}>
         <div>
-          <div style={styles.h1}>Enterprise Fulfillment</div>
-          <div style={styles.sub}>Warehouse • Dispatch • Courier Control Tower</div>
+          <div style={styles.title}>Enterprise Fulfillment</div>
+          <div style={styles.sub}>
+            Warehouse • Payments • Shipping • Courier Orchestration
+          </div>
         </div>
 
         <input
           style={styles.search}
-          placeholder="Search order, phone, AWB..."
+          placeholder="Search order / phone / AWB / name..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
       </div>
 
-      {/* PIPELINE FILTER */}
-      <div style={styles.pipeline}>
+      {/* STATUS FILTERS */}
+      <div style={styles.filters}>
         {[
           "ALL",
           "PENDING_PAYMENT",
@@ -179,7 +173,7 @@ export default function FulfillmentPage() {
             key={s}
             onClick={() => setStatus(s)}
             style={{
-              ...styles.chip,
+              ...styles.filterBtn,
               background: status === s ? "#111827" : "#fff",
               color: status === s ? "#fff" : "#111827",
             }}
@@ -196,9 +190,9 @@ export default function FulfillmentPage() {
         <div style={styles.grid}>
           {filtered.map((o) => (
             <div key={o._id} style={styles.card}>
-              
-              {/* TOP BAR */}
-              <div style={styles.top}>
+
+              {/* ================= HEADER ================= */}
+              <div style={styles.cardTop}>
                 <div>
                   <div style={styles.orderId}>{o.orderId}</div>
                   <div style={styles.meta}>
@@ -211,25 +205,34 @@ export default function FulfillmentPage() {
                 </div>
               </div>
 
-              {/* CUSTOMER */}
-              <div style={styles.box}>
-                <div style={styles.boxTitle}>Customer</div>
+              {/* ================= CUSTOMER CARD ================= */}
+              <div style={styles.block}>
+                <div style={styles.blockTitle}>Customer</div>
                 <div>{o.address?.name}</div>
                 <div>{o.address?.phone}</div>
-                <div>₹{o.amount}</div>
+                <div>{o.address?.city}</div>
               </div>
 
-              {/* SHIPPING */}
-              <div style={styles.box}>
-                <div style={styles.boxTitle}>Shipping</div>
-                <div>{o.shipping?.courierPartner || "Not Assigned"}</div>
-                <div>{o.shipping?.awbNumber || "-"}</div>
+              {/* ================= PAYMENT CARD ================= */}
+              <div style={styles.block}>
+                <div style={styles.blockTitle}>Payment</div>
+                <div>Method: {o.payment?.method}</div>
+                <div>Status: {o.payment?.status}</div>
+                <div>Amount: ₹{o.amount}</div>
               </div>
 
-              {/* TIMELINE */}
+              {/* ================= SHIPPING CARD ================= */}
+              <div style={styles.block}>
+                <div style={styles.blockTitle}>Shipping</div>
+                <div>Courier: {o.shipping?.courierPartner || "-"}</div>
+                <div>AWB: {o.shipping?.awbNumber || "Not Assigned"}</div>
+                <div>Status: {o.shipping?.trackingStatus || "-"}</div>
+              </div>
+
+              {/* ================= TIMELINE ================= */}
               <OrderTimeline order={o} />
 
-              {/* ACTIONS (Stripe style grouped) */}
+              {/* ================= ACTIONS ================= */}
               <div style={styles.actions}>
 
                 <button style={btn("#16a34a")} onClick={() => markAsPaid(o)}>
@@ -237,18 +240,20 @@ export default function FulfillmentPage() {
                 </button>
 
                 <button style={btn("#2563eb")} onClick={() => updateStatus(o._id, "PROCESSING")}>
-                  Process
+                  Processing
                 </button>
 
                 <button style={btn("#7c3aed")} onClick={() => updateStatus(o._id, "PACKED")}>
-                  Pack
+                  Packed
                 </button>
 
                 <button
                   style={btn("#111827")}
-                  onClick={() => setExpanded(expanded === o._id ? null : o._id)}
+                  onClick={() =>
+                    setExpandedCourier(expandedCourier === o._id ? null : o._id)
+                  }
                 >
-                  Courier
+                  Couriers
                 </button>
 
                 <a style={styles.link} href={`/api/invoice/${o.orderId}`} target="_blank">
@@ -261,18 +266,17 @@ export default function FulfillmentPage() {
 
               </div>
 
-              {/* COURIER EXPAND */}
-              {expanded === o._id && (
+              {/* ================= COURIER PANEL ================= */}
+              {expandedCourier === o._id && (
                 <div style={styles.expand}>
-                  
-                  <button onClick={() => loadCouriers(o)} style={btn("#0f172a")}>
+                  <button style={btn("#0f172a")} onClick={() => loadCouriers(o)}>
                     Load Couriers
                   </button>
 
                   <select id={`dispatch-${o._id}`} style={styles.select}>
-                    <option>COURIER</option>
-                    <option>BY_HAND</option>
-                    <option>LOCAL</option>
+                    <option value="COURIER">Courier</option>
+                    <option value="BY_HAND">By Hand</option>
+                    <option value="LOCAL_DELIVERY">Local Delivery</option>
                   </select>
 
                   {couriers[o.orderId]?.map((c) => (
@@ -280,11 +284,11 @@ export default function FulfillmentPage() {
                       key={c.courier_company_id}
                       style={btn("#ea580c")}
                       onClick={() => createShipment(o, c.courier_company_id)}
+                      disabled={creating === o.orderId}
                     >
                       {c.courier_name}
                     </button>
                   ))}
-
                 </div>
               )}
 
@@ -296,7 +300,7 @@ export default function FulfillmentPage() {
   );
 }
 
-/* ================= STYLE SYSTEM ================= */
+/* ================= STYLES ================= */
 
 const styles = {
   page: { padding: 24, background: "#f6f7fb", minHeight: "100vh" },
@@ -305,28 +309,23 @@ const styles = {
     display: "flex",
     justifyContent: "space-between",
     marginBottom: 20,
-    gap: 12,
     flexWrap: "wrap",
+    gap: 12,
   },
 
-  h1: { fontSize: 28, fontWeight: 900 },
+  title: { fontSize: 28, fontWeight: 900 },
   sub: { color: "#6b7280" },
 
   search: {
     padding: 12,
     borderRadius: 12,
     border: "1px solid #ddd",
-    width: 300,
+    width: 320,
   },
 
-  pipeline: {
-    display: "flex",
-    gap: 8,
-    flexWrap: "wrap",
-    marginBottom: 20,
-  },
+  filters: { display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 },
 
-  chip: {
+  filterBtn: {
     padding: "8px 12px",
     borderRadius: 999,
     border: "1px solid #ddd",
@@ -337,7 +336,7 @@ const styles = {
   grid: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fit,minmax(380px,1fr))",
-    gap: 14,
+    gap: 16,
   },
 
   card: {
@@ -346,14 +345,11 @@ const styles = {
     padding: 16,
   },
 
-  top: {
-    display: "flex",
-    justifyContent: "space-between",
-  },
+  cardTop: { display: "flex", justifyContent: "space-between" },
 
-  orderId: { fontWeight: 800 },
+  orderId: { fontWeight: 900 },
 
-  meta: { fontSize: 12, opacity: 0.6 },
+  meta: { fontSize: 12, color: "#6b7280" },
 
   status: {
     color: "#fff",
@@ -362,14 +358,14 @@ const styles = {
     fontSize: 12,
   },
 
-  box: {
+  block: {
     marginTop: 10,
     background: "#f9fafb",
     padding: 10,
     borderRadius: 10,
   },
 
-  boxTitle: { fontWeight: 700, marginBottom: 4 },
+  blockTitle: { fontWeight: 800, marginBottom: 4 },
 
   actions: {
     display: "flex",
@@ -388,10 +384,7 @@ const styles = {
     gap: 8,
   },
 
-  select: {
-    padding: 10,
-    borderRadius: 10,
-  },
+  select: { padding: 10, borderRadius: 10 },
 
   link: {
     background: "#111827",
@@ -409,7 +402,11 @@ const styles = {
     textDecoration: "none",
   },
 
-  loading: { padding: 50, textAlign: "center", fontWeight: 800 },
+  loading: {
+    textAlign: "center",
+    padding: 50,
+    fontWeight: 800,
+  },
 };
 
 const btn = (bg) => ({
