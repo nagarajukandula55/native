@@ -2,13 +2,11 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
-import PDFDocument from "pdfkit";
+import puppeteer from "puppeteer";
 import dbConnect from "@/lib/db";
 import Order from "@/models/Order";
 import CompanySettings from "@/models/CompanySettings";
-
-import { buildInvoiceData } from "@/lib/invoice/buildInvoiceData";
-import { renderInvoicePDF } from "@/lib/invoice/pdfTemplate";
+import { buildInvoiceHTML } from "@/lib/invoice/buildInvoiceHTML";
 
 export async function GET(req, { params }) {
   try {
@@ -27,26 +25,44 @@ export async function GET(req, { params }) {
 
     const company = await CompanySettings.findOne().lean();
 
-    const data = buildInvoiceData(order);
-
-    const doc = new PDFDocument({
-      size: "A4",
-      margin: 40,
+    const html = buildInvoiceHTML({
+      companyName: company?.companyName,
+      gstin: company?.gstin,
+      invoiceNumber: order.invoice?.invoiceNumber || order.orderId,
+      customer: order.address,
+      items: order.items.map((i) => ({
+        name: i.name,
+        hsn: i.snapshot?.hsn || "NA",
+        qty: i.qty,
+        rate: i.price,
+        gstPercent: i.gstPercent,
+        total: i.total,
+      })),
+      subtotal: order.billing?.subtotal,
+      cgst: order.billing?.cgst,
+      sgst: order.billing?.sgst,
+      igst: order.billing?.igst,
+      grandTotal: order.billing?.grandTotal,
     });
 
-    const chunks = [];
-
-    doc.on("data", (c) => chunks.push(c));
-
-    renderInvoicePDF(doc, data, company);
-
-    doc.end();
-
-    const buffer = await new Promise((resolve) => {
-      doc.on("end", () => resolve(Buffer.concat(chunks)));
+    const browser = await puppeteer.launch({
+      args: ["--no-sandbox", "--disable-setuid-sandbox"],
     });
 
-    return new NextResponse(buffer, {
+    const page = await browser.newPage();
+
+    await page.setContent(html, {
+      waitUntil: "networkidle0",
+    });
+
+    const pdfBuffer = await page.pdf({
+      format: "A4",
+      printBackground: true,
+    });
+
+    await browser.close();
+
+    return new NextResponse(pdfBuffer, {
       headers: {
         "Content-Type": "application/pdf",
         "Content-Disposition": `inline; filename=${order.orderId}.pdf`,
@@ -58,7 +74,7 @@ export async function GET(req, { params }) {
     return NextResponse.json(
       {
         success: false,
-        message: err.message || "Failed to generate invoice",
+        message: err.message || "Invoice generation failed",
       },
       { status: 500 }
     );
