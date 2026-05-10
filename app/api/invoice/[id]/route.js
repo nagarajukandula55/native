@@ -9,6 +9,8 @@ import dbConnect from "@/lib/db";
 import Order from "@/models/Order";
 import CompanySettings from "@/models/CompanySettings";
 
+import path from "path";
+
 const money = (n) =>
   `₹${Number(n || 0).toFixed(2)}`;
 
@@ -320,29 +322,27 @@ export async function GET(req, { params }) {
 
     /* ================= FOOTER ================= */
 
-    if (company?.logoUrl) {
-      try {
-        pdf.image(
-          `public${company.logoUrl}`,
-          60,
-          pdf.y,
-          {
-            width: 45,
-          }
-        );
+    const logoPath = path.join(
+      process.cwd(),
+      "public",
+      company.logoUrl
+    );
+    
+    pdf.image(logoPath, 40, 35, {
+      width: 55,
+    });
       } catch (e) {}
     }
 
-    if (company?.signatureUrl) {
-      try {
-        pdf.image(
-          `public${company.signatureUrl}`,
-          420,
-          pdf.y - 10,
-          {
-            width: 100,
-          }
-        );
+    const signPath = path.join(
+      process.cwd(),
+      "public",
+      company.signatureUrl
+    );
+    
+    pdf.image(signPath, 420, pdf.y, {
+      width: 100,
+    });
       } catch (e) {}
     }
 
