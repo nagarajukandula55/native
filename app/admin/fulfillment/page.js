@@ -2,10 +2,15 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+import OrderTimeline from "@/components/OrderTimeline";
+
 export default function FulfillmentPage() {
 
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [orders, setOrders] =
+    useState([]);
+
+  const [loading, setLoading] =
+    useState(true);
 
   const [status, setStatus] =
     useState("ALL");
@@ -19,9 +24,9 @@ export default function FulfillmentPage() {
   const [couriers, setCouriers] =
     useState({});
 
-  /* =====================================
+  /* =========================================
      FETCH ORDERS
-  ===================================== */
+  ========================================= */
 
   const fetchOrders = async () => {
 
@@ -36,7 +41,8 @@ export default function FulfillmentPage() {
         }
       );
 
-      const data = await res.json();
+      const data =
+        await res.json();
 
       if (data?.success) {
 
@@ -59,9 +65,9 @@ export default function FulfillmentPage() {
     fetchOrders();
   }, []);
 
-  /* =====================================
+  /* =========================================
      FILTER
-  ===================================== */
+  ========================================= */
 
   const filtered = useMemo(() => {
 
@@ -70,7 +76,8 @@ export default function FulfillmentPage() {
     if (status !== "ALL") {
 
       temp = temp.filter(
-        (o) => o.status === status
+        (o) =>
+          o.status === status
       );
     }
 
@@ -88,6 +95,12 @@ export default function FulfillmentPage() {
           search
         ) ||
 
+        o.address?.name
+          ?.toLowerCase()
+          .includes(
+            search.toLowerCase()
+          ) ||
+
         o.shipping?.awbNumber
           ?.toLowerCase()
           .includes(
@@ -100,9 +113,9 @@ export default function FulfillmentPage() {
 
   }, [orders, status, search]);
 
-  /* =====================================
+  /* =========================================
      STATS
-  ===================================== */
+  ========================================= */
 
   const stats = useMemo(() => {
 
@@ -118,6 +131,13 @@ export default function FulfillmentPage() {
             "PENDING_PAYMENT"
         ).length,
 
+      paid:
+        orders.filter(
+          (o) =>
+            o.status ===
+            "PAID"
+        ).length,
+
       processing:
         orders.filter(
           (o) =>
@@ -128,7 +148,8 @@ export default function FulfillmentPage() {
       packed:
         orders.filter(
           (o) =>
-            o.status === "PACKED"
+            o.status ===
+            "PACKED"
         ).length,
 
       dispatched:
@@ -148,9 +169,9 @@ export default function FulfillmentPage() {
 
   }, [orders]);
 
-  /* =====================================
+  /* =========================================
      UPDATE STATUS
-  ===================================== */
+  ========================================= */
 
   const updateStatus = async (
     id,
@@ -160,8 +181,9 @@ export default function FulfillmentPage() {
     try {
 
       const res = await fetch(
-        "/api/orders/update-status",
+        "/api/admin/orders/update-status",
         {
+
           method: "POST",
 
           headers: {
@@ -170,8 +192,11 @@ export default function FulfillmentPage() {
           },
 
           body: JSON.stringify({
+
             id,
-            status: newStatus,
+
+            status:
+              newStatus,
           }),
         }
       );
@@ -181,13 +206,81 @@ export default function FulfillmentPage() {
 
       if (data?.success) {
 
+        alert(
+          "Status Updated ✅"
+        );
+
         fetchOrders();
 
       } else {
 
         alert(
-          data?.message ||
-            "Failed"
+          data.message ||
+          "Failed to update status"
+        );
+      }
+
+    } catch (err) {
+
+      console.error(err);
+
+      alert(
+        "Error updating status"
+      );
+    }
+  };
+
+  /* =========================================
+     MARK PAID
+  ========================================= */
+
+  const markAsPaid = async (
+    order
+  ) => {
+
+    const utr = prompt(
+      "Enter UTR / Reference (optional)"
+    );
+
+    try {
+
+      const res = await fetch(
+        "/api/payment/mark-paid",
+        {
+
+          method: "POST",
+
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+
+          body: JSON.stringify({
+
+            orderId:
+              order.orderId,
+
+            utr,
+          }),
+        }
+      );
+
+      const data =
+        await res.json();
+
+      if (data.success) {
+
+        alert(
+          "Marked as Paid ✅"
+        );
+
+        fetchOrders();
+
+      } else {
+
+        alert(
+          data.message ||
+          "Failed ❌"
         );
       }
 
@@ -196,17 +289,17 @@ export default function FulfillmentPage() {
       console.log(err);
 
       alert(
-        "Status update failed"
+        "Payment update failed"
       );
     }
   };
 
-  /* =====================================
+  /* =========================================
      LOAD COURIERS
-  ===================================== */
+  ========================================= */
 
   const loadCouriers = async (
-    orderId
+    order
   ) => {
 
     try {
@@ -214,6 +307,7 @@ export default function FulfillmentPage() {
       const res = await fetch(
         "/api/shipping/couriers",
         {
+
           method: "POST",
 
           headers: {
@@ -222,7 +316,9 @@ export default function FulfillmentPage() {
           },
 
           body: JSON.stringify({
-            orderId,
+
+            orderId:
+              order.orderId,
           }),
         }
       );
@@ -230,37 +326,59 @@ export default function FulfillmentPage() {
       const data =
         await res.json();
 
-      if (data?.success) {
+      console.log(
+        "🚚 COURIERS:",
+        data
+      );
 
-        setCouriers((prev) => ({
-          ...prev,
-          [orderId]:
-            data.couriers || [],
-        }));
+      if (!data.success) {
+
+        alert(
+          data.message ||
+          "Failed to load couriers"
+        );
+
+        return;
       }
+
+      setCouriers((prev) => ({
+        ...prev,
+        [order.orderId]:
+          data.couriers || [],
+      }));
 
     } catch (err) {
 
       console.log(err);
+
+      alert(
+        "Courier fetch failed"
+      );
     }
   };
 
-  /* =====================================
+  /* =========================================
      CREATE SHIPMENT
-  ===================================== */
+  ========================================= */
 
   const createShipment = async (
-    orderId,
+    order,
     courierId
   ) => {
 
     try {
 
-      setCreating(orderId);
+      setCreating(order.orderId);
+
+      const dispatchType =
+        document.getElementById(
+          `dispatch-${order._id}`
+        ).value;
 
       const res = await fetch(
         "/api/shipping/create-shipment",
         {
+
           method: "POST",
 
           headers: {
@@ -270,9 +388,12 @@ export default function FulfillmentPage() {
 
           body: JSON.stringify({
 
-            orderId,
+            orderId:
+              order.orderId,
 
             courierId,
+
+            dispatchType,
           }),
         }
       );
@@ -280,10 +401,12 @@ export default function FulfillmentPage() {
       const data =
         await res.json();
 
-      if (data?.success) {
+      console.log(data);
+
+      if (data.success) {
 
         alert(
-          "Shipment Created"
+          "Shipment Created ✅"
         );
 
         fetchOrders();
@@ -291,8 +414,8 @@ export default function FulfillmentPage() {
       } else {
 
         alert(
-          data?.message ||
-            "Shipment failed"
+          data.message ||
+          "Shipment Failed"
         );
       }
 
@@ -301,7 +424,7 @@ export default function FulfillmentPage() {
       console.log(err);
 
       alert(
-        "Shipment error"
+        "Shipment creation failed"
       );
 
     } finally {
@@ -310,9 +433,9 @@ export default function FulfillmentPage() {
     }
   };
 
-  /* =====================================
+  /* =========================================
      STATUS COLORS
-  ===================================== */
+  ========================================= */
 
   const statusColor = (s) => {
 
@@ -341,31 +464,55 @@ export default function FulfillmentPage() {
     }
   };
 
+  /* =========================================
+     BUTTON STYLE
+  ========================================= */
+
+  const btn = (bg) => ({
+
+    padding: "10px 14px",
+
+    border: "none",
+
+    borderRadius: 12,
+
+    cursor: "pointer",
+
+    fontSize: 12,
+
+    fontWeight: 700,
+
+    background: bg,
+
+    color: "#fff",
+
+    transition: "0.2s",
+  });
+
   return (
 
     <div style={styles.page}>
 
-      {/* =====================================
+      {/* =========================================
          HEADER
-      ===================================== */}
+      ========================================= */}
 
       <div style={styles.header}>
 
         <div>
 
           <h1 style={styles.title}>
-            Enterprise Fulfillment
+            📦 Enterprise Fulfillment
           </h1>
 
           <p style={styles.subtitle}>
-            Live warehouse &
-            shipping management
+            Real-time warehouse, dispatch & courier operations
           </p>
 
         </div>
 
         <input
-          placeholder="Search Order / Phone / AWB"
+          placeholder="Search Order / Customer / Phone / AWB"
           value={search}
           onChange={(e) =>
             setSearch(
@@ -377,53 +524,59 @@ export default function FulfillmentPage() {
 
       </div>
 
-      {/* =====================================
+      {/* =========================================
          STATS
-      ===================================== */}
+      ========================================= */}
 
       <div style={styles.statsGrid}>
 
         <StatCard
-          label="Total"
+          label="TOTAL"
           value={stats.total}
           color="#111827"
         />
 
         <StatCard
-          label="Pending"
+          label="PENDING"
           value={stats.pending}
           color="#ef4444"
         />
 
         <StatCard
-          label="Processing"
+          label="PAID"
+          value={stats.paid}
+          color="#2563eb"
+        />
+
+        <StatCard
+          label="PROCESSING"
           value={stats.processing}
           color="#7c3aed"
         />
 
         <StatCard
-          label="Packed"
+          label="PACKED"
           value={stats.packed}
           color="#f59e0b"
         />
 
         <StatCard
-          label="Dispatched"
+          label="DISPATCHED"
           value={stats.dispatched}
           color="#0891b2"
         />
 
         <StatCard
-          label="Delivered"
+          label="DELIVERED"
           value={stats.delivered}
           color="#16a34a"
         />
 
       </div>
 
-      {/* =====================================
+      {/* =========================================
          FILTERS
-      ===================================== */}
+      ========================================= */}
 
       <div style={styles.filters}>
 
@@ -451,308 +604,353 @@ export default function FulfillmentPage() {
               color:
                 status === s
                   ? "#fff"
-                  : "#111",
+                  : "#111827",
             }}
           >
             {s}
           </button>
         ))}
+
       </div>
 
-      {/* =====================================
+      {/* =========================================
          TABLE
-      ===================================== */}
+      ========================================= */}
 
       {loading ? (
 
         <div style={styles.loading}>
-          Loading orders...
+          Loading Orders...
+        </div>
+
+      ) : filtered.length === 0 ? (
+
+        <div style={styles.loading}>
+          No Orders Found
         </div>
 
       ) : (
 
-        <div style={styles.tableWrap}>
+        <div style={styles.ordersGrid}>
 
-          <table style={styles.table}>
+          {filtered.map((o) => (
 
-            <thead>
+            <div
+              key={o._id}
+              style={styles.card}
+            >
 
-              <tr>
+              {/* TOP */}
 
-                <th style={styles.th}>
-                  Order
-                </th>
+              <div style={styles.cardTop}>
 
-                <th style={styles.th}>
-                  Customer
-                </th>
+                <div>
 
-                <th style={styles.th}>
-                  Amount
-                </th>
+                  <div style={styles.orderId}>
+                    {o.orderId}
+                  </div>
 
-                <th style={styles.th}>
-                  Payment
-                </th>
+                  <div style={styles.date}>
+                    {new Date(
+                      o.createdAt
+                    ).toLocaleString()}
+                  </div>
 
-                <th style={styles.th}>
-                  Status
-                </th>
+                </div>
 
-                <th style={styles.th}>
-                  Shipping
-                </th>
-
-                <th style={styles.th}>
-                  Actions
-                </th>
-
-              </tr>
-
-            </thead>
-
-            <tbody>
-
-              {filtered.map((o) => (
-
-                <tr
-                  key={o._id}
-                  style={styles.tr}
+                <div
+                  style={{
+                    ...styles.status,
+                    background:
+                      statusColor(
+                        o.status
+                      ),
+                  }}
                 >
+                  {o.status}
+                </div>
 
-                  <td style={styles.td}>
+              </div>
 
-                    <div
-                      style={{
-                        fontWeight: 700,
-                      }}
-                    >
-                      {o.orderId}
+              {/* CUSTOMER */}
+
+              <div style={styles.section}>
+
+                <div style={styles.sectionTitle}>
+                  Customer
+                </div>
+
+                <div style={styles.customerName}>
+                  {o.address?.name}
+                </div>
+
+                <div style={styles.smallText}>
+                  📞 {o.address?.phone}
+                </div>
+
+                <div style={styles.smallText}>
+                  💰 ₹{o.amount}
+                </div>
+
+                <div style={styles.smallText}>
+                  💳 {o.payment?.method}
+                </div>
+
+                <div style={{
+                  marginTop: 6,
+                  fontWeight: 700,
+                  color:
+                    o.payment?.status === "SUCCESS"
+                      ? "#16a34a"
+                      : "#ef4444",
+                }}>
+                  {o.payment?.status}
+                </div>
+
+              </div>
+
+              {/* SHIPPING */}
+
+              <div style={styles.section}>
+
+                <div style={styles.sectionTitle}>
+                  Shipping
+                </div>
+
+                {o.shipping?.awbNumber ? (
+
+                  <>
+
+                    <div style={styles.smallText}>
+                      🚚 {o.shipping?.courierPartner}
                     </div>
 
-                    <small>
-                      {new Date(
-                        o.createdAt
-                      ).toLocaleString()}
-                    </small>
-
-                  </td>
-
-                  <td style={styles.td}>
-
-                    <div
-                      style={{
-                        fontWeight: 600,
-                      }}
-                    >
-                      {o.address?.name}
+                    <div style={styles.smallText}>
+                      📦 {o.shipping?.awbNumber}
                     </div>
 
-                    <small>
-                      {
-                        o.address?.phone
-                      }
-                    </small>
-
-                  </td>
-
-                  <td style={styles.td}>
-                    ₹{o.amount}
-                  </td>
-
-                  <td style={styles.td}>
-
-                    <div
-                      style={{
-                        fontWeight: 700,
-                      }}
-                    >
-                      {
-                        o.payment
-                          ?.method
-                      }
+                    <div style={styles.smallText}>
+                      📍 {o.shipping?.trackingStatus || "Created"}
                     </div>
 
-                    <small>
-                      {
-                        o.payment
-                          ?.status
-                      }
-                    </small>
+                    {o.shipping?.labelUrl && (
 
-                  </td>
-
-                  <td style={styles.td}>
-
-                    <div
-                      style={{
-                        ...styles.status,
-                        background:
-                          statusColor(
-                            o.status
-                          ),
-                      }}
-                    >
-                      {o.status}
-                    </div>
-
-                  </td>
-
-                  <td style={styles.td}>
-
-                    {o.shipping
-                      ?.awbNumber ? (
-
-                      <div>
-
-                        <div>
-                          📦 {
-                            o.shipping
-                              ?.awbNumber
-                          }
-                        </div>
-
-                        <small>
-                          {
-                            o.shipping
-                              ?.courierPartner
-                          }
-                        </small>
-
-                      </div>
-
-                    ) : (
-
-                      <span
-                        style={{
-                          color:
-                            "#9ca3af",
-                        }}
+                      <a
+                        href={
+                          o.shipping?.labelUrl
+                        }
+                        target="_blank"
+                        style={styles.labelBtn}
                       >
-                        Not Shipped
-                      </span>
+                        Download Label
+                      </a>
                     )}
 
-                  </td>
+                  </>
 
-                  <td style={styles.td}>
+                ) : (
 
-                    <div
-                      style={
-                        styles.actionWrap
-                      }
+                  <div style={{
+                    color: "#9ca3af",
+                  }}>
+                    Shipment not created
+                  </div>
+                )}
+
+              </div>
+
+              {/* TIMELINE */}
+
+              <div style={{
+                marginTop: 15,
+              }}>
+                <OrderTimeline
+                  order={o}
+                />
+              </div>
+
+              {/* ACTIONS */}
+
+              <div style={styles.actionWrap}>
+
+                {!["SUCCESS", "PAID"].includes(
+                  o.payment?.status
+                ) &&
+                ![
+                  "PAID",
+                  "PROCESSING",
+                  "PACKED",
+                  "DISPATCHED",
+                  "DELIVERED",
+                ].includes(
+                  o.status
+                ) && (
+
+                  <button
+                    style={btn("#16a34a")}
+                    onClick={() =>
+                      markAsPaid(o)
+                    }
+                  >
+                    Mark Paid
+                  </button>
+                )}
+
+                {o.status === "PAID" && (
+
+                  <button
+                    style={btn("#2563eb")}
+                    onClick={() =>
+                      updateStatus(
+                        o._id,
+                        "PROCESSING"
+                      )
+                    }
+                  >
+                    Start Processing
+                  </button>
+                )}
+
+                {o.status ===
+                  "PROCESSING" && (
+
+                  <button
+                    style={btn("#7c3aed")}
+                    onClick={() =>
+                      updateStatus(
+                        o._id,
+                        "PACKED"
+                      )
+                    }
+                  >
+                    Mark Packed
+                  </button>
+                )}
+
+                {o.status ===
+                  "PACKED" &&
+                  !o.shipping
+                    ?.awbNumber && (
+
+                  <>
+
+                    <select
+                      defaultValue="COURIER"
+                      id={`dispatch-${o._id}`}
+                      style={styles.select}
                     >
 
-                      {o.status ===
-                        "PAID" && (
+                      <option value="COURIER">
+                        Courier
+                      </option>
 
-                        <button
-                          style={
-                            styles.blueBtn
-                          }
-                          onClick={() =>
-                            updateStatus(
-                              o._id,
-                              "PROCESSING"
-                            )
-                          }
-                        >
-                          Start
-                        </button>
-                      )}
+                      <option value="BY_HAND">
+                        By Hand
+                      </option>
 
-                      {o.status ===
-                        "PROCESSING" && (
+                      <option value="LOCAL_DELIVERY">
+                        Local Delivery
+                      </option>
 
-                        <button
-                          style={
-                            styles.purpleBtn
-                          }
-                          onClick={() =>
-                            updateStatus(
-                              o._id,
-                              "PACKED"
-                            )
-                          }
-                        >
-                          Packed
-                        </button>
-                      )}
+                    </select>
 
-                      {o.status ===
-                        "PACKED" &&
-                        !o.shipping
-                          ?.awbNumber && (
+                    <button
+                      style={btn("#0f172a")}
+                      onClick={() =>
+                        loadCouriers(o)
+                      }
+                    >
+                      Load Couriers
+                    </button>
 
-                        <button
-                          style={
-                            styles.orangeBtn
-                          }
-                          onClick={() =>
-                            loadCouriers(
-                              o.orderId
-                            )
-                          }
-                        >
-                          Load Couriers
-                        </button>
-                      )}
+                  </>
+                )}
 
-                      {couriers[
-                        o.orderId
-                      ]?.map((c) => (
+                {couriers[
+                  o.orderId
+                ]?.map((c) => (
 
-                        <button
-                          key={
-                            c.courier_company_id
-                          }
-                          style={
-                            styles.darkBtn
-                          }
-                          disabled={
-                            creating ===
-                            o.orderId
-                          }
-                          onClick={() =>
-                            createShipment(
-                              o.orderId,
-                              c.courier_company_id
-                            )
-                          }
-                        >
-                          {
-                            c.courier_name
-                          }
-                        </button>
-                      ))}
+                  <button
+                    key={
+                      c.courier_company_id
+                    }
+                    style={btn("#ea580c")}
+                    disabled={
+                      creating ===
+                      o.orderId
+                    }
+                    onClick={() =>
+                      createShipment(
+                        o,
+                        c.courier_company_id
+                      )
+                    }
+                  >
+                    {c.courier_name}
+                  </button>
+                ))}
 
-                      {o.shipping
-                        ?.labelUrl && (
+                {o.status ===
+                  "DISPATCHED" && (
 
-                        <a
-                          href={
-                            o.shipping
-                              ?.labelUrl
-                          }
-                          target="_blank"
-                          style={
-                            styles.greenBtn
-                          }
-                        >
-                          Label
-                        </a>
-                      )}
+                  <button
+                    style={btn("#111827")}
+                    onClick={() =>
+                      updateStatus(
+                        o._id,
+                        "DELIVERED"
+                      )
+                    }
+                  >
+                    Mark Delivered
+                  </button>
+                )}
 
-                    </div>
+                {o.status ===
+                  "DELIVERED" && (
 
-                  </td>
+                  <div style={styles.completed}>
+                    ✔ Delivered Successfully
+                  </div>
+                )}
 
-                </tr>
-              ))}
+                {/* INVOICE */}
 
-            </tbody>
+                <a
+                  href={`/api/invoice/${o.orderId}`}
+                  target="_blank"
+                  style={styles.invoiceBtn}
+                >
+                  Invoice
+                </a>
 
-          </table>
+                {/* RECEIPT */}
+
+                <a
+                  href={`/api/receipt/${o.orderId}`}
+                  target="_blank"
+                  style={styles.receiptBtn}
+                >
+                  Receipt
+                </a>
+
+                {/* TRACK */}
+
+                {o.shipping?.awbNumber && (
+
+                  <a
+                    href={`/track?awb=${o.shipping?.awbNumber}`}
+                    target="_blank"
+                    style={styles.trackBtn}
+                  >
+                    Track
+                  </a>
+                )}
+
+              </div>
+
+            </div>
+          ))}
 
         </div>
       )}
@@ -761,9 +959,9 @@ export default function FulfillmentPage() {
   );
 }
 
-/* =====================================
+/* =========================================
    STAT CARD
-===================================== */
+========================================= */
 
 function StatCard({
   label,
@@ -776,11 +974,11 @@ function StatCard({
     <div
       style={{
         background: "#fff",
-        padding: 20,
-        borderRadius: 18,
+        borderRadius: 20,
+        padding: 22,
         boxShadow:
-          "0 4px 18px rgba(0,0,0,0.06)",
-        borderLeft:
+          "0 10px 25px rgba(0,0,0,0.06)",
+        borderTop:
           `5px solid ${color}`,
       }}
     >
@@ -788,6 +986,7 @@ function StatCard({
       <div
         style={{
           color: "#6b7280",
+          fontWeight: 700,
           marginBottom: 10,
         }}
       >
@@ -796,7 +995,7 @@ function StatCard({
 
       <div
         style={{
-          fontSize: 30,
+          fontSize: 34,
           fontWeight: 800,
           color,
         }}
@@ -808,15 +1007,16 @@ function StatCard({
   );
 }
 
-/* =====================================
+/* =========================================
    STYLES
-===================================== */
+========================================= */
 
 const styles = {
 
   page: {
     padding: 24,
-    background: "#f3f4f6",
+    background:
+      "linear-gradient(to bottom,#eef2ff,#f8fafc)",
     minHeight: "100vh",
   },
 
@@ -831,22 +1031,26 @@ const styles = {
   },
 
   title: {
-    fontSize: 34,
-    fontWeight: 800,
-    marginBottom: 5,
+    fontSize: 38,
+    fontWeight: 900,
+    marginBottom: 6,
+    color: "#111827",
   },
 
   subtitle: {
     color: "#6b7280",
+    fontSize: 15,
   },
 
   search: {
     padding: 14,
-    width: 350,
+    width: 360,
     borderRadius: 14,
-    border: "1px solid #ddd",
+    border:
+      "1px solid #dbeafe",
     fontSize: 15,
     background: "#fff",
+    outline: "none",
   },
 
   statsGrid: {
@@ -865,113 +1069,151 @@ const styles = {
   },
 
   filterBtn: {
-    border: "none",
+    border:
+      "1px solid #d1d5db",
     padding: "10px 16px",
     borderRadius: 12,
     cursor: "pointer",
     fontWeight: 700,
-  },
-
-  tableWrap: {
-    overflowX: "auto",
-    background: "#fff",
-    borderRadius: 20,
-    boxShadow:
-      "0 6px 25px rgba(0,0,0,0.06)",
-  },
-
-  table: {
-    width: "100%",
-    borderCollapse:
-      "collapse",
-  },
-
-  th: {
-    textAlign: "left",
-    padding: 18,
-    background: "#111827",
-    color: "#fff",
-    fontSize: 14,
-  },
-
-  td: {
-    padding: 18,
-    borderBottom:
-      "1px solid #f3f4f6",
-    verticalAlign: "top",
-  },
-
-  tr: {
     transition: "0.2s",
+  },
+
+  ordersGrid: {
+    display: "grid",
+    gridTemplateColumns:
+      "repeat(auto-fit,minmax(420px,1fr))",
+    gap: 20,
+  },
+
+  card: {
+    background: "#fff",
+    borderRadius: 24,
+    padding: 22,
+    boxShadow:
+      "0 10px 30px rgba(0,0,0,0.06)",
+    border:
+      "1px solid rgba(255,255,255,0.7)",
+  },
+
+  cardTop: {
+    display: "flex",
+    justifyContent:
+      "space-between",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+
+  orderId: {
+    fontSize: 20,
+    fontWeight: 800,
+    color: "#111827",
+  },
+
+  date: {
+    color: "#6b7280",
+    marginTop: 4,
+    fontSize: 12,
+  },
+
+  section: {
+    marginBottom: 18,
+    padding: 16,
+    background: "#f8fafc",
+    borderRadius: 16,
+  },
+
+  sectionTitle: {
+    fontWeight: 800,
+    marginBottom: 10,
+    color: "#111827",
+  },
+
+  customerName: {
+    fontSize: 16,
+    fontWeight: 700,
+    marginBottom: 6,
+  },
+
+  smallText: {
+    color: "#4b5563",
+    marginBottom: 5,
+    fontSize: 14,
   },
 
   status: {
     color: "#fff",
-    padding: "8px 12px",
+    padding: "8px 14px",
     borderRadius: 999,
     fontWeight: 700,
-    display: "inline-block",
     fontSize: 12,
   },
 
   actionWrap: {
     display: "flex",
     flexWrap: "wrap",
-    gap: 8,
+    gap: 10,
+    marginTop: 20,
   },
 
-  blueBtn: {
-    background: "#2563eb",
-    color: "#fff",
-    border: "none",
+  select: {
     padding: "10px 14px",
-    borderRadius: 10,
-    cursor: "pointer",
-    fontWeight: 700,
+    borderRadius: 12,
+    border:
+      "1px solid #d1d5db",
+    background: "#fff",
+    fontWeight: 600,
   },
 
-  purpleBtn: {
-    background: "#7c3aed",
-    color: "#fff",
-    border: "none",
-    padding: "10px 14px",
-    borderRadius: 10,
-    cursor: "pointer",
-    fontWeight: 700,
-  },
-
-  orangeBtn: {
-    background: "#ea580c",
-    color: "#fff",
-    border: "none",
-    padding: "10px 14px",
-    borderRadius: 10,
-    cursor: "pointer",
-    fontWeight: 700,
-  },
-
-  darkBtn: {
-    background: "#111827",
-    color: "#fff",
-    border: "none",
-    padding: "10px 14px",
-    borderRadius: 10,
-    cursor: "pointer",
-    fontWeight: 700,
-  },
-
-  greenBtn: {
+  labelBtn: {
+    display: "inline-block",
+    marginTop: 10,
     background: "#16a34a",
     color: "#fff",
     padding: "10px 14px",
-    borderRadius: 10,
+    borderRadius: 12,
     textDecoration: "none",
     fontWeight: 700,
   },
 
-  loading: {
-    padding: 40,
-    textAlign: "center",
+  invoiceBtn: {
+    background: "#0f172a",
+    color: "#fff",
+    padding: "10px 14px",
+    borderRadius: 12,
+    textDecoration: "none",
     fontWeight: 700,
+  },
+
+  receiptBtn: {
+    background: "#7c3aed",
+    color: "#fff",
+    padding: "10px 14px",
+    borderRadius: 12,
+    textDecoration: "none",
+    fontWeight: 700,
+  },
+
+  trackBtn: {
+    background: "#0891b2",
+    color: "#fff",
+    padding: "10px 14px",
+    borderRadius: 12,
+    textDecoration: "none",
+    fontWeight: 700,
+  },
+
+  completed: {
+    background: "#dcfce7",
+    color: "#166534",
+    padding: "10px 14px",
+    borderRadius: 12,
+    fontWeight: 700,
+  },
+
+  loading: {
+    padding: 60,
+    textAlign: "center",
+    fontWeight: 800,
+    fontSize: 18,
   },
 };
