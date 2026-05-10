@@ -2,47 +2,45 @@ import "./globals.css";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { CartProvider } from "@/context/CartContext";
-import { Cinzel, Poppins } from "next/font/google";
+import { Inter, Poppins } from "next/font/google";
 import Script from "next/script";
 
 export const dynamic = "force-dynamic";
 
 /* ================= FONTS ================= */
-const cinzel = Cinzel({
+
+// PRIMARY (UI / ADMIN / EVERYTHING)
+const inter = Inter({
   subsets: ["latin"],
-  weight: ["400", "600"],
-  variable: "--font-brand",
+  weight: ["300", "400", "500", "600", "700"],
+  variable: "--font-body",
   display: "swap",
 });
 
+// HEADINGS (BRAND TEXT ONLY)
 const poppins = Poppins({
   subsets: ["latin"],
-  weight: ["300", "400", "500"],
-  variable: "--font-body",
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-heading",
   display: "swap",
 });
 
 /* ================= META ================= */
 export const metadata = {
   title: "Native | Eat Healthy Stay Healthy",
-  description: "Authentic natural food products refined directly from the source",
+  description:
+    "Authentic natural food products refined directly from the source",
 };
 
-/* ================= LAYOUT ================= */
+/* ================= ROOT LAYOUT ================= */
 export default function RootLayout({ children }) {
   return (
     <html
       lang="en"
-      className={`${cinzel.variable} ${poppins.variable}`}
+      className={`${inter.variable} ${poppins.variable}`}
       suppressHydrationWarning
     >
-      <body
-        style={{
-          margin: 0,
-          background: "#faf8f3",
-          fontFamily: "var(--font-body)",
-        }}
-      >
+      <body className="app-body">
         {/* Razorpay */}
         <Script
           src="https://checkout.razorpay.com/v1/checkout.js"
@@ -53,9 +51,7 @@ export default function RootLayout({ children }) {
         <CartProvider>
           <Navbar />
 
-          <main style={{ minHeight: "80vh" }}>
-            {children}
-          </main>
+          <main className="app-main">{children}</main>
 
           <Footer />
         </CartProvider>
