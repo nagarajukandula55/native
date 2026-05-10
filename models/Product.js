@@ -127,7 +127,12 @@ const ProductSchema = new mongoose.Schema(
 
     gstCategory: String,
     gstDescription: String,
-    hsn: String,
+    hsn: {
+      type: String,
+      required: true,
+      trim: true,
+      index: true
+    },
 
     tax: {
       type: Number,
