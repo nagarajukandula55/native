@@ -20,7 +20,7 @@ export async function GET(req, { params }) {
 
     if (!order) {
       return NextResponse.json(
-        { success: false, message: "Order not found" },
+        { success: false, message: "Order is not found" },
         { status: 404 }
       );
     }
