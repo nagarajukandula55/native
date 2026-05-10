@@ -461,8 +461,14 @@ export default function AdminOrdersPage() {
       >
 
         {/* MARK PAID */}
-        {o.payment?.status !==
-          "SUCCESS" && (
+        {!["SUCCESS", "PAID"].includes(
+          o.payment?.status
+        ) &&
+        o.status !== "PAID" &&
+        o.status !== "PROCESSING" &&
+        o.status !== "PACKED" &&
+        o.status !== "DISPATCHED" &&
+        o.status !== "DELIVERED" && (
 
           <button
             style={btn("#16a34a")}
