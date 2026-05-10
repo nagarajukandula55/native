@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import PDFDocument from "pdfkit";
+
 import path from "path";
 import fs from "fs";
 
@@ -11,25 +12,30 @@ import dbConnect from "@/lib/db";
 import Order from "@/models/Order";
 import CompanySettings from "@/models/CompanySettings";
 
-/* ================= MONEY FORMAT ================= */
+/* =========================================
+   MONEY FORMAT
+========================================= */
 
 const money = (n) =>
   `₹${Number(n || 0).toFixed(2)}`;
 
-/* ================= SAFE IMAGE ================= */
+/* =========================================
+   SAFE IMAGE PATH
+========================================= */
 
 const getImagePath = (imgPath) => {
   try {
     if (!imgPath) return null;
 
-    const clean = imgPath.startsWith("/")
-      ? imgPath.substring(1)
-      : imgPath;
+    const cleanPath =
+      imgPath.startsWith("/")
+        ? imgPath.substring(1)
+        : imgPath;
 
     const fullPath = path.join(
       process.cwd(),
       "public",
-      clean.replace("public/", "")
+      cleanPath.replace("public/", "")
     );
 
     if (fs.existsSync(fullPath)) {
@@ -37,20 +43,32 @@ const getImagePath = (imgPath) => {
     }
 
     return null;
-  } catch {
+  } catch (err) {
+    console.log(
+      "IMAGE PATH ERROR:",
+      err
+    );
+
     return null;
   }
 };
 
-/* ================= API ================= */
+/* =========================================
+   RECEIPT PDF
+========================================= */
 
-export async function GET(req, { params }) {
+export async function GET(
+  req,
+  { params }
+) {
   try {
     await dbConnect();
 
     const { id } = params;
 
-    /* ================= FIND ORDER ================= */
+    /* =========================================
+       ORDER
+    ========================================= */
 
     const order = await Order.findOne({
       orderId: id,
@@ -66,25 +84,31 @@ export async function GET(req, { params }) {
       );
     }
 
-    /* ================= COMPANY ================= */
+    /* =========================================
+       COMPANY
+    ========================================= */
 
     const company =
       await CompanySettings.findOne().lean();
 
-    /* ================= PDF INIT ================= */
+    /* =========================================
+       PDF INIT
+    ========================================= */
 
     const pdf = new PDFDocument({
       size: "A4",
       margin: 40,
     });
 
-    const buffers = [];
+    const chunks = [];
 
-    pdf.on("data", buffers.push.bind(buffers));
+    pdf.on("data", (chunk) => {
+      chunks.push(chunk);
+    });
 
-    /* =======================================================
+    /* =========================================
        HEADER
-    ======================================================= */
+    ========================================= */
 
     const logoPath = getImagePath(
       company?.logoUrl
@@ -102,58 +126,61 @@ export async function GET(req, { params }) {
         );
       } catch (e) {
         console.log(
-          "LOGO LOAD ERROR:",
+          "LOGO ERROR:",
           e.message
         );
       }
     }
 
     pdf
-      .fontSize(20)
-      .fillColor("#000")
+      .fontSize(22)
+      .fillColor("#111111")
       .text(
-        company?.companyName || "Native",
+        company?.companyName ||
+          "Native",
         115,
         38
       );
 
     pdf
       .fontSize(10)
-      .fillColor("#555")
+      .fillColor("#666666")
       .text(
         company?.brandTagline || "",
         115,
-        63
+        65
       );
 
     pdf.moveDown(2);
 
-    /* =======================================================
-       RECEIPT TITLE
-    ======================================================= */
+    /* =========================================
+       TITLE
+    ========================================= */
 
     pdf
       .fontSize(24)
-      .fillColor("#000")
+      .fillColor("#000000")
       .text("PAYMENT RECEIPT", {
         align: "right",
       });
 
-    pdf.moveDown();
+    pdf.moveDown(2);
 
-    /* =======================================================
+    /* =========================================
        COMPANY INFO
-    ======================================================= */
+    ========================================= */
 
     pdf
       .fontSize(9)
-      .fillColor("#444")
+      .fillColor("#444444")
       .text(
         company?.addressLine1 || ""
       );
 
     if (company?.addressLine2) {
-      pdf.text(company.addressLine2);
+      pdf.text(
+        company.addressLine2
+      );
     }
 
     pdf.text(
@@ -182,32 +209,32 @@ export async function GET(req, { params }) {
 
     pdf.moveDown(2);
 
-    /* =======================================================
+    /* =========================================
        RECEIPT DETAILS
-    ======================================================= */
+    ========================================= */
 
     pdf
-      .fontSize(12)
-      .fillColor("#000")
+      .fontSize(13)
+      .fillColor("#000000")
       .text("Receipt Details");
 
-    pdf.moveDown(0.5);
+    pdf.moveDown(0.7);
 
     pdf
       .fontSize(10)
-      .fillColor("#222");
+      .fillColor("#222222");
 
     pdf.text(
       `Receipt No: ${
-        order.receipt?.receiptNumber ||
-        "NA"
+        order.receipt
+          ?.receiptNumber || "NA"
       }`
     );
 
     pdf.text(
       `Invoice No: ${
-        order.invoice?.invoiceNumber ||
-        "NA"
+        order.invoice
+          ?.invoiceNumber || "NA"
       }`
     );
 
@@ -224,20 +251,20 @@ export async function GET(req, { params }) {
 
     pdf.moveDown(1.5);
 
-    /* =======================================================
-       CUSTOMER DETAILS
-    ======================================================= */
+    /* =========================================
+       CUSTOMER
+    ========================================= */
 
     pdf
-      .fontSize(12)
-      .fillColor("#000")
+      .fontSize(13)
+      .fillColor("#000000")
       .text("Received From");
 
-    pdf.moveDown(0.5);
+    pdf.moveDown(0.7);
 
     pdf
       .fontSize(10)
-      .fillColor("#222");
+      .fillColor("#222222");
 
     pdf.text(
       order.address?.name || ""
@@ -277,42 +304,46 @@ export async function GET(req, { params }) {
 
     pdf.moveDown(2);
 
-    /* =======================================================
+    /* =========================================
        PAYMENT DETAILS
-    ======================================================= */
+    ========================================= */
 
     pdf
-      .fontSize(12)
-      .fillColor("#000")
+      .fontSize(13)
+      .fillColor("#000000")
       .text("Payment Details");
 
-    pdf.moveDown(0.5);
+    pdf.moveDown(0.7);
 
     pdf
       .fontSize(10)
-      .fillColor("#222");
+      .fillColor("#222222");
 
     pdf.text(
       `Payment Method: ${
-        order.payment?.method || "-"
+        order.payment?.method ||
+        "-"
       }`
     );
 
     pdf.text(
       `Payment Status: ${
-        order.payment?.status || "-"
+        order.payment?.status ||
+        "-"
       }`
     );
 
     pdf.text(
       `Amount Paid: ${money(
-        order.payment?.amountPaid ||
+        order.payment
+          ?.amountPaid ||
           order.amount
       )}`
     );
 
     if (
-      order.payment?.transactionId
+      order.payment
+        ?.transactionId
     ) {
       pdf.text(
         `Transaction ID: ${order.payment.transactionId}`
@@ -336,71 +367,97 @@ export async function GET(req, { params }) {
 
     pdf.moveDown(2);
 
-    /* =======================================================
-       ORDER SUMMARY
-    ======================================================= */
+    /* =========================================
+       ORDER SUMMARY BOX
+    ========================================= */
+
+    const boxTop = pdf.y;
 
     pdf
-      .fontSize(12)
-      .fillColor("#000")
-      .text("Order Summary");
+      .roundedRect(
+        40,
+        boxTop,
+        520,
+        120,
+        10
+      )
+      .fill("#f9fafb");
 
-    pdf.moveDown(0.5);
+    pdf
+      .fillColor("#000000")
+      .fontSize(13)
+      .text(
+        "Order Summary",
+        55,
+        boxTop + 15
+      );
 
     pdf
       .fontSize(10)
-      .fillColor("#222");
+      .fillColor("#222222");
 
     pdf.text(
       `Items Count: ${
         order.items?.length || 0
-      }`
+      }`,
+      55,
+      boxTop + 45
     );
 
     pdf.text(
       `Subtotal: ${money(
         order.billing?.subtotal
-      )}`
+      )}`,
+      55,
+      boxTop + 65
     );
 
     pdf.text(
       `GST: ${money(
         order.billing?.totalGST
-      )}`
+      )}`,
+      55,
+      boxTop + 85
     );
 
-    pdf.text(
-      `Grand Total: ${money(
-        order.billing?.grandTotal ||
-          order.amount
-      )}`
-    );
+    pdf
+      .fontSize(14)
+      .fillColor("#16a34a")
+      .text(
+        `Grand Total: ${money(
+          order.billing
+            ?.grandTotal ||
+            order.amount
+        )}`,
+        330,
+        boxTop + 60
+      );
 
-    pdf.moveDown(2);
+    pdf.y = boxTop + 150;
 
-    /* =======================================================
+    /* =========================================
        DECLARATION
-    ======================================================= */
+    ========================================= */
 
     pdf
       .fontSize(11)
-      .fillColor("#000")
+      .fillColor("#000000")
       .text("Declaration");
 
     pdf.moveDown(0.5);
 
     pdf
       .fontSize(9)
-      .fillColor("#555")
+      .fillColor("#666666")
       .text(
         "This is a computer generated payment receipt and does not require physical signature."
       );
 
-    pdf.moveDown(4);
+    pdf.moveDown(3);
 
-    /* =======================================================
+    /* =========================================
        SIGNATURE
-    ======================================================= */
+    ========================================= */
 
     const signPath = getImagePath(
       company?.signatureUrl
@@ -410,39 +467,39 @@ export async function GET(req, { params }) {
       try {
         pdf.image(
           signPath,
-          400,
+          390,
           pdf.y,
           {
-            width: 110,
+            width: 120,
           }
         );
       } catch (e) {
         console.log(
-          "SIGN LOAD ERROR:",
+          "SIGNATURE ERROR:",
           e.message
         );
       }
     }
 
-    pdf.moveDown(4);
+    pdf.moveDown(5);
 
     pdf
       .fontSize(10)
-      .fillColor("#000")
+      .fillColor("#000000")
       .text(
         "Authorised Signatory",
-        390
+        385
       );
 
-    /* =======================================================
+    /* =========================================
        FOOTER
-    ======================================================= */
+    ========================================= */
 
-    pdf.moveDown(4);
+    pdf.moveDown(5);
 
     pdf
       .fontSize(8)
-      .fillColor("#777")
+      .fillColor("#888888")
       .text(
         "Thank you for shopping with us.",
         {
@@ -450,41 +507,42 @@ export async function GET(req, { params }) {
         }
       );
 
-    /* ================= END PDF ================= */
+    /* =========================================
+       END PDF
+    ========================================= */
 
     pdf.end();
 
-    /* ================= BUFFER ================= */
-
     const pdfBuffer =
-      await new Promise((resolve) => {
-        const chunks = [];
+      await new Promise(
+        (resolve) => {
+          pdf.on("end", () => {
+            resolve(
+              Buffer.concat(chunks)
+            );
+          });
+        }
+      );
 
-        pdf.on("data", (chunk) =>
-          chunks.push(chunk)
-        );
+    /* =========================================
+       RESPONSE
+    ========================================= */
 
-        pdf.on("end", () => {
-          resolve(
-            Buffer.concat(chunks)
-          );
-        });
-      });
+    return new NextResponse(
+      pdfBuffer,
+      {
+        headers: {
+          "Content-Type":
+            "application/pdf",
 
-    /* ================= RESPONSE ================= */
-
-    return new NextResponse(pdfBuffer, {
-      headers: {
-        "Content-Type":
-          "application/pdf",
-
-        "Content-Disposition": `inline; filename=${
-          order.receipt
-            ?.receiptNumber ||
-          order.orderId
-        }.pdf`,
-      },
-    });
+          "Content-Disposition": `inline; filename=${
+            order.receipt
+              ?.receiptNumber ||
+            order.orderId
+          }.pdf`,
+        },
+      }
+    );
   } catch (err) {
     console.log(
       "RECEIPT PDF ERROR:",
