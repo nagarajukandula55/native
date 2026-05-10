@@ -5,211 +5,642 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 
 export default function OrderSuccess() {
+
   const params = useSearchParams();
 
   const [orderId, setOrderId] = useState("");
-  const [status, setStatus] = useState("LOADING");
-  const [loading, setLoading] = useState(true);
+  const [order, setOrder] = useState(null);
 
-  /* ================= LOAD ORDER ================= */
+  const [status, setStatus] =
+    useState("LOADING");
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [refreshing, setRefreshing] =
+    useState(false);
+
+  /* =========================================
+     INIT
+  ========================================= */
+
   useEffect(() => {
+
     const id =
+
       params.get("orderId") ||
-      sessionStorage.getItem("lastOrderId");
+
+      sessionStorage.getItem(
+        "lastOrderId"
+      );
 
     if (!id) {
+
       setStatus("NOT_FOUND");
+
       setLoading(false);
+
       return;
     }
 
     setOrderId(id);
 
-    // 🔥 store for reload safety
-    sessionStorage.setItem("lastOrderId", id);
+    sessionStorage.setItem(
+      "lastOrderId",
+      id
+    );
 
     fetchOrder(id);
+
+    /* =========================================
+       AUTO REFRESH EVERY 15s
+    ========================================= */
+
+    const interval =
+      setInterval(() => {
+
+        fetchOrder(id, true);
+
+      }, 15000);
+
+    return () =>
+      clearInterval(interval);
+
   }, [params]);
 
-  /* ================= FETCH ORDER ================= */
-  const fetchOrder = async (id) => {
-    try {
-      const res = await fetch(`/api/orders/get?orderId=${id}`);
-      const data = await res.json();
+  /* =========================================
+     FETCH ORDER
+  ========================================= */
 
-      if (!data.success) {
-        setStatus("NOT_FOUND");
-      } else {
-        setStatus(data.order.status);
+  const fetchOrder = async (
+    id,
+    silent = false
+  ) => {
+
+    try {
+
+      if (!silent) {
+        setRefreshing(true);
       }
+
+      const res = await fetch(
+
+        `/api/orders/get-by-id?orderId=${id}`,
+
+        {
+          cache: "no-store",
+
+          headers: {
+            "Cache-Control":
+              "no-cache",
+          },
+        }
+      );
+
+      const data =
+        await res.json();
+
+      console.log(
+        "ORDER FETCH:",
+        data
+      );
+
+      if (
+        !res.ok ||
+        !data?.success
+      ) {
+
+        setStatus(
+          "NOT_FOUND"
+        );
+
+        return;
+      }
+
+      setOrder(
+        data.order
+      );
+
+      setStatus(
+        data.order?.status ||
+        "PENDING_PAYMENT"
+      );
+
     } catch (err) {
-      console.error(err);
+
+      console.log(err);
+
       setStatus("ERROR");
+
     } finally {
+
       setLoading(false);
+
+      setRefreshing(false);
     }
   };
 
-  /* ================= COPY ================= */
-  const copyOrderId = () => {
-    if (!orderId) return;
-    navigator.clipboard.writeText(orderId);
-    alert("Order ID copied");
+  /* =========================================
+     COPY
+  ========================================= */
+
+  const copyOrderId = async () => {
+
+    try {
+
+      await navigator.clipboard.writeText(
+        orderId
+      );
+
+      alert(
+        "Order ID copied"
+      );
+
+    } catch (err) {
+
+      console.log(err);
+    }
   };
 
-  /* ================= UI ================= */
+  /* =========================================
+     STATUS COLOR
+  ========================================= */
+
+  const getStatusColor = () => {
+
+    switch (status) {
+
+      case "PAID":
+        return "#16a34a";
+
+      case "PROCESSING":
+        return "#2563eb";
+
+      case "PACKED":
+        return "#7c3aed";
+
+      case "DISPATCHED":
+        return "#ea580c";
+
+      case "DELIVERED":
+        return "#059669";
+
+      case "FAILED":
+        return "#dc2626";
+
+      default:
+        return "#d97706";
+    }
+  };
+
+  /* =========================================
+     UI
+  ========================================= */
+
   return (
-    <div style={styles.container}>
+
+    <div style={styles.page}>
+
       <div style={styles.card}>
 
+        {/* SUCCESS ICON */}
+
+        <div style={styles.iconBox}>
+
+          {status === "PAID" ||
+          status === "PROCESSING" ||
+          status === "PACKED" ||
+          status === "DISPATCHED" ||
+          status === "DELIVERED"
+
+            ? "✅"
+
+            : status === "FAILED"
+
+            ? "❌"
+
+            : "⏳"}
+
+        </div>
+
+        {/* TITLE */}
+
         <h1 style={styles.title}>
-          {status === "PAID"
-            ? "🎉 Payment Successful"
-            : "⏳ Order Created"}
+
+          {status === "PAID" &&
+            "Payment Successful"}
+
+          {status === "PROCESSING" &&
+            "Order Processing"}
+
+          {status === "PACKED" &&
+            "Order Packed"}
+
+          {status === "DISPATCHED" &&
+            "Order Dispatched"}
+
+          {status === "DELIVERED" &&
+            "Order Delivered"}
+
+          {status === "FAILED" &&
+            "Payment Failed"}
+
+          {status ===
+            "PENDING_PAYMENT" &&
+            "Order Created"}
+
         </h1>
 
-        <p style={styles.subText}>Your Order ID</p>
+        <p style={styles.subtitle}>
+          Thank you for shopping with us
+        </p>
 
-        <div style={styles.orderBox}>
-          <h2 style={styles.orderId}>
-            {orderId || "Generating..."}
-          </h2>
+        {/* ORDER ID */}
 
-          <button onClick={copyOrderId} style={styles.copyBtn}>
+        <div style={styles.orderCard}>
+
+          <div>
+
+            <div style={styles.label}>
+              ORDER ID
+            </div>
+
+            <div style={styles.orderId}>
+              {orderId}
+            </div>
+
+          </div>
+
+          <button
+            onClick={copyOrderId}
+            style={styles.copyBtn}
+          >
             Copy
           </button>
+
         </div>
 
-        {/* STATUS BADGE */}
-        <div style={styles.statusBox}>
-          Status: <b>{status}</b>
+        {/* STATUS */}
+
+        <div
+          style={{
+            ...styles.statusBox,
+            background:
+              getStatusColor(),
+          }}
+        >
+
+          {status}
+
         </div>
 
-        {/* INFO */}
-        <div style={styles.infoBox}>
-          {status === "PAID" && (
-            <>
-              <p>✔ Payment received successfully</p>
-              <p>✔ Order will be processed soon</p>
-            </>
-          )}
+        {/* ORDER DETAILS */}
 
-          {status === "PENDING_PAYMENT" && (
-            <>
-              <p>⏳ Payment pending</p>
-              <p>✔ If paid via UPI, click below to refresh</p>
-            </>
-          )}
+        {order && (
 
-          {status === "FAILED" && (
-            <>
-              <p>❌ Payment failed</p>
-              <p>Please retry payment</p>
-            </>
-          )}
-        </div>
+          <div style={styles.infoBox}>
+
+            <div style={styles.infoRow}>
+              <span>Customer</span>
+              <b>
+                {order.address?.name}
+              </b>
+            </div>
+
+            <div style={styles.infoRow}>
+              <span>Phone</span>
+              <b>
+                {order.address?.phone}
+              </b>
+            </div>
+
+            <div style={styles.infoRow}>
+              <span>Amount</span>
+              <b>
+                ₹{order.amount}
+              </b>
+            </div>
+
+            <div style={styles.infoRow}>
+              <span>Payment</span>
+              <b>
+                {order.payment?.method}
+              </b>
+            </div>
+
+          </div>
+        )}
+
+        {/* TRACKING */}
+
+        {order?.shipping
+          ?.awbNumber && (
+
+          <div style={styles.awbBox}>
+
+            <div>
+              <small>
+                Tracking AWB
+              </small>
+
+              <div
+                style={{
+                  fontWeight: 700,
+                }}
+              >
+                {
+                  order.shipping
+                    ?.awbNumber
+                }
+              </div>
+            </div>
+
+            <Link
+              href={`/track?awb=${order.shipping?.awbNumber}`}
+            >
+              <button
+                style={
+                  styles.trackBtn
+                }
+              >
+                Track Shipment
+              </button>
+            </Link>
+
+          </div>
+        )}
 
         {/* ACTIONS */}
-        <div style={{ marginTop: 20 }}>
+
+        <div style={styles.actions}>
+
           <button
-            onClick={() => fetchOrder(orderId)}
+            onClick={() =>
+              fetchOrder(orderId)
+            }
             style={styles.refreshBtn}
           >
-            🔄 Refresh Status
+
+            {refreshing
+              ? "Refreshing..."
+              : "Refresh Status"}
+
           </button>
+
+          <Link href="/products">
+
+            <button
+              style={
+                styles.shopBtn
+              }
+            >
+              Continue Shopping
+            </button>
+
+          </Link>
+
         </div>
 
-        <Link href="/products">
-          <button style={styles.button}>
-            Continue Shopping
-          </button>
-        </Link>
-
       </div>
+
     </div>
   );
 }
 
-/* ================= STYLES ================= */
+/* =========================================
+   STYLES
+========================================= */
+
 const styles = {
-  container: {
-    padding: "60px",
+
+  page: {
+
+    minHeight: "100vh",
+
+    background:
+      "linear-gradient(to bottom right, #f8fafc, #eef2ff)",
+
     display: "flex",
+
     justifyContent: "center",
+
+    alignItems: "center",
+
+    padding: 20,
   },
 
   card: {
-    maxWidth: "500px",
+
     width: "100%",
-    textAlign: "center",
+
+    maxWidth: 650,
+
     background: "#fff",
-    padding: "30px",
-    borderRadius: "12px",
-    boxShadow: "0 10px 30px rgba(0,0,0,0.1)",
+
+    borderRadius: 24,
+
+    padding: 35,
+
+    boxShadow:
+      "0 10px 40px rgba(0,0,0,0.08)",
+  },
+
+  iconBox: {
+
+    fontSize: 70,
+
+    textAlign: "center",
+
+    marginBottom: 10,
   },
 
   title: {
-    marginBottom: "20px",
+
+    textAlign: "center",
+
+    fontSize: 32,
+
+    marginBottom: 8,
   },
 
-  subText: {
-    fontSize: "16px",
+  subtitle: {
+
+    textAlign: "center",
+
     color: "#666",
+
+    marginBottom: 30,
   },
 
-  orderBox: {
+  orderCard: {
+
     display: "flex",
-    justifyContent: "center",
+
+    justifyContent:
+      "space-between",
+
     alignItems: "center",
-    gap: "10px",
-    margin: "15px 0",
+
+    border:
+      "1px solid #eee",
+
+    padding: 20,
+
+    borderRadius: 16,
+
+    marginBottom: 20,
+  },
+
+  label: {
+
+    fontSize: 12,
+
+    color: "#666",
+
+    marginBottom: 6,
   },
 
   orderId: {
-    color: "green",
-    margin: 0,
+
+    fontWeight: 700,
+
+    fontSize: 20,
   },
 
   copyBtn: {
-    padding: "6px 10px",
+
+    background: "#111",
+
+    color: "#fff",
+
+    border: "none",
+
+    padding:
+      "10px 16px",
+
+    borderRadius: 10,
+
     cursor: "pointer",
-    border: "1px solid #ccc",
-    background: "#f5f5f5",
-    borderRadius: "6px",
   },
 
   statusBox: {
-    marginTop: "10px",
-    padding: "10px",
-    background: "#f1f1f1",
-    borderRadius: "6px",
+
+    padding: 14,
+
+    borderRadius: 12,
+
+    textAlign: "center",
+
+    color: "#fff",
+
+    fontWeight: 700,
+
+    marginBottom: 25,
   },
 
   infoBox: {
-    marginTop: "20px",
-    textAlign: "left",
-    fontSize: "14px",
-    background: "#f9f9f9",
-    padding: "15px",
-    borderRadius: "8px",
+
+    border:
+      "1px solid #eee",
+
+    borderRadius: 16,
+
+    padding: 20,
+
+    marginBottom: 20,
+  },
+
+  infoRow: {
+
+    display: "flex",
+
+    justifyContent:
+      "space-between",
+
+    padding: "10px 0",
+
+    borderBottom:
+      "1px solid #f1f1f1",
+  },
+
+  awbBox: {
+
+    display: "flex",
+
+    justifyContent:
+      "space-between",
+
+    alignItems: "center",
+
+    background: "#f8fafc",
+
+    padding: 20,
+
+    borderRadius: 16,
+
+    marginBottom: 20,
+  },
+
+  trackBtn: {
+
+    background: "#2563eb",
+
+    color: "#fff",
+
+    border: "none",
+
+    padding:
+      "10px 14px",
+
+    borderRadius: 10,
+
+    cursor: "pointer",
+  },
+
+  actions: {
+
+    display: "flex",
+
+    gap: 12,
+
+    marginTop: 10,
   },
 
   refreshBtn: {
-    padding: "10px 15px",
-    background: "#333",
+
+    flex: 1,
+
+    background: "#111",
+
     color: "#fff",
+
     border: "none",
-    borderRadius: "6px",
+
+    padding: 14,
+
+    borderRadius: 12,
+
     cursor: "pointer",
+
+    fontWeight: 600,
   },
 
-  button: {
-    marginTop: "25px",
-    padding: "12px 25px",
-    background: "#2c7a4b",
+  shopBtn: {
+
+    background:
+      "#16a34a",
+
     color: "#fff",
+
     border: "none",
+
+    padding:
+      "14px 18px",
+
+    borderRadius: 12,
+
     cursor: "pointer",
-    borderRadius: "8px",
+
+    fontWeight: 600,
   },
 };
