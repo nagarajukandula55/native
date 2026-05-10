@@ -1,62 +1,33 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-
 import OrderTimeline from "@/components/OrderTimeline";
 
 export default function FulfillmentPage() {
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [status, setStatus] = useState("ALL");
+  const [search, setSearch] = useState("");
+  const [creating, setCreating] = useState("");
+  const [couriers, setCouriers] = useState({});
+  const [expanded, setExpanded] = useState(null);
 
-  const [orders, setOrders] =
-    useState([]);
-
-  const [loading, setLoading] =
-    useState(true);
-
-  const [status, setStatus] =
-    useState("ALL");
-
-  const [search, setSearch] =
-    useState("");
-
-  const [creating, setCreating] =
-    useState("");
-
-  const [couriers, setCouriers] =
-    useState({});
-
-  /* =========================================
-     FETCH ORDERS
-  ========================================= */
+  /* ================= FETCH ================= */
 
   const fetchOrders = async () => {
-
     try {
-
       setLoading(true);
 
-      const res = await fetch(
-        "/api/orders/list",
-        {
-          cache: "no-store",
-        }
-      );
+      const res = await fetch("/api/orders/list", {
+        cache: "no-store",
+      });
 
-      const data =
-        await res.json();
+      const data = await res.json();
 
       if (data?.success) {
-
-        setOrders(
-          data.orders || []
-        );
+        setOrders(data.orders || []);
       }
-
-    } catch (err) {
-
-      console.log(err);
-
     } finally {
-
       setLoading(false);
     }
   };
@@ -65,521 +36,136 @@ export default function FulfillmentPage() {
     fetchOrders();
   }, []);
 
-  /* =========================================
-     FILTER
-  ========================================= */
+  /* ================= FILTER ================= */
 
   const filtered = useMemo(() => {
-
     let temp = [...orders];
 
     if (status !== "ALL") {
-
-      temp = temp.filter(
-        (o) =>
-          o.status === status
-      );
+      temp = temp.filter((o) => o.status === status);
     }
 
     if (search) {
+      const q = search.toLowerCase();
 
-      temp = temp.filter((o) =>
-
-        o.orderId
-          ?.toLowerCase()
-          .includes(
-            search.toLowerCase()
-          ) ||
-
-        o.address?.phone?.includes(
-          search
-        ) ||
-
-        o.address?.name
-          ?.toLowerCase()
-          .includes(
-            search.toLowerCase()
-          ) ||
-
-        o.shipping?.awbNumber
-          ?.toLowerCase()
-          .includes(
-            search.toLowerCase()
-          )
+      temp = temp.filter(
+        (o) =>
+          o.orderId?.toLowerCase().includes(q) ||
+          o.address?.phone?.includes(q) ||
+          o.address?.name?.toLowerCase().includes(q) ||
+          o.shipping?.awbNumber?.toLowerCase().includes(q)
       );
     }
 
     return temp;
-
   }, [orders, status, search]);
 
-  /* =========================================
-     STATS
-  ========================================= */
+  /* ================= STATS ================= */
 
   const stats = useMemo(() => {
+    const c = (s) => orders.filter((o) => o.status === s).length;
 
     return {
-
-      total:
-        orders.length,
-
-      pending:
-        orders.filter(
-          (o) =>
-            o.status ===
-            "PENDING_PAYMENT"
-        ).length,
-
-      paid:
-        orders.filter(
-          (o) =>
-            o.status ===
-            "PAID"
-        ).length,
-
-      processing:
-        orders.filter(
-          (o) =>
-            o.status ===
-            "PROCESSING"
-        ).length,
-
-      packed:
-        orders.filter(
-          (o) =>
-            o.status ===
-            "PACKED"
-        ).length,
-
-      dispatched:
-        orders.filter(
-          (o) =>
-            o.status ===
-            "DISPATCHED"
-        ).length,
-
-      delivered:
-        orders.filter(
-          (o) =>
-            o.status ===
-            "DELIVERED"
-        ).length,
+      total: orders.length,
+      pending: c("PENDING_PAYMENT"),
+      paid: c("PAID"),
+      processing: c("PROCESSING"),
+      packed: c("PACKED"),
+      dispatched: c("DISPATCHED"),
+      delivered: c("DELIVERED"),
     };
-
   }, [orders]);
 
-  /* =========================================
-     UPDATE STATUS
-  ========================================= */
+  /* ================= STATUS ================= */
 
-  const updateStatus = async (
-    id,
-    newStatus
-  ) => {
+  const updateStatus = async (id, newStatus) => {
+    await fetch("/api/admin/orders/update-status", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, status: newStatus }),
+    });
 
-    try {
-
-      const res = await fetch(
-        "/api/admin/orders/update-status",
-        {
-
-          method: "POST",
-
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-
-          body: JSON.stringify({
-
-            id,
-
-            status:
-              newStatus,
-          }),
-        }
-      );
-
-      const data =
-        await res.json();
-
-      if (data?.success) {
-
-        alert(
-          "Status Updated ✅"
-        );
-
-        fetchOrders();
-
-      } else {
-
-        alert(
-          data.message ||
-          "Failed to update status"
-        );
-      }
-
-    } catch (err) {
-
-      console.error(err);
-
-      alert(
-        "Error updating status"
-      );
-    }
+    fetchOrders();
   };
 
-  /* =========================================
-     MARK PAID
-  ========================================= */
+  /* ================= PAYMENT ================= */
 
-  const markAsPaid = async (
-    order
-  ) => {
+  const markAsPaid = async (order) => {
+    const utr = prompt("Enter UTR (optional)");
 
-    const utr = prompt(
-      "Enter UTR / Reference (optional)"
-    );
+    await fetch("/api/payment/mark-paid", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orderId: order.orderId,
+        utr,
+      }),
+    });
 
-    try {
-
-      const res = await fetch(
-        "/api/payment/mark-paid",
-        {
-
-          method: "POST",
-
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-
-          body: JSON.stringify({
-
-            orderId:
-              order.orderId,
-
-            utr,
-          }),
-        }
-      );
-
-      const data =
-        await res.json();
-
-      if (data.success) {
-
-        alert(
-          "Marked as Paid ✅"
-        );
-
-        fetchOrders();
-
-      } else {
-
-        alert(
-          data.message ||
-          "Failed ❌"
-        );
-      }
-
-    } catch (err) {
-
-      console.log(err);
-
-      alert(
-        "Payment update failed"
-      );
-    }
+    fetchOrders();
   };
 
-  /* =========================================
-     LOAD COURIERS
-  ========================================= */
+  /* ================= COURIERS ================= */
 
-  const loadCouriers = async (
-    order
-  ) => {
+  const loadCouriers = async (order) => {
+    const res = await fetch("/api/shipping/couriers", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orderId: order.orderId }),
+    });
 
-    try {
+    const data = await res.json();
 
-      const res = await fetch(
-        "/api/shipping/couriers",
-        {
-
-          method: "POST",
-
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-
-          body: JSON.stringify({
-
-            orderId:
-              order.orderId,
-          }),
-        }
-      );
-
-      const data =
-        await res.json();
-
-      console.log(
-        "🚚 COURIERS:",
-        data
-      );
-
-      if (!data.success) {
-
-        alert(
-          data.message ||
-          "Failed to load couriers"
-        );
-
-        return;
-      }
-
-      setCouriers((prev) => ({
-        ...prev,
-        [order.orderId]:
-          data.couriers || [],
-      }));
-
-    } catch (err) {
-
-      console.log(err);
-
-      alert(
-        "Courier fetch failed"
-      );
-    }
+    setCouriers((p) => ({
+      ...p,
+      [order.orderId]: data.couriers || [],
+    }));
   };
 
-  /* =========================================
-     CREATE SHIPMENT
-  ========================================= */
+  /* ================= SHIPMENT ================= */
 
-  const createShipment = async (
-    order,
-    courierId
-  ) => {
+  const createShipment = async (order, courierId) => {
+    setCreating(order.orderId);
 
-    try {
+    const dispatchType =
+      document.getElementById(`dispatch-${order._id}`)?.value || "COURIER";
 
-      setCreating(order.orderId);
+    await fetch("/api/shipping/create-shipment", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orderId: order.orderId,
+        courierId,
+        dispatchType,
+      }),
+    });
 
-      const dispatchType =
-        document.getElementById(
-          `dispatch-${order._id}`
-        ).value;
-
-      const res = await fetch(
-        "/api/shipping/create-shipment",
-        {
-
-          method: "POST",
-
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-
-          body: JSON.stringify({
-
-            orderId:
-              order.orderId,
-
-            courierId,
-
-            dispatchType,
-          }),
-        }
-      );
-
-      const data =
-        await res.json();
-
-      console.log(data);
-
-      if (data.success) {
-
-        alert(
-          "Shipment Created ✅"
-        );
-
-        fetchOrders();
-
-      } else {
-
-        alert(
-          data.message ||
-          "Shipment Failed"
-        );
-      }
-
-    } catch (err) {
-
-      console.log(err);
-
-      alert(
-        "Shipment creation failed"
-      );
-
-    } finally {
-
-      setCreating("");
-    }
+    setCreating("");
+    fetchOrders();
   };
 
-  /* =========================================
-     STATUS COLORS
-  ========================================= */
-
-  const statusColor = (s) => {
-
-    switch (s) {
-
-      case "PENDING_PAYMENT":
-        return "#ef4444";
-
-      case "PAID":
-        return "#2563eb";
-
-      case "PROCESSING":
-        return "#7c3aed";
-
-      case "PACKED":
-        return "#f59e0b";
-
-      case "DISPATCHED":
-        return "#0891b2";
-
-      case "DELIVERED":
-        return "#16a34a";
-
-      default:
-        return "#6b7280";
-    }
-  };
-
-  /* =========================================
-     BUTTON STYLE
-  ========================================= */
-
-  const btn = (bg) => ({
-
-    padding: "10px 14px",
-
-    border: "none",
-
-    borderRadius: 12,
-
-    cursor: "pointer",
-
-    fontSize: 12,
-
-    fontWeight: 700,
-
-    background: bg,
-
-    color: "#fff",
-
-    transition: "0.2s",
-  });
+  /* ================= UI ================= */
 
   return (
-
     <div style={styles.page}>
-
-      {/* =========================================
-         HEADER
-      ========================================= */}
-
+      
+      {/* HEADER (Stripe style sticky feel) */}
       <div style={styles.header}>
-
         <div>
-
-          <h1 style={styles.title}>
-            📦 Enterprise Fulfillment
-          </h1>
-
-          <p style={styles.subtitle}>
-            Real-time warehouse, dispatch & courier operations
-          </p>
-
+          <div style={styles.h1}>Enterprise Fulfillment</div>
+          <div style={styles.sub}>Warehouse • Dispatch • Courier Control Tower</div>
         </div>
 
         <input
-          placeholder="Search Order / Customer / Phone / AWB"
-          value={search}
-          onChange={(e) =>
-            setSearch(
-              e.target.value
-            )
-          }
           style={styles.search}
+          placeholder="Search order, phone, AWB..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
         />
-
       </div>
 
-      {/* =========================================
-         STATS
-      ========================================= */}
-
-      <div style={styles.statsGrid}>
-
-        <StatCard
-          label="TOTAL"
-          value={stats.total}
-          color="#111827"
-        />
-
-        <StatCard
-          label="PENDING"
-          value={stats.pending}
-          color="#ef4444"
-        />
-
-        <StatCard
-          label="PAID"
-          value={stats.paid}
-          color="#2563eb"
-        />
-
-        <StatCard
-          label="PROCESSING"
-          value={stats.processing}
-          color="#7c3aed"
-        />
-
-        <StatCard
-          label="PACKED"
-          value={stats.packed}
-          color="#f59e0b"
-        />
-
-        <StatCard
-          label="DISPATCHED"
-          value={stats.dispatched}
-          color="#0891b2"
-        />
-
-        <StatCard
-          label="DELIVERED"
-          value={stats.delivered}
-          color="#16a34a"
-        />
-
-      </div>
-
-      {/* =========================================
-         FILTERS
-      ========================================= */}
-
-      <div style={styles.filters}>
-
+      {/* PIPELINE FILTER */}
+      <div style={styles.pipeline}>
         {[
           "ALL",
           "PENDING_PAYMENT",
@@ -589,631 +175,258 @@ export default function FulfillmentPage() {
           "DISPATCHED",
           "DELIVERED",
         ].map((s) => (
-
           <button
             key={s}
-            onClick={() =>
-              setStatus(s)
-            }
+            onClick={() => setStatus(s)}
             style={{
-              ...styles.filterBtn,
-              background:
-                status === s
-                  ? "#111827"
-                  : "#fff",
-              color:
-                status === s
-                  ? "#fff"
-                  : "#111827",
+              ...styles.chip,
+              background: status === s ? "#111827" : "#fff",
+              color: status === s ? "#fff" : "#111827",
             }}
           >
             {s}
           </button>
         ))}
-
       </div>
 
-      {/* =========================================
-         TABLE
-      ========================================= */}
-
+      {/* GRID */}
       {loading ? (
-
-        <div style={styles.loading}>
-          Loading Orders...
-        </div>
-
-      ) : filtered.length === 0 ? (
-
-        <div style={styles.loading}>
-          No Orders Found
-        </div>
-
+        <div style={styles.loading}>Loading Operations...</div>
       ) : (
-
-        <div style={styles.ordersGrid}>
-
+        <div style={styles.grid}>
           {filtered.map((o) => (
-
-            <div
-              key={o._id}
-              style={styles.card}
-            >
-
-              {/* TOP */}
-
-              <div style={styles.cardTop}>
-
+            <div key={o._id} style={styles.card}>
+              
+              {/* TOP BAR */}
+              <div style={styles.top}>
                 <div>
-
-                  <div style={styles.orderId}>
-                    {o.orderId}
+                  <div style={styles.orderId}>{o.orderId}</div>
+                  <div style={styles.meta}>
+                    {new Date(o.createdAt).toLocaleString()}
                   </div>
-
-                  <div style={styles.date}>
-                    {new Date(
-                      o.createdAt
-                    ).toLocaleString()}
-                  </div>
-
                 </div>
 
-                <div
-                  style={{
-                    ...styles.status,
-                    background:
-                      statusColor(
-                        o.status
-                      ),
-                  }}
-                >
+                <div style={{ ...styles.status, background: statusColor(o.status) }}>
                   {o.status}
                 </div>
-
               </div>
 
               {/* CUSTOMER */}
-
-              <div style={styles.section}>
-
-                <div style={styles.sectionTitle}>
-                  Customer
-                </div>
-
-                <div style={styles.customerName}>
-                  {o.address?.name}
-                </div>
-
-                <div style={styles.smallText}>
-                  📞 {o.address?.phone}
-                </div>
-
-                <div style={styles.smallText}>
-                  💰 ₹{o.amount}
-                </div>
-
-                <div style={styles.smallText}>
-                  💳 {o.payment?.method}
-                </div>
-
-                <div style={{
-                  marginTop: 6,
-                  fontWeight: 700,
-                  color:
-                    o.payment?.status === "SUCCESS"
-                      ? "#16a34a"
-                      : "#ef4444",
-                }}>
-                  {o.payment?.status}
-                </div>
-
+              <div style={styles.box}>
+                <div style={styles.boxTitle}>Customer</div>
+                <div>{o.address?.name}</div>
+                <div>{o.address?.phone}</div>
+                <div>₹{o.amount}</div>
               </div>
 
               {/* SHIPPING */}
-
-              <div style={styles.section}>
-
-                <div style={styles.sectionTitle}>
-                  Shipping
-                </div>
-
-                {o.shipping?.awbNumber ? (
-
-                  <>
-
-                    <div style={styles.smallText}>
-                      🚚 {o.shipping?.courierPartner}
-                    </div>
-
-                    <div style={styles.smallText}>
-                      📦 {o.shipping?.awbNumber}
-                    </div>
-
-                    <div style={styles.smallText}>
-                      📍 {o.shipping?.trackingStatus || "Created"}
-                    </div>
-
-                    {o.shipping?.labelUrl && (
-
-                      <a
-                        href={
-                          o.shipping?.labelUrl
-                        }
-                        target="_blank"
-                        style={styles.labelBtn}
-                      >
-                        Download Label
-                      </a>
-                    )}
-
-                  </>
-
-                ) : (
-
-                  <div style={{
-                    color: "#9ca3af",
-                  }}>
-                    Shipment not created
-                  </div>
-                )}
-
+              <div style={styles.box}>
+                <div style={styles.boxTitle}>Shipping</div>
+                <div>{o.shipping?.courierPartner || "Not Assigned"}</div>
+                <div>{o.shipping?.awbNumber || "-"}</div>
               </div>
 
               {/* TIMELINE */}
+              <OrderTimeline order={o} />
 
-              <div style={{
-                marginTop: 15,
-              }}>
-                <OrderTimeline
-                  order={o}
-                />
-              </div>
+              {/* ACTIONS (Stripe style grouped) */}
+              <div style={styles.actions}>
 
-              {/* ACTIONS */}
+                <button style={btn("#16a34a")} onClick={() => markAsPaid(o)}>
+                  Mark Paid
+                </button>
 
-              <div style={styles.actionWrap}>
+                <button style={btn("#2563eb")} onClick={() => updateStatus(o._id, "PROCESSING")}>
+                  Process
+                </button>
 
-                {!["SUCCESS", "PAID"].includes(
-                  o.payment?.status
-                ) &&
-                ![
-                  "PAID",
-                  "PROCESSING",
-                  "PACKED",
-                  "DISPATCHED",
-                  "DELIVERED",
-                ].includes(
-                  o.status
-                ) && (
+                <button style={btn("#7c3aed")} onClick={() => updateStatus(o._id, "PACKED")}>
+                  Pack
+                </button>
 
-                  <button
-                    style={btn("#16a34a")}
-                    onClick={() =>
-                      markAsPaid(o)
-                    }
-                  >
-                    Mark Paid
-                  </button>
-                )}
-
-                {o.status === "PAID" && (
-
-                  <button
-                    style={btn("#2563eb")}
-                    onClick={() =>
-                      updateStatus(
-                        o._id,
-                        "PROCESSING"
-                      )
-                    }
-                  >
-                    Start Processing
-                  </button>
-                )}
-
-                {o.status ===
-                  "PROCESSING" && (
-
-                  <button
-                    style={btn("#7c3aed")}
-                    onClick={() =>
-                      updateStatus(
-                        o._id,
-                        "PACKED"
-                      )
-                    }
-                  >
-                    Mark Packed
-                  </button>
-                )}
-
-                {o.status ===
-                  "PACKED" &&
-                  !o.shipping
-                    ?.awbNumber && (
-
-                  <>
-
-                    <select
-                      defaultValue="COURIER"
-                      id={`dispatch-${o._id}`}
-                      style={styles.select}
-                    >
-
-                      <option value="COURIER">
-                        Courier
-                      </option>
-
-                      <option value="BY_HAND">
-                        By Hand
-                      </option>
-
-                      <option value="LOCAL_DELIVERY">
-                        Local Delivery
-                      </option>
-
-                    </select>
-
-                    <button
-                      style={btn("#0f172a")}
-                      onClick={() =>
-                        loadCouriers(o)
-                      }
-                    >
-                      Load Couriers
-                    </button>
-
-                  </>
-                )}
-
-                {couriers[
-                  o.orderId
-                ]?.map((c) => (
-
-                  <button
-                    key={
-                      c.courier_company_id
-                    }
-                    style={btn("#ea580c")}
-                    disabled={
-                      creating ===
-                      o.orderId
-                    }
-                    onClick={() =>
-                      createShipment(
-                        o,
-                        c.courier_company_id
-                      )
-                    }
-                  >
-                    {c.courier_name}
-                  </button>
-                ))}
-
-                {o.status ===
-                  "DISPATCHED" && (
-
-                  <button
-                    style={btn("#111827")}
-                    onClick={() =>
-                      updateStatus(
-                        o._id,
-                        "DELIVERED"
-                      )
-                    }
-                  >
-                    Mark Delivered
-                  </button>
-                )}
-
-                {o.status ===
-                  "DELIVERED" && (
-
-                  <div style={styles.completed}>
-                    ✔ Delivered Successfully
-                  </div>
-                )}
-
-                {/* INVOICE */}
-
-                <a
-                  href={`/api/invoice/${o.orderId}`}
-                  target="_blank"
-                  style={styles.invoiceBtn}
+                <button
+                  style={btn("#111827")}
+                  onClick={() => setExpanded(expanded === o._id ? null : o._id)}
                 >
+                  Courier
+                </button>
+
+                <a style={styles.link} href={`/api/invoice/${o.orderId}`} target="_blank">
                   Invoice
                 </a>
 
-                {/* RECEIPT */}
-
-                <a
-                  href={`/api/receipt/${o.orderId}`}
-                  target="_blank"
-                  style={styles.receiptBtn}
-                >
+                <a style={styles.link2} href={`/api/receipt/${o.orderId}`} target="_blank">
                   Receipt
                 </a>
 
-                {/* TRACK */}
-
-                {o.shipping?.awbNumber && (
-
-                  <a
-                    href={`/track?awb=${o.shipping?.awbNumber}`}
-                    target="_blank"
-                    style={styles.trackBtn}
-                  >
-                    Track
-                  </a>
-                )}
-
               </div>
+
+              {/* COURIER EXPAND */}
+              {expanded === o._id && (
+                <div style={styles.expand}>
+                  
+                  <button onClick={() => loadCouriers(o)} style={btn("#0f172a")}>
+                    Load Couriers
+                  </button>
+
+                  <select id={`dispatch-${o._id}`} style={styles.select}>
+                    <option>COURIER</option>
+                    <option>BY_HAND</option>
+                    <option>LOCAL</option>
+                  </select>
+
+                  {couriers[o.orderId]?.map((c) => (
+                    <button
+                      key={c.courier_company_id}
+                      style={btn("#ea580c")}
+                      onClick={() => createShipment(o, c.courier_company_id)}
+                    >
+                      {c.courier_name}
+                    </button>
+                  ))}
+
+                </div>
+              )}
 
             </div>
           ))}
-
         </div>
       )}
-
     </div>
   );
 }
 
-/* =========================================
-   STAT CARD
-========================================= */
-
-function StatCard({
-  label,
-  value,
-  color,
-}) {
-
-  return (
-
-    <div
-      style={{
-        background: "#fff",
-        borderRadius: 20,
-        padding: 22,
-        boxShadow:
-          "0 10px 25px rgba(0,0,0,0.06)",
-        borderTop:
-          `5px solid ${color}`,
-      }}
-    >
-
-      <div
-        style={{
-          color: "#6b7280",
-          fontWeight: 700,
-          marginBottom: 10,
-        }}
-      >
-        {label}
-      </div>
-
-      <div
-        style={{
-          fontSize: 34,
-          fontWeight: 800,
-          color,
-        }}
-      >
-        {value}
-      </div>
-
-    </div>
-  );
-}
-
-/* =========================================
-   STYLES
-========================================= */
+/* ================= STYLE SYSTEM ================= */
 
 const styles = {
-
-  page: {
-    padding: 24,
-    background:
-      "linear-gradient(to bottom,#eef2ff,#f8fafc)",
-    minHeight: "100vh",
-  },
+  page: { padding: 24, background: "#f6f7fb", minHeight: "100vh" },
 
   header: {
     display: "flex",
-    justifyContent:
-      "space-between",
-    alignItems: "center",
-    marginBottom: 30,
-    gap: 20,
+    justifyContent: "space-between",
+    marginBottom: 20,
+    gap: 12,
     flexWrap: "wrap",
   },
 
-  title: {
-    fontSize: 38,
-    fontWeight: 900,
-    marginBottom: 6,
-    color: "#111827",
-  },
-
-  subtitle: {
-    color: "#6b7280",
-    fontSize: 15,
-  },
+  h1: { fontSize: 28, fontWeight: 900 },
+  sub: { color: "#6b7280" },
 
   search: {
-    padding: 14,
-    width: 360,
-    borderRadius: 14,
-    border:
-      "1px solid #dbeafe",
-    fontSize: 15,
-    background: "#fff",
-    outline: "none",
-  },
-
-  statsGrid: {
-    display: "grid",
-    gridTemplateColumns:
-      "repeat(auto-fit,minmax(180px,1fr))",
-    gap: 18,
-    marginBottom: 30,
-  },
-
-  filters: {
-    display: "flex",
-    gap: 10,
-    flexWrap: "wrap",
-    marginBottom: 25,
-  },
-
-  filterBtn: {
-    border:
-      "1px solid #d1d5db",
-    padding: "10px 16px",
+    padding: 12,
     borderRadius: 12,
-    cursor: "pointer",
-    fontWeight: 700,
-    transition: "0.2s",
+    border: "1px solid #ddd",
+    width: 300,
   },
 
-  ordersGrid: {
+  pipeline: {
+    display: "flex",
+    gap: 8,
+    flexWrap: "wrap",
+    marginBottom: 20,
+  },
+
+  chip: {
+    padding: "8px 12px",
+    borderRadius: 999,
+    border: "1px solid #ddd",
+    fontWeight: 700,
+    cursor: "pointer",
+  },
+
+  grid: {
     display: "grid",
-    gridTemplateColumns:
-      "repeat(auto-fit,minmax(420px,1fr))",
-    gap: 20,
+    gridTemplateColumns: "repeat(auto-fit,minmax(380px,1fr))",
+    gap: 14,
   },
 
   card: {
     background: "#fff",
-    borderRadius: 24,
-    padding: 22,
-    boxShadow:
-      "0 10px 30px rgba(0,0,0,0.06)",
-    border:
-      "1px solid rgba(255,255,255,0.7)",
-  },
-
-  cardTop: {
-    display: "flex",
-    justifyContent:
-      "space-between",
-    alignItems: "center",
-    marginBottom: 20,
-  },
-
-  orderId: {
-    fontSize: 20,
-    fontWeight: 800,
-    color: "#111827",
-  },
-
-  date: {
-    color: "#6b7280",
-    marginTop: 4,
-    fontSize: 12,
-  },
-
-  section: {
-    marginBottom: 18,
-    padding: 16,
-    background: "#f8fafc",
     borderRadius: 16,
+    padding: 16,
   },
 
-  sectionTitle: {
-    fontWeight: 800,
-    marginBottom: 10,
-    color: "#111827",
+  top: {
+    display: "flex",
+    justifyContent: "space-between",
   },
 
-  customerName: {
-    fontSize: 16,
-    fontWeight: 700,
-    marginBottom: 6,
-  },
+  orderId: { fontWeight: 800 },
 
-  smallText: {
-    color: "#4b5563",
-    marginBottom: 5,
-    fontSize: 14,
-  },
+  meta: { fontSize: 12, opacity: 0.6 },
 
   status: {
     color: "#fff",
-    padding: "8px 14px",
+    padding: "6px 10px",
     borderRadius: 999,
-    fontWeight: 700,
     fontSize: 12,
   },
 
-  actionWrap: {
+  box: {
+    marginTop: 10,
+    background: "#f9fafb",
+    padding: 10,
+    borderRadius: 10,
+  },
+
+  boxTitle: { fontWeight: 700, marginBottom: 4 },
+
+  actions: {
     display: "flex",
     flexWrap: "wrap",
-    gap: 10,
-    marginTop: 20,
+    gap: 8,
+    marginTop: 12,
+  },
+
+  expand: {
+    marginTop: 10,
+    padding: 10,
+    background: "#f3f4f6",
+    borderRadius: 12,
+    display: "flex",
+    flexDirection: "column",
+    gap: 8,
   },
 
   select: {
-    padding: "10px 14px",
-    borderRadius: 12,
-    border:
-      "1px solid #d1d5db",
-    background: "#fff",
-    fontWeight: 600,
+    padding: 10,
+    borderRadius: 10,
   },
 
-  labelBtn: {
-    display: "inline-block",
-    marginTop: 10,
-    background: "#16a34a",
+  link: {
+    background: "#111827",
     color: "#fff",
-    padding: "10px 14px",
-    borderRadius: 12,
+    padding: "10px 12px",
+    borderRadius: 10,
     textDecoration: "none",
-    fontWeight: 700,
   },
 
-  invoiceBtn: {
-    background: "#0f172a",
-    color: "#fff",
-    padding: "10px 14px",
-    borderRadius: 12,
-    textDecoration: "none",
-    fontWeight: 700,
-  },
-
-  receiptBtn: {
+  link2: {
     background: "#7c3aed",
     color: "#fff",
-    padding: "10px 14px",
-    borderRadius: 12,
+    padding: "10px 12px",
+    borderRadius: 10,
     textDecoration: "none",
-    fontWeight: 700,
   },
 
-  trackBtn: {
-    background: "#0891b2",
-    color: "#fff",
-    padding: "10px 14px",
-    borderRadius: 12,
-    textDecoration: "none",
-    fontWeight: 700,
-  },
-
-  completed: {
-    background: "#dcfce7",
-    color: "#166534",
-    padding: "10px 14px",
-    borderRadius: 12,
-    fontWeight: 700,
-  },
-
-  loading: {
-    padding: 60,
-    textAlign: "center",
-    fontWeight: 800,
-    fontSize: 18,
-  },
+  loading: { padding: 50, textAlign: "center", fontWeight: 800 },
 };
+
+const btn = (bg) => ({
+  background: bg,
+  color: "#fff",
+  border: "none",
+  padding: "10px 12px",
+  borderRadius: 10,
+  fontWeight: 700,
+  cursor: "pointer",
+});
+
+const statusColor = (s) => ({
+  PENDING_PAYMENT: "#ef4444",
+  PAID: "#2563eb",
+  PROCESSING: "#7c3aed",
+  PACKED: "#f59e0b",
+  DISPATCHED: "#0891b2",
+  DELIVERED: "#16a34a",
+}[s] || "#6b7280");
