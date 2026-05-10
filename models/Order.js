@@ -83,7 +83,11 @@ const OrderItemSchema = new mongoose.Schema(
 
       category: String,
 
-      hsn: String,
+      hsn: {
+        type: String,
+        required: true,   // 🔥 ADD THIS
+        trim: true
+      },
 
       sku: String,
 
@@ -561,6 +565,11 @@ const OrderSchema = new mongoose.Schema(
         type: Boolean,
         default: false,
       },
+
+      gstLocked: {
+        type: Boolean,
+          default: true
+        },
 
       manualReview: {
         type: Boolean,
