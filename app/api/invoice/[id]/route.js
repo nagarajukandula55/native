@@ -49,7 +49,6 @@ export async function GET(
   { params }
 ) {
   try {
-
     await dbConnect();
 
     const { id } = params;
@@ -63,7 +62,6 @@ export async function GET(
     }).lean();
 
     if (!order) {
-
       return NextResponse.json(
         {
           success: false,
@@ -81,7 +79,6 @@ export async function GET(
       await CompanySettings.findOne().lean();
 
     if (!company) {
-
       return NextResponse.json(
         {
           success: false,
@@ -100,7 +97,6 @@ export async function GET(
       order.invoice?.invoiceNumber;
 
     if (!invoiceNumber) {
-
       const count =
         await Order.countDocuments({
           "invoice.invoiceNumber": {
@@ -141,11 +137,12 @@ export async function GET(
 
     /* =========================================
        PDF INIT
-    ========================================= */
+========================================= */
 
     const pdf = createPDF();
 
-    pdf.font("Times-Roman");
+    // IMPORTANT
+    pdf.font("Inter");
 
     const chunks = [];
 
@@ -153,86 +150,73 @@ export async function GET(
       chunks.push(chunk);
     });
 
-/* =========================================
-   PREMIUM LIGHT WATERMARK
-   (LOW FILE SIZE OPTIMIZED)
+    /* =========================================
+       LIGHTWEIGHT WATERMARK
 ========================================= */
 
-   pdf.save();
-   
-   pdf.rotate(-32, {
-     origin: [300, 380],
-   });
-   
-   pdf
-     .opacity(0.045)
-     .font("Times-Bold")
-     .fontSize(58)
-     .fillColor("#d1d5db")
-     .text(
-       company?.companyName || "NATIVE",
-       60,
-       360,
-       {
-         width: 480,
-         align: "center",
-       }
-     );
-   
-   /* OPTIONAL TAGLINE */
-   
-   if (company?.tagline) {
-   
-     pdf
-       .opacity(0.035)
-       .font("Times-Roman")
-       .fontSize(20)
-       .fillColor("#e5e7eb")
-       .text(
-         company.tagline,
-         120,
-         430,
-         {
-           width: 360,
-           align: "center",
-         }
-       );
-   }
-   
-   pdf.restore();
+    pdf.save();
+
+    pdf.rotate(-32, {
+      origin: [300, 380],
+    });
+
+    pdf
+      .opacity(0.045)
+      .font("Inter-Bold")
+      .fontSize(58)
+      .fillColor("#d1d5db")
+      .text(
+        company?.companyName || "NATIVE",
+        60,
+        360,
+        {
+          width: 480,
+          align: "center",
+        }
+      );
+
+    if (company?.tagline) {
+      pdf
+        .opacity(0.03)
+        .font("Inter")
+        .fontSize(18)
+        .fillColor("#e5e7eb")
+        .text(
+          company.tagline,
+          120,
+          425,
+          {
+            width: 360,
+            align: "center",
+          }
+        );
+    }
+
+    pdf.restore();
+
     /* =========================================
        HEADER LOGO
-    ========================================= */
+========================================= */
 
     if (company?.logoUrl) {
-
       try {
+        const logoPath = path.join(
+          process.cwd(),
+          "public",
+          company.logoUrl.replace(/^\/+/, "")
+        );
 
-      const logoPath = path.join(
-        process.cwd(),
-        "public",
-        company.logoUrl.replace(/^\/+/, "")
-      );
-      
-      console.log("LOGO PATH:", logoPath);
-      console.log("LOGO EXISTS:", fs.existsSync(logoPath));
-
-        if (
-          fs.existsSync(logoPath)
-        ) {
-
+        if (fs.existsSync(logoPath)) {
           pdf.image(
             logoPath,
             40,
             35,
             {
-              width: 65,
+              width: 62,
             }
           );
         }
-
       } catch (e) {
-
         console.log(
           "LOGO ERROR:",
           e.message
@@ -242,127 +226,112 @@ export async function GET(
 
     /* =========================================
        COMPANY DETAILS
-    ========================================= */
+========================================= */
 
     pdf
-      .font("Times-Bold")
+      .font("Inter-Bold")
       .fillColor("#111827")
       .fontSize(22)
       .text(
         company?.companyName ||
           "COMPANY",
-        120,
+        118,
         38
       );
 
-    /* TAGLINE */
-
     pdf
-      .font("Times-Roman")
+      .font("Inter")
       .fontSize(10)
-      .fillColor("#9ca3af")
+      .fillColor("#6b7280")
       .text(
         company?.tagline ||
-          "Eat Healthy, Stay Healthy",
-        120,
+          "",
+        118,
         66
       );
 
-    /* ADDRESS */
-
     pdf
-      .font("Times-Roman")
+      .font("Inter")
       .fontSize(10)
       .fillColor("#4b5563")
       .text(
         company?.addressLine1 || "",
-        120,
+        118,
         88
       );
 
     pdf.text(
-      `${company?.city || ""}, ${
-        company?.state || ""
-      } - ${
-        company?.pincode || ""
-      }`,
-      120,
+      `City: ${company?.city || ""}`,
+      118,
       102
     );
 
     pdf.text(
-      `GSTIN: ${
-        company?.gstin || "-"
-      }`,
-      120,
+      `State: ${company?.state || ""}`,
+      118,
       116
     );
 
     pdf.text(
-      `Phone: ${
-        company?.phone || "-"
-      }`,
-      120,
+      `PIN Code: ${company?.pincode || ""}`,
+      118,
       130
     );
 
     pdf.text(
-      `Email: ${
-        company?.email || "-"
-      }`,
-      120,
+      `GSTIN: ${company?.gstin || "-"}`,
+      118,
       144
+    );
+
+    pdf.text(
+      `Phone: ${company?.phone || "-"}`,
+      118,
+      158
     );
 
     /* =========================================
        TAX INVOICE BOX
-    ========================================= */
+========================================= */
 
     pdf
       .roundedRect(
         360,
-        32,
+        35,
         195,
-        145,
-        12
+        138,
+        10
       )
       .fillAndStroke(
         "#f9fafb",
         "#d1d5db"
       );
 
-    /* TITLE */
-
     pdf
-      .font("Times-Bold")
+      .font("Inter-Bold")
       .fillColor("#111827")
-      .fontSize(17)
+      .fontSize(18)
       .text(
         "TAX INVOICE",
-        385,
-        50
+        386,
+        52
       );
 
-    /* DETAILS */
-
     pdf
-      .font("Times-Roman")
+      .font("Inter")
       .fontSize(10)
       .fillColor("#374151");
 
     pdf.text(
-      "Invoice No:",
+      "Invoice No",
       385,
-      88
+      90
     );
 
     pdf.text(
       invoiceNumber,
       385,
-      102,
-      {
-        width: 155,
-      }
+      104
     );
 
     pdf.text(
@@ -376,40 +345,37 @@ export async function GET(
     pdf.text(
       `Order ID: ${order.orderId}`,
       385,
-      146,
-      {
-        width: 160,
-      }
+      146
     );
 
     /* =========================================
        DIVIDER
-    ========================================= */
+========================================= */
 
-    line(pdf, 185);
+    line(pdf, 190);
 
     /* =========================================
        BILL TO
-    ========================================= */
+========================================= */
 
     pdf
-      .font("Times-Bold")
-      .fillColor("#111827")
+      .font("Inter-Bold")
       .fontSize(13)
+      .fillColor("#111827")
       .text(
         "Bill To",
         40,
-        200
+        205
       );
 
     pdf
-      .font("Times-Roman")
+      .font("Inter")
       .fontSize(10)
       .fillColor("#374151")
       .text(
         order.address?.name || "",
         40,
-        223
+        228
       );
 
     pdf.text(
@@ -457,41 +423,41 @@ export async function GET(
 
     /* =========================================
        SHIP TO
-    ========================================= */
+========================================= */
 
     pdf
-      .font("Times-Bold")
-      .fillColor("#111827")
+      .font("Inter-Bold")
       .fontSize(13)
+      .fillColor("#111827")
       .text(
         "Ship To",
         220,
-        200
+        205
       );
 
     pdf
-      .font("Times-Roman")
+      .font("Inter")
       .fontSize(10)
       .fillColor("#374151")
       .text(
         order.shippingAddress?.name ||
-        order.address?.name ||
-        "",
+          order.address?.name ||
+          "",
         220,
-        223
+        228
       );
 
     pdf.text(
       order.shippingAddress?.phone ||
-      order.address?.phone ||
-      "",
+        order.address?.phone ||
+        "",
       220
     );
 
     pdf.text(
       order.shippingAddress?.address ||
-      order.address?.address ||
-      "",
+        order.address?.address ||
+        "",
       220,
       undefined,
       {
@@ -528,20 +494,20 @@ export async function GET(
 
     /* =========================================
        PAYMENT DETAILS
-    ========================================= */
+========================================= */
 
     pdf
-      .font("Times-Bold")
-      .fillColor("#111827")
+      .font("Inter-Bold")
       .fontSize(13)
+      .fillColor("#111827")
       .text(
         "Payment Details",
         410,
-        200
+        205
       );
 
     pdf
-      .font("Times-Roman")
+      .font("Inter")
       .fontSize(10)
       .fillColor("#374151")
       .text(
@@ -550,7 +516,7 @@ export async function GET(
           "-"
         }`,
         410,
-        223
+        228
       );
 
     pdf.text(
@@ -577,14 +543,10 @@ export async function GET(
     );
 
     /* =========================================
-       DIVIDER
-    ========================================= */
+       TABLE HEADER
+========================================= */
 
     line(pdf, 360);
-
-    /* =========================================
-       TABLE HEADER
-    ========================================= */
 
     const tableTop = 375;
 
@@ -598,67 +560,31 @@ export async function GET(
       .fill("#111827");
 
     pdf
-      .font("Times-Bold")
+      .font("Inter-Bold")
       .fillColor("#ffffff")
       .fontSize(9);
 
     pdf.text("#", 45, 384);
-
-    pdf.text(
-      "Product",
-      65,
-      384
-    );
-
-    pdf.text(
-      "HSN",
-      205,
-      384
-    );
-
-    pdf.text(
-      "Qty",
-      255,
-      384
-    );
-
-    pdf.text(
-      "Rate",
-      295,
-      384
-    );
-
-    pdf.text(
-      "GST%",
-      355,
-      384
-    );
-
-    pdf.text(
-      "Taxable",
-      410,
-      384
-    );
-
-    pdf.text(
-      "Total",
-      490,
-      384
-    );
+    pdf.text("Product", 65, 384);
+    pdf.text("HSN", 205, 384);
+    pdf.text("Qty", 255, 384);
+    pdf.text("Rate", 295, 384);
+    pdf.text("GST%", 355, 384);
+    pdf.text("Taxable", 410, 384);
+    pdf.text("Total", 490, 384);
 
     /* =========================================
        ITEMS
-    ========================================= */
+========================================= */
 
     let y = 408;
 
     pdf
-      .font("Times-Roman")
+      .font("Inter")
       .fillColor("#111827");
 
     order.items?.forEach(
       (item, idx) => {
-
         pdf
           .rect(
             40,
@@ -729,7 +655,7 @@ export async function GET(
 
     /* =========================================
        GST SUMMARY
-    ========================================= */
+========================================= */
 
     const summaryTop = y + 25;
 
@@ -746,11 +672,10 @@ export async function GET(
         "#d1d5db"
       );
 
-    pdf.fillColor("#111827");
-
     pdf
-      .font("Times-Bold")
+      .font("Inter-Bold")
       .fontSize(12)
+      .fillColor("#111827")
       .text(
         "GST Summary",
         340,
@@ -758,13 +683,14 @@ export async function GET(
       );
 
     pdf
-      .font("Times-Roman")
-      .fontSize(10)
-      .text(
-        "Taxable Amount",
-        340,
-        summaryTop + 40
-      );
+      .font("Inter")
+      .fontSize(10);
+
+    pdf.text(
+      "Taxable Amount",
+      340,
+      summaryTop + 40
+    );
 
     pdf.text(
       money(gst.taxable),
@@ -823,7 +749,7 @@ export async function GET(
     );
 
     pdf
-      .font("Times-Bold")
+      .font("Inter-Bold")
       .fontSize(13)
       .fillColor("#16a34a")
       .text(
@@ -842,15 +768,15 @@ export async function GET(
 
     /* =========================================
        DECLARATION
-    ========================================= */
+========================================= */
 
     const declarationTop =
       summaryTop + 215;
 
     pdf
-      .font("Times-Bold")
-      .fillColor("#111827")
+      .font("Inter-Bold")
       .fontSize(11)
+      .fillColor("#111827")
       .text(
         "Declaration",
         40,
@@ -858,11 +784,11 @@ export async function GET(
       );
 
     pdf
-      .font("Times-Roman")
+      .font("Inter")
       .fontSize(9)
       .fillColor("#4b5563")
       .text(
-        "Certified that the particulars given above are true and correct. This invoice is generated electronically and is valid without physical signature.",
+        "Certified that the particulars given above are true and correct. This invoice is electronically generated and valid without physical signature.",
         40,
         declarationTop + 18,
         {
@@ -873,37 +799,27 @@ export async function GET(
 
     /* =========================================
        SIGNATURE
-    ========================================= */
+========================================= */
 
     if (company?.signatureUrl) {
-
       try {
+        const signPath = path.join(
+          process.cwd(),
+          "public",
+          company.signatureUrl.replace(/^\/+/, "")
+        );
 
-      const signPath = path.join(
-        process.cwd(),
-        "public",
-        company.signatureUrl.replace(/^\/+/, "")
-      );
-      
-      console.log("SIGN PATH:", signPath);
-      console.log("SIGN EXISTS:", fs.existsSync(signPath));
-
-        if (
-          fs.existsSync(signPath)
-        ) {
-
+        if (fs.existsSync(signPath)) {
           pdf.image(
             signPath,
             400,
-            declarationTop - 20,
+            declarationTop - 10,
             {
-              width: 120,
+              width: 100,
             }
           );
         }
-
       } catch (e) {
-
         console.log(
           "SIGN ERROR:",
           e.message
@@ -912,21 +828,21 @@ export async function GET(
     }
 
     pdf
-      .font("Times-Bold")
-      .fillColor("#111827")
+      .font("Inter-Bold")
       .fontSize(10)
+      .fillColor("#111827")
       .text(
         "Authorized Signatory",
-        395,
+        390,
         declarationTop + 70
       );
 
     /* =========================================
        FOOTER
-    ========================================= */
+========================================= */
 
     pdf
-      .font("Times-Roman")
+      .font("Inter")
       .fontSize(8)
       .fillColor("#6b7280")
       .text(
@@ -941,16 +857,14 @@ export async function GET(
 
     /* =========================================
        END PDF
-    ========================================= */
+========================================= */
 
     pdf.end();
 
     const pdfBuffer =
       await new Promise(
         (resolve) => {
-
           pdf.on("end", () => {
-
             resolve(
               Buffer.concat(chunks)
             );
@@ -970,9 +884,7 @@ export async function GET(
         },
       }
     );
-
   } catch (err) {
-
     console.log(
       "GST INVOICE ERROR:",
       err
