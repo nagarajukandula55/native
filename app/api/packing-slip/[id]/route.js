@@ -1,611 +1,644 @@
-import mongoose from "mongoose";
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
-/* ================= SAFE NUMBER HELPER ================= */
-const safeNumber = (v) => {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : 0;
+import { NextResponse } from "next/server";
+import PDFDocument from "pdfkit";
+import fs from "fs";
+import path from "path";
+
+import dbConnect from "@/lib/db";
+import Order from "@/models/Order";
+import CompanySettings from "@/models/CompanySettings";
+
+/* =========================================
+   MONEY FORMAT
+========================================= */
+
+const money = (n) =>
+  `₹${Number(n || 0).toFixed(2)}`;
+
+/* =========================================
+   DRAW LINE
+========================================= */
+
+const line = (
+  pdf,
+  y,
+  color = "#d1d5db"
+) => {
+  pdf
+    .strokeColor(color)
+    .lineWidth(1)
+    .moveTo(40, y)
+    .lineTo(555, y)
+    .stroke();
 };
 
-/* ================= ORDER ITEM ================= */
-const OrderItemSchema = new mongoose.Schema(
-  {
-    productId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Product",
-      required: true,
-    },
+/* =========================================
+   PACKING SLIP API
+========================================= */
 
-    productKey: String,
-    name: String,
-    image: String,
+export async function GET(
+  req,
+  { params }
+) {
+  try {
 
-    price: {
-      type: Number,
-      required: true,
-      set: safeNumber,
-    },
+    await dbConnect();
 
-    qty: {
-      type: Number,
-      required: true,
-      set: safeNumber,
-    },
+    const order = await Order.findOne({
+      orderId: params.id,
+    }).lean();
 
-    gstPercent: { type: Number, default: 0 },
+    if (!order) {
 
-    baseAmount: { type: Number, default: 0 },
-    discountAmount: { type: Number, default: 0 },
-    taxableAmount: { type: Number, default: 0 },
-
-    cgst: { type: Number, default: 0 },
-    sgst: { type: Number, default: 0 },
-    igst: { type: Number, default: 0 },
-
-    total: { type: Number, default: 0 },
-
-    /* 🔒 SNAPSHOT LOCK */
-    snapshot: {
-      brand: String,
-      category: String,
-      hsn: String,
-      sku: String,
-    },
-  },
-  { _id: false }
-);
-
-/* ================= ADDRESS ================= */
-const AddressSchema = new mongoose.Schema(
-  {
-    name: String,
-    phone: String,
-    email: String,
-
-    address: String,
-    city: String,
-    state: String,
-    pincode: String,
-    country: {
-      type: String,
-      default: "India",
-    },
-
-    gstNumber: {
-      type: String,
-      uppercase: true,
-      trim: true,
-    },
-
-    gstType: {
-      type: String,
-      enum: ["B2C", "B2B"],
-      default: "B2C",
-    },
-  },
-  { _id: false }
-);
-
-/* ================= BILLING ================= */
-const BillingSchema = new mongoose.Schema(
-  {
-    currency: {
-      type: String,
-      default: "INR",
-    },
-
-    subtotal: {
-      type: Number,
-      default: 0,
-    },
-
-    discount: {
-      type: Number,
-      default: 0,
-    },
-
-    taxableAmount: {
-      type: Number,
-      default: 0,
-    },
-
-    cgst: {
-      type: Number,
-      default: 0,
-    },
-
-    sgst: {
-      type: Number,
-      default: 0,
-    },
-
-    igst: {
-      type: Number,
-      default: 0,
-    },
-
-    totalGST: {
-      type: Number,
-      default: 0,
-    },
-
-    shippingCharge: {
-      type: Number,
-      default: 0,
-    },
-
-    packingCharge: {
-      type: Number,
-      default: 0,
-    },
-
-    roundOff: {
-      type: Number,
-      default: 0,
-    },
-
-    grandTotal: {
-      type: Number,
-      default: 0,
-    },
-
-    locked: {
-      type: Boolean,
-      default: true,
-    },
-  },
-  { _id: false }
-);
-
-/* ================= PAYMENT ================= */
-const PaymentSchema = new mongoose.Schema(
-  {
-    method: {
-      type: String,
-      enum: [
-        "RAZORPAY",
-        "UPI",
-        "COD",
-        "BANK_TRANSFER",
-        "CASH",
-        "UNKNOWN",
-      ],
-      default: "UNKNOWN",
-    },
-
-    status: {
-      type: String,
-      enum: [
-        "PENDING",
-        "SUCCESS",
-        "FAILED",
-        "REFUNDED",
-      ],
-      default: "PENDING",
-    },
-
-    amountPaid: {
-      type: Number,
-      default: 0,
-    },
-
-    razorpay_order_id: String,
-    razorpay_payment_id: String,
-    razorpay_signature: String,
-
-    utr: String,
-
-    transactionId: String,
-
-    paidAt: Date,
-
-    refundId: String,
-
-    refundAmount: {
-      type: Number,
-      default: 0,
-    },
-
-    refundAt: Date,
-
-    logs: [
-      {
-        status: String,
-        message: String,
-        at: {
-          type: Date,
-          default: Date.now,
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Order not found",
         },
-      },
-    ],
-  },
-  { _id: false }
-);
+        { status: 404 }
+      );
+    }
 
-/* ================= INVOICE ================= */
-const InvoiceSchema = new mongoose.Schema(
-  {
-    invoiceNumber: String,
+    const company =
+      await CompanySettings.findOne().lean();
 
-    generatedAt: Date,
+    /* =========================================
+       PDF INIT
+    ========================================= */
 
-    invoiceUrl: String,
+    const pdf = new PDFDocument({
+      size: "A4",
+      margin: 40,
+      compress: true,
+    });
 
-    pdfUrl: String,
+    const chunks = [];
 
-    billingSnapshot: Object,
-  },
-  { _id: false }
-);
+    pdf.on("data", (c) => chunks.push(c));
 
-/* ================= RECEIPT ================= */
-const ReceiptSchema = new mongoose.Schema(
-  {
-    receiptNumber: String,
+    /* =========================================
+       WATERMARK
+    ========================================= */
 
-    generatedAt: Date,
+    pdf.save();
 
-    amountPaid: Number,
+    pdf.opacity(0.04);
 
-    paymentMode: String,
+    try {
 
-    receiptUrl: String,
+      const watermarkPath = path.join(
+        process.cwd(),
+        "public",
+        company?.invoiceWatermarkUrl ||
+          "/uploads/invoice-watermark.jpg"
+      );
 
-    pdfUrl: String,
-  },
-  { _id: false }
-);
+      if (
+        fs.existsSync(watermarkPath)
+      ) {
 
-/* ================= SHIPPING ================= */
-const ShippingSchema = new mongoose.Schema(
-  {
-    dispatchType: {
-      type: String,
-      enum: [
-        "COURIER",
-        "BY_HAND",
-        "LOCAL_DELIVERY",
-      ],
-      default: "COURIER",
-    },
+        pdf.image(
+          watermarkPath,
+          140,
+          240,
+          {
+            width: 280,
+          }
+        );
+      }
 
-    courierPartner: String,
+    } catch (e) {
+      console.log(
+        "WATERMARK ERROR:",
+        e.message
+      );
+    }
 
-    courierCode: String,
+    pdf.restore();
 
-    awbNumber: String,
+    /* =========================================
+       HEADER LOGO
+    ========================================= */
 
-    shipmentId: String,
+    try {
 
-    orderShipmentId: String,
+      const logoPath = path.join(
+        process.cwd(),
+        "public",
+        company?.invoiceLogoUrl ||
+          "/uploads/invoice-logo.jpg"
+      );
 
-    trackingUrl: String,
+      if (
+        fs.existsSync(logoPath)
+      ) {
 
-    trackingStatus: {
-      type: String,
-      default: "NOT_DISPATCHED",
-    },
+        pdf.image(
+          logoPath,
+          40,
+          35,
+          {
+            width: 60,
+          }
+        );
+      }
 
-    labelUrl: String,
+    } catch (e) {
+      console.log(
+        "LOGO ERROR:",
+        e.message
+      );
+    }
 
-    manifestUrl: String,
+    /* =========================================
+       COMPANY
+    ========================================= */
 
-    invoiceUrl: String,
+    pdf
+      .fillColor("#111827")
+      .fontSize(22)
+      .text(
+        company?.companyName ||
+          "NATIVE",
+        120,
+        38
+      );
 
-    pickupScheduled: {
-      type: Boolean,
-      default: false,
-    },
+    pdf
+      .fillColor("#6b7280")
+      .fontSize(11)
+      .text(
+        company?.tagline ||
+          "",
+        120,
+        66
+      );
 
-    pickupTokenNumber: String,
+    pdf
+      .fillColor("#4b5563")
+      .fontSize(10)
+      .text(
+        company?.addressLine1 || "",
+        120,
+        88
+      );
 
-    pickupAt: Date,
+    pdf.text(
+      `City: ${
+        company?.city || "-"
+      }`,
+      120,
+      104
+    );
 
-    shippingCost: {
-      type: Number,
-      default: 0,
-    },
+    pdf.text(
+      `State: ${
+        company?.state || "-"
+      }`,
+      120,
+      120
+    );
 
-    estimatedDeliveryDate: Date,
+    pdf.text(
+      `Pin Code: ${
+        company?.pincode || "-"
+      }`,
+      120,
+      136
+    );
 
-    packageWeight: {
-      type: Number,
-      default: 0,
-    },
+    pdf.text(
+      `Phone: ${
+        company?.phone || "-"
+      }`,
+      120,
+      152
+    );
 
-    dimensions: {
-      length: {
-        type: Number,
-        default: 0,
-      },
+    /* =========================================
+       PACKING SLIP BOX
+    ========================================= */
 
-      breadth: {
-        type: Number,
-        default: 0,
-      },
+    pdf
+      .roundedRect(
+        365,
+        35,
+        190,
+        145,
+        10
+      )
+      .fillAndStroke(
+        "#f9fafb",
+        "#d1d5db"
+      );
 
-      height: {
-        type: Number,
-        default: 0,
-      },
-    },
+    pdf
+      .fillColor("#111827")
+      .fontSize(18)
+      .text(
+        "PACKING SLIP",
+        392,
+        52
+      );
 
-    trackingEvents: [
+    pdf
+      .fillColor("#374151")
+      .fontSize(10);
+
+    pdf.text(
+      "Order ID",
+      388,
+      92
+    );
+
+    pdf.text(
+      order.orderId,
+      388,
+      106
+    );
+
+    pdf.text(
+      "Order Date",
+      388,
+      128
+    );
+
+    pdf.text(
+      new Date(
+        order.createdAt
+      ).toLocaleDateString(),
+      388,
+      142
+    );
+
+    /* =========================================
+       LINE
+    ========================================= */
+
+    line(pdf, 195);
+
+    /* =========================================
+       BILL TO
+    ========================================= */
+
+    pdf
+      .fillColor("#111827")
+      .fontSize(13)
+      .text(
+        "Customer Details",
+        40,
+        212
+      );
+
+    pdf
+      .fillColor("#374151")
+      .fontSize(10)
+      .text(
+        order.address?.name || "",
+        40,
+        236
+      );
+
+    pdf.text(
+      order.address?.phone || "",
+      40,
+      252
+    );
+
+    pdf.text(
+      order.address?.address || "",
+      40,
+      268,
       {
-        status: String,
-        location: String,
-        remark: String,
-        at: Date,
-      },
-    ],
+        width: 220,
+      }
+    );
 
-    /* ================= EWAY BILL ================= */
+    pdf.text(
+      `City: ${
+        order.address?.city || "-"
+      }`,
+      40,
+      318
+    );
 
-    ewayBill: {
-      ewbNumber: String,
+    pdf.text(
+      `State: ${
+        order.address?.state || "-"
+      }`,
+      40,
+      334
+    );
 
-      generatedAt: Date,
+    pdf.text(
+      `Pin Code: ${
+        order.address?.pincode ||
+        "-"
+      }`,
+      40,
+      350
+    );
 
-      validUpto: Date,
+    /* =========================================
+       SHIPPING DETAILS
+    ========================================= */
 
-      transporterId: String,
+    pdf
+      .fillColor("#111827")
+      .fontSize(13)
+      .text(
+        "Shipping Details",
+        330,
+        212
+      );
 
-      transporterName: String,
+    pdf
+      .fillColor("#374151")
+      .fontSize(10);
 
-      ewbPdfUrl: String,
+    pdf.text(
+      `Dispatch Type: ${
+        order.shipping
+          ?.dispatchType || "-"
+      }`,
+      330,
+      236
+    );
 
-      status: String,
+    pdf.text(
+      `Courier: ${
+        order.shipping
+          ?.courierPartner || "-"
+      }`,
+      330,
+      254
+    );
 
-      distance: Number,
+    pdf.text(
+      `AWB Number: ${
+        order.shipping
+          ?.awbNumber || "-"
+      }`,
+      330,
+      272
+    );
 
-      vehicleNumber: String,
-    },
+    pdf.text(
+      `Tracking Status: ${
+        order.shipping
+          ?.trackingStatus ||
+        "-"
+      }`,
+      330,
+      290
+    );
 
-    dispatchedAt: Date,
+    /* =========================================
+       LINE
+    ========================================= */
 
-    outForDeliveryAt: Date,
+    line(pdf, 385);
 
-    deliveredAt: Date,
-  },
-  { _id: false }
-);
+    /* =========================================
+       TABLE
+    ========================================= */
 
-/* ================= WAREHOUSE ================= */
-const WarehouseSchema = new mongoose.Schema(
-  {
-    status: {
-      type: String,
-      enum: [
-        "NEW",
-        "PICKING",
-        "PACKED",
-        "DISPATCHED",
-        "DELIVERED",
-      ],
-      default: "NEW",
-    },
+    const tableTop = 400;
 
-    assignedTo: String,
+    pdf
+      .rect(
+        40,
+        tableTop,
+        515,
+        28
+      )
+      .fill("#111827");
 
-    pickerName: String,
+    pdf
+      .fillColor("#ffffff")
+      .fontSize(9);
 
-    packerName: String,
+    pdf.text("#", 45, 410);
 
-    packingSlipUrl: String,
+    pdf.text(
+      "Product",
+      70,
+      410
+    );
 
-    deliveryChallanUrl: String,
+    pdf.text(
+      "SKU",
+      260,
+      410
+    );
 
-    packedAt: Date,
+    pdf.text(
+      "HSN",
+      350,
+      410
+    );
 
-    dispatchedAt: Date,
+    pdf.text(
+      "Qty",
+      450,
+      410
+    );
 
-    outForDeliveryAt: Date,
+    pdf.text(
+      "Amount",
+      500,
+      410
+    );
 
-    deliveredAt: Date,
-  },
-  { _id: false }
-);
+    let y = 438;
 
-/* ================= AUDIT ================= */
-const AuditSchema = new mongoose.Schema(
-  {
-    action: String,
+    pdf
+      .fillColor("#111827")
+      .fontSize(10);
 
-    from: String,
+    order.items?.forEach(
+      (item, idx) => {
 
-    to: String,
+        pdf
+          .rect(
+            40,
+            y - 6,
+            515,
+            32
+          )
+          .stroke("#e5e7eb");
 
-    by: String,
+        pdf.text(
+          String(idx + 1),
+          45,
+          y + 4
+        );
 
-    meta: Object,
+        pdf.text(
+          item.name || "",
+          70,
+          y + 4,
+          {
+            width: 170,
+          }
+        );
 
-    at: {
-      type: Date,
-      default: Date.now,
-    },
-  },
-  { _id: false }
-);
+        pdf.text(
+          item.snapshot?.sku ||
+            "-",
+          260,
+          y + 4
+        );
 
-/* ================= MAIN ORDER ================= */
-const OrderSchema = new mongoose.Schema(
-  {
-    userId: {
-      type: String,
-      default: null,
-    },
+        pdf.text(
+          item.snapshot?.hsn ||
+            "-",
+          350,
+          y + 4
+        );
 
-    orderId: {
-      type: String,
-      required: true,
-      unique: true,
-      index: true,
-    },
+        pdf.text(
+          String(item.qty || 1),
+          455,
+          y + 4
+        );
 
-    idempotencyKey: {
-      type: String,
-      index: true,
-    },
+        pdf.text(
+          money(item.total),
+          495,
+          y + 4
+        );
 
-    items: {
-      type: [OrderItemSchema],
-      required: true,
-    },
+        y += 32;
+      }
+    );
 
-    billing: BillingSchema,
+    /* =========================================
+       TOTAL BOX
+    ========================================= */
 
-    amount: {
-      type: Number,
-      required: true,
-      set: safeNumber,
-    },
+    const summaryTop = y + 20;
 
-    status: {
-      type: String,
-      enum: [
-        "PENDING_PAYMENT",
-        "PAID",
-        "PROCESSING",
-        "PACKED",
-        "DISPATCHED",
-        "DELIVERED",
-        "CANCELLED",
-        "FAILED",
-        "REFUNDED",
-      ],
-      default: "PENDING_PAYMENT",
-    },
+    pdf
+      .roundedRect(
+        355,
+        summaryTop,
+        200,
+        95,
+        10
+      )
+      .fillAndStroke(
+        "#f9fafb",
+        "#d1d5db"
+      );
 
-    statusTimeline: {
-      paidAt: Date,
+    pdf
+      .fillColor("#111827")
+      .fontSize(12)
+      .text(
+        "Order Summary",
+        370,
+        summaryTop + 12
+      );
 
-      processedAt: Date,
+    pdf
+      .fillColor("#374151")
+      .fontSize(10)
+      .text(
+        `Total Items`,
+        370,
+        summaryTop + 40
+      );
 
-      packedAt: Date,
+    pdf.text(
+      String(
+        order.items?.length || 0
+      ),
+      500,
+      summaryTop + 40
+    );
 
-      dispatchedAt: Date,
+    pdf.text(
+      `Grand Total`,
+      370,
+      summaryTop + 62
+    );
 
-      deliveredAt: Date,
+    pdf.text(
+      money(
+        order.billing
+          ?.grandTotal || 0
+      ),
+      470,
+      summaryTop + 62
+    );
 
-      cancelledAt: Date,
-    },
+    /* =========================================
+       FOOTER
+    ========================================= */
 
-    address: AddressSchema,
+    pdf
+      .fillColor("#6b7280")
+      .fontSize(8)
+      .text(
+        "Thanks for Shopping With Native ❤️",
+        40,
+        780,
+        {
+          width: 515,
+          align: "center",
+        }
+      );
 
-    payment: PaymentSchema,
+    /* =========================================
+       END PDF
+    ========================================= */
 
-    invoice: ReceiptSchema,
+    pdf.end();
 
-    receipt: ReceiptSchema,
+    const buffer =
+      await new Promise(
+        (resolve) => {
 
-    shipping: {
-      type: ShippingSchema,
-      default: () => ({}),
-    },
+          pdf.on("end", () => {
 
-    warehouse: {
-      type: WarehouseSchema,
-      default: () => ({}),
-    },
+            resolve(
+              Buffer.concat(chunks)
+            );
+          });
+        }
+      );
 
-    telegram: {
-      orderSent: {
-        type: Boolean,
-        default: false,
-      },
-
-      paidSent: {
-        type: Boolean,
-        default: false,
-      },
-
-      dispatchedSent: {
-        type: Boolean,
-        default: false,
-      },
-    },
-
-    emailLogs: [
+    return new NextResponse(
+      buffer,
       {
-        type: String,
-        status: String,
-        at: {
-          type: Date,
-          default: Date.now,
+        headers: {
+          "Content-Type":
+            "application/pdf",
+
+          "Content-Disposition":
+            `inline; filename=PACKING-SLIP-${order.orderId}.pdf`,
         },
-      },
-    ],
+      }
+    );
 
-    auditLogs: {
-      type: [AuditSchema],
-      default: [],
-    },
+  } catch (err) {
 
-    notes: [
+    console.error(
+      "PACKING SLIP ERROR:",
+      err
+    );
+
+    return NextResponse.json(
       {
-        text: String,
-        by: String,
-        at: {
-          type: Date,
-          default: Date.now,
-        },
+        success: false,
+        message:
+          err.message ||
+          "Failed to generate packing slip",
       },
-    ],
-
-    isDeleted: {
-      type: Boolean,
-      default: false,
-    },
-
-    flags: {
-      fraud: {
-        type: Boolean,
-        default: false,
-      },
-
-      manualReview: {
-        type: Boolean,
-        default: false,
-      },
-    },
-  },
-  {
-    timestamps: true,
-    strict: true,
+      { status: 500 }
+    );
   }
-);
-
-/* ================= MIDDLEWARE ================= */
-OrderSchema.pre("save", function (next) {
-  console.log("💾 MONGOOSE SAVE ORDER:", this.orderId);
-  next();
-});
-
-OrderSchema.pre("findOneAndUpdate", function () {
-  console.log("🚨 findOneAndUpdate CALLED");
-  console.log("🚨 QUERY:", this.getQuery());
-  console.log("🚨 UPDATE:", this.getUpdate());
-});
-
-/* ================= INDEXES ================= */
-OrderSchema.index({
-  "payment.razorpay_order_id": 1,
-});
-
-OrderSchema.index({
-  "payment.razorpay_payment_id": 1,
-});
-
-OrderSchema.index({
-  "shipping.awbNumber": 1,
-});
-
-OrderSchema.index({
-  createdAt: -1,
-});
-
-/* ================= EXPORT ================= */
-const Order =
-  mongoose.models.Order ||
-  mongoose.model("Order", OrderSchema);
-
-export default Order;
+}
