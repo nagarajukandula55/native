@@ -63,6 +63,7 @@ export async function GET(
     }).lean();
 
     if (!order) {
+
       return NextResponse.json(
         {
           success: false,
@@ -80,6 +81,7 @@ export async function GET(
       await CompanySettings.findOne().lean();
 
     if (!company) {
+
       return NextResponse.json(
         {
           success: false,
@@ -176,7 +178,7 @@ export async function GET(
           pdf.image(
             watermarkPath,
             140,
-            220,
+            240,
             {
               width: 300,
             }
@@ -184,6 +186,7 @@ export async function GET(
         }
 
       } catch (e) {
+
         console.log(
           "WATERMARK ERROR:",
           e
@@ -260,6 +263,25 @@ export async function GET(
         }
       );
 
+    /* =========================================
+       TAGLINE
+    ========================================= */
+
+    pdf
+      .font("Inter")
+      .fontSize(11)
+      .fillColor("#6b7280")
+      .text(
+        company?.tagline ||
+          "Eat Healthy, Stay Healthy",
+        120,
+        66
+      );
+
+    /* =========================================
+       ADDRESS
+    ========================================= */
+
     pdf
       .font("Inter")
       .fontSize(10)
@@ -267,7 +289,7 @@ export async function GET(
       .text(
         company?.addressLine1 || "",
         120,
-        78
+        88
       );
 
     pdf.text(
@@ -325,48 +347,48 @@ export async function GET(
         52
       );
 
-   pdf
-     .font("Inter")
-     .fontSize(10)
-     .fillColor("#374151");
-   
-   pdf.text(
-     "Invoice No:",
-     388,
-     92
-   );
-   
-   pdf.text(
-     invoiceNumber,
-     388,
-     106,
-     {
-       width: 150,
-     }
-   );
-   
-   pdf.text(
-     `Invoice Date: ${new Date(
-       order.createdAt
-     ).toLocaleDateString()}`,
-     388,
-     132
-   );
-   
-   pdf.text(
-     `Order ID: ${order.orderId}`,
-     388,
-     148,
-     {
-       width: 150,
-     }
-   );
+    pdf
+      .font("Inter")
+      .fontSize(10)
+      .fillColor("#374151");
+
+    pdf.text(
+      "Invoice No:",
+      388,
+      92
+    );
+
+    pdf.text(
+      invoiceNumber,
+      388,
+      106,
+      {
+        width: 150,
+      }
+    );
+
+    pdf.text(
+      `Invoice Date: ${new Date(
+        order.createdAt
+      ).toLocaleDateString()}`,
+      388,
+      132
+    );
+
+    pdf.text(
+      `Order ID: ${order.orderId}`,
+      388,
+      148,
+      {
+        width: 150,
+      }
+    );
 
     /* =========================================
        LINE
     ========================================= */
 
-    line(pdf, 170);
+    line(pdf, 185);
 
     /* =========================================
        BILL TO
@@ -379,7 +401,7 @@ export async function GET(
       .text(
         "Bill To",
         40,
-        185
+        200
       );
 
     pdf
@@ -389,7 +411,7 @@ export async function GET(
       .text(
         order.address?.name || "",
         40,
-        208
+        223
       );
 
     pdf.text(
@@ -402,7 +424,7 @@ export async function GET(
       40,
       undefined,
       {
-        width: 180,
+        width: 150,
       }
     );
 
@@ -433,8 +455,8 @@ export async function GET(
       .fontSize(13)
       .text(
         "Ship To",
-        230,
-        185
+        220,
+        200
       );
 
     pdf
@@ -445,25 +467,25 @@ export async function GET(
         order.shippingAddress?.name ||
         order.address?.name ||
         "",
-        230,
-        208
+        220,
+        223
       );
 
     pdf.text(
       order.shippingAddress?.phone ||
       order.address?.phone ||
       "",
-      230
+      220
     );
 
     pdf.text(
       order.shippingAddress?.address ||
       order.address?.address ||
       "",
-      230,
+      220,
       undefined,
       {
-        width: 180,
+        width: 150,
       }
     );
 
@@ -481,7 +503,7 @@ export async function GET(
         order.address?.pincode ||
         ""
       }`,
-      230
+      220
     );
 
     /* =========================================
@@ -494,8 +516,8 @@ export async function GET(
       .fontSize(13)
       .text(
         "Payment Details",
-        420,
-        185
+        410,
+        200
       );
 
     pdf
@@ -507,8 +529,8 @@ export async function GET(
           order.payment?.method ||
           "-"
         }`,
-        420,
-        208
+        410,
+        223
       );
 
     pdf.text(
@@ -516,7 +538,7 @@ export async function GET(
         order.payment?.status ||
         "-"
       }`,
-      420
+      410
     );
 
     pdf.text(
@@ -527,20 +549,24 @@ export async function GET(
           ?.transactionId ||
         "-"
       }`,
-      420,
+      410,
       undefined,
       {
         width: 120,
       }
     );
 
-    line(pdf, 330);
+    /* =========================================
+       LINE
+    ========================================= */
+
+    line(pdf, 345);
 
     /* =========================================
        TABLE HEADER
     ========================================= */
 
-    const tableTop = 345;
+    const tableTop = 360;
 
     pdf
       .rect(
@@ -556,55 +582,55 @@ export async function GET(
       .fillColor("#ffffff")
       .fontSize(9);
 
-    pdf.text("#", 45, 354);
+    pdf.text("#", 45, 369);
 
     pdf.text(
       "Product",
       65,
-      354
+      369
     );
 
     pdf.text(
       "HSN",
       205,
-      354
+      369
     );
 
     pdf.text(
       "Qty",
       255,
-      354
+      369
     );
 
     pdf.text(
       "Rate",
       295,
-      354
+      369
     );
 
     pdf.text(
       "GST%",
       355,
-      354
+      369
     );
 
     pdf.text(
       "Taxable",
       410,
-      354
+      369
     );
 
     pdf.text(
       "Total",
       490,
-      354
+      369
     );
 
     /* =========================================
        ITEMS
     ========================================= */
 
-    let y = 378;
+    let y = 393;
 
     pdf
       .font("Inter")
@@ -682,7 +708,7 @@ export async function GET(
     );
 
     /* =========================================
-       GST SUMMARY BOX
+       GST SUMMARY
     ========================================= */
 
     const summaryTop = y + 25;
@@ -715,7 +741,7 @@ export async function GET(
       .font("Inter")
       .fontSize(10)
       .text(
-        `Taxable Amount`,
+        "Taxable Amount",
         340,
         summaryTop + 40
       );
@@ -727,7 +753,7 @@ export async function GET(
     );
 
     pdf.text(
-      `Discount`,
+      "Discount",
       340,
       summaryTop + 62
     );
@@ -741,7 +767,7 @@ export async function GET(
     );
 
     pdf.text(
-      `CGST`,
+      "CGST",
       340,
       summaryTop + 84
     );
@@ -753,7 +779,7 @@ export async function GET(
     );
 
     pdf.text(
-      `SGST`,
+      "SGST",
       340,
       summaryTop + 106
     );
@@ -765,7 +791,7 @@ export async function GET(
     );
 
     pdf.text(
-      `IGST`,
+      "IGST",
       340,
       summaryTop + 128
     );
@@ -781,15 +807,14 @@ export async function GET(
       .fontSize(13)
       .fillColor("#16a34a")
       .text(
-        `Grand Total`,
+        "Grand Total",
         340,
         summaryTop + 152
       );
 
     pdf.text(
       money(
-        order.billing
-          ?.grandTotal
+        order.billing?.grandTotal
       ),
       465,
       summaryTop + 152
