@@ -188,11 +188,12 @@ export async function GET(
 
       try {
 
-        const logoPath = path.join(
-          process.cwd(),
-          "public",
-          company.logoUrl
-        );
+         const logoPath = path.join(
+           process.cwd(),
+           "public",
+           "uploads",
+           "invoice-logo.jpg"
+         );
 
         if (
           fs.existsSync(logoPath)
@@ -856,11 +857,12 @@ export async function GET(
 
       try {
 
-        const signPath = path.join(
-          process.cwd(),
-          "public",
-          company.signatureUrl
-        );
+         const signPath = path.join(
+           process.cwd(),
+           "public",
+           "uploads",
+           "invoice-sign.jpg"
+         );
 
         if (
           fs.existsSync(signPath)
