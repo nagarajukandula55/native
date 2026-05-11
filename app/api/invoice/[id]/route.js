@@ -177,10 +177,10 @@ export async function GET(
 
           pdf.image(
             watermarkPath,
-            140,
-            240,
+            135,
+            250,
             {
-              width: 300,
+              width: 320,
             }
           );
         }
@@ -213,7 +213,7 @@ export async function GET(
     pdf.restore();
 
     /* =========================================
-       HEADER
+       HEADER LOGO
     ========================================= */
 
     if (company?.logoUrl) {
@@ -249,6 +249,10 @@ export async function GET(
       }
     }
 
+    /* =========================================
+       COMPANY DETAILS
+    ========================================= */
+
     pdf
       .font("Inter-Bold")
       .fillColor("#111827")
@@ -257,20 +261,15 @@ export async function GET(
         company?.companyName ||
           "COMPANY",
         120,
-        38,
-        {
-          width: 230,
-        }
+        38
       );
 
-    /* =========================================
-       TAGLINE
-    ========================================= */
+    /* TAGLINE */
 
     pdf
       .font("Inter")
-      .fontSize(11)
-      .fillColor("#6b7280")
+      .fontSize(10)
+      .fillColor("#9ca3af")
       .text(
         company?.tagline ||
           "Eat Healthy, Stay Healthy",
@@ -278,9 +277,7 @@ export async function GET(
         66
       );
 
-    /* =========================================
-       ADDRESS
-    ========================================= */
+    /* ADDRESS */
 
     pdf
       .font("Inter")
@@ -293,31 +290,37 @@ export async function GET(
       );
 
     pdf.text(
-      `${company?.city || ""} - ${
+      `${company?.city || ""}, ${
+        company?.state || ""
+      } - ${
         company?.pincode || ""
       }`,
-      120
+      120,
+      102
     );
 
     pdf.text(
       `GSTIN: ${
         company?.gstin || "-"
       }`,
-      120
+      120,
+      116
     );
 
     pdf.text(
       `Phone: ${
         company?.phone || "-"
       }`,
-      120
+      120,
+      130
     );
 
     pdf.text(
       `Email: ${
         company?.email || "-"
       }`,
-      120
+      120,
+      144
     );
 
     /* =========================================
@@ -326,26 +329,30 @@ export async function GET(
 
     pdf
       .roundedRect(
-        365,
-        35,
-        190,
-        140,
-        10
+        360,
+        32,
+        195,
+        145,
+        12
       )
       .fillAndStroke(
         "#f9fafb",
         "#d1d5db"
       );
 
+    /* TITLE */
+
     pdf
       .font("Inter-Bold")
       .fillColor("#111827")
-      .fontSize(18)
+      .fontSize(17)
       .text(
         "TAX INVOICE",
-        388,
-        52
+        385,
+        50
       );
+
+    /* DETAILS */
 
     pdf
       .font("Inter")
@@ -354,16 +361,16 @@ export async function GET(
 
     pdf.text(
       "Invoice No:",
-      388,
-      92
+      385,
+      88
     );
 
     pdf.text(
       invoiceNumber,
-      388,
-      106,
+      385,
+      102,
       {
-        width: 150,
+        width: 155,
       }
     );
 
@@ -371,21 +378,21 @@ export async function GET(
       `Invoice Date: ${new Date(
         order.createdAt
       ).toLocaleDateString()}`,
-      388,
-      132
+      385,
+      128
     );
 
     pdf.text(
       `Order ID: ${order.orderId}`,
-      388,
-      148,
+      385,
+      146,
       {
-        width: 150,
+        width: 160,
       }
     );
 
     /* =========================================
-       LINE
+       DIVIDER
     ========================================= */
 
     line(pdf, 185);
@@ -429,9 +436,21 @@ export async function GET(
     );
 
     pdf.text(
-      `${order.address?.city || ""}, ${
+      `City: ${
+        order.address?.city || ""
+      }`,
+      40
+    );
+
+    pdf.text(
+      `State: ${
         order.address?.state || ""
-      } - ${
+      }`,
+      40
+    );
+
+    pdf.text(
+      `PIN Code: ${
         order.address?.pincode || ""
       }`,
       40
@@ -490,15 +509,25 @@ export async function GET(
     );
 
     pdf.text(
-      `${
+      `City: ${
         order.shippingAddress?.city ||
         order.address?.city ||
         ""
-      }, ${
+      }`,
+      220
+    );
+
+    pdf.text(
+      `State: ${
         order.shippingAddress?.state ||
         order.address?.state ||
         ""
-      } - ${
+      }`,
+      220
+    );
+
+    pdf.text(
+      `PIN Code: ${
         order.shippingAddress?.pincode ||
         order.address?.pincode ||
         ""
@@ -557,16 +586,16 @@ export async function GET(
     );
 
     /* =========================================
-       LINE
+       DIVIDER
     ========================================= */
 
-    line(pdf, 345);
+    line(pdf, 360);
 
     /* =========================================
        TABLE HEADER
     ========================================= */
 
-    const tableTop = 360;
+    const tableTop = 375;
 
     pdf
       .rect(
@@ -582,55 +611,55 @@ export async function GET(
       .fillColor("#ffffff")
       .fontSize(9);
 
-    pdf.text("#", 45, 369);
+    pdf.text("#", 45, 384);
 
     pdf.text(
       "Product",
       65,
-      369
+      384
     );
 
     pdf.text(
       "HSN",
       205,
-      369
+      384
     );
 
     pdf.text(
       "Qty",
       255,
-      369
+      384
     );
 
     pdf.text(
       "Rate",
       295,
-      369
+      384
     );
 
     pdf.text(
       "GST%",
       355,
-      369
+      384
     );
 
     pdf.text(
       "Taxable",
       410,
-      369
+      384
     );
 
     pdf.text(
       "Total",
       490,
-      369
+      384
     );
 
     /* =========================================
        ITEMS
     ========================================= */
 
-    let y = 393;
+    let y = 408;
 
     pdf
       .font("Inter")
