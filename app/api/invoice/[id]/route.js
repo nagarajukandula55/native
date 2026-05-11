@@ -153,64 +153,32 @@ export async function GET(
       chunks.push(chunk);
     });
 
-    /* =========================================
-       WATERMARK
-    ========================================= */
+/* =========================================
+   WATERMARK
+========================================= */
 
-    pdf.save();
-
-    pdf.opacity(0.05);
-
-    if (company?.logoUrl) {
-
-      try {
-
-        const watermarkPath = path.join(
-          process.cwd(),
-          "public",
-          company.logoUrl
-        );
-
-        if (
-          fs.existsSync(watermarkPath)
-        ) {
-
-          pdf.image(
-            watermarkPath,
-            135,
-            250,
-            {
-              width: 320,
-            }
-          );
-        }
-
-      } catch (e) {
-
-        console.log(
-          "WATERMARK ERROR:",
-          e
-        );
-      }
-
-    } else {
-
-      pdf
-        .font("Inter-Bold")
-        .fontSize(60)
-        .fillColor("#111827")
-        .text(
-          company?.companyName ||
-            "NATIVE",
-          100,
-          350,
-          {
-            align: "center",
-          }
-        );
-    }
-
-    pdf.restore();
+   pdf.save();
+   
+   pdf.opacity(0.05);
+   
+   pdf
+     .font("Inter-Bold")
+     .fontSize(55)
+     .fillColor("#9ca3af")
+     .rotate(-35, {
+       origin: [300, 400],
+     })
+     .text(
+       company?.companyName || "NATIVE",
+       120,
+       380,
+       {
+         width: 350,
+         align: "center",
+       }
+     );
+   
+   pdf.restore();
 
     /* =========================================
        HEADER LOGO
