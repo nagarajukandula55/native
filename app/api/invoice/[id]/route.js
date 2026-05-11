@@ -141,6 +141,9 @@ export async function GET(
 
     const pdf = createPDF();
 
+    // IMPORTANT
+    pdf.font("Inter");
+
     const chunks = [];
 
     pdf.on("data", (chunk) => {
@@ -178,6 +181,7 @@ export async function GET(
     }
 
     pdf
+      .font("Inter-Bold")
       .fillColor("#111827")
       .fontSize(22)
       .text(
@@ -188,6 +192,7 @@ export async function GET(
       );
 
     pdf
+      .font("Inter")
       .fontSize(10)
       .fillColor("#4b5563")
       .text(
@@ -236,6 +241,7 @@ export async function GET(
       );
 
     pdf
+      .font("Inter-Bold")
       .fillColor("#111827")
       .fontSize(18)
       .text(
@@ -245,6 +251,7 @@ export async function GET(
       );
 
     pdf
+      .font("Inter")
       .fontSize(10)
       .fillColor("#374151")
       .text(
@@ -278,11 +285,13 @@ export async function GET(
     ========================================= */
 
     pdf
+      .font("Inter-Bold")
       .fillColor("#111827")
       .fontSize(13)
       .text("Bill To", 40, 175);
 
     pdf
+      .font("Inter")
       .fontSize(10)
       .fillColor("#374151")
       .text(
@@ -335,6 +344,7 @@ export async function GET(
     ========================================= */
 
     pdf
+      .font("Inter-Bold")
       .fillColor("#111827")
       .fontSize(13)
       .text(
@@ -344,6 +354,7 @@ export async function GET(
       );
 
     pdf
+      .font("Inter")
       .fontSize(10)
       .fillColor("#374151")
       .text(
@@ -390,11 +401,12 @@ export async function GET(
       .rect(40, tableTop, 515, 28)
       .fill("#111827");
 
-    pdf.fillColor("#ffffff");
-
     pdf
-      .fontSize(9)
-      .text("#", 45, 314);
+      .font("Inter-Bold")
+      .fillColor("#ffffff")
+      .fontSize(9);
+
+    pdf.text("#", 45, 314);
 
     pdf.text(
       "Product",
@@ -444,7 +456,9 @@ export async function GET(
 
     let y = 338;
 
-    pdf.fillColor("#111827");
+    pdf
+      .font("Inter")
+      .fillColor("#111827");
 
     order.items?.forEach(
       (item, idx) => {
@@ -533,6 +547,7 @@ export async function GET(
     pdf.fillColor("#111827");
 
     pdf
+      .font("Inter-Bold")
       .fontSize(12)
       .text(
         "GST Summary",
@@ -541,6 +556,7 @@ export async function GET(
       );
 
     pdf
+      .font("Inter")
       .fontSize(10)
       .text(
         `Taxable Amount`,
@@ -591,6 +607,7 @@ export async function GET(
     );
 
     pdf
+      .font("Inter-Bold")
       .fontSize(13)
       .fillColor("#16a34a")
       .text(
@@ -616,6 +633,7 @@ export async function GET(
       summaryTop + 185;
 
     pdf
+      .font("Inter-Bold")
       .fillColor("#111827")
       .fontSize(11)
       .text(
@@ -625,6 +643,7 @@ export async function GET(
       );
 
     pdf
+      .font("Inter")
       .fontSize(9)
       .fillColor("#4b5563")
       .text(
@@ -670,6 +689,7 @@ export async function GET(
     }
 
     pdf
+      .font("Inter-Bold")
       .fillColor("#111827")
       .fontSize(10)
       .text(
@@ -683,6 +703,7 @@ export async function GET(
     ========================================= */
 
     pdf
+      .font("Inter")
       .fontSize(8)
       .fillColor("#6b7280")
       .text(
