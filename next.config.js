@@ -2,13 +2,10 @@
 
 const nextConfig = {
   reactStrictMode: true,
-  output: "standalone"
-}
+  output: "standalone",
 
-module.exports = nextConfig
+  serverExternalPackages: ["pdfkit"],
 
-/** @type {import('next').NextConfig} */
-const nextConfig = {
   webpack: (config) => {
     config.resolve.alias.canvas = false;
     return config;
