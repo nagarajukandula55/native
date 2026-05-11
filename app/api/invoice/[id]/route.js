@@ -1,4 +1,4 @@
- // app/api/invoice/[id]/route.js
+// app/api/invoice/[id]/route.js
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -49,6 +49,7 @@ export async function GET(
   { params }
 ) {
   try {
+
     await dbConnect();
 
     const { id } = params;
@@ -97,6 +98,7 @@ export async function GET(
       order.invoice?.invoiceNumber;
 
     if (!invoiceNumber) {
+
       const count =
         await Order.countDocuments({
           "invoice.invoiceNumber": {
@@ -141,7 +143,6 @@ export async function GET(
 
     const pdf = createPDF();
 
-    // IMPORTANT
     pdf.font("Inter");
 
     const chunks = [];
@@ -151,18 +152,81 @@ export async function GET(
     });
 
     /* =========================================
+       WATERMARK
+    ========================================= */
+
+    pdf.save();
+
+    pdf.opacity(0.05);
+
+    if (company?.logoUrl) {
+
+      try {
+
+        const watermarkPath = path.join(
+          process.cwd(),
+          "public",
+          company.logoUrl
+        );
+
+        if (
+          fs.existsSync(watermarkPath)
+        ) {
+
+          pdf.image(
+            watermarkPath,
+            140,
+            220,
+            {
+              width: 300,
+            }
+          );
+        }
+
+      } catch (e) {
+        console.log(
+          "WATERMARK ERROR:",
+          e
+        );
+      }
+
+    } else {
+
+      pdf
+        .font("Inter-Bold")
+        .fontSize(60)
+        .fillColor("#111827")
+        .text(
+          company?.companyName ||
+            "NATIVE",
+          100,
+          350,
+          {
+            align: "center",
+          }
+        );
+    }
+
+    pdf.restore();
+
+    /* =========================================
        HEADER
     ========================================= */
 
     if (company?.logoUrl) {
+
       try {
+
         const logoPath = path.join(
           process.cwd(),
           "public",
           company.logoUrl
         );
 
-        if (fs.existsSync(logoPath)) {
+        if (
+          fs.existsSync(logoPath)
+        ) {
+
           pdf.image(
             logoPath,
             40,
@@ -172,7 +236,9 @@ export async function GET(
             }
           );
         }
+
       } catch (e) {
+
         console.log(
           "LOGO ERROR:",
           e.message
@@ -188,7 +254,10 @@ export async function GET(
         company?.companyName ||
           "COMPANY",
         120,
-        40
+        38,
+        {
+          width: 230,
+        }
       );
 
     pdf
@@ -198,7 +267,7 @@ export async function GET(
       .text(
         company?.addressLine1 || "",
         120,
-        70
+        78
       );
 
     pdf.text(
@@ -234,7 +303,13 @@ export async function GET(
     ========================================= */
 
     pdf
-      .roundedRect(390, 40, 165, 100, 10)
+      .roundedRect(
+        365,
+        35,
+        190,
+        120,
+        10
+      )
       .fillAndStroke(
         "#f9fafb",
         "#d1d5db"
@@ -246,7 +321,7 @@ export async function GET(
       .fontSize(18)
       .text(
         "TAX INVOICE",
-        410,
+        388,
         52
       );
 
@@ -256,29 +331,29 @@ export async function GET(
       .fillColor("#374151")
       .text(
         `Invoice No: ${invoiceNumber}`,
-        405,
-        85
+        388,
+        92
       );
 
     pdf.text(
       `Invoice Date: ${new Date(
         order.createdAt
       ).toLocaleDateString()}`,
-      405,
-      102
+      388,
+      110
     );
 
     pdf.text(
       `Order ID: ${order.orderId}`,
-      405,
-      119
+      388,
+      128
     );
 
     /* =========================================
        LINE
     ========================================= */
 
-    line(pdf, 160);
+    line(pdf, 170);
 
     /* =========================================
        BILL TO
@@ -288,7 +363,11 @@ export async function GET(
       .font("Inter-Bold")
       .fillColor("#111827")
       .fontSize(13)
-      .text("Bill To", 40, 175);
+      .text(
+        "Bill To",
+        40,
+        185
+      );
 
     pdf
       .font("Inter")
@@ -297,7 +376,7 @@ export async function GET(
       .text(
         order.address?.name || "",
         40,
-        198
+        208
       );
 
     pdf.text(
@@ -310,7 +389,7 @@ export async function GET(
       40,
       undefined,
       {
-        width: 230,
+        width: 180,
       }
     );
 
@@ -331,12 +410,65 @@ export async function GET(
       40
     );
 
+    /* =========================================
+       SHIP TO
+    ========================================= */
+
+    pdf
+      .font("Inter-Bold")
+      .fillColor("#111827")
+      .fontSize(13)
+      .text(
+        "Ship To",
+        230,
+        185
+      );
+
+    pdf
+      .font("Inter")
+      .fontSize(10)
+      .fillColor("#374151")
+      .text(
+        order.shippingAddress?.name ||
+        order.address?.name ||
+        "",
+        230,
+        208
+      );
+
     pdf.text(
-      `Customer Type: ${
-        order.address?.gstType ||
-        "B2C"
+      order.shippingAddress?.phone ||
+      order.address?.phone ||
+      "",
+      230
+    );
+
+    pdf.text(
+      order.shippingAddress?.address ||
+      order.address?.address ||
+      "",
+      230,
+      undefined,
+      {
+        width: 180,
+      }
+    );
+
+    pdf.text(
+      `${
+        order.shippingAddress?.city ||
+        order.address?.city ||
+        ""
+      }, ${
+        order.shippingAddress?.state ||
+        order.address?.state ||
+        ""
+      } - ${
+        order.shippingAddress?.pincode ||
+        order.address?.pincode ||
+        ""
       }`,
-      40
+      230
     );
 
     /* =========================================
@@ -349,8 +481,8 @@ export async function GET(
       .fontSize(13)
       .text(
         "Payment Details",
-        330,
-        175
+        420,
+        185
       );
 
     pdf
@@ -362,8 +494,8 @@ export async function GET(
           order.payment?.method ||
           "-"
         }`,
-        330,
-        198
+        420,
+        208
       );
 
     pdf.text(
@@ -371,7 +503,7 @@ export async function GET(
         order.payment?.status ||
         "-"
       }`,
-      330
+      420
     );
 
     pdf.text(
@@ -382,23 +514,28 @@ export async function GET(
           ?.transactionId ||
         "-"
       }`,
-      330,
+      420,
       undefined,
       {
-        width: 220,
+        width: 120,
       }
     );
 
-    line(pdf, 290);
+    line(pdf, 330);
 
     /* =========================================
        TABLE HEADER
     ========================================= */
 
-    const tableTop = 305;
+    const tableTop = 345;
 
     pdf
-      .rect(40, tableTop, 515, 28)
+      .rect(
+        40,
+        tableTop,
+        515,
+        28
+      )
       .fill("#111827");
 
     pdf
@@ -406,55 +543,55 @@ export async function GET(
       .fillColor("#ffffff")
       .fontSize(9);
 
-    pdf.text("#", 45, 314);
+    pdf.text("#", 45, 354);
 
     pdf.text(
       "Product",
       65,
-      314
+      354
     );
 
     pdf.text(
       "HSN",
       205,
-      314
+      354
     );
 
     pdf.text(
       "Qty",
       255,
-      314
+      354
     );
 
     pdf.text(
       "Rate",
       295,
-      314
+      354
     );
 
     pdf.text(
       "GST%",
       355,
-      314
+      354
     );
 
     pdf.text(
       "Taxable",
       410,
-      314
+      354
     );
 
     pdf.text(
       "Total",
       490,
-      314
+      354
     );
 
     /* =========================================
        ITEMS
     ========================================= */
 
-    let y = 338;
+    let y = 378;
 
     pdf
       .font("Inter")
@@ -462,8 +599,14 @@ export async function GET(
 
     order.items?.forEach(
       (item, idx) => {
+
         pdf
-          .rect(40, y - 5, 515, 32)
+          .rect(
+            40,
+            y - 5,
+            515,
+            32
+          )
           .stroke("#e5e7eb");
 
         pdf.text(
@@ -536,7 +679,7 @@ export async function GET(
         325,
         summaryTop,
         230,
-        150,
+        180,
         10
       )
       .fillAndStroke(
@@ -571,39 +714,53 @@ export async function GET(
     );
 
     pdf.text(
-      `CGST`,
+      `Discount`,
       340,
       summaryTop + 62
+    );
+
+    pdf.text(
+      money(
+        order.billing?.discount || 0
+      ),
+      475,
+      summaryTop + 62
+    );
+
+    pdf.text(
+      `CGST`,
+      340,
+      summaryTop + 84
     );
 
     pdf.text(
       money(gst.cgst),
       475,
-      summaryTop + 62
+      summaryTop + 84
     );
 
     pdf.text(
       `SGST`,
       340,
-      summaryTop + 84
+      summaryTop + 106
     );
 
     pdf.text(
       money(gst.sgst),
       475,
-      summaryTop + 84
+      summaryTop + 106
     );
 
     pdf.text(
       `IGST`,
       340,
-      summaryTop + 106
+      summaryTop + 128
     );
 
     pdf.text(
       money(gst.igst),
       475,
-      summaryTop + 106
+      summaryTop + 128
     );
 
     pdf
@@ -613,7 +770,7 @@ export async function GET(
       .text(
         `Grand Total`,
         340,
-        summaryTop + 128
+        summaryTop + 152
       );
 
     pdf.text(
@@ -622,7 +779,7 @@ export async function GET(
           ?.grandTotal
       ),
       465,
-      summaryTop + 128
+      summaryTop + 152
     );
 
     /* =========================================
@@ -630,7 +787,7 @@ export async function GET(
     ========================================= */
 
     const declarationTop =
-      summaryTop + 185;
+      summaryTop + 215;
 
     pdf
       .font("Inter-Bold")
@@ -661,7 +818,9 @@ export async function GET(
     ========================================= */
 
     if (company?.signatureUrl) {
+
       try {
+
         const signPath = path.join(
           process.cwd(),
           "public",
@@ -671,6 +830,7 @@ export async function GET(
         if (
           fs.existsSync(signPath)
         ) {
+
           pdf.image(
             signPath,
             400,
@@ -680,7 +840,9 @@ export async function GET(
             }
           );
         }
+
       } catch (e) {
+
         console.log(
           "SIGN ERROR:",
           e.message
@@ -707,7 +869,7 @@ export async function GET(
       .fontSize(8)
       .fillColor("#6b7280")
       .text(
-        "Generated by Native Enterprise GST Billing Engine",
+        "Thanks for Shopping With Native ❤️",
         40,
         780,
         {
@@ -725,7 +887,9 @@ export async function GET(
     const pdfBuffer =
       await new Promise(
         (resolve) => {
+
           pdf.on("end", () => {
+
             resolve(
               Buffer.concat(chunks)
             );
@@ -740,11 +904,14 @@ export async function GET(
           "Content-Type":
             "application/pdf",
 
-          "Content-Disposition": `inline; filename=${invoiceNumber}.pdf`,
+          "Content-Disposition":
+            `inline; filename=${invoiceNumber}.pdf`,
         },
       }
     );
+
   } catch (err) {
+
     console.log(
       "GST INVOICE ERROR:",
       err
