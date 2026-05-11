@@ -145,7 +145,7 @@ export async function GET(
 
     const pdf = createPDF();
 
-    pdf.font("Inter");
+    pdf.font("Times-Roman");
 
     const chunks = [];
 
@@ -166,7 +166,7 @@ export async function GET(
    
    pdf
      .opacity(0.045)
-     .font("Inter-Bold")
+     .font("Times-Bold")
      .fontSize(58)
      .fillColor("#d1d5db")
      .text(
@@ -185,7 +185,7 @@ export async function GET(
    
      pdf
        .opacity(0.035)
-       .font("Inter")
+       .font("Times-Roman")
        .fontSize(20)
        .fillColor("#e5e7eb")
        .text(
@@ -245,7 +245,7 @@ export async function GET(
     ========================================= */
 
     pdf
-      .font("Inter-Bold")
+      .font("Times-Bold")
       .fillColor("#111827")
       .fontSize(22)
       .text(
@@ -258,7 +258,7 @@ export async function GET(
     /* TAGLINE */
 
     pdf
-      .font("Inter")
+      .font("Times-Roman")
       .fontSize(10)
       .fillColor("#9ca3af")
       .text(
@@ -271,7 +271,7 @@ export async function GET(
     /* ADDRESS */
 
     pdf
-      .font("Inter")
+      .font("Times-Roman")
       .fontSize(10)
       .fillColor("#4b5563")
       .text(
@@ -334,7 +334,7 @@ export async function GET(
     /* TITLE */
 
     pdf
-      .font("Inter-Bold")
+      .font("Times-Bold")
       .fillColor("#111827")
       .fontSize(17)
       .text(
@@ -346,7 +346,7 @@ export async function GET(
     /* DETAILS */
 
     pdf
-      .font("Inter")
+      .font("Times-Roman")
       .fontSize(10)
       .fillColor("#374151");
 
@@ -393,7 +393,7 @@ export async function GET(
     ========================================= */
 
     pdf
-      .font("Inter-Bold")
+      .font("Times-Bold")
       .fillColor("#111827")
       .fontSize(13)
       .text(
@@ -403,7 +403,7 @@ export async function GET(
       );
 
     pdf
-      .font("Inter")
+      .font("Times-Roman")
       .fontSize(10)
       .fillColor("#374151")
       .text(
@@ -460,7 +460,7 @@ export async function GET(
     ========================================= */
 
     pdf
-      .font("Inter-Bold")
+      .font("Times-Bold")
       .fillColor("#111827")
       .fontSize(13)
       .text(
@@ -470,7 +470,7 @@ export async function GET(
       );
 
     pdf
-      .font("Inter")
+      .font("Times-Roman")
       .fontSize(10)
       .fillColor("#374151")
       .text(
@@ -531,7 +531,7 @@ export async function GET(
     ========================================= */
 
     pdf
-      .font("Inter-Bold")
+      .font("Times-Bold")
       .fillColor("#111827")
       .fontSize(13)
       .text(
@@ -541,7 +541,7 @@ export async function GET(
       );
 
     pdf
-      .font("Inter")
+      .font("Times-Roman")
       .fontSize(10)
       .fillColor("#374151")
       .text(
@@ -598,7 +598,7 @@ export async function GET(
       .fill("#111827");
 
     pdf
-      .font("Inter-Bold")
+      .font("Times-Bold")
       .fillColor("#ffffff")
       .fontSize(9);
 
@@ -653,7 +653,7 @@ export async function GET(
     let y = 408;
 
     pdf
-      .font("Inter")
+      .font("Times-Roman")
       .fillColor("#111827");
 
     order.items?.forEach(
@@ -749,7 +749,7 @@ export async function GET(
     pdf.fillColor("#111827");
 
     pdf
-      .font("Inter-Bold")
+      .font("Times-Bold")
       .fontSize(12)
       .text(
         "GST Summary",
@@ -758,7 +758,7 @@ export async function GET(
       );
 
     pdf
-      .font("Inter")
+      .font("Times-Roman")
       .fontSize(10)
       .text(
         "Taxable Amount",
@@ -823,7 +823,7 @@ export async function GET(
     );
 
     pdf
-      .font("Inter-Bold")
+      .font("Times-Bold")
       .fontSize(13)
       .fillColor("#16a34a")
       .text(
@@ -848,7 +848,7 @@ export async function GET(
       summaryTop + 215;
 
     pdf
-      .font("Inter-Bold")
+      .font("Times-Bold")
       .fillColor("#111827")
       .fontSize(11)
       .text(
@@ -858,7 +858,7 @@ export async function GET(
       );
 
     pdf
-      .font("Inter")
+      .font("Times-Roman")
       .fontSize(9)
       .fillColor("#4b5563")
       .text(
@@ -912,7 +912,7 @@ export async function GET(
     }
 
     pdf
-      .font("Inter-Bold")
+      .font("Times-Bold")
       .fillColor("#111827")
       .fontSize(10)
       .text(
@@ -926,7 +926,7 @@ export async function GET(
     ========================================= */
 
     pdf
-      .font("Inter")
+      .font("Times-Roman")
       .fontSize(8)
       .fillColor("#6b7280")
       .text(
