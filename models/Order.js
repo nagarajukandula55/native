@@ -584,30 +584,201 @@ const OrderSchema = new mongoose.Schema(
   }
 );
 
-/* ================= MIDDLEWARE ================= */
-OrderSchema.pre("save", function (next) {
-  console.log(
-    "💾 MONGOOSE SAVE ORDER:",
-    this.orderId
-  );
+/* ================= BILLING OS v2 EXTENSIONS ================= */
 
-  next();
+/* ---------- TAX EXTENSION (FUTURE PROOF) ---------- */
+OrderSchema.add({
+  taxMeta: {
+    cess: {
+      type: Number,
+      default: 0,
+    },
+
+    tds: {
+      type: Number,
+      default: 0,
+    },
+
+    tcs: {
+      type: Number,
+      default: 0,
+    },
+
+    taxVersion: {
+      type: String,
+      default: "v2",
+    },
+  },
 });
 
+/* ---------- INVOICE IMMUTABILITY LAYER ---------- */
+OrderSchema.add({
+  invoiceAudit: [
+    {
+      invoiceNumber: String,
+      snapshot: Object,
+      hash: String,
+      generatedAt: Date,
+      generatedBy: String,
+      action: {
+        type: String,
+        enum: ["GENERATED", "REGENERATED", "VOIDED"],
+      },
+    },
+  ],
+});
+
+/* ---------- DIGITAL VERIFICATION SYSTEM ---------- */
+OrderSchema.add({
+  verification: {
+    invoiceHash: String,
+
+    qrPayloadHash: String,
+
+    verifyUrl: String,
+
+    verified: {
+      type: Boolean,
+      default: false,
+    },
+
+    verifiedAt: Date,
+  },
+});
+
+/* ---------- GST LINE ITEM AUDIT (ENTERPRISE COMPLIANCE) ---------- */
+OrderSchema.add({
+  gstAudit: {
+    cgstTotal: Number,
+
+    sgstTotal: Number,
+
+    igstTotal: Number,
+
+    taxableTotal: Number,
+
+    gstMismatch: {
+      type: Boolean,
+      default: false,
+    },
+
+    mismatchReason: String,
+  },
+});
+
+/* ---------- STATE CHANGE EVENT SOURCE ---------- */
+OrderSchema.add({
+  events: [
+    {
+      type: {
+        type: String,
+        enum: [
+          "ORDER_CREATED",
+          "PAYMENT_SUCCESS",
+          "INVOICE_GENERATED",
+          "INVOICE_DOWNLOADED",
+          "SHIPPED",
+          "DELIVERED",
+          "REFUNDED",
+          "STATUS_CHANGED"
+        ],
+      },
+
+      data: Object,
+
+      at: {
+        type: Date,
+        default: Date.now,
+      },
+    },
+  ],
+});
+
+OrderSchema.pre("findOneAndUpdate", async function () {
+  const update = this.getUpdate();
+
+  if (!update?.status && !update?.$set?.status) return;
+
+  const doc = await this.model.findOne(this.getQuery()).select("status");
+
+  const from = doc?.status;
+  const to = update.status || update.$set?.status;
+
+  this._statusEvent = { from, to };
+});
+
+OrderSchema.post("findOneAndUpdate", async function () {
+  const event = this._statusEvent;
+  if (!event) return;
+
+  await this.model.updateOne(this.getQuery(), {
+    $push: {
+      events: {
+        type: "STATUS_CHANGED",
+        data: event,
+        at: new Date(),
+      },
+    },
+  });
+});
+
+/* ================= MIDDLEWARE ================= */
+
+/* LOG SAVE + TRACK PREVIOUS STATUS */
+OrderSchema.pre("save", async function (next) {
+  console.log("💾 SAVE:", this.orderId);
+
+  try {
+    // Capture previous status safely
+    if (this.isNew) {
+      this._previousStatus = null;
+    } else if (this.isModified("status")) {
+      const original = await this.constructor
+        .findById(this._id)
+        .select("status")
+        .lean();
+
+      this._previousStatus = original?.status || null;
+    }
+
+    // Ensure events array exists
+    if (!Array.isArray(this.events)) {
+      this.events = [];
+    }
+
+    const from = this._previousStatus;
+    const to = this.status;
+
+    // Skip if no real change
+    if (from === to) return next();
+
+    // Prevent duplicate STATUS_CHANGED events
+    const exists = this.events.some(
+      (e) =>
+        e.type === "STATUS_CHANGED" &&
+        e.data?.from === from &&
+        e.data?.to === to
+    );
+
+    if (!exists) {
+      this.events.push({
+        type: "STATUS_CHANGED",
+        data: { from, to },
+        at: new Date(),
+      });
+    }
+
+    return next();
+  } catch (err) {
+    return next(err);
+  }
+});
+
+/* LOG UPDATE OPERATIONS */
 OrderSchema.pre("findOneAndUpdate", function () {
-  console.log(
-    "🚨 findOneAndUpdate CALLED"
-  );
-
-  console.log(
-    "🚨 QUERY:",
-    this.getQuery()
-  );
-
-  console.log(
-    "🚨 UPDATE:",
-    this.getUpdate()
-  );
+  console.log("🚨 findOneAndUpdate CALLED");
+  console.log("🚨 QUERY:", this.getQuery());
+  console.log("🚨 UPDATE:", this.getUpdate());
 });
 
 /* ================= INDEXES ================= */
@@ -629,6 +800,18 @@ OrderSchema.index({
 
 OrderSchema.index({
   createdAt: -1,
+});
+
+OrderSchema.index({
+  "invoice.invoiceNumber": 1,
+});
+
+OrderSchema.index({
+  "verification.invoiceHash": 1,
+});
+
+OrderSchema.index({
+  "statusTimeline.paidAt": -1,
 });
 
 /* ================= EXPORT ================= */
