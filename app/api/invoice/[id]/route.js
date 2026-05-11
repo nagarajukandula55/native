@@ -307,7 +307,7 @@ export async function GET(
         365,
         35,
         190,
-        120,
+        140,
         10
       )
       .fillAndStroke(
@@ -325,29 +325,42 @@ export async function GET(
         52
       );
 
-    pdf
-      .font("Inter")
-      .fontSize(10)
-      .fillColor("#374151")
-      .text(
-        `Invoice No: ${invoiceNumber}`,
-        388,
-        92
-      );
-
-    pdf.text(
-      `Invoice Date: ${new Date(
-        order.createdAt
-      ).toLocaleDateString()}`,
-      388,
-      110
-    );
-
-    pdf.text(
-      `Order ID: ${order.orderId}`,
-      388,
-      128
-    );
+   pdf
+     .font("Inter")
+     .fontSize(10)
+     .fillColor("#374151");
+   
+   pdf.text(
+     "Invoice No:",
+     388,
+     92
+   );
+   
+   pdf.text(
+     invoiceNumber,
+     388,
+     106,
+     {
+       width: 150,
+     }
+   );
+   
+   pdf.text(
+     `Invoice Date: ${new Date(
+       order.createdAt
+     ).toLocaleDateString()}`,
+     388,
+     132
+   );
+   
+   pdf.text(
+     `Order ID: ${order.orderId}`,
+     388,
+     148,
+     {
+       width: 150,
+     }
+   );
 
     /* =========================================
        LINE
