@@ -4,7 +4,6 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
-import PDFDocument from "pdfkit";
 
 import dbConnect from "@/lib/db";
 
@@ -14,10 +13,13 @@ import CompanySettings from "@/models/CompanySettings";
 import { buildReceiptData } from "@/lib/receipt/buildReceiptData";
 import { renderReceiptPDF } from "@/lib/receipt/pdfReceiptTemplate";
 
+import { createPDF } from "@/lib/pdfSetup";
+
 import path from "path";
 import fs from "fs";
 
 export async function GET(req, { params }) {
+
   try {
 
     await dbConnect();
@@ -59,11 +61,7 @@ export async function GET(req, { params }) {
        PDF INIT
     ========================================= */
 
-    const doc = new PDFDocument({
-      size: "A4",
-      margin: 40,
-      compress: true,
-    });
+    const doc = createPDF();
 
     const chunks = [];
 
@@ -72,13 +70,13 @@ export async function GET(req, { params }) {
     );
 
     /* =========================================
-       SAFE FONT
+       FORCE SAFE FONT
     ========================================= */
 
-    doc.font("Helvetica");
+    doc.font("Inter");
 
     /* =========================================
-       OPTIMIZED INVOICE LOGO
+       OPTIMIZED RECEIPT LOGO
     ========================================= */
 
     try {
@@ -138,30 +136,48 @@ export async function GET(req, { params }) {
     }
 
     /* =========================================
-       WATERMARK TEXT
+       LIGHTWEIGHT WATERMARK
     ========================================= */
 
     doc.save();
 
-    doc.opacity(0.05);
+    doc.rotate(-32, {
+      origin: [300, 380],
+    });
 
     doc
-      .font("Helvetica-Bold")
-      .fontSize(55)
-      .fillColor("#9ca3af")
-      .rotate(-35, {
-        origin: [300, 400],
-      })
+      .opacity(0.04)
+      .font("Inter-Bold")
+      .fontSize(54)
+      .fillColor("#d1d5db")
       .text(
         company?.companyName ||
           "NATIVE",
-        120,
-        380,
+        60,
+        360,
         {
-          width: 350,
+          width: 480,
           align: "center",
         }
       );
+
+    if (company?.tagline) {
+
+      doc
+        .opacity(0.03)
+        .font("Inter")
+        .fontSize(18)
+        .fillColor("#e5e7eb")
+        .text(
+          company.tagline,
+          120,
+          425,
+          {
+            width: 360,
+            align: "center",
+          }
+        );
+    }
 
     doc.restore();
 
