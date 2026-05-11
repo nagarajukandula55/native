@@ -154,32 +154,52 @@ export async function GET(
     });
 
 /* =========================================
-   WATERMARK
+   PREMIUM LIGHT WATERMARK
+   (LOW FILE SIZE OPTIMIZED)
 ========================================= */
 
    pdf.save();
    
-   pdf.opacity(0.05);
+   pdf.rotate(-32, {
+     origin: [300, 380],
+   });
    
    pdf
+     .opacity(0.045)
      .font("Inter-Bold")
-     .fontSize(55)
-     .fillColor("#9ca3af")
-     .rotate(-35, {
-       origin: [300, 400],
-     })
+     .fontSize(58)
+     .fillColor("#d1d5db")
      .text(
        company?.companyName || "NATIVE",
-       120,
-       380,
+       60,
+       360,
        {
-         width: 350,
+         width: 480,
          align: "center",
        }
      );
    
+   /* OPTIONAL TAGLINE */
+   
+   if (company?.tagline) {
+   
+     pdf
+       .opacity(0.035)
+       .font("Inter")
+       .fontSize(20)
+       .fillColor("#e5e7eb")
+       .text(
+         company.tagline,
+         120,
+         430,
+         {
+           width: 360,
+           align: "center",
+         }
+       );
+   }
+   
    pdf.restore();
-
     /* =========================================
        HEADER LOGO
     ========================================= */
