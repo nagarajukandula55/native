@@ -82,7 +82,6 @@ export async function GET(req, { params }) {
       );
     }
 
-    /* ================= INVOICE NUMBER ================= */
     let invoiceNumber = order.invoice?.invoiceNumber;
 
     if (!invoiceNumber) {
@@ -104,10 +103,7 @@ export async function GET(req, { params }) {
       );
     }
 
-    /* ================= GST ================= */
     const gst = calculateGSTSummary(order, company?.state || "");
-
-    /* ================= SECURITY ================= */
     const invoiceHash = generateInvoiceHash(order, invoiceNumber);
 
     const qrBuffer = await generateQR({
@@ -119,7 +115,6 @@ export async function GET(req, { params }) {
       verifyUrl: `${BASE_URL}/invoice/verify/${order.orderId}`,
     });
 
-    /* ================= PDF INIT ================= */
     const pdf = createPDF();
     const chunks = [];
 
@@ -129,26 +124,27 @@ export async function GET(req, { params }) {
        WATERMARK
     ========================================= */
     pdf.save();
-    pdf.rotate(-32, { origin: [300, 380] });
+
+    pdf.rotate(-35, { origin: [300, 400] });
 
     pdf
-      .opacity(0.05)
+      .opacity(0.09)
       .font("Inter-Bold")
-      .fontSize(58)
+      .fontSize(72)
       .fillColor("#d1d5db")
-      .text(company?.companyName || "NATIVE", 60, 360, {
-        width: 480,
+      .text(company?.companyName || "NATIVE", 50, 350, {
+        width: 500,
         align: "center",
       });
 
     if (company?.tagline) {
       pdf
-        .opacity(0.03)
+        .opacity(0.05)
         .font("Inter")
-        .fontSize(18)
+        .fontSize(20)
         .fillColor("#e5e7eb")
-        .text(company.tagline, 120, 430, {
-          width: 360,
+        .text(company.tagline, 110, 430, {
+          width: 380,
           align: "center",
         });
     }
@@ -210,30 +206,41 @@ export async function GET(req, { params }) {
        BILL / SHIP / PAYMENT
     ========================================= */
     const top = 220;
-
     const addressY = top + 18;
 
     pdf.font("Inter-Bold").fontSize(11).text("Bill To", 40, top);
     pdf.font("Inter").fontSize(9);
 
-    pdf.text(order.address?.name || "-", 40, addressY);
-    pdf.text(order.address?.phone || "-", 40, addressY + 14);
-    pdf.text(order.address?.email || "-", 40, addressY + 28);
-    pdf.text(order.address?.address || "-", 40, addressY + 42, { width: 150 });
-    pdf.text(`City: ${order.address?.city || ""}`, 40, addressY + 74);
-    pdf.text(`State: ${order.address?.state || ""}`, 40, addressY + 88);
-    pdf.text(`PIN: ${order.address?.pincode || ""}`, 40, addressY + 102);
+    let billY = addressY;
+    pdf.text(order.address?.name || "-", 40, billY); billY += 15;
+    pdf.text(order.address?.phone || "-", 40, billY); billY += 15;
+
+    if (order.address?.address) {
+      pdf.text(order.address.address, 40, billY, { width: 150 });
+      billY += 32;
+    }
+
+    pdf.text(`City: ${order.address?.city || "-"}`, 40, billY); billY += 15;
+    pdf.text(`State: ${order.address?.state || "-"}`, 40, billY); billY += 15;
+    pdf.text(`PIN: ${order.address?.pincode || "-"}`, 40, billY); billY += 15;
+    pdf.text(order.address?.email || "-", 40, billY);
 
     pdf.font("Inter-Bold").text("Ship To", 220, top);
     pdf.font("Inter");
 
-    pdf.text(order.address?.name || "-", 220, addressY);
-    pdf.text(order.address?.phone || "-", 220, addressY + 14);
-    pdf.text(order.address?.email || "-", 220, addressY + 28);
-    pdf.text(order.address?.address || "-", 220, addressY + 42, { width: 150 });
-    pdf.text(`City: ${order.address?.city || ""}`, 220, addressY + 74);
-    pdf.text(`State: ${order.address?.state || ""}`, 220, addressY + 88);
-    pdf.text(`PIN: ${order.address?.pincode || ""}`, 220, addressY + 102);
+    let shipY = addressY;
+    pdf.text(order.address?.name || "-", 220, shipY); shipY += 15;
+    pdf.text(order.address?.phone || "-", 220, shipY); shipY += 15;
+
+    if (order.address?.address) {
+      pdf.text(order.address.address, 220, shipY, { width: 150 });
+      shipY += 32;
+    }
+
+    pdf.text(`City: ${order.address?.city || "-"}`, 220, shipY); shipY += 15;
+    pdf.text(`State: ${order.address?.state || "-"}`, 220, shipY); shipY += 15;
+    pdf.text(`PIN: ${order.address?.pincode || "-"}`, 220, shipY); shipY += 15;
+    pdf.text(order.address?.email || "-", 220, shipY);
 
     pdf.font("Inter-Bold").text("Payment", 410, top);
     pdf.font("Inter");
@@ -247,7 +254,7 @@ export async function GET(req, { params }) {
     line(pdf, 360);
 
     /* =========================================
-       TABLE HEADER
+       TABLE
     ========================================= */
     let y = 375;
 
@@ -266,9 +273,6 @@ export async function GET(req, { params }) {
 
     y += 35;
 
-    /* =========================================
-       ITEMS
-    ========================================= */
     pdf.font("Inter").fillColor("#111827");
 
     order.items?.forEach((item, idx) => {
@@ -297,7 +301,7 @@ export async function GET(req, { params }) {
 
     pdf.fontSize(8).fillColor("#6b7280");
     pdf.text(`Generated: ${new Date().toLocaleString()}`, 140, blockY + 10);
-    pdf.text(`Hash: ${invoiceHash}`, 140, blockY + 26, { width: 160 });
+    pdf.text(`Hash: ${invoiceHash}`, 140, blockY + 28, { width: 160 });
 
     pdf.roundedRect(325, blockY, 230, 170, 10)
       .fillAndStroke("#f9fafb", "#d1d5db");
@@ -333,18 +337,22 @@ export async function GET(req, { params }) {
 
     line(pdf, footerY);
 
+    pdf.font("Inter-Bold")
+      .fontSize(10)
+      .fillColor("#111827")
+      .text(`For ${company?.companyName || "COMPANY"}`, 390, footerY - 8);
+
+    pdf.font("Inter")
+      .fontSize(9)
+      .text("Authorised Signatory", 390, footerY + 12);
+
     pdf.font("Inter").fontSize(8).fillColor("#6b7280")
       .text("Certified that the particulars given above are true and correct.", 40, footerY + 12);
 
     pdf.text("This is a computer-generated tax invoice.", 40, footerY + 26);
 
-    pdf.font("Inter-Bold").fontSize(10).fillColor("#111827")
-      .text(`For ${company?.companyName || "COMPANY"}`, 390, footerY + 12);
-
-    pdf.text("Authorised Signatory", 390, footerY + 36);
-
     pdf.font("Inter").fontSize(9).fillColor("#dc2626")
-      .text("Thank You for Shopping with Native ❤️", 170, footerY + 58);
+      .text("Thank You for Shopping with Native ❤️", 170, footerY + 50);
 
     pdf.end();
 
