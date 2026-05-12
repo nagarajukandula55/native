@@ -191,17 +191,25 @@ export async function GET(req, { params }) {
     const drawAddress = (x, title) => {
       pdf.font("Inter-Bold").fontSize(11).text(title, x, top);
       pdf.font("Inter").fontSize(9);
-
+    
       let y = top + 18;
-
-      pdf.text(order.address?.name || "-", x, y); y += 14;
-      pdf.text(order.address?.phone || "-", x, y); y += 14;
-
-      if (order.address?.address?.trim()) {
-        pdf.text(order.address.address, x, y, { width: 150 });
-        y += 26;
-      }
-
+    
+      pdf.text(order.address?.name || "-", x, y); y += 15;
+      pdf.text(order.address?.phone || "-", x, y); y += 15;
+    
+      pdf.text(
+        order.address?.address || "-",
+        x,
+        y,
+        {
+          width: 150,
+          height: 30,
+          ellipsis: true
+        }
+      );
+    
+      y += 34;
+    
       pdf.text(`City: ${order.address?.city || "-"}`, x, y); y += 14;
       pdf.text(`State: ${order.address?.state || "-"}`, x, y); y += 14;
       pdf.text(`PIN: ${order.address?.pincode || "-"}`, x, y); y += 14;
@@ -262,17 +270,31 @@ export async function GET(req, { params }) {
     /* QR */
     const blockY = y + 20;
 
-    pdf.image(qrBuffer, 40, blockY, { width: 85 });
-
+    pdf.image(qrBuffer, 40, blockY + 8, { width: 82 });
+    
     pdf.fontSize(8).fillColor("#6b7280");
-    pdf.text(`Generated: ${new Date().toLocaleString()}`, 140, blockY + 8);
-    pdf.text(`Hash: ${invoiceHash}`, 140, blockY + 24, { width: 160 });
-
-    /* SIGNATURE IMAGE */
+    pdf.text(`Generated: ${new Date().toLocaleString()}`, 135, blockY + 18);
+    pdf.text(`Hash: ${invoiceHash}`, 135, blockY + 34, {
+      width: 150
+    });
+    
+    /* SIGNATURE */
+    pdf.font("Inter-Bold")
+      .fontSize(10)
+      .fillColor("#111827")
+      .text(`For ${company?.companyName || "COMPANY"}`, 140, blockY + 88);
+    
     const signPath = path.join(process.cwd(), "public/signature.png");
-
+    
     if (fs.existsSync(signPath)) {
-      pdf.image(signPath, 150, blockY + 48, { width: 120 });
+      pdf.image(signPath, 145, blockY + 105, {
+        width: 120
+      });
+    }
+    
+    pdf.font("Inter")
+      .fontSize(9)
+      .text("Authorised Signatory", 145, blockY + 150);
     }
 
     /* SUMMARY */
@@ -304,26 +326,37 @@ export async function GET(req, { params }) {
     pdf.text(money(order.billing?.grandTotal), 450, blockY + 150);
 
     /* FOOTER */
-    const footerY = blockY + 210;
-
+    const footerY = blockY + 220;
+    
     line(pdf, footerY);
-
-    pdf.font("Inter-Bold")
-      .fontSize(10)
-      .fillColor("#111827")
-      .text(`For ${company?.companyName || "COMPANY"}`, 390, footerY - 22);
-
+    
+    pdf.font("Inter")
+      .fontSize(8)
+      .fillColor("#6b7280")
+      .text(
+        "Certified that the particulars given above are true and correct.",
+        40,
+        footerY + 14
+      );
+    
+    pdf.text(
+      "This is a computer-generated tax invoice.",
+      40,
+      footerY + 28
+    );
+    
     pdf.font("Inter")
       .fontSize(9)
-      .text("Authorised Signatory", 390, footerY - 6);
-
-    pdf.font("Inter").fontSize(8).fillColor("#6b7280")
-      .text("Certified that the particulars given above are true and correct.", 40, footerY + 12);
-
-    pdf.text("This is a computer-generated tax invoice.", 40, footerY + 26);
-
-    pdf.font("Inter").fontSize(9).fillColor("#dc2626")
-      .text("Thank You for Shopping with Native ❤️", 170, footerY + 52);
+      .fillColor("#dc2626")
+      .text(
+        "Thank You for Shopping with Native ❤️",
+        0,
+        footerY + 52,
+        {
+          width: 595,
+          align: "center"
+        }
+      );
 
     pdf.end();
 
