@@ -123,14 +123,24 @@ const AddressSchema = new mongoose.Schema(
       type: String,
       uppercase: true,
       trim: true,
+      validate: {
+        validator: function (v) {
+          if (this.gstType === "B2B") {
+            return !!v;
+          }
+          return true;
+        },
+        message: "GST Number is required for B2B invoices",
+      },
     },
-
+    
     gstType: {
       type: String,
       enum: ["B2C", "B2B"],
-      default: "B2C",
+      default: function () {
+        return this.gstNumber ? "B2B" : "B2C";
+      },
     },
-  },
   { _id: false }
 );
 
