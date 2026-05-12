@@ -14,16 +14,11 @@ import path from "path";
 import crypto from "crypto";
 import QRCode from "qrcode";
 
-/* ================= ERP CONSTANTS ================= */
+/* ================= CONSTANTS ================= */
 
-const PAGE_WIDTH = 595;
 const PAGE_HEIGHT = 842;
-const FOOTER_HEIGHT = 60;
-
 const BASE_URL =
-  process.env.NEXT_PUBLIC_BASE_URL ||
-  process.env.BASE_URL ||
-  "http://localhost:3000";
+  process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
 
 /* ================= HELPERS ================= */
 
@@ -52,7 +47,7 @@ const generateQR = async (data) =>
     scale: 6,
   });
 
-/* ================= MAIN API ================= */
+/* ================= API ================= */
 
 export async function GET(req, { params }) {
   try {
@@ -65,12 +60,12 @@ export async function GET(req, { params }) {
 
     if (!order || !company) {
       return NextResponse.json(
-        { success: false, message: "Order or Company missing" },
+        { success: false, message: "Missing data" },
         { status: 404 }
       );
     }
 
-    /* ================= INVOICE NUMBER ================= */
+    /* ================= INVOICE NO ================= */
 
     let invoiceNumber = order?.invoice?.invoiceNumber;
 
@@ -93,15 +88,10 @@ export async function GET(req, { params }) {
       );
     }
 
-    /* ================= CALCULATIONS ================= */
+    /* ================= DATA ================= */
 
     const gst = calculateGSTSummary(order, company.state || "");
     const invoiceHash = hashInvoice(order, invoiceNumber);
-
-    const isB2B =
-      order?.address?.gstType === "B2B" && order?.address?.gstNumber;
-
-    const invoiceType = isB2B ? "B2B TAX INVOICE" : "B2C TAX INVOICE";
 
     const qrBuffer = await generateQR({
       invoice: invoiceNumber,
@@ -111,89 +101,79 @@ export async function GET(req, { params }) {
       verifyUrl: `${BASE_URL}/invoice/verify/${order.orderId}`,
     });
 
-    /* ================= PDF INIT ================= */
-
     const pdf = createPDF();
     const chunks = [];
 
     pdf.on("data", (c) => chunks.push(c));
 
-    const bufferPromise = new Promise((resolve) => {
-      pdf.on("end", () => resolve(Buffer.concat(chunks)));
-    });
+    const bufferPromise = new Promise((resolve) =>
+      pdf.on("end", () => resolve(Buffer.concat(chunks)))
+    );
 
-    /* ================= HEADER ================= */
+    /* ================= HEADER SECTION ================= */
 
-    const tagline =
-      company.tagline?.trim() || "Eat Healthy, Stay Healthy";
+    const logoPath = company.logoUrl
+      ? path.join(process.cwd(), "public", company.logoUrl)
+      : null;
 
+    // LOGO (LEFT)
+    if (logoPath && fs.existsSync(logoPath)) {
+      pdf.image(logoPath, 40, 30, { width: 70 });
+    }
+
+    // COMPANY BLOCK (CENTER LEFT)
     pdf
       .font("Inter-Bold")
-      .fontSize(22)
-      .fillColor("#111827")
-      .text(company.companyName || "COMPANY", 105, 35, { width: 300 });
+      .fontSize(18)
+      .text(company.companyName || "COMPANY", 120, 32);
 
     pdf
       .font("Inter")
       .fontSize(9)
-      .fillColor("#6b7280")
-      .text(tagline, 105, 60, { width: 300 });
+      .text(company.tagline || "Eat Healthy, Stay Healthy", 120, 52);
 
-    let y = 80;
-
-    const companyFields = [
-      company.addressLine1,
-      company.addressLine2,
-      `City: ${company.city || "-"}`,
-      `State: ${company.state || "-"}`,
-      `PIN: ${company.pincode || "-"}`,
-      `GSTIN: ${company.gstin || "-"}`,
-      `Phone: ${company.phone || "-"}`,
-      `Email: ${company.email || "-"}`,
-    ];
-
-    companyFields.forEach((t) => {
-      if (!t) return;
-      pdf.font("Inter").fontSize(9).fillColor("#374151").text(t, 105, y);
-      y += 14;
-    });
-
-    /* ================= INVOICE BOX ================= */
-
-    pdf
-      .roundedRect(360, 30, 195, 165, 10)
-      .fillAndStroke("#f9fafb", "#e5e7eb");
-
-    pdf
-      .font("Inter-Bold")
-      .fontSize(16)
-      .fillColor("#111827")
-      .text("TAX INVOICE", 380, 45);
-
-    pdf
-      .font("Inter")
-      .fontSize(8)
-      .fillColor("#2563eb")
-      .text(invoiceType, 380, 65);
-
-    let iy = 95;
+    let cy = 72;
 
     [
-      ["Invoice No", invoiceNumber],
+      company.addressLine1,
+      company.city,
+      company.state,
+      company.pincode,
+      company.phone,
+      company.email,
+      company.gstin,
+    ]
+      .filter(Boolean)
+      .forEach((t) => {
+        pdf.fontSize(9).text(t, 120, cy);
+        cy += 12;
+      });
+
+    // INVOICE BOX (RIGHT SIDE)
+    pdf
+      .roundedRect(360, 25, 195, 120, 8)
+      .fillAndStroke("#f9fafb", "#e5e7eb");
+
+    pdf.font("Inter-Bold").fontSize(14).text("TAX INVOICE", 380, 35);
+
+    let iy = 60;
+
+    [
+      ["Invoice", invoiceNumber],
+      ["Order", order.orderId],
       ["Date", new Date(order.createdAt).toLocaleDateString()],
-      ["Order ID", order.orderId],
     ].forEach(([k, v]) => {
-      pdf.font("Inter").fontSize(9).fillColor("#374151");
+      pdf.font("Inter").fontSize(9);
       pdf.text(k, 380, iy);
-      pdf.text(String(v), 380, iy + 12);
-      iy += 32;
+      pdf.text(v, 430, iy);
+      iy += 20;
     });
 
-    line(pdf, 210);
+    line(pdf, 160);
 
-    /* ================= ADDRESS BLOCK ================= */
+    /* ================= ADDRESS SECTION ================= */
 
-    const top = 235;
+    const top = 175;
 
     const box = (x, title, fields) => {
       pdf.font("Inter-Bold").fontSize(10).text(title, x, top);
@@ -201,12 +181,7 @@ export async function GET(req, { params }) {
       let y = top + 18;
 
       fields.forEach((f) => {
-        pdf
-          .font("Inter")
-          .fontSize(9)
-          .fillColor("#374151")
-          .text(safe(f), x, y, { width: 150 });
-
+        pdf.font("Inter").fontSize(9).text(safe(f), x, y, { width: 150 });
         y += 14;
       });
     };
@@ -218,7 +193,6 @@ export async function GET(req, { params }) {
       order.address?.city,
       order.address?.state,
       order.address?.pincode,
-      order.address?.gstNumber,
     ]);
 
     box(200, "Ship To", [
@@ -231,46 +205,51 @@ export async function GET(req, { params }) {
     ]);
 
     box(360, "Payment", [
-      `Method: ${order.payment?.method}`,
-      `Status: ${order.payment?.status}`,
-      `Paid: ${money(order.payment?.amountPaid)}`,
-      `Txn: ${order.payment?.transactionId}`,
-      `UTR: ${order.payment?.utr}`,
+      order.payment?.method,
+      order.payment?.status,
+      money(order.payment?.amountPaid),
+      order.payment?.transactionId,
     ]);
 
-    line(pdf, 360);
+    line(pdf, 310);
 
-    /* ================= ITEMS ================= */
+    /* ================= ITEMS TABLE (FULL ERP) ================= */
 
     const items = order.items || [];
 
-    let ty = 385;
+    let y = 330;
 
     const headers = [
       "#",
-      "Product",
+      "Item",
       "HSN",
       "Qty",
       "Rate",
-      "GST",
+      "GST%",
       "Taxable",
+      "GST",
       "Total",
     ];
 
-    const xs = [45, 70, 210, 260, 300, 355, 410, 490];
+    const xs = [45, 70, 200, 255, 300, 345, 400, 455, 500];
 
-    pdf.rect(40, ty, 515, 26).fill("#111827");
+    pdf.rect(40, y, 515, 25).fill("#111827");
 
-    pdf.font("Inter-Bold").fontSize(9).fillColor("#fff");
+    pdf.font("Inter-Bold").fontSize(8).fillColor("#fff");
 
-    headers.forEach((h, i) => pdf.text(h, xs[i], ty + 8));
+    headers.forEach((h, i) => pdf.text(h, xs[i], y + 7));
 
-    ty += 34;
+    y += 32;
 
     pdf.font("Inter").fillColor("#111827");
 
+    let grandItemsTotal = 0;
+
     items.forEach((item, i) => {
-      pdf.rect(40, ty - 4, 515, 28).stroke("#e5e7eb");
+      const total = item?.total || 0;
+      grandItemsTotal += total;
+
+      pdf.rect(40, y - 3, 515, 28).stroke("#e5e7eb");
 
       const vals = [
         i + 1,
@@ -280,44 +259,56 @@ export async function GET(req, { params }) {
         money(item?.price),
         `${item?.gstPercent || 0}%`,
         money(item?.taxableAmount),
-        money(item?.total),
+        money(item?.gstAmount || 0),
+        money(total),
       ];
 
       vals.forEach((v, j) =>
-        pdf.text(String(v), xs[j], ty + 4, {
+        pdf.text(String(v), xs[j], y + 4, {
           width: j === 1 ? 120 : undefined,
         })
       );
 
-      ty += 30;
+      y += 30;
     });
 
-    /* ================= BOTTOM ERP GRID ================= */
+    pdf
+      .font("Inter-Bold")
+      .fontSize(9)
+      .text(`Items Total: ${money(grandItemsTotal)}`, 40, y + 10);
 
-    const bottom = 540;
+    /* ================= BOTTOM SECTION ================= */
 
+    const bottom = 520;
+
+    // QR LEFT
     pdf.image(qrBuffer, 40, bottom, { width: 85 });
 
     pdf
       .font("Inter")
       .fontSize(8)
-      .fillColor("#6b7280")
-      .text(`Generated: ${new Date().toLocaleString()}`, 140, bottom + 5);
+      .text(`Hash: ${invoiceHash}`, 140, bottom + 10);
 
-    pdf.text(`Hash: ${invoiceHash}`, 140, bottom + 20);
+    pdf.text(
+      `Generated: ${new Date().toLocaleString()}`,
+      140,
+      bottom + 25
+    );
+
+    /* SIGNATURE BELOW QR (PROPER SPACING) */
+    const signY = bottom + 70;
 
     pdf
       .font("Inter-Bold")
-      .fontSize(10)
-      .text(`For ${company.companyName}`, 140, bottom + 55);
+      .text(`For ${company.companyName}`, 140, signY);
 
     const sign = path.join(process.cwd(), "public/signature.png");
 
     if (fs.existsSync(sign)) {
-      pdf.image(sign, 140, bottom + 70, { width: 120 });
+      pdf.image(sign, 140, signY + 15, { width: 120 });
     }
 
-    /* ================= GST SUMMARY ================= */
+    /* ================= SUMMARY RIGHT ================= */
 
     const sx = 330;
     let sy = bottom;
@@ -332,7 +323,7 @@ export async function GET(req, { params }) {
     ];
 
     pdf
-      .roundedRect(sx, sy, 230, 160, 10)
+      .roundedRect(sx, sy, 230, 170, 8)
       .fillAndStroke("#f9fafb", "#e5e7eb");
 
     pdf.font("Inter-Bold").text("GST Summary", sx + 15, sy + 12);
@@ -342,7 +333,7 @@ export async function GET(req, { params }) {
     summary.forEach(([k, v]) => {
       pdf.font("Inter").fontSize(9);
       pdf.text(k, sx + 15, sy);
-      pdf.text(money(v), sx + 140, sy);
+      pdf.text(money(v), sx + 150, sy);
       sy += 18;
     });
 
@@ -352,23 +343,32 @@ export async function GET(req, { params }) {
       .fillColor("#16a34a")
       .text("Grand Total", sx + 15, sy + 10);
 
-    pdf.text(money(order.billing?.grandTotal), sx + 140, sy + 10);
+    pdf.text(money(order.billing?.grandTotal), sx + 150, sy + 10);
+
+    /* ================= THANK YOU ================= */
+
+    pdf
+      .font("Inter-Bold")
+      .fontSize(12)
+      .fillColor("#111827")
+      .text(
+        "Thank You for Your Business!",
+        0,
+        PAGE_HEIGHT - 80,
+        { width: 595, align: "center" }
+      );
 
     /* ================= FOOTER ================= */
-
-    const fy = PAGE_HEIGHT - FOOTER_HEIGHT;
-
-    line(pdf, fy);
 
     pdf
       .font("Inter")
       .fontSize(8)
       .fillColor("#6b7280")
       .text(
-        "ERP Certified Invoice | System Generated | No Signature Required",
+        "This is a system-generated invoice. All transactions are subject to verification and applicable GST laws.",
         40,
-        fy + 10,
-        { width: 500, align: "center" }
+        PAGE_HEIGHT - 60,
+        { width: 515, align: "center" }
       );
 
     pdf.end();
