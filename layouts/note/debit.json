@@ -1,0 +1,27 @@
+{
+  "id": "DN_V1",
+  "type": "DEBIT_NOTE",
+
+  "header": {
+    "title": "DEBIT NOTE",
+    "showCompany": true
+  },
+
+  "reference": {
+    "showOriginalInvoice": true
+  },
+
+  "items": {
+    "enabled": true,
+    "columns": ["sl", "name", "qty", "rate", "adjustment", "total"]
+  },
+
+  "summary": {
+    "enabled": true,
+    "fields": ["additionalCharge", "grandTotal"]
+  },
+
+  "footer": {
+    "text": "Debit note issued for additional charges or corrections."
+  }
+}
