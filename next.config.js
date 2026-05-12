@@ -3,7 +3,7 @@
 const nextConfig = {
   reactStrictMode: true,
 
-    serverExternalPackages: ["pdfkit"],
+  serverExternalPackages: ["pdfkit"],
 
   webpack: (config) => {
     config.resolve.alias.canvas = false;
