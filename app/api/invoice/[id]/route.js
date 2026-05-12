@@ -14,6 +14,8 @@ import path from "path";
 import crypto from "crypto";
 import QRCode from "qrcode";
 
+const getPageHeight = (pdf) => pdf.page.height;
+
 /* ================= CONFIG ================= */
 
 const PAGE_TOP = 40;
@@ -361,7 +363,7 @@ export async function GET(req, { params }) {
       .text(
         "Thank You for Your Business!",
         0,
-        PAGE_HEIGHT - 80,
+        pdf.page.height,
         { width: 595, align: "center" }
       );
 
@@ -374,7 +376,7 @@ export async function GET(req, { params }) {
       .text(
         "This invoice is system generated and valid without signature verification.",
         40,
-        PAGE_HEIGHT - 60,
+        pdf.page.height,
         { width: 515, align: "center" }
       );
 
