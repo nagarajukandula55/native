@@ -1,0 +1,50 @@
+{
+  "id": "INV_B2C_V1",
+  "type": "B2C_INVOICE",
+
+  "header": {
+    "showLogo": true,
+    "showCompany": true,
+    "showTagline": true,
+    "defaultTagline": "Eat Healthy, Stay Healthy"
+  },
+
+  "invoiceBox": {
+    "title": "TAX INVOICE",
+    "fields": [
+      { "key": "invoice.invoiceNumber", "label": "Invoice No" },
+      { "key": "invoice.generatedAt", "label": "Date" }
+    ]
+  },
+
+  "parties": {
+    "billTo": true,
+    "shipTo": false,
+    "payment": true
+  },
+
+  "items": {
+    "enabled": true,
+    "columns": ["sl", "name", "qty", "rate", "gst", "total"],
+    "showTotalRow": true,
+    "showItemCount": true
+  },
+
+  "summary": {
+    "enabled": true,
+    "fields": [
+      "taxable",
+      "cgst",
+      "sgst",
+      "grandTotal"
+    ]
+  },
+
+  "qr": { "enabled": true },
+  "signature": { "enabled": true },
+
+  "footer": {
+    "enabled": true,
+    "text": "Thank you for shopping with us!"
+  }
+}
