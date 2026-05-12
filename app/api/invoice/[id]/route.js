@@ -256,7 +256,7 @@ export async function GET(req, { params }) {
     draw(`For ${company.companyName}`, 150, 105, 10, true);
     draw(`Hash: ${hash}`, 150, 90, 8);
 
-    /* ================= FOOTER ================= */
+    /* ================= FOOTER ================== */
 
     draw(
       "This is a system generated invoice and valid without signature verification.",
