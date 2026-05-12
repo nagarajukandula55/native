@@ -14,13 +14,12 @@ import path from "path";
 import crypto from "crypto";
 import QRCode from "qrcode";
 
-/* ================= CONSTANTS ================= */
-
-const PAGE_WIDTH = 595;
-const PAGE_HEIGHT = 842;
+/* ================= CONFIG ================= */
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+
+const PAGE_H = 842;
 
 /* ================= HELPERS ================= */
 
@@ -28,20 +27,19 @@ const money = (n) => `₹${Number(n || 0).toFixed(2)}`;
 
 const safe = (v) => (v ? String(v) : "-");
 
-const hashInvoice = (order, invoiceNumber) =>
+const hashInvoice = (order, inv) =>
   crypto
     .createHash("sha256")
-    .update(`${order.orderId}-${invoiceNumber}-${order.createdAt}`)
+    .update(`${order.orderId}-${inv}-${order.createdAt}`)
     .digest("hex")
     .slice(0, 20)
     .toUpperCase();
 
-const generateQR = async (payload) =>
-  QRCode.toBuffer(JSON.stringify(payload), {
+const qr = async (data) =>
+  QRCode.toBuffer(JSON.stringify(data), {
     type: "png",
     errorCorrectionLevel: "H",
-    margin: 1,
-    scale: 6,
+    scale: 5,
   });
 
 /* ================= API ================= */
@@ -50,14 +48,12 @@ export async function GET(req, { params }) {
   try {
     await dbConnect();
 
-    const { id } = params;
-
-    const order = await Order.findOne({ orderId: id }).lean();
+    const order = await Order.findOne({ orderId: params.id }).lean();
     const company = await CompanySettings.findOne().lean();
 
     if (!order || !company) {
       return NextResponse.json(
-        { success: false, message: "Missing Data" },
+        { success: false, message: "Missing data" },
         { status: 404 }
       );
     }
@@ -86,16 +82,16 @@ export async function GET(req, { params }) {
     }
 
     const gst = calculateGSTSummary(order, company.state || "");
-    const invoiceHash = hashInvoice(order, invoiceNumber);
+    const hash = hashInvoice(order, invoiceNumber);
 
-    const qrBuffer = await generateQR({
+    const qrBuffer = await qr({
       invoice: invoiceNumber,
       orderId: order.orderId,
-      amount: order?.billing?.grandTotal || 0,
-      hash: invoiceHash,
+      amount: order.billing?.grandTotal,
+      hash,
     });
 
-    /* ================= PDF ================= */
+    /* ================= PDF INIT ================= */
 
     const pdf = createPDF();
     const chunks = [];
@@ -108,60 +104,55 @@ export async function GET(req, { params }) {
 
     let y = 40;
 
-    const line = () => {
-      pdf
-        .strokeColor("#e5e7eb")
-        .lineWidth(1)
-        .moveTo(40, y)
-        .lineTo(555, y)
-        .stroke();
+    const check = (h = 30) => {
+      if (y + h > 780) {
+        pdf.addPage();
+        y = 40;
+      }
     };
 
-    /* ================= HEADER ROW (ERP STRIP) ================= */
+    /* ================= HEADER STRIP ================= */
 
-    const logoPath = company.logoUrl
+    const logo = company.logoUrl
       ? path.join(process.cwd(), "public", company.logoUrl)
       : null;
 
-    // LEFT: LOGO
-    if (logoPath && fs.existsSync(logoPath)) {
-      pdf.image(logoPath, 40, y, { width: 60 });
+    // LOGO
+    if (logo && fs.existsSync(logo)) {
+      pdf.image(logo, 40, y, { width: 55 });
     }
 
-    // CENTER: COMPANY
-    pdf.font("Helvetica-Bold").fontSize(16).text(company.companyName, 110, y);
+    // COMPANY
+    pdf.font("B").fontSize(16).text(company.companyName, 110, y);
 
-    pdf.font("Helvetica").fontSize(9).text(
+    pdf.font("R").fontSize(9).text(
       company.tagline || "Eat Healthy, Stay Healthy",
       110,
       y + 18
     );
 
-    // RIGHT: INVOICE
-    pdf
-      .font("Helvetica-Bold")
-      .fontSize(12)
-      .text("TAX INVOICE", 420, y);
+    // INVOICE
+    pdf.font("B").fontSize(11).text("TAX INVOICE", 420, y);
 
-    pdf
-      .font("Helvetica")
-      .fontSize(9)
-      .text(`No: ${invoiceNumber}`, 420, y + 18);
+    pdf.font("R").fontSize(9).text(invoiceNumber, 420, y + 18);
 
     y += 60;
-    line();
+
+    pdf.moveTo(40, y).lineTo(555, y).stroke();
     y += 15;
 
-    /* ================= BILL / SHIP / PAYMENT ================= */
+    /* ================= ADDRESS BLOCK ================= */
 
     const block = (x, title, data) => {
-      pdf.font("Helvetica-Bold").fontSize(10).text(title, x, y);
+      check(80);
+
+      pdf.font("B").fontSize(10).text(title, x, y);
 
       let yy = y + 15;
 
       data.forEach((d) => {
-        pdf.font("Helvetica").fontSize(9).text(safe(d), x, yy);
-        yy += 14;
+        pdf.font("R").fontSize(9).text(safe(d), x, yy);
+        yy += 13;
       });
     };
 
@@ -188,8 +179,9 @@ export async function GET(req, { params }) {
       order.payment?.transactionId,
     ]);
 
-    y += 95;
-    line();
+    y += 100;
+
+    pdf.moveTo(40, y).lineTo(555, y).stroke();
     y += 15;
 
     /* ================= ITEMS TABLE ================= */
@@ -199,23 +191,26 @@ export async function GET(req, { params }) {
     const headers = ["#", "Item", "Qty", "Rate", "GST", "Total"];
     const xs = [45, 70, 260, 320, 380, 470];
 
-    pdf.font("Helvetica-Bold").fontSize(9);
+    check(30);
 
     pdf.rect(40, y, 515, 20).fill("#111827");
+
+    pdf.font("B").fontSize(9);
 
     headers.forEach((h, i) => {
       pdf.fillColor("#fff").text(h, xs[i], y + 6);
     });
 
-    y += 25;
+    y += 28;
 
-    let itemTotal = 0;
+    let totalItems = 0;
 
     pdf.fillColor("#000");
 
     items.forEach((it, i) => {
-      const total = it?.total || 0;
-      itemTotal += total;
+      check(25);
+
+      totalItems += it?.total || 0;
 
       pdf.rect(40, y - 3, 515, 22).stroke("#e5e7eb");
 
@@ -225,48 +220,48 @@ export async function GET(req, { params }) {
         it?.qty,
         money(it?.price),
         `${it?.gstPercent || 0}%`,
-        money(total),
+        money(it?.total),
       ];
 
-      pdf.font("Helvetica").fontSize(9);
+      pdf.font("R").fontSize(9);
 
-      row.forEach((v, j) =>
-        pdf.text(String(v), xs[j], y + 3)
-      );
+      row.forEach((v, j) => pdf.text(String(v), xs[j], y + 3));
 
       y += 24;
     });
 
     y += 10;
-    pdf.font("Helvetica-Bold").text(`Items: ${items.length}`, 40, y);
-    pdf.text(`Total: ${money(itemTotal)}`, 450, y);
 
-    y += 30;
+    pdf.font("B").text(`Items Total: ${money(totalItems)}`, 40, y);
+
+    y += 40;
 
     /* ================= SUMMARY ================= */
-
-    const summary = calculateGSTSummary(order, company.state || "");
 
     const sx = 330;
     let sy = y;
 
-    pdf.roundedRect(sx, sy, 230, 140).fillAndStroke("#f9fafb", "#e5e7eb");
+    const summary = calculateGSTSummary(order, company.state || "");
 
-    pdf.font("Helvetica-Bold").text("GST Summary", sx + 15, sy + 12);
-
-    sy += 30;
-
-    [
+    const rows = [
       ["Taxable", summary.taxable],
       ["CGST", summary.cgst],
       ["SGST", summary.sgst],
       ["IGST", summary.igst],
       ["Discount", order.billing?.discount],
       ["Grand Total", order.billing?.grandTotal],
-    ].forEach(([k, v]) => {
-      pdf.font("Helvetica").fontSize(9);
+    ];
+
+    pdf.roundedRect(sx, sy, 230, 150).fillAndStroke("#f9fafb", "#e5e7eb");
+
+    pdf.font("B").text("GST Summary", sx + 15, sy + 12);
+
+    sy += 30;
+
+    rows.forEach(([k, v]) => {
+      pdf.font("R").fontSize(9);
       pdf.text(k, sx + 15, sy);
-      pdf.text(money(v), sx + 140, sy);
+      pdf.text(money(v), sx + 150, sy);
       sy += 18;
     });
 
@@ -274,36 +269,30 @@ export async function GET(req, { params }) {
 
     const baseY = sy + 30;
 
-    // QR LEFT
+    // QR
     pdf.image(qrBuffer, 40, baseY, { width: 70 });
 
-    // SIGN CENTER
-    const signPath = path.join(process.cwd(), "public/signature.png");
+    // SIGNATURE (aligned horizontally)
+    const sign = path.join(process.cwd(), "public/signature.png");
 
-    pdf.font("Helvetica-Bold").text(
-      `For ${company.companyName}`,
-      150,
-      baseY
-    );
+    pdf.font("B").text(`For ${company.companyName}`, 150, baseY);
 
-    if (fs.existsSync(signPath)) {
-      pdf.image(signPath, 150, baseY + 15, { width: 90 });
+    if (fs.existsSync(sign)) {
+      pdf.image(sign, 150, baseY + 15, { width: 90 });
     }
 
-    /* ================= FOOTER (FIXED INSIDE PAGE) ================= */
+    /* ================= FOOTER (LOCKED INSIDE PAGE) ================= */
 
-    const footerY = PAGE_HEIGHT - 60;
+    const footerY = PAGE_H - 60;
 
-    pdf
-      .font("Helvetica")
-      .fontSize(8)
-      .fillColor("#6b7280")
-      .text(
-        "This is a system generated invoice. No physical signature required.",
-        40,
-        footerY,
-        { width: 515, align: "center" }
-      );
+    pdf.font("R").fontSize(8).fillColor("#6b7280");
+
+    pdf.text(
+      "This is a system generated invoice and is valid without signature verification.",
+      40,
+      footerY,
+      { width: 515, align: "center" }
+    );
 
     pdf.end();
 
