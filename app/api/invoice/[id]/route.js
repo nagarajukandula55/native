@@ -5,10 +5,10 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db";
 import Order from "@/models/Order";
 import CompanySettings from "@/models/CompanySettings";
-import { createPDF } from "@/lib/pdfSetup";
 import { calculateGSTSummary } from "@/lib/gst";
 import { generateInvoiceNumber } from "@/lib/invoiceNumber";
 
+import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
@@ -17,10 +17,7 @@ import QRCode from "qrcode";
 /* ================= CONFIG ================= */
 
 const PAGE_H = 842;
-const FOOTER_Y = 780;
-
 const money = (n) => `₹${Number(n || 0).toFixed(2)}`;
-
 const safe = (v) => (v ? String(v) : "-");
 
 const hashInvoice = (order, inv) =>
@@ -54,7 +51,7 @@ export async function GET(req, { params }) {
       );
     }
 
-    /* ================= INVOICE ================= */
+    /* ================= INVOICE NUMBER ================= */
 
     let invoiceNumber = order?.invoice?.invoiceNumber;
 
@@ -87,67 +84,89 @@ export async function GET(req, { params }) {
       hash,
     });
 
-    /* ================= PDF ================= */
+    /* ================= PDF INIT ================= */
 
-    const pdf = createPDF();
-    const chunks = [];
+    const pdf = await PDFDocument.create();
+    const page = pdf.addPage([595, PAGE_H]);
 
-    pdf.on("data", (c) => chunks.push(c));
+    const font = await pdf.embedFont(StandardFonts.Helvetica);
+    const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
 
-    const bufferPromise = new Promise((res) =>
-      pdf.on("end", () => res(Buffer.concat(chunks)))
-    );
+    const qrImg = await pdf.embedPng(qrBuffer);
 
-    let y = 40;
+    const signPath = path.join(process.cwd(), "public/signature.png");
+    const signImg = fs.existsSync(signPath)
+      ? await pdf.embedPng(fs.readFileSync(signPath))
+      : null;
 
-    const check = (h = 40) => {
-      if (y + h > FOOTER_Y - 120) {
-        pdf.addPage();
-        y = 40;
-      }
-    };
-
-    /* ================= HEADER ================= */
-
-    const logo = company.logoUrl
+    const logoPath = company.logoUrl
       ? path.join(process.cwd(), "public", company.logoUrl)
       : null;
 
-    if (logo && fs.existsSync(logo)) {
-      pdf.image(logo, 40, y, { width: 55 });
-    }
+    const logoImg =
+      logoPath && fs.existsSync(logoPath)
+        ? await pdf.embedPng(fs.readFileSync(logoPath))
+        : null;
 
-    pdf.font("BOLD").fontSize(16).text(company.companyName, 110, y);
+    let y = 800;
 
-    pdf
-      .font("REG")
-      .fontSize(9)
-      .text(company.tagline || "Eat Healthy, Stay Healthy", 110, y + 18);
-
-    pdf.font("BOLD").text("TAX INVOICE", 420, y);
-
-    pdf.font("REG").text(invoiceNumber, 420, y + 18);
-
-    y += 60;
-    pdf.moveTo(40, y).lineTo(555, y).stroke();
-    y += 20;
-
-    /* ================= ADDRESS BLOCK ================= */
-
-    const block = (x, title, data) => {
-      check(90);
-
-      pdf.font("BOLD").fontSize(10).text(title, x, y);
-
-      let yy = y + 16;
-
-      data.forEach((d) => {
-        pdf.font("REG").fontSize(9).text(safe(d), x, yy);
-        yy += 13;
+    const text = (t, x, size = 10, isBold = false) => {
+      page.drawText(String(t || "-"), {
+        x,
+        y,
+        size,
+        font: isBold ? bold : font,
+        color: rgb(0, 0, 0),
       });
     };
 
-    block(40, "Bill To", [
+    const line = (yy) =>
+      page.drawLine({
+        start: { x: 40, y: yy },
+        end: { x: 555, y: yy },
+        thickness: 1,
+        color: rgb(0.85, 0.85, 0.85),
+      });
+
+    /* ================= HEADER ================= */
+
+    if (logoImg) {
+      page.drawImage(logoImg, {
+        x: 40,
+        y: 760,
+        width: 50,
+        height: 50,
+      });
+    }
+
+    text(company.companyName, 110, 16, true);
+    text(company.tagline || "Eat Healthy, Stay Healthy", 110, 10);
+
+    text("TAX INVOICE", 420, 12, true);
+    text(invoiceNumber, 420, 10);
+
+    line(740);
+
+    /* ================= ADDRESS ================= */
+
+    const addrY = 700;
+
+    const drawBlock = (title, x, rows) => {
+      text(title, x, 11, true);
+      let yy = addrY;
+
+      rows.forEach((r) => {
+        page.drawText(safe(r), {
+          x,
+          y: yy,
+          font,
+          size: 9,
+        });
+        yy -= 14;
+      });
+    };
+
+    drawBlock(40, "Bill To", [
       order.address?.name,
       order.address?.phone,
       order.address?.address,
@@ -155,7 +174,7 @@ export async function GET(req, { params }) {
       order.address?.state,
     ]);
 
-    block(200, "Ship To", [
+    drawBlock(200, "Ship To", [
       order.address?.name,
       order.address?.phone,
       order.address?.address,
@@ -163,131 +182,101 @@ export async function GET(req, { params }) {
       order.address?.state,
     ]);
 
-    block(360, "Payment", [
+    drawBlock(360, "Payment", [
       order.payment?.method,
       order.payment?.status,
       money(order.payment?.amountPaid),
       order.payment?.transactionId,
     ]);
 
-    y += 110;
-
-    pdf.moveTo(40, y).lineTo(555, y).stroke();
-    y += 15;
-
     /* ================= ITEMS ================= */
 
+    let itemY = 520;
+
     const items = order.items || [];
+    let totalItems = 0;
 
-    const headers = ["#", "Item", "Qty", "Rate", "GST", "Total"];
-    const xs = [45, 70, 260, 320, 390, 480];
-
-    check(40);
-
-    pdf.rect(40, y, 515, 22).fill("#111827");
-
-    pdf.font("BOLD").fontSize(9);
-
-    headers.forEach((h, i) => {
-      pdf.fillColor("#fff").text(h, xs[i], y + 6);
-    });
-
-    y += 30;
-
-    let itemTotal = 0;
-
-    pdf.fillColor("#000");
+    text("# Item Qty Rate GST Total", 40, 10, true);
+    itemY -= 25;
 
     items.forEach((it, i) => {
-      check(25);
+      totalItems += it.total || 0;
 
-      itemTotal += it?.total || 0;
+      const row = `${i + 1} ${it.name} ${it.qty} ${money(
+        it.price
+      )} ${it.gstPercent || 0}% ${money(it.total)}`;
 
-      pdf.rect(40, y - 2, 515, 22).stroke("#e5e7eb");
+      page.drawText(row, { x: 40, y: itemY, font, size: 9 });
 
-      const row = [
-        i + 1,
-        it?.name,
-        it?.qty,
-        money(it?.price),
-        `${it?.gstPercent || 0}%`,
-        money(it?.total),
-      ];
-
-      pdf.font("REG").fontSize(9);
-
-      row.forEach((v, j) => pdf.text(String(v), xs[j], y + 4));
-
-      y += 24;
+      itemY -= 15;
     });
 
-    y += 10;
-
-    pdf.font("BOLD").text(`Items Total: ${money(itemTotal)}`, 40, y);
-
-    y += 40;
+    text(`Items Total: ${money(totalItems)}`, 40, 11, true);
 
     /* ================= SUMMARY ================= */
 
     const sx = 330;
-    let sy = y;
-
-    const summary = gst;
+    let sy = itemY;
 
     const rows = [
-      ["Taxable", summary.taxable],
-      ["CGST", summary.cgst],
-      ["SGST", summary.sgst],
-      ["IGST", summary.igst],
+      ["Taxable", gst.taxable],
+      ["CGST", gst.cgst],
+      ["SGST", gst.sgst],
+      ["IGST", gst.igst],
       ["Discount", order.billing?.discount],
       ["Grand Total", order.billing?.grandTotal],
     ];
 
-    pdf
-      .roundedRect(sx, sy, 230, 150)
-      .fillAndStroke("#f9fafb", "#e5e7eb");
-
-    pdf.font("BOLD").text("GST Summary", sx + 15, sy + 12);
-
-    sy += 30;
-
-    rows.forEach(([k, v]) => {
-      pdf.font("REG").fontSize(9);
-      pdf.text(k, sx + 15, sy);
-      pdf.text(money(v), sx + 150, sy);
-      sy += 18;
+    page.drawRectangle({
+      x: sx,
+      y: sy - 120,
+      width: 230,
+      height: 140,
+      color: rgb(0.97, 0.97, 0.97),
     });
 
-    /* ================= QR + SIGNATURE ================= */
+    text("GST Summary", sx + 15, 11, true);
 
-    const baseY = sy + 40;
+    sy -= 30;
 
-    pdf.image(qrBuffer, 40, baseY, { width: 70 });
+    rows.forEach(([k, v]) => {
+      page.drawText(k, { x: sx + 15, y: sy, font, size: 9 });
+      page.drawText(money(v), { x: sx + 150, y: sy, font, size: 9 });
+      sy -= 15;
+    });
 
-    const sign = path.join(process.cwd(), "public/signature.png");
+    /* ================= QR + SIGN ================= */
 
-    pdf.font("BOLD").text(`For ${company.companyName}`, 150, baseY);
+    page.drawImage(qrImg, {
+      x: 40,
+      y: 120,
+      width: 70,
+      height: 70,
+    });
 
-    if (fs.existsSync(sign)) {
-      pdf.image(sign, 150, baseY + 15, { width: 90 });
+    if (signImg) {
+      page.drawImage(signImg, {
+        x: 150,
+        y: 120,
+        width: 90,
+        height: 40,
+      });
     }
 
-    /* ================= FOOTER (LOCKED) ================= */
+    text(`For ${company.companyName}`, 150, 10, true);
+    text(`Hash: ${hash}`, 150, 8);
 
-    pdf.font("REG").fontSize(8).fillColor("#6b7280");
+    /* ================= FOOTER ================= */
 
-    pdf.text(
-      "This is a system generated invoice and is valid without signature verification.",
+    text(
+      "This is a system generated invoice and valid without signature verification.",
       40,
-      FOOTER_Y,
-      { width: 515, align: "center" }
+      8
     );
 
-    pdf.end();
+    const pdfBytes = await pdf.save();
 
-    const buffer = await bufferPromise;
-
-    return new NextResponse(buffer, {
+    return new NextResponse(pdfBytes, {
       headers: {
         "Content-Type": "application/pdf",
         "Content-Disposition": `inline; filename=${invoiceNumber}.pdf`,
