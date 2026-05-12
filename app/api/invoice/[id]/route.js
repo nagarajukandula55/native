@@ -56,7 +56,6 @@ export async function GET(req, { params }) {
     const { id } = params;
 
     const order = await Order.findOne({ orderId: id }).lean();
-
     if (!order) {
       return NextResponse.json(
         { success: false, message: "Order not found" },
@@ -65,7 +64,6 @@ export async function GET(req, { params }) {
     }
 
     const company = await CompanySettings.findOne().lean();
-
     if (!company) {
       return NextResponse.json(
         { success: false, message: "Company settings missing" },
@@ -111,123 +109,121 @@ export async function GET(req, { params }) {
 
     pdf.on("data", (c) => chunks.push(c));
 
-    /* ================= WATERMARK ================= */
+    /* WATERMARK */
     pdf.save();
     pdf.rotate(-35, { origin: [300, 400] });
 
     pdf
-      .opacity(0.09)
+      .opacity(0.08)
       .font("Inter-Bold")
-      .fontSize(72)
-      .fillColor("#d1d5db")
-      .text(company?.companyName || "NATIVE", 50, 340, {
+      .fontSize(70)
+      .fillColor("#e5e7eb")
+      .text(company?.companyName || "NATIVE", 50, 350, {
         width: 500,
         align: "center",
       });
 
     if (company?.tagline) {
       pdf
-        .opacity(0.06)
+        .opacity(0.05)
         .font("Inter")
-        .fontSize(20)
-        .fillColor("#e5e7eb")
-        .text(company.tagline, 100, 425, {
-          width: 400,
+        .fontSize(18)
+        .fillColor("#f3f4f6")
+        .text(company.tagline, 110, 430, {
+          width: 380,
           align: "center",
         });
     }
 
     pdf.restore();
 
-    /* ================= LOGO ================= */
+    /* LOGO */
     if (company?.logoUrl) {
-      try {
-        const logoPath = path.join(
-          process.cwd(),
-          "public",
-          company.logoUrl.replace(/^\/+/, "")
-        );
+      const logoPath = path.join(
+        process.cwd(),
+        "public",
+        company.logoUrl.replace(/^\/+/, "")
+      );
 
-        if (fs.existsSync(logoPath)) {
-          pdf.image(logoPath, 40, 35, { width: 62 });
-        }
-      } catch {}
+      if (fs.existsSync(logoPath)) {
+        pdf.image(logoPath, 40, 35, { width: 62 });
+      }
     }
 
-    /* ================= COMPANY HEADER ================= */
+    /* HEADER */
     pdf.font("Inter-Bold").fontSize(22).fillColor("#111827")
-      .text(company?.companyName || "COMPANY", 118, 38);
-
-    pdf.font("Inter").fontSize(11).fillColor("#4b5563")
-      .text(company?.tagline || "", 118, 64);
+      .text(company?.companyName || "COMPANY", 118, 36);
 
     pdf.font("Inter").fontSize(10).fillColor("#6b7280")
-      .text(company?.addressLine1 || "", 118, 88);
+      .text(company?.tagline || "", 118, 62);
 
-    pdf.text(`City: ${company?.city || ""}`, 118, 104);
-    pdf.text(`State: ${company?.state || ""}`, 118, 118);
-    pdf.text(`PIN Code: ${company?.pincode || ""}`, 118, 132);
-    pdf.text(`GSTIN: ${company?.gstin || "-"}`, 118, 146);
-    pdf.text(`Phone: ${company?.phone || "-"}`, 118, 160);
-    pdf.text(`Email: ${company?.email || "-"}`, 118, 174);
+    pdf.text(company?.addressLine1 || "", 118, 82);
+    pdf.text(`City: ${company?.city || ""}`, 118, 98);
+    pdf.text(`State: ${company?.state || ""}`, 118, 112);
+    pdf.text(`PIN Code: ${company?.pincode || ""}`, 118, 126);
+    pdf.text(`GSTIN: ${company?.gstin || "-"}`, 118, 140);
+    pdf.text(`Phone: ${company?.phone || "-"}`, 118, 154);
+    pdf.text(`Email: ${company?.email || "-"}`, 118, 168);
 
-    /* ================= TAX BOX ================= */
+    /* INVOICE BOX */
     pdf.roundedRect(360, 35, 195, 150, 10)
       .fillAndStroke("#f9fafb", "#d1d5db");
 
-    pdf.font("Inter-Bold").fontSize(17).fillColor("#111827")
-      .text("TAX INVOICE", 382, 52);
+    pdf.font("Inter-Bold").fontSize(18).fillColor("#111827")
+      .text("TAX INVOICE", 382, 50);
 
-    pdf.font("Inter").fontSize(10).fillColor("#374151");
+    pdf.font("Inter").fontSize(9).fillColor("#374151");
 
-    pdf.text(`Invoice No: ${invoiceNumber}`, 382, 92);
-    pdf.text(
-      `Invoice Date: ${new Date(order.createdAt).toLocaleDateString()}`,
-      382,
-      112
-    );
-    pdf.text(`Order ID: ${order.orderId}`, 382, 132);
+    pdf.text(`Invoice No:`, 382, 92);
+    pdf.text(invoiceNumber, 382, 106);
 
-    line(pdf, 205);
+    pdf.text(`Invoice Date:`, 382, 126);
+    pdf.text(new Date(order.createdAt).toLocaleDateString(), 382, 140);
 
-    /* ================= BILL / SHIP / PAYMENT ================= */
-    const top = 220;
+    pdf.text(`Order ID:`, 382, 160);
+    pdf.text(order.orderId, 382, 174);
 
-    pdf.font("Inter-Bold").fontSize(11).text("Bill To", 40, top);
-    pdf.font("Inter").fontSize(9);
+    line(pdf, 200);
 
-    pdf.text(order.address?.name || "-", 40, top + 20);
-    pdf.text(order.address?.phone || "-", 40, top + 34);
-    pdf.text(order.address?.address || "-", 40, top + 48, { width: 150 });
-    pdf.text(`City: ${order.address?.city || ""}`, 40, top + 88);
-    pdf.text(`State: ${order.address?.state || ""}`, 40, top + 102);
-    pdf.text(`PIN: ${order.address?.pincode || ""}`, 40, top + 116);
-    pdf.text(order.address?.email || "-", 40, top + 130);
+    /* BILL / SHIP / PAYMENT */
+    const top = 215;
 
-    pdf.font("Inter-Bold").text("Ship To", 220, top);
-    pdf.font("Inter");
+    const drawAddress = (x, title) => {
+      pdf.font("Inter-Bold").fontSize(11).text(title, x, top);
+      pdf.font("Inter").fontSize(9);
 
-    pdf.text(order.address?.name || "-", 220, top + 20);
-    pdf.text(order.address?.phone || "-", 220, top + 34);
-    pdf.text(order.address?.address || "-", 220, top + 48, { width: 150 });
-    pdf.text(`City: ${order.address?.city || ""}`, 220, top + 88);
-    pdf.text(`State: ${order.address?.state || ""}`, 220, top + 102);
-    pdf.text(`PIN: ${order.address?.pincode || ""}`, 220, top + 116);
-    pdf.text(order.address?.email || "-", 220, top + 130);
+      let y = top + 18;
+
+      pdf.text(order.address?.name || "-", x, y); y += 14;
+      pdf.text(order.address?.phone || "-", x, y); y += 14;
+
+      if (order.address?.address?.trim()) {
+        pdf.text(order.address.address, x, y, { width: 150 });
+        y += 26;
+      }
+
+      pdf.text(`City: ${order.address?.city || "-"}`, x, y); y += 14;
+      pdf.text(`State: ${order.address?.state || "-"}`, x, y); y += 14;
+      pdf.text(`PIN: ${order.address?.pincode || "-"}`, x, y); y += 14;
+      pdf.text(order.address?.email || "-", x, y);
+    };
+
+    drawAddress(40, "Bill To");
+    drawAddress(220, "Ship To");
 
     pdf.font("Inter-Bold").text("Payment", 410, top);
     pdf.font("Inter");
 
-    pdf.text(`Method: ${order.payment?.method || "-"}`, 410, top + 20);
-    pdf.text(`Status: ${order.payment?.status || "-"}`, 410, top + 34);
-    pdf.text(`Paid: ${money(order.payment?.amountPaid)}`, 410, top + 48);
-    pdf.text(`Txn ID: ${order.payment?.transactionId || "-"}`, 410, top + 62);
-    pdf.text(`UTR: ${order.payment?.utr || "-"}`, 410, top + 76);
+    pdf.text(`Method: ${order.payment?.method || "-"}`, 410, top + 18);
+    pdf.text(`Status: ${order.payment?.status || "-"}`, 410, top + 32);
+    pdf.text(`Paid: ${money(order.payment?.amountPaid)}`, 410, top + 46);
+    pdf.text(`Txn ID: ${order.payment?.transactionId || "-"}`, 410, top + 60);
+    pdf.text(`UTR: ${order.payment?.utr || "-"}`, 410, top + 74);
 
-    line(pdf, 370);
+    line(pdf, 355);
 
-    /* ================= TABLE ================= */
-    let y = 385;
+    /* TABLE */
+    let y = 370;
 
     pdf.rect(40, y, 515, 28).fill("#111827");
 
@@ -263,15 +259,23 @@ export async function GET(req, { params }) {
       y += 32;
     });
 
-    /* ================= QR + SUMMARY ================= */
+    /* QR */
     const blockY = y + 20;
 
-    pdf.image(qrBuffer, 40, blockY, { width: 90 });
+    pdf.image(qrBuffer, 40, blockY, { width: 85 });
 
     pdf.fontSize(8).fillColor("#6b7280");
-    pdf.text(`Generated: ${new Date().toLocaleString()}`, 140, blockY + 10);
-    pdf.text(`Hash: ${invoiceHash}`, 140, blockY + 28, { width: 160 });
+    pdf.text(`Generated: ${new Date().toLocaleString()}`, 140, blockY + 8);
+    pdf.text(`Hash: ${invoiceHash}`, 140, blockY + 24, { width: 160 });
 
+    /* SIGNATURE IMAGE */
+    const signPath = path.join(process.cwd(), "public/signature.png");
+
+    if (fs.existsSync(signPath)) {
+      pdf.image(signPath, 150, blockY + 48, { width: 120 });
+    }
+
+    /* SUMMARY */
     pdf.roundedRect(325, blockY, 230, 170, 10)
       .fillAndStroke("#f9fafb", "#d1d5db");
 
@@ -299,44 +303,24 @@ export async function GET(req, { params }) {
     pdf.text("Grand Total", 340, blockY + 150);
     pdf.text(money(order.billing?.grandTotal), 450, blockY + 150);
 
-    /* ================= SIGNATURE ================= */
-    const footerY = blockY + 205;
+    /* FOOTER */
+    const footerY = blockY + 210;
 
-    if (company?.signatureUrl) {
-      try {
-        const signPath = path.join(
-          process.cwd(),
-          "public",
-          company.signatureUrl.replace(/^\/+/, "")
-        );
-
-        if (fs.existsSync(signPath)) {
-          pdf.image(signPath, 390, footerY - 55, { width: 110 });
-        }
-      } catch {}
-    }
-
-    /* ================= FOOTER ================= */
     line(pdf, footerY);
 
-    pdf.font("Inter-Bold").fontSize(10).fillColor("#111827")
-      .text(`For ${company?.companyName || "COMPANY"}`, 390, footerY - 10);
+    pdf.font("Inter-Bold")
+      .fontSize(10)
+      .fillColor("#111827")
+      .text(`For ${company?.companyName || "COMPANY"}`, 390, footerY - 22);
 
-    pdf.font("Inter").fontSize(9)
-      .text("Authorised Signatory", 390, footerY + 16);
+    pdf.font("Inter")
+      .fontSize(9)
+      .text("Authorised Signatory", 390, footerY - 6);
 
     pdf.font("Inter").fontSize(8).fillColor("#6b7280")
-      .text(
-        "Certified that the particulars given above are true and correct.",
-        40,
-        footerY + 12
-      );
+      .text("Certified that the particulars given above are true and correct.", 40, footerY + 12);
 
-    pdf.text(
-      "This is a computer-generated tax invoice.",
-      40,
-      footerY + 26
-    );
+    pdf.text("This is a computer-generated tax invoice.", 40, footerY + 26);
 
     pdf.font("Inter").fontSize(9).fillColor("#dc2626")
       .text("Thank You for Shopping with Native ❤️", 170, footerY + 52);
