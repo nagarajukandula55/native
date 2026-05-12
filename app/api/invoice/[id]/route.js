@@ -16,9 +16,12 @@ import QRCode from "qrcode";
 
 /* ================= CONFIG ================= */
 
-const PAGE_H = 842;
+const PAGE_HEIGHT = 842;
+
 const money = (n) => `₹${Number(n || 0).toFixed(2)}`;
-const safe = (v) => (v ? String(v) : "-");
+const safe = (v) => (v === undefined || v === null || v === "" ? "-" : String(v));
+
+const toNum = (v) => Number(v || 0);
 
 const hashInvoice = (order, inv) =>
   crypto
@@ -87,7 +90,7 @@ export async function GET(req, { params }) {
     /* ================= PDF INIT ================= */
 
     const pdf = await PDFDocument.create();
-    const page = pdf.addPage([595, PAGE_H]);
+    const page = pdf.addPage([595, PAGE_HEIGHT]);
 
     const font = await pdf.embedFont(StandardFonts.Helvetica);
     const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
@@ -95,9 +98,9 @@ export async function GET(req, { params }) {
     const qrImg = await pdf.embedPng(qrBuffer);
 
     const signPath = path.join(process.cwd(), "public/signature.png");
-    const signImg = fs.existsSync(signPath)
-      ? await pdf.embedPng(fs.readFileSync(signPath))
-      : null;
+    const signImg =
+      fs.existsSync(signPath) &&
+      (await pdf.embedPng(fs.readFileSync(signPath)));
 
     const logoPath = company.logoUrl
       ? path.join(process.cwd(), "public", company.logoUrl)
@@ -108,27 +111,30 @@ export async function GET(req, { params }) {
         ? await pdf.embedPng(fs.readFileSync(logoPath))
         : null;
 
-    let y = 800;
+    /* ================= DRAW HELPERS ================= */
 
-    const text = (t, x, size = 10, isBold = false) => {
-      page.drawText(String(t || "-"), {
-        x,
-        y,
+    const drawText = (text, x, y, size = 10, isBold = false) => {
+      page.drawText(safe(text), {
+        x: toNum(x),
+        y: toNum(y),
         size,
         font: isBold ? bold : font,
         color: rgb(0, 0, 0),
       });
     };
 
-    const line = (yy) =>
+    const line = (y) => {
       page.drawLine({
-        start: { x: 40, y: yy },
-        end: { x: 555, y: yy },
+        start: { x: 40, y: toNum(y) },
+        end: { x: 555, y: toNum(y) },
         thickness: 1,
         color: rgb(0.85, 0.85, 0.85),
       });
+    };
 
     /* ================= HEADER ================= */
+
+    let y = 800;
 
     if (logoImg) {
       page.drawImage(logoImg, {
@@ -139,34 +145,35 @@ export async function GET(req, { params }) {
       });
     }
 
-    text(company.companyName, 110, 16, true);
-    text(company.tagline || "Eat Healthy, Stay Healthy", 110, 10);
+    drawText(company.companyName, 110, y, 16, true);
+    drawText(
+      company.tagline || "Eat Healthy, Stay Healthy",
+      110,
+      y - 20,
+      10
+    );
 
-    text("TAX INVOICE", 420, 12, true);
-    text(invoiceNumber, 420, 10);
+    drawText("TAX INVOICE", 420, y, 12, true);
+    drawText(invoiceNumber, 420, y - 20, 10);
 
     line(740);
 
-    /* ================= ADDRESS ================= */
+    /* ================= ADDRESS BLOCK ================= */
 
-    const addrY = 700;
+    const addrY = 690;
 
-    const drawBlock = (title, x, rows) => {
-      text(title, x, 11, true);
-      let yy = addrY;
+    const block = (title, x, rows) => {
+      drawText(title, x, addrY, 11, true);
+
+      let yy = addrY - 18;
 
       rows.forEach((r) => {
-        page.drawText(safe(r), {
-          x,
-          y: yy,
-          font,
-          size: 9,
-        });
+        drawText(r, x, yy, 9);
         yy -= 14;
       });
     };
 
-    drawBlock(40, "Bill To", [
+    block(40, "Bill To", [
       order.address?.name,
       order.address?.phone,
       order.address?.address,
@@ -174,7 +181,7 @@ export async function GET(req, { params }) {
       order.address?.state,
     ]);
 
-    drawBlock(200, "Ship To", [
+    block(200, "Ship To", [
       order.address?.name,
       order.address?.phone,
       order.address?.address,
@@ -182,7 +189,7 @@ export async function GET(req, { params }) {
       order.address?.state,
     ]);
 
-    drawBlock(360, "Payment", [
+    block(360, "Payment", [
       order.payment?.method,
       order.payment?.status,
       money(order.payment?.amountPaid),
@@ -192,31 +199,30 @@ export async function GET(req, { params }) {
     /* ================= ITEMS ================= */
 
     let itemY = 520;
+    let itemTotal = 0;
 
-    const items = order.items || [];
-    let totalItems = 0;
+    drawText("# Item Qty Rate GST Total", 40, itemY, 10, true);
 
-    text("# Item Qty Rate GST Total", 40, 10, true);
     itemY -= 25;
 
-    items.forEach((it, i) => {
-      totalItems += it.total || 0;
+    (order.items || []).forEach((it, i) => {
+      itemTotal += it.total || 0;
 
       const row = `${i + 1} ${it.name} ${it.qty} ${money(
         it.price
       )} ${it.gstPercent || 0}% ${money(it.total)}`;
 
-      page.drawText(row, { x: 40, y: itemY, font, size: 9 });
+      drawText(row, 40, itemY, 9);
 
       itemY -= 15;
     });
 
-    text(`Items Total: ${money(totalItems)}`, 40, 11, true);
+    drawText(`Items Total: ${money(itemTotal)}`, 40, itemY - 10, 11, true);
 
     /* ================= SUMMARY ================= */
 
     const sx = 330;
-    let sy = itemY;
+    let sy = itemY - 40;
 
     const rows = [
       ["Taxable", gst.taxable],
@@ -229,19 +235,19 @@ export async function GET(req, { params }) {
 
     page.drawRectangle({
       x: sx,
-      y: sy - 120,
+      y: sy - 110,
       width: 230,
       height: 140,
       color: rgb(0.97, 0.97, 0.97),
     });
 
-    text("GST Summary", sx + 15, 11, true);
+    drawText("GST Summary", sx + 15, sy, 11, true);
 
-    sy -= 30;
+    sy -= 25;
 
     rows.forEach(([k, v]) => {
-      page.drawText(k, { x: sx + 15, y: sy, font, size: 9 });
-      page.drawText(money(v), { x: sx + 150, y: sy, font, size: 9 });
+      drawText(k, sx + 15, sy, 9);
+      drawText(money(v), sx + 150, sy, 9);
       sy -= 15;
     });
 
@@ -263,14 +269,15 @@ export async function GET(req, { params }) {
       });
     }
 
-    text(`For ${company.companyName}`, 150, 10, true);
-    text(`Hash: ${hash}`, 150, 8);
+    drawText(`For ${company.companyName}`, 150, 100, 10, true);
+    drawText(`Hash: ${hash}`, 150, 85, 8);
 
     /* ================= FOOTER ================= */
 
-    text(
+    drawText(
       "This is a system generated invoice and valid without signature verification.",
       40,
+      30,
       8
     );
 
