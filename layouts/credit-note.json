@@ -1,0 +1,12 @@
+{
+  "type": "CREDIT_NOTE",
+  "header_label": "CREDIT NOTE",
+  "sections": [
+    "header",
+    "reference_invoice",
+    "customer",
+    "items",
+    "adjustment_summary",
+    "footer"
+  ]
+}
