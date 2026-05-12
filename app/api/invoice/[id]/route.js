@@ -14,21 +14,29 @@ import path from "path";
 import crypto from "crypto";
 import QRCode from "qrcode";
 
-/* ================= CONFIG ================= */
+/* ================= ERP V8 CONFIG ================= */
 
-const PAGE_H = 842;
-const PAGE_W = 595;
+const PAGE = {
+  w: 595,
+  h: 842,
+  margin: 40,
+};
 
-const num = (v) => {
+const LAYOUT = {
+  lineGap: 14,
+  sectionGap: 18,
+};
+
+const N = (v) => {
   const n = Number(v);
-  return isNaN(n) ? 0 : n;
+  return Number.isFinite(n) ? n : 0;
 };
 
 const safe = (v) =>
   v === undefined || v === null || v === "" ? "-" : String(v);
 
 const money = (v) =>
-  `INR ${num(v).toLocaleString("en-IN", {
+  `₹${N(v).toLocaleString("en-IN", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
@@ -48,7 +56,7 @@ const qr = async (data) =>
     scale: 5,
   });
 
-/* ================= API ================= */
+/* ================= MAIN API ================= */
 
 export async function GET(req, { params }) {
   try {
@@ -64,7 +72,7 @@ export async function GET(req, { params }) {
       );
     }
 
-    /* ================= INVOICE ================= */
+    /* ================= INVOICE NUMBER ================= */
 
     let invoiceNumber = order?.invoice?.invoiceNumber;
 
@@ -87,20 +95,20 @@ export async function GET(req, { params }) {
       );
     }
 
-    const gst = calculateGSTSummary(order, company.state || {});
+    const gst = calculateGSTSummary(order, company.state || "");
     const hash = hashInvoice(order, invoiceNumber);
 
     const qrBuffer = await qr({
       invoice: invoiceNumber,
       orderId: order.orderId,
-      amount: num(order.billing?.grandTotal),
+      amount: N(order.billing?.grandTotal),
       hash,
     });
 
-    /* ================= PDF ================= */
+    /* ================= PDF INIT ================= */
 
     const pdf = await PDFDocument.create();
-    const page = pdf.addPage([PAGE_W, PAGE_H]);
+    const page = pdf.addPage([PAGE.w, PAGE.h]);
 
     const font = await pdf.embedFont(StandardFonts.Helvetica);
     const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
@@ -125,13 +133,12 @@ export async function GET(req, { params }) {
 
     /* ================= LAYOUT ENGINE ================= */
 
-    let y = 800;
-    const left = 40;
+    let y = PAGE.h - PAGE.margin;
 
     const draw = (text, x, yy, size = 10, isBold = false) => {
       page.drawText(safe(text), {
-        x,
-        y: num(yy),
+        x: N(x),
+        y: N(yy),
         size,
         font: isBold ? bold : font,
         color: rgb(0, 0, 0),
@@ -140,28 +147,32 @@ export async function GET(req, { params }) {
 
     const line = (yy) => {
       page.drawLine({
-        start: { x: 40, y: num(yy) },
-        end: { x: 555, y: num(yy) },
+        start: { x: N(40), y: N(yy) },
+        end: { x: N(555), y: N(yy) },
         thickness: 1,
         color: rgb(0.85, 0.85, 0.85),
       });
+    };
+
+    const next = (gap = LAYOUT.lineGap) => {
+      y -= gap;
     };
 
     /* ================= HEADER ================= */
 
     if (logoImg) {
       page.drawImage(logoImg, {
-        x: 40,
-        y: y - 40,
-        width: 50,
-        height: 50,
+        x: N(40),
+        y: y - 35,
+        width: 45,
+        height: 45,
       });
     }
 
-    draw(company.companyName, 110, y, 16, true);
+    draw(company.companyName, 100, y, 16, true);
     draw(
       company.tagline || "Eat Healthy, Stay Healthy",
-      110,
+      100,
       y - 18,
       10
     );
@@ -169,20 +180,20 @@ export async function GET(req, { params }) {
     draw("TAX INVOICE", 420, y, 12, true);
     draw(invoiceNumber, 420, y - 18, 10);
 
-    y -= 70;
+    next(60);
     line(y);
+    next(20);
 
     /* ================= ADDRESS BLOCK ================= */
 
-    y -= 20;
-
     const block = (title, x, rows) => {
       draw(title, x, y, 11, true);
+
       let yy = y - 18;
 
       rows.forEach((r) => {
         draw(r, x, yy, 9);
-        yy -= 14;
+        yy -= 13;
       });
     };
 
@@ -209,37 +220,39 @@ export async function GET(req, { params }) {
       order.payment?.transactionId,
     ]);
 
-    /* ================= ITEMS ================= */
+    next(140);
 
-    y -= 140;
+    /* ================= ITEMS TABLE ================= */
 
-    draw("# Item Qty Rate GST Total", 40, y, 10, true);
-    y -= 20;
+    draw("# Items", 40, y, 11, true);
+    next(18);
 
     let itemTotal = 0;
 
     (order.items || []).forEach((it, i) => {
-      const total = num(it?.total);
+      const total = N(it?.total);
       itemTotal += total;
 
       draw(
-        `${i + 1} ${it?.name} ${it?.qty} ${money(it?.price)} ${num(
-          it?.gstPercent
-        )}% ${money(total)}`,
+        `${i + 1}. ${it?.name} | Qty: ${it?.qty} | Rate: ${money(
+          it?.price
+        )} | GST: ${N(it?.gstPercent)}% | Total: ${money(total)}`,
         40,
         y,
         9
       );
 
-      y -= 16;
+      next(14);
     });
 
-    draw(`Items Total: ${money(itemTotal)}`, 40, y - 10, 11, true);
+    draw(`Items Total: ${money(itemTotal)}`, 40, y, 11, true);
 
-    /* ================= SUMMARY ================= */
+    next(30);
+
+    /* ================= SUMMARY BOX ================= */
 
     const sx = 330;
-    let sy = y - 40;
+    let sy = y;
 
     const rows = [
       ["Taxable", gst.taxable],
@@ -251,45 +264,47 @@ export async function GET(req, { params }) {
     ];
 
     page.drawRectangle({
-      x: sx,
-      y: sy - 110,
+      x: N(sx),
+      y: N(sy - 120),
       width: 230,
       height: 140,
       color: rgb(0.97, 0.97, 0.97),
     });
 
-    draw("GST Summary", sx + 15, sy, 11, true);
+    draw("GST SUMMARY", sx + 15, sy, 11, true);
 
-    sy -= 25;
+    sy -= 22;
 
     rows.forEach(([k, v]) => {
       draw(k, sx + 15, sy, 9);
       draw(money(v), sx + 150, sy, 9);
-      sy -= 15;
+      sy -= 14;
     });
 
-    /* ================= QR + SIGN ================= */
+    /* ================= QR + SIGN ROW ================= */
+
+    const baseY = 150;
 
     page.drawImage(qrImg, {
-      x: 40,
-      y: 120,
+      x: N(40),
+      y: N(baseY),
       width: 70,
       height: 70,
     });
 
     if (signImg) {
       page.drawImage(signImg, {
-        x: 150,
-        y: 120,
+        x: N(140),
+        y: N(baseY),
         width: 90,
         height: 40,
       });
     }
 
-    draw(`For ${company.companyName}`, 150, 100, 10, true);
-    draw(`Hash: ${hash}`, 150, 85, 8);
+    draw(`For ${company.companyName}`, 140, baseY + 60, 10, true);
+    draw(`Hash: ${hash}`, 140, baseY + 45, 8);
 
-    /* ================= FOOTER ================= */
+    /* ================= FOOTER LOCK ================= */
 
     draw(
       "This invoice is system generated and valid without signature verification.",
