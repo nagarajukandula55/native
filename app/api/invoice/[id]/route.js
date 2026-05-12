@@ -14,7 +14,7 @@ import path from "path";
 import crypto from "crypto";
 import QRCode from "qrcode";
 
-/* ================= ERP V8 CONFIG ================= */
+/* ================= ERP V9 CORE CONFIG ================= */
 
 const PAGE = {
   w: 595,
@@ -22,24 +22,23 @@ const PAGE = {
   margin: 40,
 };
 
-const LAYOUT = {
-  lineGap: 14,
-  sectionGap: 18,
-};
-
 const N = (v) => {
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;
 };
 
-const safe = (v) =>
+/* ================= SAFE TEXT ENGINE ================= */
+
+const safeText = (v) =>
   v === undefined || v === null || v === "" ? "-" : String(v);
 
-const money = (v) =>
-  `₹${N(v).toLocaleString("en-IN", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
+/* ❌ FIX FOR ₹ ERROR */
+const money = (v) => {
+  const n = N(v);
+  return `INR ${n.toFixed(2)}`;
+};
+
+/* ================= HASH ================= */
 
 const hashInvoice = (order, inv) =>
   crypto
@@ -49,6 +48,8 @@ const hashInvoice = (order, inv) =>
     .slice(0, 20)
     .toUpperCase();
 
+/* ================= QR ================= */
+
 const qr = async (data) =>
   QRCode.toBuffer(JSON.stringify(data), {
     type: "png",
@@ -56,7 +57,7 @@ const qr = async (data) =>
     scale: 5,
   });
 
-/* ================= MAIN API ================= */
+/* ================= API ================= */
 
 export async function GET(req, { params }) {
   try {
@@ -95,7 +96,7 @@ export async function GET(req, { params }) {
       );
     }
 
-    const gst = calculateGSTSummary(order, company.state || "");
+    const gst = calculateGSTSummary(order, company.state || {});
     const hash = hashInvoice(order, invoiceNumber);
 
     const qrBuffer = await qr({
@@ -131,12 +132,12 @@ export async function GET(req, { params }) {
         ? await pdf.embedPng(fs.readFileSync(signPath))
         : null;
 
-    /* ================= LAYOUT ENGINE ================= */
+    /* ================= DRAW ENGINE ================= */
 
     let y = PAGE.h - PAGE.margin;
 
     const draw = (text, x, yy, size = 10, isBold = false) => {
-      page.drawText(safe(text), {
+      page.drawText(safeText(text), {
         x: N(x),
         y: N(yy),
         size,
@@ -147,35 +148,28 @@ export async function GET(req, { params }) {
 
     const line = (yy) => {
       page.drawLine({
-        start: { x: N(40), y: N(yy) },
-        end: { x: N(555), y: N(yy) },
+        start: { x: 40, y: N(yy) },
+        end: { x: 555, y: N(yy) },
         thickness: 1,
         color: rgb(0.85, 0.85, 0.85),
       });
     };
 
-    const next = (gap = LAYOUT.lineGap) => {
-      y -= gap;
-    };
+    const next = (gap = 14) => (y -= gap);
 
     /* ================= HEADER ================= */
 
     if (logoImg) {
       page.drawImage(logoImg, {
-        x: N(40),
-        y: y - 35,
+        x: 40,
+        y: y - 40,
         width: 45,
         height: 45,
       });
     }
 
     draw(company.companyName, 100, y, 16, true);
-    draw(
-      company.tagline || "Eat Healthy, Stay Healthy",
-      100,
-      y - 18,
-      10
-    );
+    draw(company.tagline || "Eat Healthy, Stay Healthy", 100, y - 18, 10);
 
     draw("TAX INVOICE", 420, y, 12, true);
     draw(invoiceNumber, 420, y - 18, 10);
@@ -184,11 +178,10 @@ export async function GET(req, { params }) {
     line(y);
     next(20);
 
-    /* ================= ADDRESS BLOCK ================= */
+    /* ================= ADDRESS ================= */
 
     const block = (title, x, rows) => {
       draw(title, x, y, 11, true);
-
       let yy = y - 18;
 
       rows.forEach((r) => {
@@ -222,7 +215,7 @@ export async function GET(req, { params }) {
 
     next(140);
 
-    /* ================= ITEMS TABLE ================= */
+    /* ================= ITEMS ================= */
 
     draw("# Items", 40, y, 11, true);
     next(18);
@@ -234,9 +227,9 @@ export async function GET(req, { params }) {
       itemTotal += total;
 
       draw(
-        `${i + 1}. ${it?.name} | Qty: ${it?.qty} | Rate: ${money(
+        `${i + 1}. ${it?.name} | Qty:${it?.qty} | Rate:${money(
           it?.price
-        )} | GST: ${N(it?.gstPercent)}% | Total: ${money(total)}`,
+        )} | GST:${N(it?.gstPercent)}% | Total:${money(total)}`,
         40,
         y,
         9
@@ -249,7 +242,7 @@ export async function GET(req, { params }) {
 
     next(30);
 
-    /* ================= SUMMARY BOX ================= */
+    /* ================= SUMMARY ================= */
 
     const sx = 330;
     let sy = y;
@@ -281,33 +274,31 @@ export async function GET(req, { params }) {
       sy -= 14;
     });
 
-    /* ================= QR + SIGN ROW ================= */
-
-    const baseY = 150;
+    /* ================= QR + SIGN ================= */
 
     page.drawImage(qrImg, {
-      x: N(40),
-      y: N(baseY),
+      x: 40,
+      y: 120,
       width: 70,
       height: 70,
     });
 
     if (signImg) {
       page.drawImage(signImg, {
-        x: N(140),
-        y: N(baseY),
+        x: 150,
+        y: 120,
         width: 90,
         height: 40,
       });
     }
 
-    draw(`For ${company.companyName}`, 140, baseY + 60, 10, true);
-    draw(`Hash: ${hash}`, 140, baseY + 45, 8);
+    draw(`For ${company.companyName}`, 150, 100, 10, true);
+    draw(`Hash: ${hash}`, 150, 85, 8);
 
-    /* ================= FOOTER LOCK ================= */
+    /* ================= FOOTER ================= */
 
     draw(
-      "This invoice is system generated and valid without signature verification.",
+      "This is a system generated invoice and valid without signature verification.",
       40,
       30,
       8
