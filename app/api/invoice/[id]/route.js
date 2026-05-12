@@ -3,10 +3,8 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db";
-
 import Order from "@/models/Order";
 import CompanySettings from "@/models/CompanySettings";
-
 import { createPDF } from "@/lib/pdfSetup";
 import { calculateGSTSummary } from "@/lib/gst";
 import { generateInvoiceNumber } from "@/lib/invoiceNumber";
@@ -16,40 +14,25 @@ import path from "path";
 import crypto from "crypto";
 import QRCode from "qrcode";
 
-/* =========================================
-   CONFIG
-========================================= */
 const BASE_URL =
   process.env.NEXT_PUBLIC_BASE_URL ||
   process.env.BASE_URL ||
   "http://localhost:3000";
 
-/* =========================================
-   MONEY FORMAT
-========================================= */
 const money = (n) => `₹${Number(n || 0).toFixed(2)}`;
 
-/* =========================================
-   LINE DRAWER
-========================================= */
 const line = (pdf, y, color = "#d1d5db") => {
   pdf.strokeColor(color).lineWidth(1).moveTo(40, y).lineTo(555, y).stroke();
 };
 
-/* =========================================
-   PAGE SAFE BREAK
-========================================= */
 const checkPage = (pdf, y) => {
-  if (y > 720) {
+  if (y > 700) {
     pdf.addPage();
     return 60;
   }
   return y;
 };
 
-/* =========================================
-   INVOICE HASH (ANTI TAMPER)
-========================================= */
 const generateInvoiceHash = (order, invoiceNumber) => {
   return crypto
     .createHash("sha256")
@@ -59,9 +42,6 @@ const generateInvoiceHash = (order, invoiceNumber) => {
     .toUpperCase();
 };
 
-/* =========================================
-   QR GENERATOR
-========================================= */
 const generateQR = async (payload) => {
   return await QRCode.toBuffer(JSON.stringify(payload), {
     type: "png",
@@ -71,16 +51,12 @@ const generateQR = async (payload) => {
   });
 };
 
-/* =========================================
-   MAIN API
-========================================= */
 export async function GET(req, { params }) {
   try {
     await dbConnect();
 
     const { id } = params;
 
-    /* ================= ORDER ================= */
     const order = await Order.findOne({ orderId: id }).lean();
 
     if (!order) {
@@ -90,7 +66,6 @@ export async function GET(req, { params }) {
       );
     }
 
-    /* ================= COMPANY ================= */
     const company = await CompanySettings.findOne().lean();
 
     if (!company) {
@@ -100,7 +75,6 @@ export async function GET(req, { params }) {
       );
     }
 
-    /* ================= INVOICE NUMBER ================= */
     let invoiceNumber = order.invoice?.invoiceNumber;
 
     if (!invoiceNumber) {
@@ -122,10 +96,7 @@ export async function GET(req, { params }) {
       );
     }
 
-    /* ================= GST ================= */
     const gst = calculateGSTSummary(order, company?.state || "");
-
-    /* ================= SECURITY LAYER ================= */
     const invoiceHash = generateInvoiceHash(order, invoiceNumber);
 
     const qrBuffer = await generateQR({
@@ -137,19 +108,17 @@ export async function GET(req, { params }) {
       verifyUrl: `${BASE_URL}/invoice/verify/${order.orderId}`,
     });
 
-    /* ================= PDF INIT ================= */
     const pdf = createPDF();
-    pdf.font("Inter");
-
     const chunks = [];
+
     pdf.on("data", (c) => chunks.push(c));
 
-    /* ================= WATERMARK (UNCHANGED STYLE) ================= */
+    /* WATERMARK */
     pdf.save();
     pdf.rotate(-32, { origin: [300, 380] });
 
     pdf
-      .opacity(0.045)
+      .opacity(0.08)
       .font("Inter-Bold")
       .fontSize(58)
       .fillColor("#d1d5db")
@@ -160,7 +129,7 @@ export async function GET(req, { params }) {
 
     if (company?.tagline) {
       pdf
-        .opacity(0.03)
+        .opacity(0.06)
         .font("Inter")
         .fontSize(18)
         .fillColor("#e5e7eb")
@@ -172,73 +141,71 @@ export async function GET(req, { params }) {
 
     pdf.restore();
 
-    /* ================= LOGO ================= */
+    /* LOGO */
     if (company?.logoUrl) {
-      try {
-        const logoPath = path.join(
-          process.cwd(),
-          "public",
-          company.logoUrl.replace(/^\/+/, "")
-        );
+      const logoPath = path.join(
+        process.cwd(),
+        "public",
+        company.logoUrl.replace(/^\/+/, "")
+      );
 
-        if (fs.existsSync(logoPath)) {
-          pdf.image(logoPath, 40, 35, { width: 62 });
-        }
-      } catch {}
+      if (fs.existsSync(logoPath)) {
+        pdf.image(logoPath, 40, 35, { width: 62 });
+      }
     }
 
-    /* ================= COMPANY DETAILS (UNCHANGED) ================= */
-    pdf.font("Inter-Bold").fillColor("#111827").fontSize(22).text(
-      company?.companyName || "COMPANY",
-      118,
-      38
-    );
+    /* COMPANY */
+    pdf.font("Inter-Bold").fontSize(22).fillColor("#111827")
+      .text(company?.companyName || "COMPANY", 118, 38);
 
-    pdf.font("Inter").fontSize(10).fillColor("#6b7280").text(
-      company?.tagline || "",
-      118,
-      66
-    );
+    pdf.font("Inter").fontSize(10).fillColor("#6b7280")
+      .text(company?.tagline || "", 118, 66);
 
-    pdf.font("Inter").fontSize(10).fillColor("#4b5563").text(
-      company?.addressLine1 || "",
-      118,
-      88
-    );
+    pdf.text(company?.addressLine1 || "", 118, 88);
+    pdf.text(`GSTIN: ${company?.gstin || "-"}`, 118, 110);
+    pdf.text(`Phone: ${company?.phone || "-"}`, 118, 126);
 
-    pdf.text(`City: ${company?.city || ""}`, 118, 102);
-    pdf.text(`State: ${company?.state || ""}`, 118, 116);
-    pdf.text(`PIN Code: ${company?.pincode || ""}`, 118, 130);
-    pdf.text(`GSTIN: ${company?.gstin || "-"}`, 118, 144);
-    pdf.text(`Phone: ${company?.phone || "-"}`, 118, 158);
-
-    /* ================= INVOICE BOX ================= */
+    /* INVOICE BOX */
     pdf.roundedRect(360, 35, 195, 138, 10).fillAndStroke("#f9fafb", "#d1d5db");
 
-    pdf.font("Inter-Bold").fillColor("#111827").fontSize(18).text("TAX INVOICE", 386, 52);
+    pdf.font("Inter-Bold").fontSize(18).fillColor("#111827")
+      .text("TAX INVOICE", 386, 52);
 
-    pdf.font("Inter").fontSize(10).fillColor("#374151");
+    pdf.font("Inter").fontSize(10)
+      .text("Invoice No", 385, 90)
+      .text(invoiceNumber, 385, 104)
+      .text(`Date: ${new Date(order.createdAt).toLocaleDateString()}`, 385, 128)
+      .text(`Order ID: ${order.orderId}`, 385, 146);
 
-    pdf.text("Invoice No", 385, 90);
-    pdf.text(invoiceNumber, 385, 104);
-    pdf.text(`Invoice Date: ${new Date(order.createdAt).toLocaleDateString()}`, 385, 128);
-    pdf.text(`Order ID: ${order.orderId}`, 385, 146);
-
-    /* ================= DIVIDER ================= */
     line(pdf, 190);
 
-    /* ================= BILL / SHIP / PAYMENT (UNCHANGED BLOCK) ================= */
-    // (YOUR ORIGINAL SECTION KEPT EXACTLY AS IS)
-    // No removals, no layout changes
+    /* BILL / SHIP / PAYMENT */
+    pdf.font("Inter-Bold").fontSize(11).text("Bill To", 40, 210);
+    pdf.font("Inter").fontSize(9);
 
-    /* ================= TABLE HEADER ================= */
+    pdf.text(order.address?.name || "-", 40, 230);
+    pdf.text(order.address?.phone || "-", 40, 245);
+    pdf.text(order.address?.address || "-", 40, 260, { width: 160 });
+
+    pdf.font("Inter-Bold").text("Ship To", 220, 210);
+    pdf.font("Inter");
+
+    pdf.text(order.address?.name || "-", 220, 230);
+    pdf.text(order.address?.phone || "-", 220, 245);
+
+    pdf.font("Inter-Bold").text("Payment", 410, 210);
+    pdf.font("Inter");
+
+    pdf.text(`Method: ${order.payment?.method || "-"}`, 410, 230);
+    pdf.text(`Status: ${order.payment?.status || "-"}`, 410, 245);
+    pdf.text(`Paid: ${money(order.payment?.amountPaid)}`, 410, 260);
+
+    /* TABLE */
     line(pdf, 360);
 
-    const tableTop = 375;
+    pdf.rect(40, 375, 515, 28).fill("#111827");
 
-    pdf.rect(40, tableTop, 515, 28).fill("#111827");
-
-    pdf.font("Inter-Bold").fillColor("#ffffff").fontSize(9);
+    pdf.font("Inter-Bold").fillColor("#fff").fontSize(9);
     pdf.text("#", 45, 384);
     pdf.text("Product", 65, 384);
     pdf.text("HSN", 205, 384);
@@ -248,7 +215,6 @@ export async function GET(req, { params }) {
     pdf.text("Taxable", 410, 384);
     pdf.text("Total", 490, 384);
 
-    /* ================= ITEMS ================= */
     let y = 408;
 
     pdf.font("Inter").fillColor("#111827");
@@ -260,8 +226,7 @@ export async function GET(req, { params }) {
 
       pdf.text(String(idx + 1), 45, y + 5);
       pdf.text(item.name || "", 65, y + 5, { width: 130 });
-
-      pdf.text(item.snapshot?.hsn || item.hsn || "-", 205, y + 5);
+      pdf.text(item.snapshot?.hsn || "-", 205, y + 5);
       pdf.text(String(item.qty || 1), 255, y + 5);
       pdf.text(money(item.price), 295, y + 5);
       pdf.text(`${item.gstPercent || 0}%`, 355, y + 5);
@@ -271,43 +236,69 @@ export async function GET(req, { params }) {
       y += 32;
     });
 
-    /* ================= GST SUMMARY ================= */
+    /* GST SUMMARY */
     const summaryTop = y + 25;
 
-    pdf.roundedRect(325, summaryTop, 230, 180, 10).fillAndStroke("#f9fafb", "#d1d5db");
+    pdf.roundedRect(325, summaryTop, 230, 180, 10)
+      .fillAndStroke("#f9fafb", "#d1d5db");
 
-    pdf.font("Inter-Bold").fontSize(12).fillColor("#111827").text("GST Summary", 340, summaryTop + 12);
+    pdf.font("Inter-Bold").fontSize(12).fillColor("#111827")
+      .text("GST Summary", 340, summaryTop + 12);
 
     pdf.font("Inter").fontSize(10);
 
-    pdf.text("Taxable Amount", 340, summaryTop + 40);
+    pdf.text("Taxable", 340, summaryTop + 40);
     pdf.text(money(gst.taxable), 475, summaryTop + 40);
 
-    pdf.text("Discount", 340, summaryTop + 62);
-    pdf.text(money(order.billing?.discount || 0), 475, summaryTop + 62);
+    pdf.text("CGST", 340, summaryTop + 65);
+    pdf.text(money(gst.cgst), 475, summaryTop + 65);
 
-    pdf.text("CGST", 340, summaryTop + 84);
-    pdf.text(money(gst.cgst), 475, summaryTop + 84);
+    pdf.text("SGST", 340, summaryTop + 90);
+    pdf.text(money(gst.sgst), 475, summaryTop + 90);
 
-    pdf.text("SGST", 340, summaryTop + 106);
-    pdf.text(money(gst.sgst), 475, summaryTop + 106);
-
-    pdf.text("IGST", 340, summaryTop + 128);
-    pdf.text(money(gst.igst), 475, summaryTop + 128);
+    pdf.text("IGST", 340, summaryTop + 115);
+    pdf.text(money(gst.igst), 475, summaryTop + 115);
 
     pdf.font("Inter-Bold").fontSize(13).fillColor("#16a34a");
-    pdf.text("Grand Total", 340, summaryTop + 152);
-    pdf.text(money(order.billing?.grandTotal), 465, summaryTop + 152);
+    pdf.text("Grand Total", 340, summaryTop + 150);
+    pdf.text(money(order.billing?.grandTotal), 465, summaryTop + 150);
 
-    /* ================= QR CODE ================= */
+    /* QR */
     pdf.image(qrBuffer, 470, 705, { width: 70 });
 
-    pdf.fontSize(7).fillColor("#6b7280").text("Scan to verify invoice", 468, 778, {
-      width: 80,
-      align: "center",
-    });
+    /* FOOTER */
+    line(pdf, 800);
 
-    /* ================= DECLARATION / SIGN / FOOTER (UNCHANGED) ================= */
+    pdf.font("Inter").fontSize(8).fillColor("#6b7280")
+      .text(
+        "Certified that the particulars given above are true and correct.",
+        40,
+        812
+      );
+
+    pdf.text(
+      "This is a computer-generated tax invoice.",
+      40,
+      826
+    );
+
+    pdf.font("Inter-Bold").fontSize(10).fillColor("#111827")
+      .text(`For ${company?.companyName || "COMPANY"}`, 390, 812);
+
+    pdf.font("Inter").fontSize(9)
+      .text("Authorised Signatory", 390, 842);
+
+    pdf.font("Inter").fontSize(8).fillColor("#ef4444")
+      .text(
+        "Thank You for Shopping with Native ❤️",
+        40,
+        875
+      );
+
+    pdf.font("Inter").fontSize(7).fillColor("#9ca3af")
+      .text(`Generated: ${new Date().toLocaleString()}`, 40, 892);
+
+    pdf.text(`Invoice Hash: ${invoiceHash}`, 220, 892);
 
     pdf.end();
 
@@ -321,13 +312,14 @@ export async function GET(req, { params }) {
         "Content-Disposition": `inline; filename=${invoiceNumber}.pdf`,
       },
     });
+
   } catch (err) {
     console.log("INVOICE ERROR:", err);
 
     return NextResponse.json(
       {
         success: false,
-        message: err.message || "Failed to generate invoice",
+        message: err.message,
       },
       { status: 500 }
     );
