@@ -14,39 +14,35 @@ import path from "path";
 import crypto from "crypto";
 import QRCode from "qrcode";
 
-/* ================= CONFIG ================= */
+/* ================= PAGE CONFIG ================= */
 
 const PAGE = { w: 595, h: 842, m: 40 };
 
-const N = (v) => {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : 0;
-};
+/* ================= SAFE UTILS ================= */
 
-const safe = (v) => (v ? String(v) : "-");
-
-const money = (v) => `INR ${N(v).toFixed(2)}`;
+const N = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
+const S = (v) => (v ? String(v) : "-");
+const M = (v) => `₹${N(v).toFixed(2)}`;
 
 /* ================= HASH ================= */
 
-const hashInvoice = (order, inv) =>
+const hash = (o, inv) =>
   crypto
     .createHash("sha256")
-    .update(`${order.orderId}-${inv}-${order.createdAt}`)
+    .update(`${o.orderId}-${inv}`)
     .digest("hex")
-    .slice(0, 18)
-    .toUpperCase();
+    .slice(0, 16);
 
 /* ================= QR ================= */
 
-const qr = async (data) =>
+const qr = (data) =>
   QRCode.toBuffer(JSON.stringify(data), {
     type: "png",
     errorCorrectionLevel: "H",
     scale: 5,
   });
 
-/* ================= API ================= */
+/* ================= MAIN ================= */
 
 export async function GET(req, { params }) {
   try {
@@ -56,99 +52,93 @@ export async function GET(req, { params }) {
     const company = await CompanySettings.findOne().lean();
 
     if (!order || !company) {
-      return NextResponse.json(
-        { success: false, message: "Missing data" },
-        { status: 404 }
-      );
+      return NextResponse.json({ success: false }, { status: 404 });
     }
 
     /* ================= INVOICE ================= */
 
-    let invoiceNumber = order?.invoice?.invoiceNumber;
+    let invoiceNo = order?.invoice?.invoiceNumber;
 
-    if (!invoiceNumber) {
+    if (!invoiceNo) {
       const count = await Order.countDocuments({
         "invoice.invoiceNumber": { $exists: true },
       });
 
-      invoiceNumber = generateInvoiceNumber(count);
+      invoiceNo = generateInvoiceNumber(count);
 
       await Order.updateOne(
         { _id: order._id },
         {
           $set: {
-            "invoice.invoiceNumber": invoiceNumber,
+            "invoice.invoiceNumber": invoiceNo,
             "invoice.generatedAt": new Date(),
-            "billing.locked": true,
           },
         }
       );
     }
 
-    const gst = calculateGSTSummary(order, company.state || {});
-    const hash = hashInvoice(order, invoiceNumber);
-
+    const gst = calculateGSTSummary(order, company.state || "");
     const qrBuffer = await qr({
-      invoice: invoiceNumber,
+      invoice: invoiceNo,
       orderId: order.orderId,
-      amount: N(order.billing?.grandTotal),
-      hash,
+      amount: order.billing?.grandTotal,
     });
 
     /* ================= PDF ================= */
 
     const pdf = await PDFDocument.create();
-    const page = pdf.addPage([PAGE.w, PAGE.h]);
+    let page = pdf.addPage([PAGE.w, PAGE.h]);
 
     const font = await pdf.embedFont(StandardFonts.Helvetica);
     const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
-
     const qrImg = await pdf.embedPng(qrBuffer);
 
     const logoPath = company.logoUrl
       ? path.join(process.cwd(), "public", company.logoUrl)
       : null;
 
-    const logoImg =
+    const logo =
       logoPath && fs.existsSync(logoPath)
         ? await pdf.embedPng(fs.readFileSync(logoPath))
         : null;
 
     const signPath = path.join(process.cwd(), "public/signature.png");
 
-    const signImg =
+    const sign =
       fs.existsSync(signPath)
         ? await pdf.embedPng(fs.readFileSync(signPath))
         : null;
 
-    /* ================= DRAW ENGINE ================= */
+    /* ================= LAYOUT ENGINE ================= */
 
-    const draw = (text, x, y, size = 10, isBold = false) => {
-      page.drawText(safe(text), {
-        x: N(x),
-        y: N(y),
+    let y = PAGE.h - PAGE.m;
+
+    const text = (t, x, size = 10, b = false) => {
+      page.drawText(S(t), {
+        x,
+        y,
         size,
-        font: isBold ? bold : font,
+        font: b ? bold : font,
         color: rgb(0, 0, 0),
       });
     };
 
-    const line = (y) => {
+    const down = (gap = 14) => (y -= gap);
+
+    const line = () => {
       page.drawLine({
-        start: { x: 40, y: N(y) },
-        end: { x: 555, y: N(y) },
+        start: { x: PAGE.m, y },
+        end: { x: PAGE.w - PAGE.m, y },
         thickness: 1,
         color: rgb(0.85, 0.85, 0.85),
       });
+      down(12);
     };
 
-    let y = PAGE.h - PAGE.m;
+    /* ================= HEADER ================= */
 
-    /* ================= HEADER GRID ================= */
-
-    // LOGO
-    if (logoImg) {
-      page.drawImage(logoImg, {
+    if (logo) {
+      page.drawImage(logo, {
         x: 40,
         y: y - 40,
         width: 45,
@@ -156,102 +146,91 @@ export async function GET(req, { params }) {
       });
     }
 
-    // COMPANY BLOCK
-    draw(company.companyName, 100, y, 16, true);
-    draw(
-      company.tagline || "Eat Healthy, Stay Healthy",
-      100,
-      y - 18,
-      10
-    );
+    text(company.companyName, 100, 16, true);
+    down();
 
-    // TAX INVOICE BOX (FIXED)
-    page.drawRectangle({
-      x: 400,
-      y: y - 25,
-      width: 155,
-      height: 55,
-      color: rgb(0.97, 0.97, 0.97),
-    });
+    text(company.tagline || "Eat Healthy, Stay Healthy", 100, 10);
+    down(20);
 
-    draw("TAX INVOICE", 415, y, 12, true);
-    draw(invoiceNumber, 415, y - 18, 10);
+    text("TAX INVOICE", 420, 12, true);
+    text(invoiceNo, 420, 10);
 
-    y -= 70;
-    line(y);
-    y -= 20;
+    down(40);
+    line();
 
-    /* ================= 3-COLUMN INFO CARDS ================= */
+    /* ================= 3 COLUMN CARDS ================= */
 
-    const card = (title, x, rows) => {
-      draw(title, x, y, 11, true);
-      let yy = y - 16;
+    const block = (title, x, rows) => {
+      text(title, x, 11, true);
+      down();
 
       rows.forEach((r) => {
-        draw(r, x, yy, 9);
-        yy -= 13;
+        text(r, x, 9);
+        down();
       });
     };
 
-    card(40, "Bill To", [
+    block(40, [
       order.address?.name,
       order.address?.phone,
       order.address?.address,
-      order.address?.city,
-      order.address?.state,
     ]);
 
-    card(200, "Ship To", [
-      order.address?.name,
-      order.address?.phone,
-      order.address?.address,
+    block(220, [
       order.address?.city,
       order.address?.state,
+      order.address?.pincode,
     ]);
 
-    card(360, "Payment", [
+    block(380, [
       order.payment?.method,
       order.payment?.status,
-      money(order.payment?.amountPaid),
-      order.payment?.transactionId,
+      M(order.payment?.amountPaid),
     ]);
 
-    y -= 120;
+    down(20);
+    line();
 
-    line(y);
-    y -= 20;
+    /* ================= ITEMS ================= */
 
-    /* ================= ITEM TABLE ================= */
-
-    draw("ITEMS", 40, y, 11, true);
-    y -= 20;
+    text("ITEMS", 40, 11, true);
+    down();
 
     let total = 0;
 
-    (order.items || []).forEach((it, i) => {
-      const t = N(it?.total);
-      total += t;
+    (order.items || []).forEach((i, idx) => {
+      total += N(i.total);
 
-      draw(
-        `${i + 1}. ${it?.name} | Qty:${it?.qty} | Rate:${money(
-          it?.price
-        )} | GST:${N(it?.gstPercent)}% | Total:${money(t)}`,
+      text(
+        `${idx + 1}. ${i.name} | Qty:${i.qty} | Rate:${M(
+          i.price
+        )} | Total:${M(i.total)}`,
         40,
-        y,
         9
       );
 
-      y -= 14;
+      down();
     });
 
-    draw(`ITEM TOTAL: ${money(total)}`, 40, y - 10, 11, true);
+    down();
+    text(`ITEM TOTAL: ${M(total)}`, 40, 11, true);
 
-    y -= 40;
+    down(30);
 
-    /* ================= SUMMARY PANEL ================= */
+    /* ================= SUMMARY ================= */
 
     const sx = 330;
     let sy = y;
+
+    page.drawRectangle({
+      x: sx,
+      y: sy - 120,
+      width: 220,
+      height: 140,
+      color: rgb(0.97, 0.97, 0.97),
+    });
+
+    text("GST SUMMARY", sx + 15, 11, true);
 
     const rows = [
       ["Taxable", gst.taxable],
@@ -262,67 +241,55 @@ export async function GET(req, { params }) {
       ["Grand Total", order.billing?.grandTotal],
     ];
 
-    page.drawRectangle({
-      x: sx,
-      y: sy - 120,
-      width: 230,
-      height: 140,
-      color: rgb(0.97, 0.97, 0.97),
-    });
-
-    draw("GST SUMMARY", sx + 15, sy, 11, true);
-
-    sy -= 22;
+    let yy = sy - 20;
 
     rows.forEach(([k, v]) => {
-      draw(k, sx + 15, sy, 9);
-      draw(money(v), sx + 150, sy, 9);
-      sy -= 14;
+      text(k, sx + 15, 9);
+      text(M(v), sx + 140, 9);
+      yy -= 14;
+      y = yy;
     });
 
-    /* ================= QR + SIGN ROW ================= */
-
-    const baseY = 120;
+    /* ================= QR + SIGN ================= */
 
     page.drawImage(qrImg, {
       x: 40,
-      y: baseY,
+      y: 120,
       width: 70,
       height: 70,
     });
 
-    if (signImg) {
-      page.drawImage(signImg, {
+    if (sign) {
+      page.drawImage(sign, {
         x: 140,
-        y: baseY,
+        y: 120,
         width: 90,
         height: 40,
       });
     }
 
-    draw(`For ${company.companyName}`, 140, 105, 10, true);
-    draw(`Hash: ${hash}`, 140, 90, 8);
+    text(`For ${company.companyName}`, 140, 10, true);
+    text(`Hash: ${hash(order, invoiceNo)}`, 140, 8);
 
     /* ================= FOOTER ================= */
 
-    draw(
-      "This invoice is system generated and valid without signature verification.",
+    text(
+      "This invoice is system generated and valid without signature.",
       40,
-      30,
       8
     );
 
-    const pdfBytes = await pdf.save();
+    const bytes = await pdf.save();
 
-    return new NextResponse(pdfBytes, {
+    return new NextResponse(bytes, {
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `inline; filename=${invoiceNumber}.pdf`,
+        "Content-Disposition": `inline; filename=${invoiceNo}.pdf`,
       },
     });
-  } catch (err) {
+  } catch (e) {
     return NextResponse.json(
-      { success: false, message: err.message },
+      { success: false, message: e.message },
       { status: 500 }
     );
   }
