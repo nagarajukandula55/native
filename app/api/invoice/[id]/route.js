@@ -108,15 +108,15 @@ export async function GET(req, { params }) {
 
     /* ================= WATERMARK ================= */
     pdf.save();
-    pdf.rotate(-32, { origin: [300, 380] });
+    pdf.rotate(-32, { origin: [300, 390] });
 
     pdf
-      .opacity(0.035)
+      .opacity(0.06)
       .font("Inter-Bold")
-      .fontSize(60)
+      .fontSize(62)
       .fillColor("#d1d5db")
-      .text(company?.companyName || "NATIVE", 60, 360, {
-        width: 480,
+      .text(company?.companyName || "NATIVE", 50, 355, {
+        width: 500,
         align: "center",
       });
 
@@ -146,88 +146,88 @@ export async function GET(req, { params }) {
     pdf.font("Inter")
       .fontSize(10)
       .fillColor("#6b7280")
-      .text(company?.tagline || "", 118, 66);
+      .text(company?.tagline || "", 118, 64);
 
     pdf.font("Inter")
       .fontSize(9)
       .fillColor("#4b5563")
       .text(company?.addressLine1 || "", 118, 88)
       .text(company?.addressLine2 || "", 118, 102)
-      .text(
-        `${company?.city || ""}, ${company?.state || ""} - ${company?.pincode || ""}`,
-        118,
-        116
-      )
-      .text(`Email: ${company?.email || "-"}`, 118, 130)
-      .text(`Phone: ${company?.phone || "-"}`, 118, 144)
-      .text(`GSTIN: ${company?.gstin || "-"}`, 118, 158);
+      .text(`City: ${company?.city || "-"}`, 118, 118)
+      .text(`State: ${company?.state || "-"}`, 118, 132)
+      .text(`PIN Code: ${company?.pincode || "-"}`, 118, 146)
+      .text(`Phone: ${company?.phone || "-"}`, 118, 160)
+      .text(`Email: ${company?.email || "-"}`, 118, 174)
+      .text(`GSTIN: ${company?.gstin || "-"}`, 118, 188);
 
     /* ================= INVOICE BOX ================= */
-    pdf.roundedRect(360, 35, 195, 138, 10).fillAndStroke("#f9fafb", "#d1d5db");
+    pdf.roundedRect(360, 35, 195, 155, 10)
+      .fillAndStroke("#f9fafb", "#d1d5db");
 
     pdf.font("Inter-Bold")
-      .fillColor("#111827")
       .fontSize(18)
-      .text("TAX INVOICE", 386, 52);
+      .fillColor("#111827")
+      .text("TAX INVOICE", 385, 52);
 
     pdf.font("Inter")
       .fontSize(10)
       .fillColor("#374151")
-      .text("Invoice No", 385, 90)
-      .text(invoiceNumber, 385, 104)
-      .text(`Date: ${new Date(order.createdAt).toLocaleDateString()}`, 385, 128)
-      .text(`Order: ${order.orderId}`, 385, 146);
+      .text(`Invoice No: ${invoiceNumber}`, 385, 92)
+      .text(`Date: ${new Date(order.createdAt).toLocaleDateString()}`, 385, 112)
+      .text(`Order ID: ${order.orderId}`, 385, 132);
 
-    line(pdf, 190);
+    line(pdf, 205);
 
     /* ================= BILL / SHIP / PAYMENT ================= */
-    pdf.font("Inter-Bold").fontSize(11).text("Bill To", 40, 210);
+    pdf.font("Inter-Bold").fontSize(11).text("Bill To", 40, 220);
     pdf.font("Inter").fontSize(9);
 
-    pdf.text(order.address?.name || "-", 40, 230);
-    pdf.text(order.address?.phone || "-", 40, 244);
-    pdf.text(order.address?.email || "-", 40, 258);
-    pdf.text(order.address?.address || "-", 40, 272, { width: 150 });
-    pdf.text(`${order.address?.city || ""}, ${order.address?.state || ""}`, 40, 308);
-    pdf.text(`PIN: ${order.address?.pincode || "-"}`, 40, 322);
+    pdf.text(order.address?.name || "-", 40, 240);
+    pdf.text(order.address?.phone || "-", 40, 255);
+    pdf.text(order.address?.email || "-", 40, 270);
+    pdf.text(order.address?.address || "-", 40, 285, { width: 150 });
+    pdf.text(`City: ${order.address?.city || "-"}`, 40, 325);
+    pdf.text(`State: ${order.address?.state || "-"}`, 40, 340);
+    pdf.text(`PIN: ${order.address?.pincode || "-"}`, 40, 355);
 
-    pdf.font("Inter-Bold").text("Ship To", 220, 210);
+    pdf.font("Inter-Bold").text("Ship To", 220, 220);
     pdf.font("Inter");
 
-    pdf.text(order.address?.name || "-", 220, 230);
-    pdf.text(order.address?.phone || "-", 220, 244);
-    pdf.text(order.address?.address || "-", 220, 258, { width: 150 });
-    pdf.text(`${order.address?.city || ""}, ${order.address?.state || ""}`, 220, 294);
-    pdf.text(`PIN: ${order.address?.pincode || "-"}`, 220, 308);
+    pdf.text(order.address?.name || "-", 220, 240);
+    pdf.text(order.address?.phone || "-", 220, 255);
+    pdf.text(order.address?.address || "-", 220, 270, { width: 150 });
+    pdf.text(`City: ${order.address?.city || "-"}`, 220, 310);
+    pdf.text(`State: ${order.address?.state || "-"}`, 220, 325);
+    pdf.text(`PIN: ${order.address?.pincode || "-"}`, 220, 340);
 
-    pdf.font("Inter-Bold").text("Payment", 410, 210);
+    pdf.font("Inter-Bold").text("Payment", 410, 220);
     pdf.font("Inter");
 
-    pdf.text(`Method: ${order.payment?.method || "-"}`, 410, 230);
-    pdf.text(`Status: ${order.payment?.status || "-"}`, 410, 244);
+    pdf.text(`Method: ${order.payment?.method || "-"}`, 410, 240);
+    pdf.text(`Status: ${order.payment?.status || "-"}`, 410, 255);
     pdf.text(
       `Paid: ${money(order.payment?.amountPaid || order.billing?.grandTotal)}`,
       410,
-      258
+      270
     );
 
-    /* ================= TABLE ================= */
-    line(pdf, 360);
+    line(pdf, 380);
 
-    pdf.rect(40, 375, 515, 28).fill("#111827");
+    /* ================= TABLE ================= */
+    pdf.rect(40, 395, 515, 28).fill("#111827");
 
     pdf.font("Inter-Bold").fillColor("#fff").fontSize(9);
 
-    pdf.text("#", 45, 384);
-    pdf.text("Product", 65, 384);
-    pdf.text("HSN", 205, 384);
-    pdf.text("Qty", 255, 384);
-    pdf.text("Rate", 295, 384);
-    pdf.text("GST%", 355, 384);
-    pdf.text("Taxable", 410, 384);
-    pdf.text("Total", 490, 384);
+    pdf.text("#", 45, 404);
+    pdf.text("Product", 65, 404);
+    pdf.text("HSN", 205, 404);
+    pdf.text("Qty", 255, 404);
+    pdf.text("Rate", 295, 404);
+    pdf.text("GST%", 355, 404);
+    pdf.text("Taxable", 410, 404);
+    pdf.text("Total", 490, 404);
 
-    let y = 408;
+    let y = 430;
 
     pdf.font("Inter").fillColor("#111827");
 
@@ -246,51 +246,85 @@ export async function GET(req, { params }) {
       y += 32;
     });
 
+    let summaryTop = y + 25;
+
+    if (summaryTop + 260 > 780) {
+      pdf.addPage();
+      summaryTop = 60;
+    }
+
+    /* ================= QR BOX ================= */
+    pdf.roundedRect(40, summaryTop, 250, 155, 10)
+      .fillAndStroke("#f9fafb", "#d1d5db");
+
+    pdf.image(qrBuffer, 55, summaryTop + 18, { width: 72 });
+
+    pdf.font("Inter")
+      .fontSize(8)
+      .fillColor("#6b7280")
+      .text("Scan to Verify", 145, summaryTop + 20)
+      .text(`Generated: ${new Date().toLocaleDateString()}`, 145, summaryTop + 45)
+      .text(`Invoice Hash:`, 145, summaryTop + 70)
+      .fontSize(7)
+      .text(invoiceHash, 145, summaryTop + 84, { width: 120 });
+
     /* ================= GST SUMMARY ================= */
-    const summaryTop = y + 20;
+    pdf.roundedRect(305, summaryTop, 250, 155, 10)
+      .fillAndStroke("#f9fafb", "#d1d5db");
 
-    pdf.roundedRect(325, summaryTop, 230, 150, 10).fillAndStroke("#f9fafb", "#d1d5db");
-
-    pdf.font("Inter-Bold").fontSize(12).fillColor("#111827")
-      .text("GST Summary", 340, summaryTop + 12);
+    pdf.font("Inter-Bold")
+      .fontSize(12)
+      .fillColor("#111827")
+      .text("GST Summary", 320, summaryTop + 12);
 
     pdf.font("Inter").fontSize(10);
 
-    pdf.text("Taxable", 340, summaryTop + 40);
-    pdf.text(money(gst.taxable), 475, summaryTop + 40);
+    pdf.text("Taxable Amount", 320, summaryTop + 38);
+    pdf.text(money(gst.taxable), 470, summaryTop + 38);
 
-    pdf.text("CGST", 340, summaryTop + 62);
-    pdf.text(money(gst.cgst), 475, summaryTop + 62);
+    pdf.text("Discount", 320, summaryTop + 58);
+    pdf.text(money(order.billing?.discount || 0), 470, summaryTop + 58);
 
-    pdf.text("SGST", 340, summaryTop + 84);
-    pdf.text(money(gst.sgst), 475, summaryTop + 84);
+    pdf.text("CGST", 320, summaryTop + 78);
+    pdf.text(money(gst.cgst), 470, summaryTop + 78);
 
-    pdf.text("IGST", 340, summaryTop + 106);
-    pdf.text(money(gst.igst), 475, summaryTop + 106);
+    pdf.text("SGST", 320, summaryTop + 98);
+    pdf.text(money(gst.sgst), 470, summaryTop + 98);
 
-    pdf.font("Inter-Bold").fillColor("#16a34a")
-      .text("Grand Total", 340, summaryTop + 130);
+    pdf.text("IGST", 320, summaryTop + 118);
+    pdf.text(money(gst.igst), 470, summaryTop + 118);
 
-    pdf.text(money(order.billing?.grandTotal), 465, summaryTop + 130);
+    pdf.font("Inter-Bold")
+      .fontSize(12)
+      .fillColor("#16a34a");
 
-    /* ================= QR ================= */
-    pdf.image(qrBuffer, 470, summaryTop + 82, { width: 55 });
+    pdf.text("Grand Total", 320, summaryTop + 140);
+    pdf.text(money(order.billing?.grandTotal), 455, summaryTop + 140);
 
     /* ================= FOOTER ================= */
-    const footerY = 735;
+    const footerY = summaryTop + 185;
 
     line(pdf, footerY);
 
     pdf.font("Inter")
       .fontSize(8)
       .fillColor("#6b7280")
-      .text("Certified that the particulars given above are true and correct.", 40, footerY + 14)
-      .text("This is a computer-generated tax invoice.", 40, footerY + 28);
+      .text(
+        "Certified that the particulars given above are true and correct.",
+        40,
+        footerY + 14
+      );
+
+    pdf.text(
+      "This is a computer-generated tax invoice.",
+      40,
+      footerY + 28
+    );
 
     pdf.font("Inter-Bold")
       .fontSize(10)
       .fillColor("#111827")
-      .text(`For ${company?.companyName || "COMPANY"}`, 390, footerY + 14);
+      .text(`For ${company?.companyName}`, 390, footerY + 14);
 
     pdf.font("Inter")
       .fontSize(9)
@@ -299,17 +333,23 @@ export async function GET(req, { params }) {
     pdf.font("Inter-Bold")
       .fontSize(10)
       .fillColor("#16a34a")
-      .text("Thank You for Shopping with Native ♥", 145, footerY + 52, {
-        width: 280,
-        align: "center",
-      });
+      .text(
+        "Thank You for Shopping with Native ♥",
+        150,
+        footerY + 58,
+        { width: 260, align: "center" }
+      );
 
     pdf.font("Inter")
       .fontSize(7)
       .fillColor("#9ca3af")
-      .text(`Generated on ${new Date().toLocaleString()}`, 40, footerY + 75);
+      .text(
+        `Generated on ${new Date().toLocaleString()}`,
+        40,
+        footerY + 82
+      );
 
-    pdf.text(`Invoice Hash: ${invoiceHash}`, 220, footerY + 75);
+    pdf.text(`Hash: ${invoiceHash}`, 240, footerY + 82);
 
     pdf.end();
 
@@ -323,6 +363,7 @@ export async function GET(req, { params }) {
         "Content-Disposition": `inline; filename=${invoiceNumber}.pdf`,
       },
     });
+
   } catch (err) {
     console.error("INVOICE ERROR:", err);
 
