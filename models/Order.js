@@ -98,18 +98,14 @@ const OrderItemSchema = new mongoose.Schema(
 );
 
 /* ================= ADDRESS ================= */
+
 const AddressSchema = new mongoose.Schema(
   {
     name: String,
-
     phone: String,
-
     email: String,
-
     address: String,
-
     city: String,
-
     state: String,
 
     country: {
@@ -133,7 +129,7 @@ const AddressSchema = new mongoose.Schema(
         message: "GST Number is required for B2B invoices",
       },
     },
-    
+
     gstType: {
       type: String,
       enum: ["B2C", "B2B"],
@@ -141,6 +137,7 @@ const AddressSchema = new mongoose.Schema(
         return this.gstNumber ? "B2B" : "B2C";
       },
     },
+  },
   { _id: false }
 );
 
