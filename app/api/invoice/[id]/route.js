@@ -9,45 +9,39 @@ import { calculateGSTSummary } from "@/lib/gst";
 import { generateInvoiceNumber } from "@/lib/invoiceNumber";
 
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import QRCode from "qrcode";
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
-import QRCode from "qrcode";
 
-/* ================= SAFE NUMBER ================= */
+/* ================= CONFIG ================= */
 
-const N = (v) => {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : 0;
-};
+const W = 595;
+const H = 842;
 
-const S = (v) => (v ? String(v) : "-");
-const M = (v) => `₹${N(v).toFixed(2)}`;
+const num = (v) => (isNaN(Number(v)) ? 0 : Number(v));
 
-/* ================= CONSTANTS ================= */
+const safe = (v) =>
+  v === undefined || v === null || v === "" ? "-" : String(v);
 
-const PAGE = { w: 595, h: 842, m: 40 };
-const MIN_Y = 100; // safe bottom threshold
+const money = (v) => `₹${num(v).toFixed(2)}`;
 
-/* ================= HASH ================= */
-
-const hashInvoice = (o, inv) =>
+const hashInvoice = (order, inv) =>
   crypto
     .createHash("sha256")
-    .update(`${o.orderId}-${inv}`)
+    .update(`${order.orderId}-${inv}-${order.createdAt}`)
     .digest("hex")
-    .slice(0, 16);
+    .slice(0, 20)
+    .toUpperCase();
 
-/* ================= QR ================= */
-
-const qr = (data) =>
+const qrGen = async (data) =>
   QRCode.toBuffer(JSON.stringify(data), {
     type: "png",
     errorCorrectionLevel: "H",
     scale: 5,
   });
 
-/* ================= MAIN ================= */
+/* ================= ROUTE ================= */
 
 export async function GET(req, { params }) {
   try {
@@ -57,193 +51,154 @@ export async function GET(req, { params }) {
     const company = await CompanySettings.findOne().lean();
 
     if (!order || !company) {
-      return NextResponse.json({ success: false }, { status: 404 });
+      return NextResponse.json(
+        { success: false, message: "Missing order/company" },
+        { status: 404 }
+      );
     }
 
-    /* ================= INVOICE ================= */
+    /* ================= INVOICE NUMBER ================= */
 
-    let invoiceNo = order?.invoice?.invoiceNumber;
+    let invoiceNumber = order?.invoice?.invoiceNumber;
 
-    if (!invoiceNo) {
+    if (!invoiceNumber) {
       const count = await Order.countDocuments({
         "invoice.invoiceNumber": { $exists: true },
       });
 
-      invoiceNo = generateInvoiceNumber(count);
+      invoiceNumber = generateInvoiceNumber(count);
 
       await Order.updateOne(
         { _id: order._id },
         {
           $set: {
-            "invoice.invoiceNumber": invoiceNo,
+            "invoice.invoiceNumber": invoiceNumber,
             "invoice.generatedAt": new Date(),
+            "billing.locked": true,
           },
         }
       );
     }
 
-    const gst = calculateGSTSummary(order, company.state || {});
+    /* ================= DATA ================= */
 
-    const qrBuffer = await qr({
-      invoice: invoiceNo,
+    const gst = calculateGSTSummary(order, company.state || "");
+    const hash = hashInvoice(order, invoiceNumber);
+
+    const qrBuffer = await qrGen({
+      invoice: invoiceNumber,
       orderId: order.orderId,
-      amount: order.billing?.grandTotal,
+      amount: order?.billing?.grandTotal || 0,
+      hash,
     });
 
     /* ================= PDF ================= */
 
     const pdf = await PDFDocument.create();
-    let page = pdf.addPage([PAGE.w, PAGE.h]);
+    const page = pdf.addPage([W, H]);
 
     const font = await pdf.embedFont(StandardFonts.Helvetica);
     const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
-    const qrImg = await pdf.embedPng(qrBuffer);
 
-    const logoPath = company.logoUrl
-      ? path.join(process.cwd(), "public", company.logoUrl)
-      : null;
-
-    const logo =
-      logoPath && fs.existsSync(logoPath)
-        ? await pdf.embedPng(fs.readFileSync(logoPath))
-        : null;
-
-    const signPath = path.join(process.cwd(), "public/signature.png");
-
-    const sign =
-      fs.existsSync(signPath)
-        ? await pdf.embedPng(fs.readFileSync(signPath))
-        : null;
-
-    /* ================= SAFE DRAW ENGINE ================= */
-
-    let y = PAGE.h - PAGE.m;
-
-    const text = (t, x, size = 10, b = false) => {
-      if (!Number.isFinite(y)) y = PAGE.h - PAGE.m;
-
-      page.drawText(S(t), {
-        x: N(x),
-        y: N(y),
+    const draw = (text, x, y, size = 10, b = false) => {
+      page.drawText(safe(text), {
+        x,
+        y,
         size,
         font: b ? bold : font,
         color: rgb(0, 0, 0),
       });
     };
 
-    const down = (h = 14) => {
-      y = N(y - h);
-      if (y < MIN_Y) {
-        page = pdf.addPage([PAGE.w, PAGE.h]);
-        y = PAGE.h - PAGE.m;
-      }
-    };
-
-    const line = () => {
-      page.drawLine({
-        start: { x: PAGE.m, y },
-        end: { x: PAGE.w - PAGE.m, y },
-        thickness: 1,
-        color: rgb(0.85, 0.85, 0.85),
-      });
-      down(10);
-    };
+    let y = 800;
 
     /* ================= HEADER ================= */
 
-    if (logo) {
-      page.drawImage(logo, {
-        x: 40,
-        y: y - 40,
-        width: 45,
-        height: 45,
-      });
+    const logoPath = company.logoUrl
+      ? path.join(process.cwd(), "public", company.logoUrl)
+      : null;
+
+    if (logoPath && fs.existsSync(logoPath)) {
+      const img = await pdf.embedPng(fs.readFileSync(logoPath));
+      page.drawImage(img, { x: 40, y: 760, width: 50, height: 50 });
     }
 
-    text(company.companyName, 100, 16, true);
-    down(16);
+    draw(company.companyName, 110, y, 16, true);
 
-    text(company.tagline || "Eat Healthy, Stay Healthy", 100, 10);
-    down(25);
+    draw(
+      company.tagline || "Eat Healthy, Stay Healthy",
+      110,
+      y - 18,
+      10
+    );
 
-    text("TAX INVOICE", 420, 12, true);
-    text(invoiceNo, 420, 10);
+    draw("TAX INVOICE", 420, y, 12, true);
+    draw(invoiceNumber, 420, y - 18, 10);
 
-    down(40);
-    line();
+    y -= 60;
+    page.drawLine({
+      start: { x: 40, y },
+      end: { x: 555, y },
+      thickness: 1,
+      color: rgb(0.85, 0.85, 0.85),
+    });
 
-    /* ================= BLOCKS ================= */
+    y -= 30;
 
-    const block = (title, x, rows) => {
-      text(title, x, 11, true);
-      down();
+    /* ================= ADDRESS ================= */
 
-      rows.forEach((r) => {
-        text(r, x, 9);
-        down(12);
-      });
-    };
+    const addr = order.address || {};
+    const pay = order.payment || {};
 
-    block(40, [
-      order.address?.name,
-      order.address?.phone,
-      order.address?.address,
-    ]);
+    draw("BILL TO", 40, y, 10, true);
+    draw(addr.name, 40, y - 15);
+    draw(addr.phone, 40, y - 30);
+    draw(addr.address, 40, y - 45);
 
-    block(220, [
-      order.address?.city,
-      order.address?.state,
-      order.address?.pincode,
-    ]);
+    draw("SHIP TO", 200, y, 10, true);
+    draw(addr.city, 200, y - 15);
+    draw(addr.state, 200, y - 30);
 
-    block(380, [
-      order.payment?.method,
-      order.payment?.status,
-      M(order.payment?.amountPaid),
-    ]);
+    draw("PAYMENT", 360, y, 10, true);
+    draw(pay.method, 360, y - 15);
+    draw(pay.status, 360, y - 30);
+    draw(money(pay.amountPaid), 360, y - 45);
 
-    down(20);
-    line();
+    y -= 120;
 
     /* ================= ITEMS ================= */
 
-    text("ITEMS", 40, 11, true);
-    down();
+    const items = Array.isArray(order.items) ? order.items : [];
 
-    let total = 0;
+    draw("# ITEM QTY RATE GST TOTAL", 40, y, 10, true);
+    y -= 20;
 
-    (order.items || []).forEach((i, idx) => {
-      total += N(i.total);
+    let itemTotal = 0;
 
-      text(
-        `${idx + 1}. ${i.name} | Qty:${i.qty} | Rate:${M(
-          i.price
-        )} | Total:${M(i.total)}`,
+    items.forEach((it, i) => {
+      const total = num(it?.total);
+      itemTotal += total;
+
+      draw(
+        `${i + 1} ${it?.name || "-"} ${it?.qty || 0} ${money(
+          it?.price
+        )} ${it?.gstPercent || 0}% ${money(total)}`,
         40,
-        9
+        y
       );
 
-      down(12);
+      y -= 15;
     });
 
-    down();
-    text(`ITEM TOTAL: ${M(total)}`, 40, 11, true);
+    y -= 10;
+    draw(`ITEM TOTAL: ${money(itemTotal)}`, 40, y, 11, true);
 
-    down(40);
+    y -= 40;
 
     /* ================= SUMMARY ================= */
 
     const sx = 330;
-
-    page.drawRectangle({
-      x: sx,
-      y: y - 120,
-      width: 220,
-      height: 140,
-      color: rgb(0.97, 0.97, 0.97),
-    });
-
-    text("GST SUMMARY", sx + 15, 11, true);
+    let sy = y;
 
     const rows = [
       ["Taxable", gst.taxable],
@@ -254,15 +209,27 @@ export async function GET(req, { params }) {
       ["Grand Total", order.billing?.grandTotal],
     ];
 
-    let sy = y - 20;
-
-    rows.forEach(([k, v]) => {
-      text(k, sx + 15, 9);
-      text(M(v), sx + 140, 9);
-      sy -= 14;
+    page.drawRectangle({
+      x: sx,
+      y: sy - 110,
+      width: 220,
+      height: 140,
+      color: rgb(0.97, 0.97, 0.97),
     });
 
-    /* ================= QR + SIGN ================= */
+    draw("GST SUMMARY", sx + 15, sy, 10, true);
+
+    sy -= 20;
+
+    rows.forEach(([k, v]) => {
+      draw(k, sx + 15, sy);
+      draw(money(v), sx + 140, sy);
+      sy -= 15;
+    });
+
+    /* ================= QR ================= */
+
+    const qrImg = await pdf.embedPng(qrBuffer);
 
     page.drawImage(qrImg, {
       x: 40,
@@ -271,30 +238,44 @@ export async function GET(req, { params }) {
       height: 70,
     });
 
-    if (sign) {
-      page.drawImage(sign, {
-        x: 140,
+    /* ================= SIGN ================= */
+
+    const signPath = path.join(process.cwd(), "public/signature.png");
+
+    if (fs.existsSync(signPath)) {
+      const signImg = await pdf.embedPng(fs.readFileSync(signPath));
+
+      page.drawImage(signImg, {
+        x: 150,
         y: 120,
         width: 90,
         height: 40,
       });
     }
 
-    text(`For ${company.companyName}`, 140, 10, true);
+    draw(`For ${company.companyName}`, 150, 105, 10, true);
+    draw(`Hash: ${hash}`, 150, 90, 8);
 
-    /* ================= FINAL ================= */
+    /* ================= FOOTER ================= */
 
-    const bytes = await pdf.save();
+    draw(
+      "This is a system generated invoice and valid without signature verification.",
+      40,
+      30,
+      8
+    );
 
-    return new NextResponse(bytes, {
+    const pdfBytes = await pdf.save();
+
+    return new NextResponse(pdfBytes, {
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `inline; filename=${invoiceNo}.pdf`,
+        "Content-Disposition": `inline; filename=${invoiceNumber}.pdf`,
       },
     });
-  } catch (e) {
+  } catch (err) {
     return NextResponse.json(
-      { success: false, message: e.message },
+      { success: false, message: err.message },
       { status: 500 }
     );
   }
