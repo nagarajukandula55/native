@@ -14,6 +14,12 @@ import path from "path";
 import crypto from "crypto";
 import QRCode from "qrcode";
 
+/* ================= ERP CONSTANTS ================= */
+
+const PAGE_WIDTH = 595;
+const PAGE_HEIGHT = 842;
+const FOOTER_HEIGHT = 60;
+
 const BASE_URL =
   process.env.NEXT_PUBLIC_BASE_URL ||
   process.env.BASE_URL ||
@@ -23,12 +29,12 @@ const BASE_URL =
 
 const money = (n) => `₹${Number(n || 0).toFixed(2)}`;
 
+const safe = (v) => (v === undefined || v === null || v === "" ? "-" : v);
+
 const line = (pdf, y) => {
   pdf.strokeColor("#e5e7eb").lineWidth(1);
   pdf.moveTo(40, y).lineTo(555, y).stroke();
 };
-
-const safe = (v) => v ?? "-";
 
 const hashInvoice = (order, invoiceNumber) =>
   crypto
@@ -38,8 +44,8 @@ const hashInvoice = (order, invoiceNumber) =>
     .slice(0, 20)
     .toUpperCase();
 
-const generateQR = async (payload) =>
-  QRCode.toBuffer(JSON.stringify(payload), {
+const generateQR = async (data) =>
+  QRCode.toBuffer(JSON.stringify(data), {
     type: "png",
     errorCorrectionLevel: "H",
     margin: 1,
@@ -155,7 +161,7 @@ export async function GET(req, { params }) {
     /* ================= INVOICE BOX ================= */
 
     pdf
-      .roundedRect(360, 30, 195, 170, 10)
+      .roundedRect(360, 30, 195, 165, 10)
       .fillAndStroke("#f9fafb", "#e5e7eb");
 
     pdf
@@ -183,18 +189,14 @@ export async function GET(req, { params }) {
       iy += 32;
     });
 
-    line(pdf, 215);
+    line(pdf, 210);
 
-    /* ================= ADDRESS SECTION ================= */
+    /* ================= ADDRESS BLOCK ================= */
 
     const top = 235;
 
     const box = (x, title, fields) => {
-      pdf
-        .font("Inter-Bold")
-        .fontSize(10)
-        .fillColor("#111827")
-        .text(title, x, top);
+      pdf.font("Inter-Bold").fontSize(10).text(title, x, top);
 
       let y = top + 18;
 
@@ -238,7 +240,7 @@ export async function GET(req, { params }) {
 
     line(pdf, 360);
 
-    /* ================= ITEMS TABLE ================= */
+    /* ================= ITEMS ================= */
 
     const items = order.items || [];
 
@@ -290,7 +292,7 @@ export async function GET(req, { params }) {
       ty += 30;
     });
 
-    /* ================= BOTTOM LAYOUT ================= */
+    /* ================= BOTTOM ERP GRID ================= */
 
     const bottom = 540;
 
@@ -307,7 +309,6 @@ export async function GET(req, { params }) {
     pdf
       .font("Inter-Bold")
       .fontSize(10)
-      .fillColor("#111827")
       .text(`For ${company.companyName}`, 140, bottom + 55);
 
     const sign = path.join(process.cwd(), "public/signature.png");
@@ -316,7 +317,7 @@ export async function GET(req, { params }) {
       pdf.image(sign, 140, bottom + 70, { width: 120 });
     }
 
-    /* ================= SUMMARY BOX ================= */
+    /* ================= GST SUMMARY ================= */
 
     const sx = 330;
     let sy = bottom;
@@ -334,16 +335,12 @@ export async function GET(req, { params }) {
       .roundedRect(sx, sy, 230, 160, 10)
       .fillAndStroke("#f9fafb", "#e5e7eb");
 
-    pdf
-      .font("Inter-Bold")
-      .fontSize(12)
-      .fillColor("#111827")
-      .text("GST Summary", sx + 15, sy + 12);
+    pdf.font("Inter-Bold").text("GST Summary", sx + 15, sy + 12);
 
     sy += 35;
 
     summary.forEach(([k, v]) => {
-      pdf.font("Inter").fontSize(9).fillColor("#374151");
+      pdf.font("Inter").fontSize(9);
       pdf.text(k, sx + 15, sy);
       pdf.text(money(v), sx + 140, sy);
       sy += 18;
@@ -359,7 +356,7 @@ export async function GET(req, { params }) {
 
     /* ================= FOOTER ================= */
 
-    const fy = PAGE_HEIGHT - 60;
+    const fy = PAGE_HEIGHT - FOOTER_HEIGHT;
 
     line(pdf, fy);
 
@@ -368,7 +365,7 @@ export async function GET(req, { params }) {
       .fontSize(8)
       .fillColor("#6b7280")
       .text(
-        "This is a system generated invoice and is valid without signature verification.",
+        "ERP Certified Invoice | System Generated | No Signature Required",
         40,
         fy + 10,
         { width: 500, align: "center" }
@@ -386,10 +383,7 @@ export async function GET(req, { params }) {
     });
   } catch (err) {
     return NextResponse.json(
-      {
-        success: false,
-        message: err.message,
-      },
+      { success: false, message: err.message },
       { status: 500 }
     );
   }
