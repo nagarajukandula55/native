@@ -1,0 +1,36 @@
+{
+  "type": "B2B_INVOICE",
+  "page": "A4",
+  "sections": [
+    {
+      "name": "header",
+      "components": ["logo", "company", "invoice_box"]
+    },
+    {
+      "name": "parties",
+      "components": ["bill_to", "ship_to", "payment"]
+    },
+    {
+      "name": "items",
+      "table": true,
+      "columns": [
+        "item_name",
+        "hsn",
+        "qty",
+        "rate",
+        "gst",
+        "taxable",
+        "total"
+      ]
+    },
+    {
+      "name": "summary",
+      "align": "right",
+      "fields": ["taxable", "cgst", "sgst", "igst", "grand_total"]
+    },
+    {
+      "name": "footer",
+      "components": ["qr", "signature", "notes"]
+    }
+  ]
+}
