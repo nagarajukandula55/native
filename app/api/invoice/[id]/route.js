@@ -19,8 +19,6 @@ import QRCode from "qrcode";
 const PAGE_H = 842;
 const PAGE_W = 595;
 
-/* ================= CORE SAFE ENGINE ================= */
-
 const num = (v) => {
   const n = Number(v);
   return isNaN(n) ? 0 : n;
@@ -50,7 +48,7 @@ const qr = async (data) =>
     scale: 5,
   });
 
-/* ================= MAIN API ================= */
+/* ================= API ================= */
 
 export async function GET(req, { params }) {
   try {
@@ -66,7 +64,7 @@ export async function GET(req, { params }) {
       );
     }
 
-    /* ================= INVOICE NUMBER ================= */
+    /* ================= INVOICE ================= */
 
     let invoiceNumber = order?.invoice?.invoiceNumber;
 
@@ -89,9 +87,7 @@ export async function GET(req, { params }) {
       );
     }
 
-    /* ================= SAFE DATA ================= */
-
-    const gst = calculateGSTSummary(order, company.state || "");
+    const gst = calculateGSTSummary(order, company.state || {});
     const hash = hashInvoice(order, invoiceNumber);
 
     const qrBuffer = await qr({
@@ -101,7 +97,7 @@ export async function GET(req, { params }) {
       hash,
     });
 
-    /* ================= PDF INIT ================= */
+    /* ================= PDF ================= */
 
     const pdf = await PDFDocument.create();
     const page = pdf.addPage([PAGE_W, PAGE_H]);
@@ -127,22 +123,25 @@ export async function GET(req, { params }) {
         ? await pdf.embedPng(fs.readFileSync(signPath))
         : null;
 
-    /* ================= DRAW HELPERS ================= */
+    /* ================= LAYOUT ENGINE ================= */
 
-    const draw = (text, x, y, size = 10, isBold = false) => {
+    let y = 800;
+    const left = 40;
+
+    const draw = (text, x, yy, size = 10, isBold = false) => {
       page.drawText(safe(text), {
-        x: num(x),
-        y: num(y),
+        x,
+        y: num(yy),
         size,
         font: isBold ? bold : font,
         color: rgb(0, 0, 0),
       });
     };
 
-    const line = (y) => {
+    const line = (yy) => {
       page.drawLine({
-        start: { x: 40, y: num(y) },
-        end: { x: 555, y: num(y) },
+        start: { x: 40, y: num(yy) },
+        end: { x: 555, y: num(yy) },
         thickness: 1,
         color: rgb(0.85, 0.85, 0.85),
       });
@@ -150,39 +149,36 @@ export async function GET(req, { params }) {
 
     /* ================= HEADER ================= */
 
-    let y = 800;
-
     if (logoImg) {
       page.drawImage(logoImg, {
         x: 40,
-        y: 760,
+        y: y - 40,
         width: 50,
         height: 50,
       });
     }
 
     draw(company.companyName, 110, y, 16, true);
-
     draw(
       company.tagline || "Eat Healthy, Stay Healthy",
       110,
-      y - 20,
+      y - 18,
       10
     );
 
     draw("TAX INVOICE", 420, y, 12, true);
-    draw(invoiceNumber, 420, y - 20, 10);
+    draw(invoiceNumber, 420, y - 18, 10);
 
-    line(740);
+    y -= 70;
+    line(y);
 
-    /* ================= ADDRESS ================= */
+    /* ================= ADDRESS BLOCK ================= */
 
-    const baseY = 690;
+    y -= 20;
 
     const block = (title, x, rows) => {
-      draw(title, x, baseY, 11, true);
-
-      let yy = baseY - 18;
+      draw(title, x, y, 11, true);
+      let yy = y - 18;
 
       rows.forEach((r) => {
         draw(r, x, yy, 9);
@@ -215,31 +211,35 @@ export async function GET(req, { params }) {
 
     /* ================= ITEMS ================= */
 
-    let yItem = 520;
+    y -= 140;
+
+    draw("# Item Qty Rate GST Total", 40, y, 10, true);
+    y -= 20;
+
     let itemTotal = 0;
-
-    draw("# Item Qty Rate GST Total", 40, yItem, 10, true);
-
-    yItem -= 25;
 
     (order.items || []).forEach((it, i) => {
       const total = num(it?.total);
       itemTotal += total;
 
-      const row = `${i + 1} ${it?.name} ${it?.qty} ${money(
-        it?.price
-      )} ${num(it?.gstPercent)}% ${money(total)}`;
+      draw(
+        `${i + 1} ${it?.name} ${it?.qty} ${money(it?.price)} ${num(
+          it?.gstPercent
+        )}% ${money(total)}`,
+        40,
+        y,
+        9
+      );
 
-      draw(row, 40, yItem, 9);
-      yItem -= 15;
+      y -= 16;
     });
 
-    draw(`Items Total: ${money(itemTotal)}`, 40, yItem - 10, 11, true);
+    draw(`Items Total: ${money(itemTotal)}`, 40, y - 10, 11, true);
 
     /* ================= SUMMARY ================= */
 
-    let sy = yItem - 40;
     const sx = 330;
+    let sy = y - 40;
 
     const rows = [
       ["Taxable", gst.taxable],
@@ -292,7 +292,7 @@ export async function GET(req, { params }) {
     /* ================= FOOTER ================= */
 
     draw(
-      "This invoice is system generated and valid without physical signature.",
+      "This invoice is system generated and valid without signature verification.",
       40,
       30,
       8
