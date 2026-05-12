@@ -284,27 +284,27 @@ export async function GET(req, { params }) {
 
     /* SIGNATURE */
     pdf.font("Inter-Bold").fontSize(10).fillColor("#111827")
-      .text(`For ${company?.companyName || "COMPANY"}`, 145, blockY + 92);
+      .text(`For ${company?.companyName || "COMPANY"}`, 145, blockY + 70);
 
     const signPath = path.join(process.cwd(), "public/signature.png");
 
     if (fs.existsSync(signPath)) {
-      pdf.image(signPath, 145, blockY + 112, { width: 120 });
+      pdf.image(signPath, 145, blockY + 82, { width: 120 });
     }
 
     pdf.font("Inter").fontSize(9)
-      .text("Authorised Signatory", 145, blockY + 170);
+      .text("Authorised Signatory", 145, blockY + 138);
 
     /* SUMMARY */
-    pdf.roundedRect(325, blockY -8, 230, 170, 10)
+    pdf.roundedRect(325, blockY + 5, 230, 170, 10)
       .fillAndStroke("#f9fafb", "#d1d5db");
 
     pdf.font("Inter-Bold").fontSize(12).fillColor("#111827")
-      .text("GST Summary", 340, blockY + 12);
+      .text("GST Summary", 340, blockY + 25);
 
     pdf.font("Inter").fontSize(10);
 
-    pdf.text("Taxable Amount", 340, blockY + 40);
+    pdf.text("Taxable Amount", 340, blockY + 53);
     pdf.text(money(gst.taxable), 470, blockY + 40);
 
     pdf.text("Discount", 340, blockY + 62);
@@ -324,7 +324,7 @@ export async function GET(req, { params }) {
     pdf.text(money(order.billing?.grandTotal), 450, blockY + 150);
 
     /* FOOTER */
-    const footerY = blockY + 195;
+    const footerY = blockY + 225;
 
     line(pdf, footerY);
 
