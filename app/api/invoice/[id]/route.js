@@ -19,7 +19,7 @@ import QRCode from "qrcode";
 const PAGE_H = 842;
 const PAGE_W = 595;
 
-/* ================= SAFE ENGINE CORE ================= */
+/* ================= CORE SAFE ENGINE ================= */
 
 const num = (v) => {
   const n = Number(v);
@@ -29,7 +29,11 @@ const num = (v) => {
 const safe = (v) =>
   v === undefined || v === null || v === "" ? "-" : String(v);
 
-const money = (v) => `₹${num(v).toFixed(2)}`;
+const money = (v) =>
+  `INR ${num(v).toLocaleString("en-IN", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
 
 const hashInvoice = (order, inv) =>
   crypto
@@ -87,7 +91,7 @@ export async function GET(req, { params }) {
 
     /* ================= SAFE DATA ================= */
 
-    const gst = calculateGSTSummary(order, company.state || {});
+    const gst = calculateGSTSummary(order, company.state || "");
     const hash = hashInvoice(order, invoiceNumber);
 
     const qrBuffer = await qr({
@@ -104,6 +108,7 @@ export async function GET(req, { params }) {
 
     const font = await pdf.embedFont(StandardFonts.Helvetica);
     const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+
     const qrImg = await pdf.embedPng(qrBuffer);
 
     const logoPath = company.logoUrl
@@ -118,8 +123,9 @@ export async function GET(req, { params }) {
     const signPath = path.join(process.cwd(), "public/signature.png");
 
     const signImg =
-      fs.existsSync(signPath) &&
-      (await pdf.embedPng(fs.readFileSync(signPath)));
+      fs.existsSync(signPath)
+        ? await pdf.embedPng(fs.readFileSync(signPath))
+        : null;
 
     /* ================= DRAW HELPERS ================= */
 
@@ -171,15 +177,15 @@ export async function GET(req, { params }) {
 
     /* ================= ADDRESS ================= */
 
-    const blockY = 690;
+    const baseY = 690;
 
-    const block = (title, x, data) => {
-      draw(title, x, blockY, 11, true);
+    const block = (title, x, rows) => {
+      draw(title, x, baseY, 11, true);
 
-      let yy = blockY - 18;
+      let yy = baseY - 18;
 
-      data.forEach((d) => {
-        draw(d, x, yy, 9);
+      rows.forEach((r) => {
+        draw(r, x, yy, 9);
         yy -= 14;
       });
     };
@@ -286,7 +292,7 @@ export async function GET(req, { params }) {
     /* ================= FOOTER ================= */
 
     draw(
-      "This is a system generated invoice and valid without signature verification.",
+      "This invoice is system generated and valid without physical signature.",
       40,
       30,
       8
