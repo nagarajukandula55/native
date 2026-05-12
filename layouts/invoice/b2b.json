@@ -1,0 +1,75 @@
+{
+  "id": "INV_B2B_V1",
+  "type": "B2B_INVOICE",
+  "page": "A4",
+
+  "header": {
+    "showLogo": true,
+    "showCompany": true,
+    "showTagline": true,
+    "defaultTagline": "Eat Healthy, Stay Healthy",
+    "alignment": "left"
+  },
+
+  "invoiceBox": {
+    "title": "TAX INVOICE",
+    "fields": [
+      { "key": "invoice.invoiceNumber", "label": "Invoice No" },
+      { "key": "order.orderId", "label": "Order ID" },
+      { "key": "invoice.generatedAt", "label": "Date" }
+    ]
+  },
+
+  "parties": {
+    "billTo": true,
+    "shipTo": true,
+    "payment": true
+  },
+
+  "items": {
+    "enabled": true,
+    "columns": [
+      "sl",
+      "name",
+      "hsn",
+      "qty",
+      "rate",
+      "gst",
+      "taxable",
+      "total"
+    ],
+    "showTotalRow": true,
+    "showItemCount": true
+  },
+
+  "summary": {
+    "enabled": true,
+    "position": "right",
+    "fields": [
+      "taxable",
+      "discount",
+      "cgst",
+      "sgst",
+      "igst",
+      "totalGst",
+      "grandTotal"
+    ]
+  },
+
+  "qr": {
+    "enabled": true,
+    "position": "bottom-left"
+  },
+
+  "signature": {
+    "enabled": true,
+    "position": "bottom-right",
+    "label": "Authorised Signatory"
+  },
+
+  "footer": {
+    "enabled": true,
+    "text": "This is a system generated tax invoice and is valid without signature verification.",
+    "alignment": "center"
+  }
+}
