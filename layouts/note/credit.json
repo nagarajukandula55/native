@@ -1,0 +1,28 @@
+{
+  "id": "CN_V1",
+  "type": "CREDIT_NOTE",
+
+  "header": {
+    "title": "CREDIT NOTE",
+    "showCompany": true
+  },
+
+  "reference": {
+    "showOriginalInvoice": true,
+    "fields": ["invoiceNumber", "invoiceDate"]
+  },
+
+  "items": {
+    "enabled": true,
+    "columns": ["sl", "name", "qty", "rate", "reason", "amount"]
+  },
+
+  "summary": {
+    "enabled": true,
+    "fields": ["refundAmount", "adjustedAmount"]
+  },
+
+  "footer": {
+    "text": "Credit note issued against returned or adjusted items."
+  }
+}
