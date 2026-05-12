@@ -126,9 +126,9 @@ export async function GET(req, { params }) {
       pdf
         .opacity(0.05)
         .font("Inter")
-        .fontSize(18)
-        .fillColor("#f3f4f6")
-        .text(company.tagline, 110, 430, {
+        .fontSize(10)
+        .fillColor("#6b7280")
+        .text(company.tagline, 118, 62, {
           width: 380,
           align: "center",
         });
@@ -154,7 +154,7 @@ export async function GET(req, { params }) {
       .text(company?.companyName || "COMPANY", 118, 36);
 
     pdf.font("Inter").fontSize(10).fillColor("#6b7280")
-      .text(company?.tagline || "-", 118, 62);
+      .text(company?.tagline || "Eat Healthy, Stay Healthy", 118, 62);
 
     let companyY = 82;
     pdf.text(company?.addressLine1 || "-", 118, companyY); companyY += 15;
@@ -166,7 +166,7 @@ export async function GET(req, { params }) {
     pdf.text(`Email: ${company?.email || "-"}`, 118, companyY);
 
     /* INVOICE BOX */
-    pdf.roundedRect(360, 35, 195, 155, 10)
+    pdf.roundedRect(360, 30, 195, 165, 10)
       .fillAndStroke("#f9fafb", "#d1d5db");
 
     pdf.font("Inter-Bold").fontSize(18).fillColor("#111827")
@@ -191,15 +191,34 @@ export async function GET(req, { params }) {
     const drawAddress = (x, title) => {
       pdf.font("Inter-Bold").fontSize(11).text(title, x, top);
       pdf.font("Inter").fontSize(9);
-
+    
       let y = top + 18;
-
-      pdf.text(order.address?.name || "-", x, y); y += 15;
-      pdf.text(order.address?.phone || "-", x, y); y += 15;
-      pdf.text(order.address?.address || "-", x, y, { width: 150 }); y += 28;
-      pdf.text(`City: ${order.address?.city || "-"}`, x, y); y += 14;
-      pdf.text(`State: ${order.address?.state || "-"}`, x, y); y += 14;
-      pdf.text(`PIN: ${order.address?.pincode || "-"}`, x, y); y += 14;
+    
+      pdf.text(order.address?.name || "-", x, y);
+      y += 15;
+    
+      pdf.text(order.address?.phone || "-", x, y);
+      y += 15;
+    
+      const address = order.address?.address || "-";
+    
+      const addressHeight = pdf.heightOfString(address, {
+        width: 150,
+      });
+    
+      pdf.text(address, x, y, { width: 150 });
+    
+      y += addressHeight + 4;
+    
+      pdf.text(`City: ${order.address?.city || "-"}`, x, y);
+      y += 14;
+    
+      pdf.text(`State: ${order.address?.state || "-"}`, x, y);
+      y += 14;
+    
+      pdf.text(`PIN: ${order.address?.pincode || "-"}`, x, y);
+      y += 14;
+    
       pdf.text(order.address?.email || "-", x, y);
     };
 
@@ -265,19 +284,19 @@ export async function GET(req, { params }) {
 
     /* SIGNATURE */
     pdf.font("Inter-Bold").fontSize(10).fillColor("#111827")
-      .text(`For ${company?.companyName || "COMPANY"}`, 145, blockY + 78);
+      .text(`For ${company?.companyName || "COMPANY"}`, 145, blockY + 92);
 
     const signPath = path.join(process.cwd(), "public/signature.png");
 
     if (fs.existsSync(signPath)) {
-      pdf.image(signPath, 145, blockY + 95, { width: 120 });
+      pdf.image(signPath, 145, blockY + 112, { width: 120 });
     }
 
     pdf.font("Inter").fontSize(9)
-      .text("Authorised Signatory", 145, blockY + 145);
+      .text("Authorised Signatory", 145, blockY + 170);
 
     /* SUMMARY */
-    pdf.roundedRect(325, blockY, 230, 170, 10)
+    pdf.roundedRect(325, blockY -8, 230, 170, 10)
       .fillAndStroke("#f9fafb", "#d1d5db");
 
     pdf.font("Inter-Bold").fontSize(12).fillColor("#111827")
@@ -305,7 +324,7 @@ export async function GET(req, { params }) {
     pdf.text(money(order.billing?.grandTotal), 450, blockY + 150);
 
     /* FOOTER */
-    const footerY = blockY + 215;
+    const footerY = blockY + 195;
 
     line(pdf, footerY);
 
