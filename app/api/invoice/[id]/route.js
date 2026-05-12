@@ -14,19 +14,24 @@ import path from "path";
 import crypto from "crypto";
 import QRCode from "qrcode";
 
-/* ================= PAGE CONFIG ================= */
+/* ================= SAFE NUMBER ================= */
 
-const PAGE = { w: 595, h: 842, m: 40 };
+const N = (v) => {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+};
 
-/* ================= SAFE UTILS ================= */
-
-const N = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
 const S = (v) => (v ? String(v) : "-");
 const M = (v) => `₹${N(v).toFixed(2)}`;
 
+/* ================= CONSTANTS ================= */
+
+const PAGE = { w: 595, h: 842, m: 40 };
+const MIN_Y = 100; // safe bottom threshold
+
 /* ================= HASH ================= */
 
-const hash = (o, inv) =>
+const hashInvoice = (o, inv) =>
   crypto
     .createHash("sha256")
     .update(`${o.orderId}-${inv}`)
@@ -77,7 +82,8 @@ export async function GET(req, { params }) {
       );
     }
 
-    const gst = calculateGSTSummary(order, company.state || "");
+    const gst = calculateGSTSummary(order, company.state || {});
+
     const qrBuffer = await qr({
       invoice: invoiceNo,
       orderId: order.orderId,
@@ -109,21 +115,29 @@ export async function GET(req, { params }) {
         ? await pdf.embedPng(fs.readFileSync(signPath))
         : null;
 
-    /* ================= LAYOUT ENGINE ================= */
+    /* ================= SAFE DRAW ENGINE ================= */
 
     let y = PAGE.h - PAGE.m;
 
     const text = (t, x, size = 10, b = false) => {
+      if (!Number.isFinite(y)) y = PAGE.h - PAGE.m;
+
       page.drawText(S(t), {
-        x,
-        y,
+        x: N(x),
+        y: N(y),
         size,
         font: b ? bold : font,
         color: rgb(0, 0, 0),
       });
     };
 
-    const down = (gap = 14) => (y -= gap);
+    const down = (h = 14) => {
+      y = N(y - h);
+      if (y < MIN_Y) {
+        page = pdf.addPage([PAGE.w, PAGE.h]);
+        y = PAGE.h - PAGE.m;
+      }
+    };
 
     const line = () => {
       page.drawLine({
@@ -132,7 +146,7 @@ export async function GET(req, { params }) {
         thickness: 1,
         color: rgb(0.85, 0.85, 0.85),
       });
-      down(12);
+      down(10);
     };
 
     /* ================= HEADER ================= */
@@ -147,10 +161,10 @@ export async function GET(req, { params }) {
     }
 
     text(company.companyName, 100, 16, true);
-    down();
+    down(16);
 
     text(company.tagline || "Eat Healthy, Stay Healthy", 100, 10);
-    down(20);
+    down(25);
 
     text("TAX INVOICE", 420, 12, true);
     text(invoiceNo, 420, 10);
@@ -158,7 +172,7 @@ export async function GET(req, { params }) {
     down(40);
     line();
 
-    /* ================= 3 COLUMN CARDS ================= */
+    /* ================= BLOCKS ================= */
 
     const block = (title, x, rows) => {
       text(title, x, 11, true);
@@ -166,7 +180,7 @@ export async function GET(req, { params }) {
 
       rows.forEach((r) => {
         text(r, x, 9);
-        down();
+        down(12);
       });
     };
 
@@ -209,22 +223,21 @@ export async function GET(req, { params }) {
         9
       );
 
-      down();
+      down(12);
     });
 
     down();
     text(`ITEM TOTAL: ${M(total)}`, 40, 11, true);
 
-    down(30);
+    down(40);
 
     /* ================= SUMMARY ================= */
 
     const sx = 330;
-    let sy = y;
 
     page.drawRectangle({
       x: sx,
-      y: sy - 120,
+      y: y - 120,
       width: 220,
       height: 140,
       color: rgb(0.97, 0.97, 0.97),
@@ -241,13 +254,12 @@ export async function GET(req, { params }) {
       ["Grand Total", order.billing?.grandTotal],
     ];
 
-    let yy = sy - 20;
+    let sy = y - 20;
 
     rows.forEach(([k, v]) => {
       text(k, sx + 15, 9);
       text(M(v), sx + 140, 9);
-      yy -= 14;
-      y = yy;
+      sy -= 14;
     });
 
     /* ================= QR + SIGN ================= */
@@ -269,15 +281,8 @@ export async function GET(req, { params }) {
     }
 
     text(`For ${company.companyName}`, 140, 10, true);
-    text(`Hash: ${hash(order, invoiceNo)}`, 140, 8);
 
-    /* ================= FOOTER ================= */
-
-    text(
-      "This invoice is system generated and valid without signature.",
-      40,
-      8
-    );
+    /* ================= FINAL ================= */
 
     const bytes = await pdf.save();
 
