@@ -318,20 +318,25 @@ export default function CheckoutPage() {
         return;
       }
 
-    const res = await fetch("/api/orders/create", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+    const res = await fetch("https://www.angroup.in/api/orders/create", {
       body: JSON.stringify({
         cart: cleanedCart,
-        taxItems,
-        address: form,
-        email: form.email,
-        coupon,
-        discount,
+      
+        address: {
+          name: form.name,
+          phone: form.phone,
+          email: form.email,
+          address: form.address,
+          city: form.city,
+          state: form.state,
+          pincode: form.pincode,
+          gstNumber: form.gstNumber
+        },
+      
+        coupon: coupon || null,
         paymentMethod,
-        gstType: form.gstNumber ? "B2B" : "B2C",
-        gstMode: isInterState ? "IGST" : "CGST_SGST",
-        amount: finalAmount,
+      
+        amount: finalAmount
       }),
     });
     
