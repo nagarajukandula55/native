@@ -2,661 +2,136 @@
 
 import { useEffect, useState } from "react";
 
-import OrderTimeline from "@/components/OrderTimeline";
+type Order = {
+  _id: string;
+  orderId: string;
+  amount: number;
+  status: string;
+  payment?: {
+    status?: string;
+    utr?: string;
+  };
+  address?: {
+    name?: string;
+    phone?: string;
+  };
+};
 
-import DispatchPanel from "@/components/admin/DispatchPanel";
+export default function OrdersPage() {
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [filtered, setFiltered] = useState<Order[]>([]);
+  const [status, setStatus] = useState("ALL");
+  const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(false);
 
-export default function AdminOrdersPage() {
+  /* ================= FETCH ORDERS ================= */
+  const fetchOrders = async () => {
+    try {
+      setLoading(true);
 
-  const [orders, setOrders] =
-    useState([]);
+      const res = await fetch("/api/orders/list");
+      const data = await res.json();
 
-  const [filtered, setFiltered] =
-    useState([]);
-
-  const [status, setStatus] =
-    useState("ALL");
-
-  const [search, setSearch] =
-    useState("");
-
-  const [loading, setLoading] =
-    useState(true);
-
-  const [error, setError] =
-    useState("");
-
-  /* =========================================
-     FETCH
-  ========================================= */
+      if (data.success) {
+        setOrders(data.orders || []);
+        setFiltered(data.orders || []);
+      }
+    } catch (err) {
+      console.error("FETCH ORDERS ERROR", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     fetchOrders();
   }, []);
 
-  const fetchOrders = async () => {
-
-    try {
-
-      setLoading(true);
-
-      setError("");
-
-      const res = await fetch(
-        "/api/orders/list"
-      );
-
-      const data =
-        await res.json();
-
-      if (data?.success) {
-
-        setOrders(
-          data.orders || []
-        );
-
-        setFiltered(
-          data.orders || []
-        );
-
-      } else {
-
-        setOrders([]);
-
-        setFiltered([]);
-      }
-
-    } catch (err) {
-
-      console.error(err);
-
-      setError(
-        "Failed to load orders"
-      );
-
-    } finally {
-
-      setLoading(false);
-    }
-  };
-
-  /* =========================================
-     FILTER
-  ========================================= */
-
+  /* ================= FILTER ================= */
   useEffect(() => {
-
     let temp = [...orders];
 
     if (status !== "ALL") {
-
-      temp = temp.filter(
-        (o) =>
-          o.status === status
-      );
+      temp = temp.filter((o) => o.status === status);
     }
 
     if (search) {
-
       temp = temp.filter(
         (o) =>
-
-          o.orderId
-            ?.toLowerCase()
-            .includes(
-              search.toLowerCase()
-            ) ||
-
-          o.address?.phone?.includes(
-            search
-          ) ||
-
-          o.address?.name
-            ?.toLowerCase()
-            .includes(
-              search.toLowerCase()
-            )
+          o.orderId?.toLowerCase().includes(search.toLowerCase()) ||
+          o.address?.phone?.includes(search) ||
+          o.address?.name?.toLowerCase().includes(search.toLowerCase())
       );
     }
 
     setFiltered(temp);
-
   }, [status, search, orders]);
 
-  /* =========================================
-     UPDATE STATUS
-  ========================================= */
+  /* ================= MARK AS PAID ================= */
+  const markAsPaid = async (orderId: string) => {
+    const utr = prompt("Enter UTR / Transaction ID");
 
-  const updateStatus = async (
-    id,
-    newStatus
-  ) => {
+    if (!utr) return;
 
-    try {
+    const res = await fetch("/api/payment/mark-paid", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orderId,
+        utr,
+      }),
+    });
 
-      const res = await fetch(
-        "/api/admin/orders/update-status",
-        {
+    const data = await res.json();
 
-          method: "POST",
-
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-
-          body: JSON.stringify({
-
-            id,
-
-            status:
-              newStatus,
-          }),
-        }
-      );
-
-      const data =
-        await res.json();
-
-      if (data?.success) {
-
-        alert(
-          "Status Updated ✅"
-        );
-
-        fetchOrders();
-
-      } else {
-
-        alert(
-          data.message ||
-          "Failed to update status"
-        );
-      }
-
-    } catch (err) {
-
-      console.error(err);
-
-      alert(
-        "Error updating status"
-      );
+    if (data.success) {
+      alert("Marked as Paid ✅");
+      fetchOrders();
+    } else {
+      alert(data.message || "Failed");
     }
   };
 
-  /* =========================================
-     MARK PAID
-  ========================================= */
+  /* ================= UPDATE STATUS ================= */
+  const updateStatus = async (orderId: string, status: string) => {
+    const res = await fetch("/api/admin/orders/update-status", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orderId,
+        status,
+      }),
+    });
 
-  const markAsPaid = async (
-    order
-  ) => {
+    const data = await res.json();
 
-    const utr = prompt(
-      "Enter UTR / Reference (optional)"
-    );
-
-    try {
-
-      const res = await fetch(
-        "/api/payment/mark-paid",
-        {
-
-          method: "POST",
-
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-
-          body: JSON.stringify({
-
-            orderId:
-              order.orderId,
-
-            utr,
-          }),
-        }
-      );
-
-      const data =
-        await res.json();
-
-      if (data.success) {
-
-        alert(
-          "Marked as Paid ✅"
-        );
-
-        fetchOrders();
-
-      } else {
-
-        alert(
-          data.message ||
-          "Failed ❌"
-        );
-      }
-
-    } catch (err) {
-
-      console.log(err);
-
-      alert(
-        "Payment update failed"
-      );
+    if (data.success) {
+      alert("Updated ✅");
+      fetchOrders();
+    } else {
+      alert(data.message || "Failed");
     }
   };
-
-  /* =========================================
-     LOAD COURIERS
-  ========================================= */
-
-  const loadCouriers = async (
-    order
-  ) => {
-
-    try {
-
-      const res = await fetch(
-        "/api/shipping/rates",
-        {
-
-          method: "POST",
-
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-
-          body: JSON.stringify({
-
-            orderId:
-              order.orderId,
-          }),
-        }
-      );
-
-      const data =
-        await res.json();
-
-      console.log(
-        "🚚 COURIERS:",
-        data
-      );
-
-      if (!data.success) {
-
-        alert(
-          data.message ||
-          "Failed to load couriers"
-        );
-
-        return;
-      }
-
-      if (
-        !data.couriers?.length
-      ) {
-
-        alert(
-          "No couriers available"
-        );
-
-        return;
-      }
-
-      let message =
-        "Available Couriers:\n\n";
-
-      data.couriers
-        .slice(0, 10)
-        .forEach((c) => {
-
-          message +=
-
-            `${c.courierId} - ${c.courierName}\n` +
-
-            `₹${c.rate} | ETA: ${c.etd}\n\n`;
-        });
-
-      alert(message);
-
-    } catch (err) {
-
-      console.log(err);
-
-      alert(
-        "Courier fetch failed"
-      );
-    }
-  };
-
-  /* =========================================
-     CREATE SHIPMENT
-  ========================================= */
-
-  const createShipment = async (
-    order
-  ) => {
-
-    try {
-
-      const dispatchType =
-        document.getElementById(
-          `dispatch-${order._id}`
-        ).value;
-
-      let courierId = null;
-
-      if (
-        dispatchType ===
-        "COURIER"
-      ) {
-
-        courierId =
-          prompt(
-            "Enter Courier ID"
-          );
-
-        if (!courierId) {
-
-          return;
-        }
-      }
-
-      const res = await fetch(
-        "/api/shipping/create-shipment",
-        {
-
-          method: "POST",
-
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-
-          body: JSON.stringify({
-
-            orderId:
-              order.orderId,
-
-            courierId,
-
-            dispatchType,
-          }),
-        }
-      );
-
-      const data =
-        await res.json();
-
-      console.log(data);
-
-      if (data.success) {
-
-        alert(
-          "Shipment Created ✅"
-        );
-
-        fetchOrders();
-
-      } else {
-
-        alert(
-          data.message ||
-          "Shipment Failed"
-        );
-      }
-
-    } catch (err) {
-
-      console.log(err);
-
-      alert(
-        "Shipment creation failed"
-      );
-    }
-  };
-
-  /* =========================================
-     BUTTON STYLE
-  ========================================= */
-
-  const btn = (bg) => ({
-
-    padding: "6px 10px",
-
-    border: "none",
-
-    borderRadius: 8,
-
-    cursor: "pointer",
-
-    fontSize: 12,
-
-    fontWeight: 600,
-
-    background: bg,
-
-    color: "#fff",
-  });
-
-  /* =========================================
-     ACTION BUTTONS
-  ========================================= */
-
-  const ActionButtons = ({
-    o,
-  }) => {
-
-    return (
-
-      <div
-        style={{
-          display: "flex",
-          gap: 6,
-          flexWrap: "wrap",
-        }}
-      >
-
-        {/* MARK PAID */}
-        {!["SUCCESS", "PAID"].includes(
-          o.payment?.status
-        ) &&
-        o.status !== "PAID" &&
-        o.status !== "PROCESSING" &&
-        o.status !== "PACKED" &&
-        o.status !== "DISPATCHED" &&
-        o.status !== "DELIVERED" && (
-
-          <button
-            style={btn("#16a34a")}
-            onClick={() =>
-              markAsPaid(o)
-            }
-          >
-            Mark Paid
-          </button>
-        )}
-
-        {/* PROCESSING */}
-        {o.status === "PAID" && (
-
-          <button
-            style={btn("#2563eb")}
-            onClick={() =>
-              updateStatus(
-                o._id,
-                "PROCESSING"
-              )
-            }
-          >
-            Start Processing
-          </button>
-        )}
-
-        {/* PACKED */}
-        {o.status ===
-          "PROCESSING" && (
-
-          <button
-            style={btn("#7c3aed")}
-            onClick={() =>
-              updateStatus(
-                o._id,
-                "PACKED"
-              )
-            }
-          >
-            Mark Packed
-          </button>
-        )}
-
-        {/* DISPATCH */}
-        {o.status === "PACKED" && (
-
-          <div
-            style={{
-              display: "flex",
-              gap: 8,
-              flexWrap: "wrap",
-              alignItems:
-                "center",
-            }}
-          >
-
-            <select
-              defaultValue="COURIER"
-              id={`dispatch-${o._id}`}
-              style={{
-                padding: 8,
-                borderRadius: 8,
-              }}
-            >
-
-              <option value="COURIER">
-                Courier
-              </option>
-
-              <option value="BY_HAND">
-                By Hand
-              </option>
-
-              <option value="LOCAL_DELIVERY">
-                Local Delivery
-              </option>
-
-            </select>
-
-            <button
-              style={btn("#2563eb")}
-              onClick={() =>
-                loadCouriers(o)
-              }
-            >
-              Load Couriers
-            </button>
-
-            <button
-              style={btn("#f97316")}
-              onClick={() =>
-                createShipment(o)
-              }
-            >
-              Dispatch
-            </button>
-
-          </div>
-        )}
-
-        {/* DELIVERED */}
-        {o.status ===
-          "DISPATCHED" && (
-
-          <button
-            style={btn("#111")}
-            onClick={() =>
-              updateStatus(
-                o._id,
-                "DELIVERED"
-              )
-            }
-          >
-            Delivered
-          </button>
-        )}
-
-        {/* COMPLETE */}
-        {o.status ===
-          "DELIVERED" && (
-
-          <span
-            style={{
-
-              padding:
-                "4px 10px",
-
-              borderRadius: 20,
-
-              fontSize: 12,
-
-              fontWeight: 600,
-
-              background:
-                "#dcfce7",
-            }}
-          >
-            Completed ✔
-          </span>
-        )}
-
-      </div>
-    );
-  };
-
-  /* =========================================
-     UI
-  ========================================= */
 
   return (
+    <div style={{ padding: 20 }}>
+      <h2>📦 ShopNative Orders</h2>
 
-    <div style={container}>
+      {/* SEARCH */}
+      <input
+        placeholder="Search orders..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        style={{
+          padding: 10,
+          marginTop: 10,
+          marginBottom: 10,
+          width: 300,
+        }}
+      />
 
-      {/* HEADER */}
-      <div style={header}>
-
-        <h2>
-          📦 Orders Dashboard
-        </h2>
-
-        <input
-          placeholder="Search Order ID / Phone / Customer"
-          value={search}
-          onChange={(e) =>
-            setSearch(
-              e.target.value
-            )
-          }
-          style={input}
-        />
-
-      </div>
-
-      {error && (
-
-        <p
-          style={{
-            color: "red",
-          }}
-        >
-          {error}
-        </p>
-      )}
-
-      {/* FILTERS */}
-      <div style={filters}>
-
+      {/* FILTER */}
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
         {[
           "ALL",
           "PENDING_PAYMENT",
@@ -666,338 +141,100 @@ export default function AdminOrdersPage() {
           "DISPATCHED",
           "DELIVERED",
         ].map((s) => (
-
           <button
             key={s}
-            onClick={() =>
-              setStatus(s)
-            }
+            onClick={() => setStatus(s)}
             style={{
-
-              ...filterBtn,
-
-              background:
-                status === s
-                  ? "#c28b45"
-                  : "#eee",
-
-              color:
-                status === s
-                  ? "#fff"
-                  : "#000",
+              padding: 8,
+              background: status === s ? "#000" : "#eee",
+              color: status === s ? "#fff" : "#000",
             }}
           >
             {s}
           </button>
         ))}
-
       </div>
 
       {/* TABLE */}
       {loading ? (
-
         <p>Loading...</p>
-
-      ) : filtered.length === 0 ? (
-
-        <p>No orders</p>
-
       ) : (
+        <table width="100%" border={1} cellPadding={10} style={{ marginTop: 20 }}>
+          <thead>
+            <tr>
+              <th>Order</th>
+              <th>Customer</th>
+              <th>Amount</th>
+              <th>Payment</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
 
-        <div style={table}>
+          <tbody>
+            {filtered.map((o) => (
+              <tr key={o._id}>
+                <td>{o.orderId}</td>
 
-          {/* HEADER */}
-          <div style={rowHead}>
-
-            <span>
-              Order ID
-            </span>
-
-            <span>
-              Customer
-            </span>
-
-            <span>
-              Amount
-            </span>
-
-            <span>
-              Payment
-            </span>
-
-            <span>
-              Status
-            </span>
-
-            <span>
-              Actions
-            </span>
-
-          </div>
-
-          {/* ROWS */}
-          {filtered.map((o) => (
-
-            <div key={o._id}>
-
-              <div style={row}>
-
-                {/* ORDER */}
-                <span>
-                  {o.orderId}
-                </span>
-
-                {/* CUSTOMER */}
-                <span>
-
-                  {o.address?.name ||
-                    "N/A"}
-
+                <td>
+                  {o.address?.name}
                   <br />
+                  <small>{o.address?.phone}</small>
+                </td>
 
-                  <small>
-                    {o.address?.phone ||
-                      "N/A"}
-                  </small>
+                <td>₹{o.amount}</td>
 
-                </span>
+                <td>{o.payment?.status || "PENDING"}</td>
 
-                {/* AMOUNT */}
-                <span>
-                  ₹{o.amount}
-                </span>
+                <td>{o.status}</td>
 
-                {/* PAYMENT */}
-                <span>
-
-                  <b>
-                    {o.payment
-                      ?.status ||
-                      "PENDING"}
-                  </b>
-
-                </span>
-
-                {/* STATUS */}
-                <span>
-
-                  <b>
-                    {o.status}
-                  </b>
-
-                </span>
-
-                {/* ACTIONS */}
-                <ActionButtons
-                  o={o}
-                />
-
-              </div>
-
-              {/* SHIPPING INFO */}
-              {o.shipping
-                ?.awbNumber && (
-
-                <div
-                  style={{
-
-                    marginTop: 10,
-
-                    padding: 10,
-
-                    background:
-                      "#f8fafc",
-
-                    borderRadius: 10,
-                  }}
-                >
-
-                  <div>
-
-                    <b>
-                      Courier:
-                    </b>{" "}
-
-                    {o.shipping
-                      ?.courierPartner}
-
-                  </div>
-
-                  <div>
-
-                    <b>
-                      AWB:
-                    </b>{" "}
-
-                    {o.shipping
-                      ?.awbNumber}
-
-                  </div>
-
-                  <div>
-
-                    <b>
-                      Status:
-                    </b>{" "}
-
-                    {o.shipping
-                      ?.trackingStatus}
-
-                  </div>
-
-                  {o.shipping
-                    ?.labelUrl && (
-
-                    <div
-                      style={{
-                        marginTop: 6,
-                      }}
-                    >
-
-                      <a
-                        href={
-                          o.shipping
-                            .labelUrl
-                        }
-                        target="_blank"
-                      >
-                        Download Label
-                      </a>
-
-                    </div>
+                <td style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+                  {/* MARK PAID */}
+                  {o.payment?.status !== "PAID" && (
+                    <button onClick={() => markAsPaid(o.orderId)}>
+                      Mark Paid
+                    </button>
                   )}
 
-                </div>
-              )}
+                  {/* PROCESS */}
+                  {o.status === "PAID" && (
+                    <button
+                      onClick={() => updateStatus(o.orderId, "PROCESSING")}
+                    >
+                      Process
+                    </button>
+                  )}
 
-              {/* TIMELINE */}
-              <div
-                style={{
-                  marginTop: 8,
-                  marginBottom: 12,
-                }}
-              >
+                  {/* PACK */}
+                  {o.status === "PROCESSING" && (
+                    <button onClick={() => updateStatus(o.orderId, "PACKED")}>
+                      Pack
+                    </button>
+                  )}
 
-                <OrderTimeline
-                  order={o}
-                />
+                  {/* DISPATCH */}
+                  {o.status === "PACKED" && (
+                    <button
+                      onClick={() => updateStatus(o.orderId, "DISPATCHED")}
+                    >
+                      Dispatch
+                    </button>
+                  )}
 
-              </div>
-                    <DispatchPanel order={o} />
-
-            </div>
-          ))}
-
-        </div>
+                  {/* DELIVER */}
+                  {o.status === "DISPATCHED" && (
+                    <button
+                      onClick={() => updateStatus(o.orderId, "DELIVERED")}
+                    >
+                      Deliver
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       )}
-
     </div>
   );
 }
-
-/* =========================================
-   STYLES
-========================================= */
-
-const container = {
-
-  padding: 20,
-
-  maxWidth: 1400,
-
-  margin: "auto",
-};
-
-const header = {
-
-  display: "flex",
-
-  justifyContent:
-    "space-between",
-
-  alignItems: "center",
-
-  marginBottom: 20,
-
-  gap: 10,
-};
-
-const input = {
-
-  padding: 10,
-
-  border:
-    "1px solid #ddd",
-
-  borderRadius: 8,
-
-  minWidth: 260,
-};
-
-const filters = {
-
-  display: "flex",
-
-  gap: 10,
-
-  marginBottom: 20,
-
-  flexWrap: "wrap",
-};
-
-const filterBtn = {
-
-  padding: "8px 12px",
-
-  border: "none",
-
-  borderRadius: 6,
-
-  cursor: "pointer",
-};
-
-const table = {
-
-  display: "flex",
-
-  flexDirection: "column",
-
-  gap: 10,
-};
-
-const rowHead = {
-
-  display: "grid",
-
-  gridTemplateColumns:
-    "1fr 1fr 1fr 1fr 1fr 1.5fr",
-
-  fontWeight: "bold",
-
-  padding: 10,
-
-  background: "#f5f5f5",
-
-  borderRadius: 8,
-};
-
-const row = {
-
-  display: "grid",
-
-  gridTemplateColumns:
-    "1fr 1fr 1fr 1fr 1fr 1.5fr",
-
-  padding: 10,
-
-  background: "#fff",
-
-  border:
-    "1px solid #eee",
-
-  borderRadius: 8,
-
-  alignItems: "center",
-
-  gap: 10,
-};
