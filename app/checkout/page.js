@@ -96,7 +96,13 @@ export default function CheckoutPage() {
       );
     }
   };
-  
+
+  useEffect(() => {
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.async = true;
+    document.body.appendChild(script);
+  }, []);
 
   /* ================= CART ENRICHMENT ================= */
   useEffect(() => {
@@ -319,9 +325,13 @@ export default function CheckoutPage() {
       }
 
     const res = await fetch("https://www.angroup.in/api/orders/create", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify({
         cart: cleanedCart,
-      
+    
         address: {
           name: form.name,
           phone: form.phone,
@@ -330,13 +340,12 @@ export default function CheckoutPage() {
           city: form.city,
           state: form.state,
           pincode: form.pincode,
-          gstNumber: form.gstNumber
+          gstNumber: form.gstNumber,
         },
-      
+    
         coupon: coupon || null,
         paymentMethod,
-      
-        amount: finalAmount
+        amount: finalAmount,
       }),
     });
     
@@ -405,6 +414,11 @@ export default function CheckoutPage() {
           },
         };
 
+        if (!window.Razorpay) {
+          alert("Payment gateway not loaded. Refresh page.");
+          return;
+        }
+        
         const rzp = new window.Razorpay(options);
         rzp.open();
       }
