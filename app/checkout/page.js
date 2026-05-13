@@ -641,9 +641,6 @@ const handleOrder = async () => {
           router.push(
             `/order-success?orderId=${orderId}`
           );
-    
-          return;
-        }
       } catch (err) {
         console.error(err);
     
@@ -651,6 +648,8 @@ const handleOrder = async () => {
     
         setLoading(false);
       }
+         return;
+        }
   
         {gstData && (
           <div className="gstBox">
