@@ -277,265 +277,380 @@ export default function CheckoutPage() {
   };
 
   /* ================= ORDER ================= */
-  const handleOrder = async () => {
-    if (!form.name || !form.phone || !form.address) {
-      alert("Please fill all details");
-      return;
-    }
+const handleOrder = async () => {
+  if (!form.name || !form.phone || !form.address) {
+    alert("Please fill all required details");
+    return;
+  }
 
-    if (!validateGST(form.gstNumber)) {
-      alert("Invalid GST Number");
-      return;
-    }
+  if (!safeCart.length) {
+    alert("Cart is empty");
+    return;
+  }
 
-    if (!safeCart.length) {
-      alert("Cart is empty");
-      return;
-    }
+  if (!validateGST(form.gstNumber)) {
+    alert("Invalid GST Number");
+    return;
+  }
 
-    try {
-      setLoading(true);
+  if (form.pincode?.length !== 6) {
+    alert("Invalid Pincode");
+    return;
+  }
 
-      const cleanedCart = safeCart
-        .map((item) => {
-          const productId =
-            item.product?._id || item.productId || item._id;
+  try {
+    setLoading(true);
 
-          if (!productId) {
-            console.error("❌ Missing productId:", item);
-            return null;
-          }
+    /* ================= CLEAN CART ================= */
 
-          return {
-            productId:
+        const cleanedCart = safeCart
+          .map((item) => {
+            const productId =
               item.product?._id ||
               item.productId ||
-              item._id,   // ✅ THIS WAS MISSING
-            qty: item.qty || 1,
-            variant: item.variant || "default",
-            price: Number(item.price) || 0,
-            name: item.name || item.product?.name || "",
-          };
-        })
-        .filter(Boolean);
-
-      if (!cleanedCart.length) {
-        alert("Cart invalid. Please refresh.");
-        return;
-      }
-
-    const res = await fetch("https://www.angroup.in/api/orders/create", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        cart: cleanedCart,
-        address: {
-          name: form.name,
-          phone: form.phone,
-          email: form.email,
-          address: form.address,
-          city: form.city,
-          state: form.state,
-          pincode: form.pincode,
-          gstNumber: form.gstNumber,
-        },
-        coupon: coupon || null,
-        paymentMethod,
-        amount: finalAmount,
-      }),
-    });
+              item._id;
     
-    console.log("🌐 STATUS:", res.status);
-    
-    const data = await res.json();
-    
-    console.log("📦 RESPONSE:", data);
-    
-    if (!data.success) {
-      console.error("❌ ORDER FAILED:", data);
-      alert(data.message || "Order failed");
-      return;
-    }
-
-      setCart([]);
-      closeCart();
-
-      const orderId = data.orderId;
-
-      /* ================= RAZORPAY ================= */
-      if (paymentMethod === "RAZORPAY") {
-        if (!data.razorpayOrder) {
-          alert("Razorpay is temporarily disabled. Use UPI.");
-          return;
-        }
-
-        const options = {
-          key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-          amount: Math.round(finalAmount * 100),
-          currency: "INR",
-          name: "Native",
-          description: "Order Payment",
-          order_id: data.razorpayOrder.id,
-
-          handler: async function (response) {
-            try {
-              const verifyRes = await fetch("/api/payment/verify", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  razorpay_order_id: response.razorpay_order_id,
-                  razorpay_payment_id: response.razorpay_payment_id,
-                  razorpay_signature: response.razorpay_signature,
-                  orderId,
-                }),
-              });
-
-              const verifyData = await verifyRes.json();
-
-              if (verifyData.success) {
-                setCart([]);
-                closeCart();
-                router.push(`/order-success?orderId=${orderId}`);
-              } else {
-                alert("Payment verification failed ❌");
-              }
-            } catch (err) {
-              console.error(err);
-              alert("Payment verification error");
+            if (!productId) {
+              console.error("Missing Product ID", item);
+              return null;
             }
-          },
-
-          theme: {
-            color: "#3399cc",
-          },
-        };
-
-        if (!window.Razorpay) {
-          alert("Payment gateway not loaded. Refresh page.");
+    
+            const qty = Number(item.qty || 1);
+            const price = Number(item.price || 0);
+    
+            const base = qty * price;
+    
+            const gstPercent =
+              Number(item.gstPercent || item.tax || 0);
+    
+            const tax = getGST(
+              base,
+              gstPercent,
+              isInterState
+            );
+    
+            return {
+              productId,
+    
+              name:
+                item.name ||
+                item.product?.name ||
+                "",
+    
+              sku:
+                item.sku ||
+                item.product?.sku ||
+                "",
+    
+              hsn:
+                item.hsn ||
+                item.product?.hsn ||
+                "NOT_SET",
+    
+              variant:
+                item.variant || "default",
+    
+              qty,
+              price,
+    
+              taxableValue: base,
+    
+              gstPercent,
+    
+              cgst: tax.cgst,
+              sgst: tax.sgst,
+              igst: tax.igst,
+    
+              gstTotal: tax.gstTotal,
+    
+              lineTotal:
+                base + tax.gstTotal,
+            };
+          })
+          .filter(Boolean);
+    
+        if (!cleanedCart.length) {
+          alert("Invalid cart");
           return;
         }
-        
-        const rzp = new window.Razorpay(options);
-        rzp.open();
-      }
-
-      /* ================= UPI ================= */
-      if (paymentMethod === "UPI") {
-        const isMobile = /Android|iPhone/i.test(navigator.userAgent);
-
-        try {
-          if (isMobile) {
-            window.location.href = upiLink;
-
-            setTimeout(() => {
-              setCart([]);
-              closeCart();
-              router.push(`/order-pending?orderId=${orderId}`);
-            }, 1500);
-          } else {
-            alert("Open on mobile or scan QR to pay 📱");
-            router.push(`/order-pending?orderId=${orderId}`);
+    
+        /* ================= ENTERPRISE BILLING ================= */
+    
+        const billing = {
+          subtotal,
+    
+          discount,
+    
+          cgstTotal,
+    
+          sgstTotal,
+    
+          igstTotal,
+    
+          gstTotal,
+    
+          grandTotal: finalAmount,
+    
+          currency: "INR",
+    
+          locked: true,
+        };
+    
+        /* ================= GST MODE ================= */
+    
+        const gstType = form.gstNumber
+          ? "B2B"
+          : "B2C";
+    
+        const gstMode = isInterState
+          ? "IGST"
+          : "CGST_SGST";
+    
+        /* ================= API ================= */
+    
+        const res = await fetch(
+          "https://www.angroup.in/api/orders/create",
+          {
+            method: "POST",
+    
+            headers: {
+              "Content-Type": "application/json",
+            },
+    
+            body: JSON.stringify({
+              source: "SHOP_NATIVE",
+    
+              customerType:
+                form.gstNumber
+                  ? "BUSINESS"
+                  : "INDIVIDUAL",
+    
+              cart: cleanedCart,
+    
+              address: {
+                name: form.name,
+                phone: form.phone,
+                email: form.email,
+    
+                address: form.address,
+    
+                city: form.city,
+                state: form.state,
+    
+                pincode: form.pincode,
+    
+                gstNumber:
+                  form.gstNumber || "",
+              },
+    
+              amount: finalAmount,
+    
+              billing,
+    
+              coupon: coupon || null,
+    
+              discount,
+    
+              paymentMethod,
+    
+              taxItems: cleanedCart,
+    
+              gstType,
+    
+              gstMode,
+            }),
           }
-        } catch (err) {
-          console.error("UPI flow error:", err);
-        } finally {
+        );
+    
+        const data = await res.json();
+    
+        console.log("ORDER RESPONSE", data);
+    
+        if (!data.success) {
+          alert(data.message || "Order failed");
           setLoading(false);
+          return;
         }
+    
+        const orderId = data.orderId;
+    
+        /* ================= RAZORPAY ================= */
+    
+        if (paymentMethod === "RAZORPAY") {
+          if (!data.razorpayOrder) {
+            alert("Razorpay unavailable");
+            setLoading(false);
+            return;
+          }
+    
+          if (!window.Razorpay) {
+            alert("Payment gateway failed to load");
+            setLoading(false);
+            return;
+          }
+    
+          const options = {
+            key:
+              process.env
+                .NEXT_PUBLIC_RAZORPAY_KEY_ID,
+    
+            amount: Math.round(
+              finalAmount * 100
+            ),
+    
+            currency: "INR",
+    
+            name: "Native",
+    
+            description: "Order Payment",
+    
+            order_id:
+              data.razorpayOrder.id,
+    
+            prefill: {
+              name: form.name,
+              contact: form.phone,
+              email: form.email,
+            },
+    
+            notes: {
+              orderId,
+            },
+    
+            theme: {
+              color: "#000000",
+            },
+    
+            modal: {
+              ondismiss: function () {
+                setLoading(false);
+              },
+            },
+    
+            handler: async function (
+              response
+            ) {
+              try {
+                const verifyRes = await fetch(
+                  "https://www.angroup.in/api/payment/verify",
+                  {
+                    method: "POST",
+    
+                    headers: {
+                      "Content-Type":
+                        "application/json",
+                    },
+    
+                    body: JSON.stringify({
+                      razorpay_order_id:
+                        response.razorpay_order_id,
+    
+                      razorpay_payment_id:
+                        response.razorpay_payment_id,
+    
+                      razorpay_signature:
+                        response.razorpay_signature,
+    
+                      orderId,
+                    }),
+                  }
+                );
+    
+                const verifyData =
+                  await verifyRes.json();
+    
+                if (verifyData.success) {
+                  setCart([]);
+    
+                  closeCart();
+    
+                  router.push(
+                    `/order-success?orderId=${orderId}`
+                  );
+                } else {
+                  alert(
+                    "Payment verification failed"
+                  );
+    
+                  setLoading(false);
+                }
+              } catch (err) {
+                console.error(err);
+    
+                alert(
+                  "Payment verification error"
+                );
+    
+                setLoading(false);
+              }
+            },
+          };
+    
+          const rzp =
+            new window.Razorpay(options);
+    
+          rzp.on(
+            "payment.failed",
+            function (response) {
+              console.error(
+                response.error
+              );
+    
+              alert("Payment Failed");
+    
+              setLoading(false);
+            }
+          );
+    
+          rzp.open();
+    
+          return;
+        }
+    
+        /* ================= UPI ================= */
+    
+        if (paymentMethod === "UPI") {
+          const isMobile =
+            /Android|iPhone/i.test(
+              navigator.userAgent
+            );
+    
+          if (isMobile) {
+            window.location.href =
+              upiLink;
+          }
+    
+          setCart([]);
+    
+          closeCart();
+    
+          router.push(
+            `/order-pending?orderId=${orderId}`
+          );
+    
+          return;
+        }
+    
+        /* ================= COD ================= */
+    
+        if (paymentMethod === "COD") {
+          setCart([]);
+    
+          closeCart();
+    
+          router.push(
+            `/order-success?orderId=${orderId}`
+          );
+    
+          return;
+        }
+      } catch (err) {
+        console.error(err);
+    
+        alert("Order failed");
+    
+        setLoading(false);
       }
-    } catch (err) {
-      console.error(err);
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="checkout">
-      <div className="box">
-        <h2>Checkout</h2>
-  
-        <input name="name" placeholder="Name" onChange={handleChange} />
-        <input name="phone" placeholder="Phone" onChange={handleChange} />
-        <input
-          name="email"
-          placeholder="Email Address"
-          value={form.email}
-          onChange={handleChange}
-        />
-        <input name="address" placeholder="Address" onChange={handleChange} />
-        <input name="pincode" placeholder="Pincode" onChange={handleChange} />
-  
-        <input value={form.city} disabled placeholder="City" />
-        <input value={form.state} disabled placeholder="State" />
-  
-        {/* ✅ GST FIELD */}
-        <input
-          name="gstNumber"
-          placeholder="GST Number (for B2B)"
-          value={form.gstNumber}
-          onChange={handleChange}
-          onBlur={verifyGST}
-        />
-  
-  <h4>Payment</h4>
-  
-  {/* ================= RAZORPAY ================= */}
-  {paymentSettings?.razorpay && (
-  
-    <label className="paymentOption">
-  
-      <input
-        type="radio"
-        checked={paymentMethod === "RAZORPAY"}
-        onChange={() =>
-          setPaymentMethod("RAZORPAY")
-        }
-      />
-  
-      Razorpay
-  
-    </label>
-  
-  )}
-  
-  {/* ================= UPI ================= */}
-  {paymentSettings?.upi && (
-  
-    <label className="paymentOption">
-  
-      <input
-        type="radio"
-        checked={paymentMethod === "UPI"}
-        onChange={() =>
-          setPaymentMethod("UPI")
-        }
-      />
-  
-      UPI
-  
-    </label>
-  
-  )}
-  
-  {/* ================= COD ================= */}
-  {paymentSettings?.cod && (
-  
-    <label className="paymentOption">
-  
-      <input
-        type="radio"
-        checked={paymentMethod === "COD"}
-        onChange={() =>
-          setPaymentMethod("COD")
-        }
-      />
-  
-      Cash On Delivery
-  
-    </label>
-  
-  )}
   
         {gstData && (
           <div className="gstBox">
