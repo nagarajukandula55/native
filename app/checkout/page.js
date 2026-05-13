@@ -331,7 +331,6 @@ export default function CheckoutPage() {
       },
       body: JSON.stringify({
         cart: cleanedCart,
-    
         address: {
           name: form.name,
           phone: form.phone,
@@ -342,7 +341,6 @@ export default function CheckoutPage() {
           pincode: form.pincode,
           gstNumber: form.gstNumber,
         },
-    
         coupon: coupon || null,
         paymentMethod,
         amount: finalAmount,
