@@ -4,6 +4,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useCart } from "../../context/CartContext";
 import { useRouter } from "next/navigation";
 
+declare global {
+  interface Window {
+    Razorpay: any;
+  }
+}
+
 const SELLER_STATE = "Andhra Pradesh";
 
 const API_BASE =
