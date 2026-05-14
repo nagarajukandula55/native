@@ -93,7 +93,7 @@ export default function CheckoutPage() {
     cartTotal,
     setCart,
     closeCart,
-  } = useCart();
+  } = useCart() as any;
 
   const razorpayLoaded =
     useRef(false);
