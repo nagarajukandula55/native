@@ -85,7 +85,7 @@ export default function OrderSuccess() {
 
       const res = await fetch(
 
-        `/api/orders/get-by-id?orderId=${id}`,
+        `https://www.angroup.in/api/orders/get-by-id?orderId=${id}`
 
         {
           cache: "no-store",
