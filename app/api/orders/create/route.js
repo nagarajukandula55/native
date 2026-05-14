@@ -222,9 +222,7 @@ export async function POST(req) {
       try {
 
         const productId =
-          item.productId ||
-          item._id ||
-          item.productKey;
+          item.productId;
 
         if (!productId) {
 
