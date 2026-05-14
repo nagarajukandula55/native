@@ -90,10 +90,6 @@ export default function OrderSuccess() {
         {
           cache: "no-store",
 
-          headers: {
-            "Cache-Control":
-              "no-cache",
-          },
         }
       );
 
