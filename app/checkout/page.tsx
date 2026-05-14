@@ -602,20 +602,66 @@ export default function CheckoutPage() {
       try {
         setLoading(true);
 
-        const cleanedCart =
-          safeCart.map(
-            (item) => ({
-              productId:
-                item.productId ||
-                item._id,
+      const cleanedCart =
+        safeCart.map((item) => ({
+      
+          productId:
+            item.productId ||
+            item._id,
+      
+          productKey:
+            item.productKey || "",
+      
+          sku:
+            item.sku || "",
+      
+          name:
+            item.name || "Product",
+      
+          qty:
+            Number(item.qty || 1),
+      
+          variant:
+            item.variant ||
+            "default",
+      
+          sellingPrice:
+            Number(
+              item.sellingPrice ||
+              item.price ||
+              0
+            ),
+      
+          price:
+            Number(
+              item.price ||
+              item.sellingPrice ||
+              0
+            ),
+      
+          mrp:
+            Number(
+              item.mrp ||
+              item.price ||
+              item.sellingPrice ||
+              0
+            ),
+      
+          gstPercent:
+            Number(
+              item.gstPercent ||
+              item.tax ||
+              0
+            ),
+      
+          hsn:
+            item.hsn || "",
+      
+          image:
+            item.image || "",
+        }));
 
-              qty: item.qty,
-
-              variant:
-                item.variant ||
-                "default",
-            })
-          );
+       console.log("CHECKOUT PAYLOAD:", cleanedCart);
 
         const res =
           await fetch(
@@ -656,6 +702,10 @@ export default function CheckoutPage() {
 
           setLoading(false);
 
+          console.log(
+              "ORDER API RESPONSE:",
+              data
+            );
           return;
         }
 
