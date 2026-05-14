@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useCart } from "@/context/CartContext";
+import { useCart } from "../../context/CartContext";
 import { useRouter } from "next/navigation";
 
 const SELLER_STATE = "Andhra Pradesh";
