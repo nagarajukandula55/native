@@ -509,16 +509,121 @@ export default function CheckoutPage() {
         safeNumber(b.igst),
       0
     );
+  
+  const displayAmount = cartTotal; 
 
-  const finalAmount =
-    Math.max(
-      0,
-      subtotal +
-        gstTotal -
-        safeNumber(
-          discount
-        )
+  /* ============= Handle Pay ============ */
+
+  const handlePay = async () => {
+  if (!validateForm()) return;
+
+  if (!window.Razorpay) {
+    alert("Payment gateway not ready. Refresh page.");
+    return;
+  }
+
+  try {
+    setLoading(true);
+
+    const cleanedCart = safeCart.map((item) => ({
+      productId: item.productId || item._id,
+      productKey: item.productKey || "",
+      sku: item.sku || "",
+      name: item.name || "Product",
+      qty: Number(item.qty || 1),
+      variant: item.variant || "default",
+      sellingPrice: Number(item.sellingPrice || item.price || 0),
+      price: Number(item.price || item.sellingPrice || 0),
+      mrp: Number(item.mrp || item.price || item.sellingPrice || 0),
+      gstPercent: Number(item.gstPercent || item.tax || 0),
+      hsn: item.hsn || "",
+      image: item.image || "",
+    }));
+
+    const res = await fetch(
+      `${API_BASE}/api/orders/create`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cart: cleanedCart,
+          address: form,
+          coupon,
+          paymentMethod: "RAZORPAY",
+        }),
+      }
     );
+
+    const data = await res.json();
+
+    if (!data.success) {
+      alert(data.message || "Order failed");
+      setLoading(false);
+      return;
+    }
+
+    const options = {
+      key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+      amount: data.razorpayOrder.amount,
+      currency: data.razorpayOrder.currency,
+      name: "Native",
+      description: "Secure Checkout",
+      order_id: data.razorpayOrder.id,
+
+      prefill: {
+        name: form.name,
+        contact: form.phone,
+        email: form.email,
+      },
+
+      notes: {
+        orderId: data.orderId,
+      },
+
+      handler: async function (response: any) {
+        const verifyRes = await fetch(
+          `${API_BASE}/api/payment/verify`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              orderId: data.orderId,
+            }),
+          }
+        );
+
+        const verifyData = await verifyRes.json();
+
+        if (verifyData.success) {
+          setCart([]);
+          closeCart();
+          router.push(`/order-success?orderId=${data.orderId}`);
+        } else {
+          alert(verifyData.message || "Payment failed");
+        }
+      },
+
+      modal: {
+        ondismiss: () => {
+          setLoading(false);
+          alert("Payment cancelled");
+        },
+      },
+
+      theme: { color: "#111827" },
+    };
+
+    const rzp = new window.Razorpay(options);
+    rzp.open();
+  } catch (err) {
+    console.error(err);
+    alert("Checkout failed");
+    setLoading(false);
+  }
+};
 
   /* =========================================================
      VALIDATION
@@ -1229,7 +1334,7 @@ export default function CheckoutPage() {
             <button
               className="payBtn"
               onClick={
-                handleOrder
+                handlePay
               }
               disabled={
                 loading
