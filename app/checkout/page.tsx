@@ -1324,9 +1324,7 @@ export default function CheckoutPage() {
 
                 <span>
                   ₹
-                  {finalAmount.toFixed(
-                    2
-                  )}
+                  {grandTotal.toFixed(2)}
                 </span>
               </div>
             </div>
@@ -1342,9 +1340,7 @@ export default function CheckoutPage() {
             >
               {loading
                 ? "Processing..."
-                : `Pay ₹${finalAmount.toFixed(
-                    2
-                  )}`}
+                : `Pay ₹${grandTotal.toFixed(2)}`}
             </button>
 
             <div className="secureNote">
