@@ -58,30 +58,36 @@ export default function CheckoutPage() {
     closeCart,
   } = useCart() as any;
 
-  const razorpayLoaded =
-    useRef(false);
+  const razorpayLoaded = useRef(false);
 
   /* =========================================================
      STATES
   ========================================================= */
 
-  const [loading, setLoading] =
-    useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const [coupon, setCoupon] =
-    useState("");
+  const [coupon, setCoupon] = useState("");
 
-  const [couponData, setCouponData] =
-    useState<any>(null);
+  const [couponData, setCouponData] = useState<any>(null);
 
-  const [gstData, setGstData] =
-    useState<any>(null);
+  const [gstData, setGstData] = useState<any>(null);
 
-  const [errors, setErrors] =
-    useState<any>({});
+  const [errors, setErrors] = useState<any>({});
 
-  const [orderSummary, setOrderSummary] =
-    useState<any>(null);
+  const [orderSummary, setOrderSummary] = useState<any>({
+    items: [],
+  });
+
+  const [summary, setSummary] = useState({
+    subtotal: 0,
+    discount: 0,
+    taxableAmount: 0,
+    gstTotal: 0,
+    cgst: 0,
+    sgst: 0,
+    igst: 0,
+    grandTotal: 0,
+  });
 
   const [form, setForm] = useState({
     name: "",
@@ -100,26 +106,23 @@ export default function CheckoutPage() {
   ========================================================= */
 
   useEffect(() => {
-    if (typeof window === "undefined")
-      return;
+    if (typeof window === "undefined") return;
 
     if (window.Razorpay) {
       razorpayLoaded.current = true;
       return;
     }
 
-    const existingScript =
-      document.querySelector(
-        'script[src="https://checkout.razorpay.com/v1/checkout.js"]'
-      );
+    const existingScript = document.querySelector(
+      'script[src="https://checkout.razorpay.com/v1/checkout.js"]'
+    );
 
     if (existingScript) {
       razorpayLoaded.current = true;
       return;
     }
 
-    const script =
-      document.createElement("script");
+    const script = document.createElement("script");
 
     script.src =
       "https://checkout.razorpay.com/v1/checkout.js";
@@ -131,6 +134,10 @@ export default function CheckoutPage() {
     };
 
     document.body.appendChild(script);
+
+    return () => {
+      script.onload = null;
+    };
   }, []);
 
   /* =========================================================
@@ -138,42 +145,34 @@ export default function CheckoutPage() {
   ========================================================= */
 
   useEffect(() => {
-    if (form.pincode.length !== 6)
-      return;
+    if (form.pincode.length !== 6) return;
 
     let mounted = true;
 
-    const fetchLocation =
-      async () => {
-        try {
-          const res = await fetch(
-            `https://api.postalpincode.in/pincode/${form.pincode}`
-          );
+    const fetchLocation = async () => {
+      try {
+        const res = await fetch(
+          `https://api.postalpincode.in/pincode/${form.pincode}`
+        );
 
-          const data =
-            await res.json();
+        const data = await res.json();
 
-          if (
-            mounted &&
-            data?.[0]?.Status ===
-              "Success"
-          ) {
-            const po =
-              data[0]
-                ?.PostOffice?.[0];
+        if (
+          mounted &&
+          data?.[0]?.Status === "Success"
+        ) {
+          const po = data[0]?.PostOffice?.[0];
 
-            setForm((prev) => ({
-              ...prev,
-              city:
-                po?.District || "",
-              state:
-                po?.State || "",
-            }));
-          }
-        } catch (err) {
-          console.error(err);
+          setForm((prev) => ({
+            ...prev,
+            city: po?.District || "",
+            state: po?.State || "",
+          }));
         }
-      };
+      } catch (err) {
+        console.error(err);
+      }
+    };
 
     fetchLocation();
 
@@ -191,8 +190,7 @@ export default function CheckoutPage() {
       | React.ChangeEvent<HTMLInputElement>
       | React.ChangeEvent<HTMLTextAreaElement>
   ) => {
-    const { name, value } =
-      e.target;
+    const { name, value } = e.target;
 
     setForm((prev) => ({
       ...prev,
@@ -215,40 +213,24 @@ export default function CheckoutPage() {
       return;
     }
 
-    if (
-      !validateGST(
-        form.gstNumber
-      )
-    ) {
+    if (!validateGST(form.gstNumber)) {
       setErrors((prev: any) => ({
         ...prev,
-        gstNumber:
-          "Invalid GST Number",
+        gstNumber: "Invalid GST Number",
       }));
-
       return;
     }
 
     try {
-      const res = await fetch(
-        "/api/gst/verify",
-        {
-          method: "POST",
+      const res = await fetch("/api/gst/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          gstNumber: form.gstNumber,
+        }),
+      });
 
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-
-          body: JSON.stringify({
-            gstNumber:
-              form.gstNumber,
-          }),
-        }
-      );
-
-      const data =
-        await res.json();
+      const data = await res.json();
 
       if (data.success) {
         setGstData(data.data);
@@ -262,129 +244,81 @@ export default function CheckoutPage() {
      APPLY COUPON
   ========================================================= */
 
-  const applyCoupon =
-    async () => {
-      if (!coupon) return;
+  const applyCoupon = async () => {
+    if (!coupon) return;
 
-      try {
-        const res = await fetch(
-          "/api/coupons/validate",
-          {
-            method: "POST",
-
-            headers: {
-              "Content-Type":
-                "application/json",
-            },
-
-            body: JSON.stringify({
-              code: coupon,
-            }),
-          }
-        );
-
-        const data =
-          await res.json();
-
-        if (!data.success) {
-          alert(data.message);
-
-          setCouponData(null);
-
-          return;
+    try {
+      const res = await fetch(
+        "/api/coupons/validate",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ code: coupon }),
         }
+      );
 
-        setCouponData(data);
-      } catch (err) {
-        console.error(err);
+      const data = await res.json();
+
+      if (!data.success) {
+        alert(data.message);
+        setCouponData(null);
+        return;
       }
-    };
+
+      setCouponData(data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   /* =========================================================
-     CALCULATIONS
+     SUMMARY (LOCAL PREVIEW ONLY)
   ========================================================= */
 
-  const summary =
-    useMemo(() => {
-      const subtotal =
-        cart.reduce(
-          (
-            acc: number,
-            item: any
-          ) =>
-            acc +
-            safeNumber(
-              item.price
-            ) *
-              safeNumber(
-                item.qty
-              ),
-          0
-        );
+  const previewSummary = useMemo(() => {
+    const subtotal = cart.reduce(
+      (acc: number, item: any) =>
+        acc +
+        safeNumber(item.price) *
+          safeNumber(item.qty),
+      0
+    );
 
-      const discount =
-        safeNumber(
-          couponData?.discount
-        );
+    const discount = safeNumber(couponData?.discount);
 
-      const grandTotal =
-        subtotal - discount;
-
-      return {
-        subtotal,
-        discount,
-        grandTotal,
-      };
-    }, [cart, couponData]);
+    return {
+      subtotal,
+      discount,
+      grandTotal: Math.max(0, subtotal - discount),
+    };
+  }, [cart, couponData]);
 
   /* =========================================================
      VALIDATION
   ========================================================= */
 
   const validateForm = () => {
-    const newErrors: any =
-      {};
+    const newErrors: any = {};
 
-    if (!form.name)
-      newErrors.name =
-        "Name required";
+    if (!form.name) newErrors.name = "Name required";
 
-    if (
-      !validatePhone(
-        form.phone
-      )
-    ) {
-      newErrors.phone =
-        "Invalid mobile number";
+    if (!validatePhone(form.phone)) {
+      newErrors.phone = "Invalid mobile number";
     }
 
-    if (
-      !validateEmail(
-        form.email
-      )
-    ) {
-      newErrors.email =
-        "Invalid email";
+    if (!validateEmail(form.email)) {
+      newErrors.email = "Invalid email";
     }
 
-    if (!form.address)
-      newErrors.address =
-        "Address required";
+    if (!form.address) newErrors.address = "Address required";
 
-    if (
-      form.pincode.length !== 6
-    ) {
-      newErrors.pincode =
-        "Invalid pincode";
+    if (form.pincode.length !== 6) {
+      newErrors.pincode = "Invalid pincode";
     }
 
     setErrors(newErrors);
 
-    return (
-      Object.keys(
-        newErrors
-      ).length === 0
-    );
+    return Object.keys(newErrors).length === 0;
   };
 
   /* =========================================================
@@ -392,207 +326,135 @@ export default function CheckoutPage() {
   ========================================================= */
 
   const handlePay = async () => {
-    if (!validateForm())
-      return;
+    if (!validateForm()) return;
 
-    if (
-      !razorpayLoaded.current
-    ) {
-      alert(
-        "Payment gateway loading..."
-      );
-
+    if (!razorpayLoaded.current) {
+      alert("Payment gateway loading...");
       return;
     }
 
     try {
       setLoading(true);
 
-      const cleanedCart =
-        cart.map((item: any) => ({
-          productId:
-            item.productId ||
-            item._id,
+      const cleanedCart = cart.map((item: any) => ({
+        productId: item.productId || item._id,
+        qty: Number(item.qty || 1),
+        variant: item.variant || "default",
+      }));
 
-          qty: Number(
-            item.qty || 1
-          ),
+      const res = await fetch(
+        `${API_BASE}/api/orders/create`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            cart: cleanedCart,
+            address: form,
+            coupon,
+            paymentMethod: "RAZORPAY",
+          }),
+        }
+      );
 
-          variant:
-            item.variant ||
-            "default",
-        }));
-
-      const res =
-        await fetch(
-          `${API_BASE}/api/orders/create`,
-          {
-            method: "POST",
-
-            headers: {
-              "Content-Type":
-                "application/json",
-            },
-
-            body:
-              JSON.stringify(
-                {
-                  cart: cleanedCart,
-                  address: form,
-                  coupon,
-                  paymentMethod:
-                    "RAZORPAY",
-                }
-              ),
-          }
-        );
-
-      const data =
-        await res.json();
-
-      setOrderSummary(data);
+      const data = await res.json();
 
       if (!data.success) {
-        alert(
-          data.message ||
-            "Order failed"
-        );
-
+        alert(data.message || "Order failed");
         setLoading(false);
         return;
       }
 
+      setOrderSummary({ items: data.items || [] });
+
+      setSummary({
+        subtotal: safeNumber(data.subtotal),
+        discount: safeNumber(data.discount),
+        taxableAmount: safeNumber(data.taxableAmount),
+        gstTotal: safeNumber(data.gstTotal),
+        cgst: safeNumber(data.cgst),
+        sgst: safeNumber(data.sgst),
+        igst: safeNumber(data.igst),
+        grandTotal: safeNumber(data.amount),
+      });
+
       const options = {
-        key:
-          process.env
-            .NEXT_PUBLIC_RAZORPAY_KEY_ID,
-
-        amount:
-          data.razorpayOrder
-            .amount,
-
-        currency:
-          data.razorpayOrder
-            .currency,
-
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+        amount: data.razorpayOrder.amount,
+        currency: data.razorpayOrder.currency,
         name: "Native",
-
-        description:
-          "Secure Checkout",
-
-        order_id:
-          data.razorpayOrder.id,
+        description: "Secure Checkout",
+        order_id: data.razorpayOrder.id,
 
         prefill: {
           name: form.name,
-          contact:
-            form.phone,
-          email:
-            form.email,
+          contact: form.phone,
+          email: form.email,
         },
 
         notes: {
-          orderId:
-            data.orderId,
+          orderId: data.orderId,
         },
 
-        handler:
-          async function (
-            response: any
-          ) {
-            try {
-              const verifyRes =
-                await fetch(
-                  `${API_BASE}/api/payment/verify`,
-                  {
-                    method:
-                      "POST",
-
-                    headers: {
-                      "Content-Type":
-                        "application/json",
-                    },
-
-                    body:
-                      JSON.stringify(
-                        {
-                          razorpay_order_id:
-                            response.razorpay_order_id,
-
-                          razorpay_payment_id:
-                            response.razorpay_payment_id,
-
-                          razorpay_signature:
-                            response.razorpay_signature,
-
-                          orderId:
-                            data.orderId,
-                        }
-                      ),
-                  }
-                );
-
-              const verifyData =
-                await verifyRes.json();
-
-              if (
-                verifyData.success
-              ) {
-                setCart([]);
-
-                closeCart();
-
-                router.push(
-                  `/order-success?orderId=${data.orderId}`
-                );
-              } else {
-                alert(
-                  verifyData.message ||
-                    "Payment verification failed"
-                );
+        handler: async function (response: any) {
+          try {
+            const verifyRes = await fetch(
+              `${API_BASE}/api/payment/verify`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  razorpay_order_id:
+                    response.razorpay_order_id,
+                  razorpay_payment_id:
+                    response.razorpay_payment_id,
+                  razorpay_signature:
+                    response.razorpay_signature,
+                  orderId: data.orderId,
+                }),
               }
-            } catch (err) {
-              console.error(
-                err
-              );
+            );
 
+            const verifyData = await verifyRes.json();
+
+            if (verifyData.success) {
+              setCart([]);
+              closeCart();
+              router.push(
+                `/order-success?orderId=${data.orderId}`
+              );
+            } else {
               alert(
-                "Payment verification failed"
+                verifyData.message ||
+                  "Payment verification failed"
               );
             }
-          },
+          } catch (err) {
+            console.error(err);
+            alert("Payment verification failed");
+          }
+        },
 
         modal: {
-          ondismiss:
-            function () {
-              setLoading(
-                false
-              );
-            },
+          ondismiss: () => setLoading(false),
         },
 
-        theme: {
-          color:
-            "#111827",
-        },
+        theme: { color: "#111827" },
       };
 
-      const rzp =
-        new window.Razorpay(
-          options
-        );
-
+      const rzp = new window.Razorpay(options);
       rzp.open();
     } catch (err) {
       console.error(err);
-
-      alert(
-        "Checkout failed"
-      );
-
+      alert("Checkout failed");
       setLoading(false);
     }
   };
+
+  /* =========================================================
+     UI
+  ========================================================= */
 
   return (
     <div className="checkoutWrapper">
@@ -601,164 +463,54 @@ export default function CheckoutPage() {
       <div className="checkoutGrid">
 
         {/* LEFT */}
-
         <div className="leftBox">
           <div className="card">
-
             <div className="header">
-              <h1>
-                Secure Checkout
-              </h1>
-
-              <p>
-                Enterprise-grade
-                protected payment
-              </p>
+              <h1>Secure Checkout</h1>
+              <p>Enterprise-grade protected payment</p>
             </div>
 
             <div className="section">
-              <h3>
-                Customer Details
-              </h3>
+              <h3>Customer Details</h3>
 
-              <input
-                name="name"
-                placeholder="Full Name"
-                value={form.name}
-                onChange={
-                  handleChange
-                }
-              />
+              <input name="name" value={form.name} onChange={handleChange} placeholder="Full Name" />
+              {errors.name && <p className="error">{errors.name}</p>}
 
-              {errors.name && (
-                <p className="error">
-                  {errors.name}
-                </p>
-              )}
+              <input name="phone" value={form.phone} onChange={handleChange} placeholder="Phone Number" />
+              {errors.phone && <p className="error">{errors.phone}</p>}
 
-              <input
-                name="phone"
-                placeholder="Phone Number"
-                value={form.phone}
-                onChange={
-                  handleChange
-                }
-              />
-
-              {errors.phone && (
-                <p className="error">
-                  {errors.phone}
-                </p>
-              )}
-
-              <input
-                name="email"
-                placeholder="Email Address"
-                value={form.email}
-                onChange={
-                  handleChange
-                }
-              />
+              <input name="email" value={form.email} onChange={handleChange} placeholder="Email Address" />
             </div>
 
             <div className="section">
-              <h3>
-                Delivery Address
-              </h3>
+              <h3>Delivery Address</h3>
 
-              <textarea
-                name="address"
-                placeholder="Complete Address"
-                value={form.address}
-                onChange={
-                  handleChange
-                }
-              />
+              <textarea name="address" value={form.address} onChange={handleChange} placeholder="Complete Address" />
 
-              <input
-                name="landmark"
-                placeholder="Landmark"
-                value={form.landmark}
-                onChange={
-                  handleChange
-                }
-              />
-
-              <input
-                name="pincode"
-                placeholder="Pincode"
-                value={form.pincode}
-                onChange={
-                  handleChange
-                }
-              />
+              <input name="pincode" value={form.pincode} onChange={handleChange} placeholder="Pincode" />
 
               <div className="doubleGrid">
-                <input
-                  value={form.city}
-                  disabled
-                  placeholder="City"
-                />
-
-                <input
-                  value={form.state}
-                  disabled
-                  placeholder="State"
-                />
+                <input value={form.city} disabled placeholder="City" />
+                <input value={form.state} disabled placeholder="State" />
               </div>
             </div>
 
             <div className="section">
-              <h3>
-                GST Details
-              </h3>
+              <h3>GST Details</h3>
 
-              <input
-                name="gstNumber"
-                placeholder="GST Number (Optional)"
-                value={
-                  form.gstNumber
-                }
-                onChange={
-                  handleChange
-                }
-                onBlur={
-                  verifyGST
-                }
-              />
+              <input name="gstNumber" value={form.gstNumber} onChange={handleChange} onBlur={verifyGST} placeholder="GST (Optional)" />
 
               {gstData && (
-                <div className="successBox">
-                  GST Verified ✅
-                </div>
+                <div className="successBox">GST Verified</div>
               )}
             </div>
 
             <div className="section">
-              <h3>
-                Apply Coupon
-              </h3>
+              <h3>Coupon</h3>
 
               <div className="couponRow">
-                <input
-                  value={coupon}
-                  onChange={(e) =>
-                    setCoupon(
-                      e.target
-                        .value
-                    )
-                  }
-                  placeholder="Coupon Code"
-                />
-
-                <button
-                  className="couponBtn"
-                  onClick={
-                    applyCoupon
-                  }
-                >
-                  Apply
-                </button>
+                <input value={coupon} onChange={(e) => setCoupon(e.target.value)} placeholder="Coupon Code" />
+                <button className="couponBtn" onClick={applyCoupon}>Apply</button>
               </div>
             </div>
 
@@ -766,115 +518,54 @@ export default function CheckoutPage() {
         </div>
 
         {/* RIGHT */}
-
         <div className="rightBox">
           <div className="summaryCard">
 
-            <h2>
-              Order Summary
-            </h2>
+            <h2>Order Summary</h2>
 
             <div className="items">
-              {cart.map(
-                (
-                  item: any,
-                  i: number
-                ) => (
-                  <div
-                    className="item"
-                    key={`${item.productId}-${i}`}
-                  >
-                    <div>
-                      <h4>
-                        {item.name}
-                      </h4>
-
-                      <p>
-                        Qty:{" "}
-                        {item.qty}
-                      </p>
-                    </div>
-
-                    <div className="price">
-                      ₹
-                      {(
-                        safeNumber(
-                          item.price
-                        ) *
-                        safeNumber(
-                          item.qty
-                        )
-                      ).toFixed(2)}
-                    </div>
+              {orderSummary.items.map((item: any, i: number) => (
+                <div className="item" key={i}>
+                  <div>
+                    <h4>{item.name}</h4>
+                    <p>Qty: {item.qty}</p>
+                    <p>GST: {item.gstRate}%</p>
+                    <p>Taxable: ₹{safeNumber(item.taxableValue).toFixed(2)}</p>
                   </div>
-                )
-              )}
+
+                  <div className="price">
+                    ₹{safeNumber(item.lineTotal).toFixed(2)}
+                  </div>
+                </div>
+              ))}
             </div>
 
             <div className="summary">
-
               <div className="summaryRow">
-                <span>
-                  Subtotal
-                </span>
-
-                <span>
-                  ₹
-                  {summary.subtotal.toFixed(
-                    2
-                  )}
-                </span>
+                <span>Subtotal</span>
+                <span>₹{previewSummary.subtotal.toFixed(2)}</span>
               </div>
 
-              {summary.discount >
-                0 && (
+              {previewSummary.discount > 0 && (
                 <div className="summaryRow success">
-                  <span>
-                    Discount
-                  </span>
-
-                  <span>
-                    - ₹
-                    {summary.discount.toFixed(
-                      2
-                    )}
-                  </span>
+                  <span>Discount</span>
+                  <span>- ₹{previewSummary.discount.toFixed(2)}</span>
                 </div>
               )}
 
               <div className="grandTotal">
-                <span>
-                  Grand Total
-                </span>
-
-                <span>
-                  ₹
-                  {summary.grandTotal.toFixed(
-                    2
-                  )}
-                </span>
+                <span>Grand Total</span>
+                <span>₹{previewSummary.grandTotal.toFixed(2)}</span>
               </div>
-
             </div>
 
-            <button
-              className="payBtn"
-              onClick={
-                handlePay
-              }
-              disabled={loading}
-            >
+            <button className="payBtn" onClick={handlePay} disabled={loading}>
               {loading
                 ? "Processing..."
-                : `Pay ₹${summary.grandTotal.toFixed(
-                    2
-                  )}`}
+                : `Pay ₹${previewSummary.grandTotal.toFixed(2)}`}
             </button>
 
-            <div className="secureNote">
-              🔒 Protected by Razorpay Secure
-            </div>
-
+            <div className="secureNote">🔒 Protected by Razorpay Secure</div>
           </div>
         </div>
 
