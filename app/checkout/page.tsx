@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+
 import { useCart } from "../../context/CartContext";
 import { useRouter } from "next/navigation";
 
@@ -26,20 +32,21 @@ const validateGST = (gst: string) => {
   );
 };
 
-const validatePhone = (
-  phone: string
-) => {
+const validatePhone = (phone: string) => {
   return /^[6-9]\d{9}$/.test(phone);
 };
 
-const validateEmail = (
-  email: string
-) => {
+const validateEmail = (email: string) => {
   if (!email) return true;
 
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
     email
   );
+};
+
+const safeNumber = (v: any) => {
+  const n = Number(v);
+  return isNaN(n) ? 0 : n;
 };
 
 export default function CheckoutPage() {
@@ -93,10 +100,20 @@ export default function CheckoutPage() {
   ========================================================= */
 
   useEffect(() => {
-    if (
-      typeof window !== "undefined" &&
-      window.Razorpay
-    ) {
+    if (typeof window === "undefined")
+      return;
+
+    if (window.Razorpay) {
+      razorpayLoaded.current = true;
+      return;
+    }
+
+    const existingScript =
+      document.querySelector(
+        'script[src="https://checkout.razorpay.com/v1/checkout.js"]'
+      );
+
+    if (existingScript) {
       razorpayLoaded.current = true;
       return;
     }
@@ -121,7 +138,7 @@ export default function CheckoutPage() {
   ========================================================= */
 
   useEffect(() => {
-    if (form.pincode?.length !== 6)
+    if (form.pincode.length !== 6)
       return;
 
     let mounted = true;
@@ -143,7 +160,7 @@ export default function CheckoutPage() {
           ) {
             const po =
               data[0]
-                .PostOffice?.[0];
+                ?.PostOffice?.[0];
 
             setForm((prev) => ({
               ...prev,
@@ -170,9 +187,9 @@ export default function CheckoutPage() {
   ========================================================= */
 
   const handleChange = (
-    e: React.ChangeEvent<
-      HTMLInputElement
-    >
+    e:
+      | React.ChangeEvent<HTMLInputElement>
+      | React.ChangeEvent<HTMLTextAreaElement>
   ) => {
     const { name, value } =
       e.target;
@@ -242,7 +259,7 @@ export default function CheckoutPage() {
   };
 
   /* =========================================================
-     COUPON
+     APPLY COUPON
   ========================================================= */
 
   const applyCoupon =
@@ -284,6 +301,43 @@ export default function CheckoutPage() {
     };
 
   /* =========================================================
+     CALCULATIONS
+  ========================================================= */
+
+  const summary =
+    useMemo(() => {
+      const subtotal =
+        cart.reduce(
+          (
+            acc: number,
+            item: any
+          ) =>
+            acc +
+            safeNumber(
+              item.price
+            ) *
+              safeNumber(
+                item.qty
+              ),
+          0
+        );
+
+      const discount =
+        safeNumber(
+          couponData?.discount
+        );
+
+      const grandTotal =
+        subtotal - discount;
+
+      return {
+        subtotal,
+        discount,
+        grandTotal,
+      };
+    }, [cart, couponData]);
+
+  /* =========================================================
      VALIDATION
   ========================================================= */
 
@@ -318,8 +372,7 @@ export default function CheckoutPage() {
         "Address required";
 
     if (
-      form.pincode?.length !==
-      6
+      form.pincode.length !== 6
     ) {
       newErrors.pincode =
         "Invalid pincode";
@@ -385,12 +438,8 @@ export default function CheckoutPage() {
               JSON.stringify(
                 {
                   cart: cleanedCart,
-
-                  address:
-                    form,
-
+                  address: form,
                   coupon,
-
                   paymentMethod:
                     "RAZORPAY",
                 }
@@ -410,7 +459,6 @@ export default function CheckoutPage() {
         );
 
         setLoading(false);
-
         return;
       }
 
@@ -420,13 +468,11 @@ export default function CheckoutPage() {
             .NEXT_PUBLIC_RAZORPAY_KEY_ID,
 
         amount:
-          data
-            .razorpayOrder
+          data.razorpayOrder
             .amount,
 
         currency:
-          data
-            .razorpayOrder
+          data.razorpayOrder
             .currency,
 
         name: "Native",
@@ -435,9 +481,7 @@ export default function CheckoutPage() {
           "Secure Checkout",
 
         order_id:
-          data
-            .razorpayOrder
-            .id,
+          data.razorpayOrder.id,
 
         prefill: {
           name: form.name,
@@ -464,11 +508,10 @@ export default function CheckoutPage() {
                     method:
                       "POST",
 
-                    headers:
-                      {
-                        "Content-Type":
-                          "application/json",
-                      },
+                    headers: {
+                      "Content-Type":
+                        "application/json",
+                    },
 
                     body:
                       JSON.stringify(
@@ -553,7 +596,11 @@ export default function CheckoutPage() {
 
   return (
     <div className="checkoutWrapper">
+      <div className="bgGlow" />
+
       <div className="checkoutGrid">
+
+        {/* LEFT */}
 
         <div className="leftBox">
           <div className="card">
@@ -564,18 +611,23 @@ export default function CheckoutPage() {
               </h1>
 
               <p>
-                Enterprise-grade protected payment
+                Enterprise-grade
+                protected payment
               </p>
             </div>
 
             <div className="section">
-              <h3>Customer Details</h3>
+              <h3>
+                Customer Details
+              </h3>
 
               <input
                 name="name"
                 placeholder="Full Name"
                 value={form.name}
-                onChange={handleChange}
+                onChange={
+                  handleChange
+                }
               />
 
               {errors.name && (
@@ -588,7 +640,9 @@ export default function CheckoutPage() {
                 name="phone"
                 placeholder="Phone Number"
                 value={form.phone}
-                onChange={handleChange}
+                onChange={
+                  handleChange
+                }
               />
 
               {errors.phone && (
@@ -601,7 +655,9 @@ export default function CheckoutPage() {
                 name="email"
                 placeholder="Email Address"
                 value={form.email}
-                onChange={handleChange}
+                onChange={
+                  handleChange
+                }
               />
             </div>
 
@@ -615,8 +671,7 @@ export default function CheckoutPage() {
                 placeholder="Complete Address"
                 value={form.address}
                 onChange={
-                  (e: any) =>
-                    handleChange(e)
+                  handleChange
                 }
               />
 
@@ -624,14 +679,18 @@ export default function CheckoutPage() {
                 name="landmark"
                 placeholder="Landmark"
                 value={form.landmark}
-                onChange={handleChange}
+                onChange={
+                  handleChange
+                }
               />
 
               <input
                 name="pincode"
                 placeholder="Pincode"
                 value={form.pincode}
-                onChange={handleChange}
+                onChange={
+                  handleChange
+                }
               />
 
               <div className="doubleGrid">
@@ -650,19 +709,27 @@ export default function CheckoutPage() {
             </div>
 
             <div className="section">
-              <h3>GST Details</h3>
+              <h3>
+                GST Details
+              </h3>
 
               <input
                 name="gstNumber"
                 placeholder="GST Number (Optional)"
-                value={form.gstNumber}
-                onChange={handleChange}
-                onBlur={verifyGST}
+                value={
+                  form.gstNumber
+                }
+                onChange={
+                  handleChange
+                }
+                onBlur={
+                  verifyGST
+                }
               />
 
               {gstData && (
                 <div className="successBox">
-                  GST Verified Successfully ✅
+                  GST Verified ✅
                 </div>
               )}
             </div>
@@ -677,7 +744,8 @@ export default function CheckoutPage() {
                   value={coupon}
                   onChange={(e) =>
                     setCoupon(
-                      e.target.value
+                      e.target
+                        .value
                     )
                   }
                   placeholder="Coupon Code"
@@ -697,6 +765,8 @@ export default function CheckoutPage() {
           </div>
         </div>
 
+        {/* RIGHT */}
+
         <div className="rightBox">
           <div className="summaryCard">
 
@@ -704,49 +774,84 @@ export default function CheckoutPage() {
               Order Summary
             </h2>
 
-            {cart.map(
-              (
-                item: any,
-                i: number
-              ) => (
-                <div
-                  className="item"
-                  key={i}
-                >
-                  <div>
-                    <h4>
-                      {item.name}
-                    </h4>
+            <div className="items">
+              {cart.map(
+                (
+                  item: any,
+                  i: number
+                ) => (
+                  <div
+                    className="item"
+                    key={`${item.productId}-${i}`}
+                  >
+                    <div>
+                      <h4>
+                        {item.name}
+                      </h4>
 
-                    <p>
-                      Qty: {item.qty}
-                    </p>
-                  </div>
+                      <p>
+                        Qty:{" "}
+                        {item.qty}
+                      </p>
+                    </div>
 
-                  <div className="price">
-                    ₹
-                    {Number(
-                      item.price *
-                        item.qty
-                    ).toFixed(2)}
+                    <div className="price">
+                      ₹
+                      {(
+                        safeNumber(
+                          item.price
+                        ) *
+                        safeNumber(
+                          item.qty
+                        )
+                      ).toFixed(2)}
+                    </div>
                   </div>
-                </div>
-              )
-            )}
+                )
+              )}
+            </div>
 
             <div className="summary">
 
               <div className="summaryRow">
                 <span>
-                  Total
+                  Subtotal
                 </span>
 
                 <span>
                   ₹
-                  {Number(
-                    orderSummary?.amount ||
-                    0
-                  ).toFixed(2)}
+                  {summary.subtotal.toFixed(
+                    2
+                  )}
+                </span>
+              </div>
+
+              {summary.discount >
+                0 && (
+                <div className="summaryRow success">
+                  <span>
+                    Discount
+                  </span>
+
+                  <span>
+                    - ₹
+                    {summary.discount.toFixed(
+                      2
+                    )}
+                  </span>
+                </div>
+              )}
+
+              <div className="grandTotal">
+                <span>
+                  Grand Total
+                </span>
+
+                <span>
+                  ₹
+                  {summary.grandTotal.toFixed(
+                    2
+                  )}
                 </span>
               </div>
 
@@ -757,19 +862,271 @@ export default function CheckoutPage() {
               onClick={
                 handlePay
               }
-              disabled={
-                loading
-              }
+              disabled={loading}
             >
               {loading
                 ? "Processing..."
-                : "Proceed To Pay"}
+                : `Pay ₹${summary.grandTotal.toFixed(
+                    2
+                  )}`}
             </button>
+
+            <div className="secureNote">
+              🔒 Protected by Razorpay Secure
+            </div>
 
           </div>
         </div>
 
       </div>
+
+      <style jsx>{`
+        .checkoutWrapper {
+          min-height: 100vh;
+          background:
+            linear-gradient(
+              180deg,
+              #f8fafc,
+              #eef2ff
+            );
+          padding: 40px 20px;
+          position: relative;
+          overflow: hidden;
+        }
+
+        .bgGlow {
+          position: absolute;
+          width: 600px;
+          height: 600px;
+          background: rgba(99,102,241,.12);
+          filter: blur(120px);
+          top: -200px;
+          right: -200px;
+          border-radius: 50%;
+        }
+
+        .checkoutGrid {
+          max-width: 1400px;
+          margin: auto;
+          display: grid;
+          grid-template-columns: 1fr 420px;
+          gap: 28px;
+          position: relative;
+          z-index: 2;
+        }
+
+        .card,
+        .summaryCard {
+          background: rgba(255,255,255,.75);
+          backdrop-filter: blur(20px);
+          border-radius: 28px;
+          padding: 30px;
+          border: 1px solid rgba(255,255,255,.7);
+          box-shadow:
+            0 10px 40px rgba(0,0,0,.08);
+          animation:
+            fadeUp .5s ease;
+        }
+
+        .header h1 {
+          font-size: 34px;
+          margin-bottom: 8px;
+          color: #0f172a;
+        }
+
+        .header p {
+          color: #64748b;
+          margin-bottom: 30px;
+        }
+
+        .section {
+          margin-bottom: 30px;
+        }
+
+        .section h3 {
+          margin-bottom: 14px;
+          color: #111827;
+        }
+
+        input,
+        textarea {
+          width: 100%;
+          padding: 15px;
+          border-radius: 16px;
+          border: 1px solid #dbe2ea;
+          margin-bottom: 12px;
+          font-size: 15px;
+          transition: all .25s ease;
+          background: white;
+        }
+
+        input:focus,
+        textarea:focus {
+          outline: none;
+          border-color: #111827;
+          transform: translateY(-1px);
+          box-shadow:
+            0 8px 20px rgba(0,0,0,.06);
+        }
+
+        textarea {
+          min-height: 110px;
+          resize: vertical;
+        }
+
+        .doubleGrid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 12px;
+        }
+
+        .couponRow {
+          display: flex;
+          gap: 10px;
+        }
+
+        .couponBtn,
+        .payBtn {
+          border: none;
+          background: linear-gradient(
+            135deg,
+            #111827,
+            #1e293b
+          );
+          color: white;
+          border-radius: 16px;
+          cursor: pointer;
+          font-weight: 600;
+          transition: .25s ease;
+        }
+
+        .couponBtn {
+          width: 120px;
+        }
+
+        .couponBtn:hover,
+        .payBtn:hover {
+          transform: translateY(-2px);
+        }
+
+        .payBtn {
+          width: 100%;
+          padding: 18px;
+          font-size: 16px;
+          margin-top: 24px;
+        }
+
+        .summaryCard h2 {
+          margin-bottom: 24px;
+        }
+
+        .item {
+          display: flex;
+          justify-content: space-between;
+          padding-bottom: 18px;
+          margin-bottom: 18px;
+          border-bottom: 1px solid #eef2f7;
+        }
+
+        .item h4 {
+          margin-bottom: 6px;
+        }
+
+        .item p {
+          font-size: 14px;
+          color: #64748b;
+        }
+
+        .price {
+          font-weight: 700;
+        }
+
+        .summary {
+          margin-top: 24px;
+        }
+
+        .summaryRow,
+        .grandTotal {
+          display: flex;
+          justify-content: space-between;
+          margin-bottom: 14px;
+        }
+
+        .grandTotal {
+          border-top: 1px solid #e2e8f0;
+          padding-top: 18px;
+          margin-top: 18px;
+          font-size: 22px;
+          font-weight: 800;
+        }
+
+        .error {
+          color: #dc2626;
+          font-size: 13px;
+          margin-top: -5px;
+          margin-bottom: 12px;
+        }
+
+        .success {
+          color: #16a34a;
+        }
+
+        .successBox {
+          background: #ecfdf5;
+          border: 1px solid #bbf7d0;
+          padding: 14px;
+          border-radius: 14px;
+          color: #166534;
+        }
+
+        .secureNote {
+          margin-top: 18px;
+          text-align: center;
+          color: #64748b;
+          font-size: 14px;
+        }
+
+        @keyframes fadeUp {
+          from {
+            opacity: 0;
+            transform: translateY(18px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @media (max-width: 1024px) {
+          .checkoutGrid {
+            grid-template-columns: 1fr;
+          }
+        }
+
+        @media (max-width: 640px) {
+          .checkoutWrapper {
+            padding: 20px 12px;
+          }
+
+          .card,
+          .summaryCard {
+            padding: 20px;
+          }
+
+          .doubleGrid {
+            grid-template-columns: 1fr;
+          }
+
+          .couponRow {
+            flex-direction: column;
+          }
+
+          .couponBtn {
+            width: 100%;
+            padding: 15px;
+          }
+        }
+      `}</style>
     </div>
   );
 }
