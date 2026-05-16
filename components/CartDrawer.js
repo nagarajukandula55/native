@@ -13,7 +13,7 @@ export default function CartDrawer() {
   const {
     cart,
     drawerOpen,
-    setDrawerOpen,
+    closeCart,
     removeFromCart,
     updateQty,
     cartTotal,
@@ -23,7 +23,7 @@ export default function CartDrawer() {
   if (!drawerOpen) return null;
 
   const handleCheckout = () => {
-    setDrawerOpen(false);
+    closeCart();
     setTimeout(() => router.push("/checkout"), 150);
   };
 
