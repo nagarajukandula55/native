@@ -20,38 +20,32 @@ export function CartProvider({ children }) {
     }
   }, []);
 
-  /* ================= SAVE (NON-BLOCKING) ================= */
+  /* ================= SAVE ================= */
   useEffect(() => {
-    const t = setTimeout(() => {
-      localStorage.setItem("cart", JSON.stringify(cart || []));
-    }, 0);
-
-    return () => clearTimeout(t);
+    localStorage.setItem("cart", JSON.stringify(cart || []));
   }, [cart]);
 
   /* ================= ADD ================= */
   const addToCart = (product) => {
     if (!product) return;
 
-    // ✅ FIXED: always prefer real Mongo _id
-    const productId = product._id || product.productId || null;
+    // 🔴 STRICT CONTRACT ENFORCEMENT
+    const productId = product._id;
+    const productKey = product.productKey;
 
-    // keep productKey separately (DO NOT use as productId)
-    const productKey = product.productKey || product._id;
-
-    if (!productId) return;
+    if (!productId || !productKey) {
+      console.error("Invalid product payload", product);
+      return;
+    }
 
     setCart((prev) => {
       const exists = prev.find(
-        (p) =>
-          p.productId === productId ||
-          p.productKey === productKey
+        (p) => p.productId === productId
       );
 
       if (exists) {
         return prev.map((p) =>
-          p.productId === productId ||
-          p.productKey === productKey
+          p.productId === productId
             ? { ...p, qty: (p.qty || 1) + 1 }
             : p
         );
@@ -60,14 +54,13 @@ export function CartProvider({ children }) {
       return [
         ...prev,
         {
-          productId, // ✅ correct id stored
-          productKey,
+          productId,     // Mongo ID ONLY
+          productKey,    // SKU ONLY
           name: product.name || "Product",
           price: Number(product.price || 0),
           image: product.image || "",
           qty: 1,
 
-          // fallback GST (optional)
           hsn: product.hsn || "",
           gstPercent: product.gstPercent || 0,
         },
@@ -80,19 +73,12 @@ export function CartProvider({ children }) {
   /* ================= REMOVE ================= */
   const removeFromCart = (id) => {
     setCart((prev) =>
-      prev.filter(
-        (p) =>
-          p.productId !== id &&
-          p.productKey !== id &&
-          p._id !== id
-      )
+      prev.filter((p) => p.productId !== id)
     );
   };
 
   /* ================= UPDATE QTY ================= */
   const updateQty = (id, qty) => {
-    if (!id) return;
-
     if (qty <= 0) {
       removeFromCart(id);
       return;
@@ -100,22 +86,17 @@ export function CartProvider({ children }) {
 
     setCart((prev) =>
       prev.map((p) =>
-        p.productId === id ||
-        p.productKey === id ||
-        p._id === id
+        p.productId === id
           ? { ...p, qty }
           : p
       )
     );
   };
 
-  /* ================= DRAWER ================= */
-  const closeCart = () => setDrawerOpen(false);
-  const openCart = () => setDrawerOpen(true);
-
-  /* ================= TOTAL ================= */
+  /* ================= TOTALS ================= */
   const cartTotal = (cart || []).reduce(
-    (sum, item) => sum + (item.price || 0) * (item.qty || 0),
+    (sum, item) =>
+      sum + (item.price || 0) * (item.qty || 0),
     0
   );
 
@@ -136,8 +117,6 @@ export function CartProvider({ children }) {
         cartCount,
         drawerOpen,
         setDrawerOpen,
-        openCart,
-        closeCart,
       }}
     >
       {children}
@@ -145,5 +124,4 @@ export function CartProvider({ children }) {
   );
 }
 
-export const useCart = () =>
-  useContext(CartContext);
+export const useCart = () => useContext(CartContext);
