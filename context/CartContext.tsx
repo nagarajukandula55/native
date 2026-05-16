@@ -8,9 +8,6 @@ import {
   useState,
 } from "react";
 
-const openCart = () => setDrawerOpen(true);
-const closeCart = () => setDrawerOpen(false);
-
 /* =========================================================
    CONTEXT
 ========================================================= */
@@ -26,6 +23,13 @@ export function CartProvider({ children }: any) {
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const hydrated = useRef(false);
+
+  /* =========================================================
+     ACTIONS (MUST BE INSIDE COMPONENT)
+  ========================================================= */
+
+  const openCart = () => setDrawerOpen(true);
+  const closeCart = () => setDrawerOpen(false);
 
   /* =========================================================
      LOAD CART (HYDRATION SAFE)
@@ -55,14 +59,6 @@ export function CartProvider({ children }: any) {
   }, [cart]);
 
   /* =========================================================
-     ID RESOLVER (CRITICAL FIX)
-  ========================================================= */
-
-  const resolveId = (product: any) => {
-    return product?.productId || product?._id || null;
-  };
-
-  /* =========================================================
      ADD TO CART
   ========================================================= */
 
@@ -78,9 +74,7 @@ export function CartProvider({ children }: any) {
     }
 
     setCart((prev) => {
-      const exists = prev.find(
-        (p) => p.productId === productId
-      );
+      const exists = prev.find((p) => p.productId === productId);
 
       if (exists) {
         return prev.map((p) =>
@@ -115,9 +109,7 @@ export function CartProvider({ children }: any) {
   const removeFromCart = (id: string) => {
     if (!id) return;
 
-    setCart((prev) =>
-      prev.filter((p) => p.productId !== id)
-    );
+    setCart((prev) => prev.filter((p) => p.productId !== id));
   };
 
   /* =========================================================
@@ -134,9 +126,7 @@ export function CartProvider({ children }: any) {
 
     setCart((prev) =>
       prev.map((p) =>
-        p.productId === id
-          ? { ...p, qty }
-          : p
+        p.productId === id ? { ...p, qty } : p
       )
     );
   };
