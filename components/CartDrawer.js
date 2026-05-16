@@ -53,7 +53,7 @@ export default function CartDrawer() {
             {/* ITEMS */}
             <div className="items">
               {cart.map((item) => (
-                <div className="item" key={item._id}>
+                <div className="item" key={item.productId}>
 
                   <img
                     src={item.image || "/placeholder.png"}
@@ -67,20 +67,20 @@ export default function CartDrawer() {
 
                     {/* QUANTITY CONTROLS */}
                     <div className="qty">
-                      <button onClick={() => updateQty(item._id, item.qty - 1)}>
+                      <button onClick={() => updateQty(item.productId, item.qty - 1)}>
                         −
                       </button>
 
                       <span>{item.qty}</span>
 
-                      <button onClick={() => updateQty(item._id, item.qty + 1)}>
+                      <button onClick={() => updateQty(item.productId, item.qty + 1)}>
                         +
                       </button>
                     </div>
 
                     <button
                       className="remove"
-                      onClick={() => removeFromCart(item._id)}
+                      onClick={() => removeFromCart(item.productId)}
                     >
                       Remove
                     </button>
