@@ -13,7 +13,7 @@ export default function CartPage() {
         <p>Cart is empty</p>
       ) : (
         cart.map((item) => (
-          <div key={item._id} className="row">
+          <div key={item.productId} className="row">
 
             <img src={item.image || "/placeholder.png"} />
 
@@ -22,18 +22,30 @@ export default function CartPage() {
               <p>₹{item.price}</p>
 
               <div>
-                <button onClick={() => updateQty(item._id, item.qty - 1)}>
+                <button
+                  onClick={() =>
+                    updateQty(item.productId, item.qty - 1)
+                  }
+                >
                   -
                 </button>
 
                 <span>{item.qty}</span>
 
-                <button onClick={() => updateQty(item._id, item.qty + 1)}>
+                <button
+                  onClick={() =>
+                    updateQty(item.productId, item.qty + 1)
+                  }
+                >
                   +
                 </button>
               </div>
 
-              <button onClick={() => removeFromCart(item._id)}>
+              <button
+                onClick={() =>
+                  removeFromCart(item.productId)
+                }
+              >
                 Remove
               </button>
             </div>
