@@ -8,15 +8,7 @@ import {
   useState,
 } from "react";
 
-/* =========================================================
-   CONTEXT
-========================================================= */
-
 const CartContext = createContext<any>(null);
-
-/* =========================================================
-   PROVIDER
-========================================================= */
 
 export function CartProvider({ children }: any) {
   const [cart, setCart] = useState<any[]>([]);
@@ -24,23 +16,21 @@ export function CartProvider({ children }: any) {
 
   const hydrated = useRef(false);
 
-  /* =========================================================
-     ACTIONS (MUST BE INSIDE COMPONENT)
-  ========================================================= */
+  /* =========================
+     UI ACTIONS
+  ========================= */
 
   const openCart = () => setDrawerOpen(true);
   const closeCart = () => setDrawerOpen(false);
 
-  /* =========================================================
-     LOAD CART (HYDRATION SAFE)
-  ========================================================= */
+  /* =========================
+     LOAD CART
+  ========================= */
 
   useEffect(() => {
     try {
       const saved = localStorage.getItem("cart");
-      if (saved) {
-        setCart(JSON.parse(saved) || []);
-      }
+      if (saved) setCart(JSON.parse(saved) || []);
     } catch (err) {
       console.error("Cart load failed:", err);
       setCart([]);
@@ -49,24 +39,24 @@ export function CartProvider({ children }: any) {
     hydrated.current = true;
   }, []);
 
-  /* =========================================================
-     SAVE CART (AFTER HYDRATION ONLY)
-  ========================================================= */
+  /* =========================
+     SAVE CART
+  ========================= */
 
   useEffect(() => {
     if (!hydrated.current) return;
     localStorage.setItem("cart", JSON.stringify(cart || []));
   }, [cart]);
 
-  /* =========================================================
-     ADD TO CART
-  ========================================================= */
+  /* =========================
+     ADD TO CART (FIXED)
+  ========================= */
 
   const addToCart = (product: any) => {
     if (!product) return;
 
-    const productId = product.productId || product._id;
-    const productKey = product.productKey || product._id;
+    const productId = product._id; // 👈 ALWAYS Mongo ID
+    const productKey = product.productKey; // 👈 ALWAYS SKU
 
     if (!productId || !productKey) {
       console.error("Invalid product payload:", product);
@@ -89,12 +79,12 @@ export function CartProvider({ children }: any) {
         {
           productId,
           productKey,
-          name: product.name || "Product",
+          name: product.name,
           price: Number(product.price || 0),
           image: product.image || "",
           qty: 1,
           hsn: product.hsn || "",
-          gstPercent: product.gstPercent || 0,
+          gstPercent: product.tax || product.gstPercent || 0,
         },
       ];
     });
@@ -102,27 +92,20 @@ export function CartProvider({ children }: any) {
     setDrawerOpen(true);
   };
 
-  /* =========================================================
-     REMOVE FROM CART
-  ========================================================= */
+  /* =========================
+     REMOVE
+  ========================= */
 
   const removeFromCart = (id: string) => {
-    if (!id) return;
-
     setCart((prev) => prev.filter((p) => p.productId !== id));
   };
 
-  /* =========================================================
-     UPDATE QUANTITY
-  ========================================================= */
+  /* =========================
+     UPDATE QTY
+  ========================= */
 
   const updateQty = (id: string, qty: number) => {
-    if (!id) return;
-
-    if (qty <= 0) {
-      removeFromCart(id);
-      return;
-    }
+    if (qty <= 0) return removeFromCart(id);
 
     setCart((prev) =>
       prev.map((p) =>
@@ -131,24 +114,19 @@ export function CartProvider({ children }: any) {
     );
   };
 
-  /* =========================================================
+  /* =========================
      TOTALS
-  ========================================================= */
+  ========================= */
 
-  const cartTotal = (cart || []).reduce(
-    (sum, item) =>
-      sum + (item.price || 0) * (item.qty || 0),
+  const cartTotal = cart.reduce(
+    (sum, item) => sum + item.price * item.qty,
     0
   );
 
-  const cartCount = (cart || []).reduce(
-    (sum, item) => sum + (item.qty || 0),
+  const cartCount = cart.reduce(
+    (sum, item) => sum + item.qty,
     0
   );
-
-  /* =========================================================
-     PROVIDER
-  ========================================================= */
 
   return (
     <CartContext.Provider
@@ -161,7 +139,6 @@ export function CartProvider({ children }: any) {
         cartTotal,
         cartCount,
         drawerOpen,
-        setDrawerOpen,
         openCart,
         closeCart,
       }}
@@ -170,9 +147,5 @@ export function CartProvider({ children }: any) {
     </CartContext.Provider>
   );
 }
-
-/* =========================================================
-   HOOK
-========================================================= */
 
 export const useCart = () => useContext(CartContext);
