@@ -4,9 +4,6 @@ import { useCart } from "@/context/CartContext";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
-const closeCart = () => setDrawerOpen(false);
-const openCart = () => setDrawerOpen(true);
-
 export default function CartDrawer() {
   const router = useRouter();
 
@@ -19,7 +16,7 @@ export default function CartDrawer() {
     cartTotal,
   } = useCart();
 
-  // ❗ MUST be after hooks (safe)
+  // MUST be after hooks
   if (!drawerOpen) return null;
 
   const handleCheckout = () => {
@@ -28,8 +25,11 @@ export default function CartDrawer() {
   };
 
   return (
-    <div className="overlay" onClick={() => setDrawerOpen(false)}>
-      <div className="drawer" onClick={(e) => e.stopPropagation()}>
+    <div className="overlay" onClick={closeCart}>
+      <div
+        className="drawer"
+        onClick={(e) => e.stopPropagation()}
+      >
 
         {/* HEADER */}
         <div className="header">
@@ -38,14 +38,10 @@ export default function CartDrawer() {
             <p>{cart?.length || 0} item(s)</p>
           </div>
 
-          {/* FIXED CLOSE BUTTON */}
           <button
             type="button"
             className="closeBtn"
-            onClick={(e) => {
-              e.stopPropagation();
-              setDrawerOpen(false);
-            }}
+            onClick={closeCart}
           >
             ✕
           </button>
@@ -58,7 +54,10 @@ export default function CartDrawer() {
             <h3>Your cart is empty</h3>
             <p>Add some products to continue shopping</p>
 
-            <button className="shopBtn" onClick={() => setDrawerOpen(false)}>
+            <button
+              className="shopBtn"
+              onClick={closeCart}
+            >
               Continue Shopping
             </button>
           </div>
@@ -67,8 +66,10 @@ export default function CartDrawer() {
             {/* ITEMS */}
             <div className="items">
               {cart.map((item) => (
-                <div className="item" key={item.productId}>
-
+                <div
+                  className="item"
+                  key={item.productId}
+                >
                   <img
                     src={item.image || "/placeholder.png"}
                     alt={item.name}
@@ -77,14 +78,18 @@ export default function CartDrawer() {
                   <div className="info">
                     <h4>{item.name}</h4>
 
-                    <p className="price">₹{item.price}</p>
+                    <p className="price">
+                      ₹{item.price}
+                    </p>
 
                     {/* QTY CONTROLS */}
                     <div className="qty">
                       <button
-                        type="button"
                         onClick={() =>
-                          updateQty(item.productId, item.qty - 1)
+                          updateQty(
+                            item.productId,
+                            item.qty - 1
+                          )
                         }
                       >
                         −
@@ -93,9 +98,11 @@ export default function CartDrawer() {
                       <span>{item.qty}</span>
 
                       <button
-                        type="button"
                         onClick={() =>
-                          updateQty(item.productId, item.qty + 1)
+                          updateQty(
+                            item.productId,
+                            item.qty + 1
+                          )
                         }
                       >
                         +
@@ -103,9 +110,10 @@ export default function CartDrawer() {
                     </div>
 
                     <button
-                      type="button"
                       className="remove"
-                      onClick={() => removeFromCart(item.productId)}
+                      onClick={() =>
+                        removeFromCart(item.productId)
+                      }
                     >
                       Remove
                     </button>
@@ -121,7 +129,10 @@ export default function CartDrawer() {
                 <strong>₹{cartTotal}</strong>
               </div>
 
-              <button className="checkout" onClick={handleCheckout}>
+              <button
+                className="checkout"
+                onClick={handleCheckout}
+              >
                 Proceed to Checkout →
               </button>
 
@@ -138,7 +149,7 @@ export default function CartDrawer() {
         )}
       </div>
 
-      {/* ================= STYLES ================= */}
+      {/* STYLES */}
       <style jsx>{`
         .overlay {
           position: fixed;
@@ -148,7 +159,6 @@ export default function CartDrawer() {
           display: flex;
           justify-content: flex-end;
           z-index: 9999;
-          animation: fade 0.2s ease-in-out;
         }
 
         .drawer {
@@ -158,7 +168,6 @@ export default function CartDrawer() {
           background: #fff;
           display: flex;
           flex-direction: column;
-          animation: slide 0.25s ease-out;
           box-shadow: -10px 0 30px rgba(0,0,0,0.15);
         }
 
@@ -170,17 +179,6 @@ export default function CartDrawer() {
           align-items: center;
         }
 
-        .header h2 {
-          margin: 0;
-          font-size: 18px;
-        }
-
-        .header p {
-          margin: 0;
-          font-size: 12px;
-          color: #777;
-        }
-
         .closeBtn {
           border: none;
           background: #f5f5f5;
@@ -188,7 +186,6 @@ export default function CartDrawer() {
           height: 32px;
           border-radius: 50%;
           cursor: pointer;
-          font-size: 16px;
         }
 
         .items {
@@ -201,123 +198,30 @@ export default function CartDrawer() {
           display: flex;
           gap: 12px;
           padding: 12px;
-          border-radius: 12px;
-          transition: 0.2s;
-        }
-
-        .item:hover {
-          background: #fafafa;
         }
 
         .item img {
           width: 72px;
           height: 72px;
           object-fit: cover;
-          border-radius: 10px;
-        }
-
-        .info {
-          flex: 1;
-        }
-
-        .info h4 {
-          margin: 0;
-          font-size: 14px;
-        }
-
-        .price {
-          color: #c28b45;
-          font-weight: 600;
-          margin: 4px 0;
-        }
-
-        .qty {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          margin: 6px 0;
         }
 
         .qty button {
           width: 26px;
           height: 26px;
-          border-radius: 6px;
-          border: 1px solid #ddd;
-          background: #fff;
-          cursor: pointer;
-        }
-
-        .remove {
-          border: none;
-          background: transparent;
-          color: #ef4444;
-          font-size: 12px;
-          cursor: pointer;
-        }
-
-        .empty {
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          text-align: center;
-        }
-
-        .emoji {
-          font-size: 40px;
-          margin-bottom: 10px;
-        }
-
-        .shopBtn {
-          margin-top: 15px;
-          padding: 10px 16px;
-          border: none;
-          background: #c28b45;
-          color: white;
-          border-radius: 8px;
-          cursor: pointer;
         }
 
         .footer {
-          border-top: 1px solid #eee;
           padding: 16px;
-        }
-
-        .totalRow {
-          display: flex;
-          justify-content: space-between;
-          margin-bottom: 10px;
+          border-top: 1px solid #eee;
         }
 
         .checkout {
           width: 100%;
           padding: 12px;
           background: #c28b45;
-          color: #fff;
+          color: white;
           border: none;
-          border-radius: 10px;
-          cursor: pointer;
-        }
-
-        .viewCart {
-          width: 100%;
-          margin-top: 8px;
-          padding: 10px;
-          border: 1px solid #ddd;
-          background: #fff;
-          border-radius: 10px;
-          cursor: pointer;
-        }
-
-        @keyframes slide {
-          from { transform: translateX(100%); }
-          to { transform: translateX(0); }
-        }
-
-        @keyframes fade {
-          from { opacity: 0; }
-          to { opacity: 1; }
         }
       `}</style>
     </div>
