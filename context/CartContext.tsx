@@ -8,6 +8,9 @@ import {
   useState,
 } from "react";
 
+const openCart = () => setDrawerOpen(true);
+const closeCart = () => setDrawerOpen(false);
+
 /* =========================================================
    CONTEXT
 ========================================================= */
@@ -169,6 +172,8 @@ export function CartProvider({ children }: any) {
         cartCount,
         drawerOpen,
         setDrawerOpen,
+        openCart,
+        closeCart,
       }}
     >
       {children}
