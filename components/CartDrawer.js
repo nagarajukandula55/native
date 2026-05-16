@@ -4,13 +4,16 @@ import { useCart } from "@/context/CartContext";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
+const closeCart = () => setDrawerOpen(false);
+const openCart = () => setDrawerOpen(true);
+
 export default function CartDrawer() {
   const router = useRouter();
 
   const {
     cart,
     drawerOpen,
-    closeCart,
+    setDrawerOpen,
     removeFromCart,
     updateQty,
     cartTotal,
@@ -20,12 +23,12 @@ export default function CartDrawer() {
   if (!drawerOpen) return null;
 
   const handleCheckout = () => {
-    closeCart?.();
+    setDrawerOpen(false);
     setTimeout(() => router.push("/checkout"), 150);
   };
 
   return (
-    <div className="overlay" onClick={() => closeCart?.()}>
+    <div className="overlay" onClick={() => setDrawerOpen(false)}>
       <div className="drawer" onClick={(e) => e.stopPropagation()}>
 
         {/* HEADER */}
@@ -41,7 +44,7 @@ export default function CartDrawer() {
             className="closeBtn"
             onClick={(e) => {
               e.stopPropagation();
-              closeCart?.();
+              setDrawerOpen(false);
             }}
           >
             ✕
@@ -55,7 +58,7 @@ export default function CartDrawer() {
             <h3>Your cart is empty</h3>
             <p>Add some products to continue shopping</p>
 
-            <button className="shopBtn" onClick={() => closeCart?.()}>
+            <button className="shopBtn" onClick={() => setDrawerOpen(false)}>
               Continue Shopping
             </button>
           </div>
