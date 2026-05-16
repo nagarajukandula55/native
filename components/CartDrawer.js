@@ -20,12 +20,12 @@ export default function CartDrawer() {
   if (!drawerOpen) return null;
 
   const handleCheckout = () => {
-    closeCart();
+    closeCart?.();
     setTimeout(() => router.push("/checkout"), 150);
   };
 
   return (
-    <div className="overlay" onClick={closeCart}>
+    <div className="overlay" onClick={() => closeCart?.()}>
       <div className="drawer" onClick={(e) => e.stopPropagation()}>
 
         {/* HEADER */}
@@ -41,7 +41,7 @@ export default function CartDrawer() {
             className="closeBtn"
             onClick={(e) => {
               e.stopPropagation();
-              closeCart();
+              closeCart?.();
             }}
           >
             ✕
@@ -55,7 +55,7 @@ export default function CartDrawer() {
             <h3>Your cart is empty</h3>
             <p>Add some products to continue shopping</p>
 
-            <button className="shopBtn" onClick={closeCart}>
+            <button className="shopBtn" onClick={() => closeCart?.()}>
               Continue Shopping
             </button>
           </div>
