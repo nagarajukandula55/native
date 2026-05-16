@@ -16,6 +16,7 @@ export default function CartDrawer() {
     cartTotal,
   } = useCart();
 
+  // ❗ MUST be after hooks (safe)
   if (!drawerOpen) return null;
 
   const handleCheckout = () => {
@@ -31,18 +32,28 @@ export default function CartDrawer() {
         <div className="header">
           <div>
             <h2>Your Cart</h2>
-            <p>{cart.length} item(s)</p>
+            <p>{cart?.length || 0} item(s)</p>
           </div>
 
-          <button className="closeBtn" onClick={closeCart}>✕</button>
+          {/* FIXED CLOSE BUTTON */}
+          <button
+            type="button"
+            className="closeBtn"
+            onClick={(e) => {
+              e.stopPropagation();
+              closeCart();
+            }}
+          >
+            ✕
+          </button>
         </div>
 
         {/* EMPTY STATE */}
-        {cart.length === 0 ? (
+        {(!cart || cart.length === 0) ? (
           <div className="empty">
             <div className="emoji">🛒</div>
             <h3>Your cart is empty</h3>
-            <p>Add some products to continue</p>
+            <p>Add some products to continue shopping</p>
 
             <button className="shopBtn" onClick={closeCart}>
               Continue Shopping
@@ -65,20 +76,31 @@ export default function CartDrawer() {
 
                     <p className="price">₹{item.price}</p>
 
-                    {/* QUANTITY CONTROLS */}
+                    {/* QTY CONTROLS */}
                     <div className="qty">
-                      <button onClick={() => updateQty(item.productId, item.qty - 1)}>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          updateQty(item.productId, item.qty - 1)
+                        }
+                      >
                         −
                       </button>
 
                       <span>{item.qty}</span>
 
-                      <button onClick={() => updateQty(item.productId, item.qty + 1)}>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          updateQty(item.productId, item.qty + 1)
+                        }
+                      >
                         +
                       </button>
                     </div>
 
                     <button
+                      type="button"
                       className="remove"
                       onClick={() => removeFromCart(item.productId)}
                     >
@@ -89,7 +111,7 @@ export default function CartDrawer() {
               ))}
             </div>
 
-            {/* STICKY FOOTER */}
+            {/* FOOTER */}
             <div className="footer">
               <div className="totalRow">
                 <span>Total</span>
@@ -101,7 +123,10 @@ export default function CartDrawer() {
               </button>
 
               <Link href="/cart">
-                <button className="viewCart" onClick={closeCart}>
+                <button
+                  className="viewCart"
+                  onClick={closeCart}
+                >
                   View Full Cart
                 </button>
               </Link>
@@ -134,7 +159,6 @@ export default function CartDrawer() {
           box-shadow: -10px 0 30px rgba(0,0,0,0.15);
         }
 
-        /* HEADER */
         .header {
           padding: 18px;
           border-bottom: 1px solid #eee;
@@ -164,7 +188,6 @@ export default function CartDrawer() {
           font-size: 16px;
         }
 
-        /* ITEMS */
         .items {
           flex: 1;
           overflow-y: auto;
@@ -181,7 +204,6 @@ export default function CartDrawer() {
 
         .item:hover {
           background: #fafafa;
-          transform: scale(1.01);
         }
 
         .item img {
@@ -206,7 +228,6 @@ export default function CartDrawer() {
           margin: 4px 0;
         }
 
-        /* QTY */
         .qty {
           display: flex;
           align-items: center;
@@ -221,11 +242,6 @@ export default function CartDrawer() {
           border: 1px solid #ddd;
           background: #fff;
           cursor: pointer;
-          transition: 0.2s;
-        }
-
-        .qty button:hover {
-          background: #f3f3f3;
         }
 
         .remove {
@@ -234,10 +250,8 @@ export default function CartDrawer() {
           color: #ef4444;
           font-size: 12px;
           cursor: pointer;
-          padding: 0;
         }
 
-        /* EMPTY STATE */
         .empty {
           flex: 1;
           display: flex;
@@ -245,7 +259,6 @@ export default function CartDrawer() {
           align-items: center;
           justify-content: center;
           text-align: center;
-          padding: 20px;
         }
 
         .emoji {
@@ -263,18 +276,15 @@ export default function CartDrawer() {
           cursor: pointer;
         }
 
-        /* FOOTER */
         .footer {
           border-top: 1px solid #eee;
           padding: 16px;
-          background: #fff;
         }
 
         .totalRow {
           display: flex;
           justify-content: space-between;
           margin-bottom: 10px;
-          font-size: 14px;
         }
 
         .checkout {
@@ -285,12 +295,6 @@ export default function CartDrawer() {
           border: none;
           border-radius: 10px;
           cursor: pointer;
-          font-weight: 600;
-          transition: 0.2s;
-        }
-
-        .checkout:hover {
-          background: #a86e2f;
         }
 
         .viewCart {
@@ -303,7 +307,6 @@ export default function CartDrawer() {
           cursor: pointer;
         }
 
-        /* ANIMATIONS */
         @keyframes slide {
           from { transform: translateX(100%); }
           to { transform: translateX(0); }
