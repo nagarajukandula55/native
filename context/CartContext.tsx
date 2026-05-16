@@ -1,40 +1,76 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
-const CartContext = createContext(null);
+/* =========================================================
+   CONTEXT
+========================================================= */
 
-export function CartProvider({ children }) {
-  const [cart, setCart] = useState([]);
+const CartContext = createContext<any>(null);
+
+/* =========================================================
+   PROVIDER
+========================================================= */
+
+export function CartProvider({ children }: any) {
+  const [cart, setCart] = useState<any[]>([]);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  /* ================= LOAD ================= */
+  const hydrated = useRef(false);
+
+  /* =========================================================
+     LOAD CART (HYDRATION SAFE)
+  ========================================================= */
+
   useEffect(() => {
-    const saved = localStorage.getItem("cart");
-    if (saved) {
-      try {
+    try {
+      const saved = localStorage.getItem("cart");
+      if (saved) {
         setCart(JSON.parse(saved) || []);
-      } catch {
-        setCart([]);
       }
+    } catch (err) {
+      console.error("Cart load failed:", err);
+      setCart([]);
     }
+
+    hydrated.current = true;
   }, []);
 
-  /* ================= SAVE ================= */
+  /* =========================================================
+     SAVE CART (AFTER HYDRATION ONLY)
+  ========================================================= */
+
   useEffect(() => {
+    if (!hydrated.current) return;
     localStorage.setItem("cart", JSON.stringify(cart || []));
   }, [cart]);
 
-  /* ================= ADD ================= */
-  const addToCart = (product) => {
+  /* =========================================================
+     ID RESOLVER (CRITICAL FIX)
+  ========================================================= */
+
+  const resolveId = (product: any) => {
+    return product?.productId || product?._id || null;
+  };
+
+  /* =========================================================
+     ADD TO CART
+  ========================================================= */
+
+  const addToCart = (product: any) => {
     if (!product) return;
 
-    // 🔴 STRICT CONTRACT ENFORCEMENT
-    const productId = product._id;
-    const productKey = product.productKey;
+    const productId = product.productId || product._id;
+    const productKey = product.productKey || product._id;
 
     if (!productId || !productKey) {
-      console.error("Invalid product payload", product);
+      console.error("Invalid product payload:", product);
       return;
     }
 
@@ -54,13 +90,12 @@ export function CartProvider({ children }) {
       return [
         ...prev,
         {
-          productId,     // Mongo ID ONLY
-          productKey,    // SKU ONLY
+          productId,
+          productKey,
           name: product.name || "Product",
           price: Number(product.price || 0),
           image: product.image || "",
           qty: 1,
-
           hsn: product.hsn || "",
           gstPercent: product.gstPercent || 0,
         },
@@ -70,15 +105,25 @@ export function CartProvider({ children }) {
     setDrawerOpen(true);
   };
 
-  /* ================= REMOVE ================= */
-  const removeFromCart = (id) => {
+  /* =========================================================
+     REMOVE FROM CART
+  ========================================================= */
+
+  const removeFromCart = (id: string) => {
+    if (!id) return;
+
     setCart((prev) =>
       prev.filter((p) => p.productId !== id)
     );
   };
 
-  /* ================= UPDATE QTY ================= */
-  const updateQty = (id, qty) => {
+  /* =========================================================
+     UPDATE QUANTITY
+  ========================================================= */
+
+  const updateQty = (id: string, qty: number) => {
+    if (!id) return;
+
     if (qty <= 0) {
       removeFromCart(id);
       return;
@@ -93,7 +138,10 @@ export function CartProvider({ children }) {
     );
   };
 
-  /* ================= TOTALS ================= */
+  /* =========================================================
+     TOTALS
+  ========================================================= */
+
   const cartTotal = (cart || []).reduce(
     (sum, item) =>
       sum + (item.price || 0) * (item.qty || 0),
@@ -104,6 +152,10 @@ export function CartProvider({ children }) {
     (sum, item) => sum + (item.qty || 0),
     0
   );
+
+  /* =========================================================
+     PROVIDER
+  ========================================================= */
 
   return (
     <CartContext.Provider
@@ -123,5 +175,9 @@ export function CartProvider({ children }) {
     </CartContext.Provider>
   );
 }
+
+/* =========================================================
+   HOOK
+========================================================= */
 
 export const useCart = () => useContext(CartContext);
