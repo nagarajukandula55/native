@@ -340,6 +340,7 @@ export default function CheckoutPage() {
         .filter((item: any) => item.productId || item._id)
         .map((item: any) => ({
           productId: String(item.productId || item._id),
+          productKey: item.productKey,
           qty: Math.max(1, Number(item.qty || 1)),
           variant: item.variant || "default",
         }));
