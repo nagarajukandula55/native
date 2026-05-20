@@ -336,11 +336,18 @@ export default function CheckoutPage() {
     try {
       setLoading(true);
 
-      const cleanedCart = cart.map((item: any) => ({
-        productId: item.productId || item._id,
-        qty: Number(item.qty || 1),
-        variant: item.variant || "default",
-      }));
+      const cleanedCart = cart
+        .filter((item: any) => item.productId || item._id)
+        .map((item: any) => ({
+          productId: String(item.productId || item._id),
+          qty: Math.max(1, Number(item.qty || 1)),
+          variant: item.variant || "default",
+        }));
+      
+      if (!cleanedCart.length) {
+        alert("Cart is invalid. Please refresh and add products again.");
+        return;
+      }
 
       const res = await fetch(
         `${API_BASE}/api/orders/create`,
