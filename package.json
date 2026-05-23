@@ -53,9 +53,13 @@
     "puppeteer": "^23.0.0",
     "@types/node": "^22.15.21", 
     "@types/react": "^19.1.5", 
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "csv-parser": "^3.0.0"
   },
   "engines": {
     "node": ">=18.0.0"
+  },
+    "scripts": {
+    "import:pincodes": "tsx scripts/import-pincodes.ts"
   }
 }
