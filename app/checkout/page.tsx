@@ -152,7 +152,7 @@ export default function CheckoutPage() {
     const fetchLocation = async () => {
       try {
     const res = await fetch(
-          `https://api.postalpincode.in/pincode/${form.pincode}`,
+            `/api/pincode/${form.pincode}`,
           {
             cache: "no-store",
           }
