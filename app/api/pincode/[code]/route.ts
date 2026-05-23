@@ -3,9 +3,7 @@ import {
   NextResponse,
 } from "next/server";
 
-import {
-  connectNativeDB,
-} from "@/lib/native-mongodb";
+import connectDB from "@/lib/db";
 
 import {
   getPincodeModel,
