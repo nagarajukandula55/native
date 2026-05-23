@@ -15,7 +15,7 @@ async function run() {
   try {
 
     const conn =
-      await connectNativeDB();
+      await connectDB();
 
     const Pincode =
       getPincodeModel(conn);
