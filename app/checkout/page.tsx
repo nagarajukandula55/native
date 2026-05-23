@@ -145,49 +145,51 @@ export default function CheckoutPage() {
   ========================================================= */
 
 useEffect(() => {
-  if (form.pincode.length !== 6) {
+  if (
+    form.pincode.length !== 6
+  ) {
     return;
   }
 
   let mounted = true;
 
-  const fetchLocation = async () => {
-    try {
+  const fetchLocation =
+    async () => {
+      try {
+        const res = await fetch(
+          `/api/pincode/${form.pincode}`
+        );
 
-      const res = await fetch(
-        `/api/pincode/${form.pincode}`
-      );
+        const data =
+          await res.json();
 
-      const json = await res.json();
+        console.log(
+          "PINCODE DATA:",
+          data
+        );
 
-      console.log(
-        "PINCODE RESPONSE:",
-        json
-      );
+        if (
+          mounted &&
+          data?.success
+        ) {
+          setForm((prev) => ({
+            ...prev,
 
-      if (
-        mounted &&
-        json?.success &&
-        json?.data
-      ) {
-        setForm((prev) => ({
-          ...prev,
+            city:
+              data.city || "",
 
-          city:
-            json.data.district || "",
+            state:
+              data.state || "",
+          }));
+        }
 
-          state:
-            json.data.state || "",
-        }));
+      } catch (err) {
+        console.error(
+          "PINCODE FETCH ERROR:",
+          err
+        );
       }
-
-    } catch (err) {
-      console.error(
-        "PINCODE FETCH ERROR:",
-        err
-      );
-    }
-  };
+    };
 
   fetchLocation();
 
