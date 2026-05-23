@@ -3,7 +3,7 @@ import fs from "fs";
 import csv from "csv-parser";
 
 import {
-  connectNativeDB,
+  connectDB,
 } from "@/lib/db";
 
 import {
