@@ -2,9 +2,7 @@ import fs from "fs";
 
 import csv from "csv-parser";
 
-import {
-  connectDB,
-} from "@/lib/db";
+import connectDB from "@/lib/db";
 
 import {
   getPincodeModel,
