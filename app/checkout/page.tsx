@@ -144,46 +144,41 @@ export default function CheckoutPage() {
      PINCODE AUTO FETCH
   ========================================================= */
 
-  useEffect(() => {
-    if (form.pincode.length !== 6) return;
+ useEffect(() => {
+  if (form.pincode.length !== 6) return;
 
-    let mounted = true;
+  let mounted = true;
 
-    const fetchLocation = async () => {
-      try {
-    const res = await fetch(
-            `/api/pincode/${form.pincode}`,
-          {
-            cache: "no-store",
-          }
-        );
+  const fetchLocation = async () => {
+    try {
+      const res = await fetch(
+        `/api/pincode/${form.pincode}`
+      );
 
-        const data = await res.json();
+      const data = await res.json();
 
-        if (
-          mounted &&
-          data?.[0]?.Status === "Success"
-        ) {
-          const po = data[0]?.PostOffice?.[0];
-
-          setForm((prev) => ({
-            ...prev,
-            city: po?.District || "",
-            state: po?.State || "",
-          }));
-        }
-      } catch (err) {
-        console.error(err);
+      if (
+        mounted &&
+        data?.success
+      ) {
+        setForm((prev) => ({
+          ...prev,
+          city: data.city || "",
+          state: data.state || "",
+        }));
       }
-    };
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
-    fetchLocation();
+  fetchLocation();
 
-    return () => {
-      mounted = false;
-    };
-  }, [form.pincode]);
-
+  return () => {
+    mounted = false;
+  };
+}, [form.pincode]);
+  
   /* =========================================================
      INPUT
   ========================================================= */
