@@ -151,11 +151,13 @@ export default function CheckoutPage() {
 
   const fetchLocation = async () => {
     try {
-      const res = await fetch(
-        `/api/pincode/${form.pincode}`
-      );
-
-      const data = await res.json();
+  const res = await fetch(
+    `/api/pincode/${pincode}`
+  );
+  
+  const data = await res.json();
+  
+  console.log(data);
 
       if (
         mounted &&
