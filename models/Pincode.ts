@@ -1,4 +1,6 @@
-import mongoose from "mongoose";
+import mongoose, {
+  Connection,
+} from "mongoose";
 
 const PincodeSchema = new mongoose.Schema(
   {
@@ -9,20 +11,11 @@ const PincodeSchema = new mongoose.Schema(
       index: true,
     },
 
-    officeName: {
-      type: String,
-      default: "",
-    },
+    officeName: String,
 
-    district: {
-      type: String,
-      default: "",
-    },
+    district: String,
 
-    state: {
-      type: String,
-      default: "",
-    },
+    state: String,
 
     country: {
       type: String,
@@ -65,9 +58,15 @@ const PincodeSchema = new mongoose.Schema(
   }
 );
 
-export default
-  mongoose.models.Pincode ||
-  mongoose.model(
-    "Pincode",
-    PincodeSchema
+export const getPincodeModel = (
+  conn: Connection
+) => {
+  return (
+    conn.models.Pincode ||
+    conn.model(
+      "Pincode",
+      PincodeSchema,
+      "pincodes"
+    )
   );
+};
