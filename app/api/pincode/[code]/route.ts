@@ -1,51 +1,24 @@
-import {
-  NextRequest,
-  NextResponse,
-} from "next/server";
+import { NextResponse } from "next/server";
 
 import connectDB from "@/lib/db";
-
-import {
-  getPincodeModel,
-} from "@/models/Pincode";
+import Pincode from "@/models/Pincode";
 
 export async function GET(
-  req: NextRequest,
-  context: {
-    params: Promise<{
-      code: string;
-    }>;
-  }
+  req,
+  { params }
 ) {
   try {
+    await connectDB();
 
-    const conn =
-      await connectDB();
+    const code =
+      String(params.code).trim();
 
-    const Pincode =
-      getPincodeModel(conn);
-
-    const { code } =
-      await context.params;
-
-    if (!code) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Pincode missing",
-        },
-        {
-          status: 400,
-        }
-      );
-    }
-
-    const data =
+    const result =
       await Pincode.findOne({
-        pincode: code,
+        Pincode: code,
       }).lean();
 
-    if (!data) {
+    if (!result) {
       return NextResponse.json(
         {
           success: false,
@@ -60,22 +33,28 @@ export async function GET(
 
     return NextResponse.json({
       success: true,
-      data,
+
+      city:
+        result.City ||
+        result.DistrictsName,
+
+      district:
+        result.DistrictsName,
+
+      state: result.State,
+
+      postOffice:
+        result.PostOfficeName,
     });
 
-  } catch (err: any) {
-
-    console.error(
-      "PINCODE API ERROR:",
-      err
-    );
+  } catch (err) {
+    console.error(err);
 
     return NextResponse.json(
       {
         success: false,
         error:
-          err.message ||
-          "Something went wrong",
+          "Internal server error",
       },
       {
         status: 500,
