@@ -4,7 +4,7 @@ import csv from "csv-parser";
 
 import {
   connectNativeDB,
-} from "@/lib/native-mongodb";
+} from "@/lib/db";
 
 import {
   getPincodeModel,
