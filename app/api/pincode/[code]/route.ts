@@ -20,7 +20,7 @@ export async function GET(
   try {
 
     const conn =
-      await connectNativeDB();
+      await connectDB();
 
     const Pincode =
       getPincodeModel(conn);
