@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import Pincode from "@/models/Pincode";
-
 import { connectNativeDB } from "@/lib/native-mongodb";
+
+import { getPincodeModel } from "@/models/Pincode";
 
 export async function GET(
   req: NextRequest,
@@ -13,22 +13,14 @@ export async function GET(
   }
 ) {
   try {
-    await connectNativeDB();
+    const conn =
+      await connectNativeDB();
+
+    const Pincode =
+      getPincodeModel(conn);
 
     const { code } =
       await context.params;
-
-    if (!code) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Pincode missing",
-        },
-        {
-          status: 400,
-        }
-      );
-    }
 
     const data =
       await Pincode.findOne({
@@ -53,17 +45,12 @@ export async function GET(
     });
 
   } catch (err: any) {
-    console.error(
-      "PINCODE LOOKUP FAILED:",
-      err
-    );
+    console.error(err);
 
     return NextResponse.json(
       {
         success: false,
-        error:
-          err.message ||
-          "Pincode lookup failed",
+        error: err.message,
       },
       {
         status: 500,
