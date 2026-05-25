@@ -1,3 +1,5 @@
+export const runtime = "nodejs";
+
 import { NextResponse } from "next/server";
 
 import connectDB from "@/lib/db";
@@ -79,21 +81,32 @@ export async function GET(
     const response = await fetch(
       `https://api.postalpincode.in/pincode/${code}`,
       {
-        cache: "no-store",
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+        },
+        next: {
+          revalidate: 86400,
+        },
       }
     );
-
+    
+    if (!response.ok) {
+      throw new Error(
+        "Pincode API failed"
+      );
+    }
+    
     const data =
       await response.json();
-
+    
     const postOffice =
       data?.[0]?.PostOffice?.[0];
-
+    
     if (!postOffice) {
-      return NextResponse.json({
-        success: false,
-        error: "Pincode not found",
-      });
+      throw new Error(
+        "Invalid pincode"
+      );
     }
 
     /* ========================================
