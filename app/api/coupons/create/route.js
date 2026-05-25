@@ -1,19 +1,14 @@
-import { NextResponse } from "next/server";
-
-import connectDB from "@/lib/db";
-
-import Coupon from "@/models/Coupon";
-
 export const runtime = "nodejs";
 
-export async function POST(
-  req: Request
-) {
+import { NextResponse } from "next/server";
+import connectDB from "@/lib/db";
+import Coupon from "@/models/Coupon";
+
+export async function POST(req) {
   try {
     await connectDB();
 
-    const body =
-      await req.json();
+    const body = await req.json();
 
     const {
       code,
@@ -25,34 +20,70 @@ export async function POST(
       expiry,
     } = body;
 
+    /* =========================
+       VALIDATION
+    ========================= */
+
     if (!code) {
-      throw new Error(
-        "Coupon code required"
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Coupon code required",
+        },
+        {
+          status: 400,
+        }
       );
     }
+
+    if (!value || Number(value) <= 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Invalid coupon value",
+        },
+        {
+          status: 400,
+        }
+      );
+    }
+
+    /* =========================
+       CHECK EXISTING
+    ========================= */
 
     const existing =
       await Coupon.findOne({
-        code:
-          code.toUpperCase(),
+        code: code.toUpperCase(),
       });
 
     if (existing) {
-      throw new Error(
-        "Coupon already exists"
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Coupon already exists",
+        },
+        {
+          status: 400,
+        }
       );
     }
 
+    /* =========================
+       CREATE COUPON
+    ========================= */
+
     const coupon =
       await Coupon.create({
-        code:
-          code.toUpperCase(),
+        code: code.toUpperCase(),
 
-        type,
+        type:
+          type === "percent"
+            ? "percent"
+            : "flat",
 
-        value: Number(
-          value || 0
-        ),
+        value: Number(value),
 
         minCartValue: Number(
           minCartValue || 0
@@ -71,6 +102,8 @@ export async function POST(
           : null,
 
         active: true,
+
+        usedBy: [],
       });
 
     return NextResponse.json({
@@ -78,15 +111,17 @@ export async function POST(
       coupon,
     });
 
-  } catch (err: any) {
-    console.error(err);
+  } catch (err) {
+    console.error(
+      "CREATE COUPON ERROR:",
+      err
+    );
 
     return NextResponse.json(
       {
         success: false,
         message:
-          err.message ||
-          "Coupon creation failed",
+          "Failed to create coupon",
       },
       {
         status: 500,
