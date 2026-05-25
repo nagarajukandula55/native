@@ -1,19 +1,14 @@
-import { NextResponse } from "next/server";
-
-import connectDB from "@/lib/db";
-
-import Coupon from "@/models/Coupon";
-
 export const runtime = "nodejs";
 
-export async function PATCH(
-  req: Request
-) {
+import { NextResponse } from "next/server";
+import connectDB from "@/lib/db";
+import Coupon from "@/models/Coupon";
+
+export async function PATCH(req) {
   try {
     await connectDB();
 
-    const body =
-      await req.json();
+    const body = await req.json();
 
     const {
       id,
@@ -21,50 +16,78 @@ export async function PATCH(
       expiry,
     } = body;
 
-    const updateData: any = {};
+    if (!id) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Coupon ID required",
+        },
+        {
+          status: 400,
+        }
+      );
+    }
+
+    const updateData = {};
+
+    /* =========================
+       ACTIVE TOGGLE
+    ========================= */
 
     if (
-      typeof active ===
-      "boolean"
+      typeof active === "boolean"
     ) {
-      updateData.active =
-        active;
+      updateData.active = active;
     }
+
+    /* =========================
+       EXPIRY UPDATE
+    ========================= */
 
     if (expiry) {
       updateData.expiry =
         new Date(expiry);
     }
 
-    const updated =
+    const coupon =
       await Coupon.findByIdAndUpdate(
         id,
-        updateData,
+        {
+          $set: updateData,
+        },
         {
           new: true,
         }
       );
 
-    if (!updated) {
-      throw new Error(
-        "Coupon not found"
+    if (!coupon) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Coupon not found",
+        },
+        {
+          status: 404,
+        }
       );
     }
 
     return NextResponse.json({
       success: true,
-      coupon: updated,
+      coupon,
     });
 
-  } catch (err: any) {
-    console.error(err);
+  } catch (err) {
+    console.error(
+      "COUPON TOGGLE ERROR:",
+      err
+    );
 
     return NextResponse.json(
       {
         success: false,
         message:
-          err.message ||
-          "Update failed",
+          "Failed to update coupon",
       },
       {
         status: 500,
