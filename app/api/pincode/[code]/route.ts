@@ -61,7 +61,14 @@ export async function GET(
 
     const existing: any =
       await Pincode.findOne({
-        pincode: String(code),
+        $or: [
+          {
+            pincode: String(code),
+          },
+          {
+            pincode: Number(code),
+          },
+        ],
       }).lean();
 
     /* ========================================
