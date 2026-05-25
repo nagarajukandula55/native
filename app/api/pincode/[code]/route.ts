@@ -1,9 +1,7 @@
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
-
 import connectDB from "@/lib/db";
-
 import mongoose from "mongoose";
 
 import { getPincodeModel } from "@/models/Pincode";
@@ -17,13 +15,33 @@ export async function GET(
   }
 ) {
   try {
+    /* ========================================
+       CONNECT DB
+    ======================================== */
+
     await connectDB();
+
+    /* ========================================
+       GET PARAMS
+    ======================================== */
 
     const { code } =
       await context.params;
 
+    if (!code || code.length !== 6) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Invalid pincode",
+        },
+        {
+          status: 400,
+        }
+      );
+    }
+
     /* ========================================
-       GET CONNECTION + MODEL
+       GET MODEL
     ======================================== */
 
     const conn =
@@ -33,156 +51,81 @@ export async function GET(
       getPincodeModel(conn);
 
     /* ========================================
-       CHECK DATABASE FIRST
+       FIND FROM DATABASE
     ======================================== */
 
     const existing: any =
       await Pincode.findOne({
-        pincode: code,
+        pincode: String(code),
       }).lean();
 
+    /* ========================================
+       RETURN DB DATA
+    ======================================== */
+
     if (existing) {
+      console.log(
+        "PINCODE FOUND IN DB:",
+        code
+      );
+
       return NextResponse.json({
         success: true,
 
-        city: existing.city,
+        city:
+          existing.city || "",
 
-        state: existing.state,
+        state:
+          existing.state || "",
 
         district:
-          existing.district,
+          existing.district || "",
 
         postOffice:
-          existing.officeName,
+          existing.officeName || "",
 
         deliveryStatus:
-          existing.deliveryStatus,
+          existing.deliveryStatus ||
+          "Delivery",
 
         isServiceable:
-          existing.isServiceable,
+          existing.isServiceable ??
+          true,
 
         isCODAvailable:
-          existing.isCODAvailable,
+          existing.isCODAvailable ??
+          true,
 
         shippingZone:
-          existing.shippingZone,
+          existing.shippingZone ||
+          "A",
 
         estimatedDays:
-          existing.estimatedDays,
+          existing.estimatedDays ||
+          3,
 
         source: "database",
       });
     }
 
     /* ========================================
-       FETCH FROM INDIA POST API
+       NOT FOUND
     ======================================== */
 
-    const response = await fetch(
-      `https://api.postalpincode.in/pincode/${code}`,
+    console.log(
+      "PINCODE NOT FOUND:",
+      code
+    );
+
+    return NextResponse.json(
       {
-        method: "GET",
-        headers: {
-          Accept: "application/json",
-        },
-        next: {
-          revalidate: 86400,
-        },
+        success: false,
+        error: "Pincode not found",
+      },
+      {
+        status: 404,
       }
     );
-    
-    if (!response.ok) {
-      throw new Error(
-        "Pincode API failed"
-      );
-    }
-    
-    const data =
-      await response.json();
-    
-    const postOffice =
-      data?.[0]?.PostOffice?.[0];
-    
-    if (!postOffice) {
-      throw new Error(
-        "Invalid pincode"
-      );
-    }
-
-    /* ========================================
-       SAVE TO DATABASE
-    ======================================== */
-
-    const created =
-      await Pincode.create({
-        pincode: code,
-
-        officeName:
-          postOffice.Name || "",
-
-        district:
-          postOffice.District ||
-          "",
-
-        city:
-          postOffice.Block ||
-          postOffice.District ||
-          "",
-
-        state:
-          postOffice.State || "",
-
-        country: "India",
-
-        deliveryStatus:
-          "Delivery",
-
-        isServiceable: true,
-
-        isCODAvailable: true,
-
-        shippingZone: "A",
-
-        estimatedDays: 3,
-
-        updatedAt:
-          new Date(),
-      });
-
-    /* ========================================
-       RETURN RESPONSE
-    ======================================== */
-
-    return NextResponse.json({
-      success: true,
-
-      city: created.city,
-
-      state: created.state,
-
-      district:
-        created.district,
-
-      postOffice:
-        created.officeName,
-
-      deliveryStatus:
-        created.deliveryStatus,
-
-      isServiceable:
-        created.isServiceable,
-
-      isCODAvailable:
-        created.isCODAvailable,
-
-      shippingZone:
-        created.shippingZone,
-
-      estimatedDays:
-        created.estimatedDays,
-
-      source: "api",
-    });
   } catch (err: any) {
     console.error(
       "PINCODE API ERROR:",
