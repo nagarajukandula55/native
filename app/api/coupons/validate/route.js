@@ -1,80 +1,75 @@
 import { NextResponse } from "next/server";
-import dbConnect from "@/lib/db";
+
+import connectDB from "@/lib/db";
+
 import Coupon from "@/models/Coupon";
 
-export async function POST(req) {
+export const runtime = "nodejs";
+
+export async function POST(
+  req: Request
+) {
   try {
-    await dbConnect();
+    await connectDB();
 
-    const { code, cartTotal, userId = "guest" } = await req.json();
+    const body =
+      await req.json();
 
-    if (!code) {
-      return NextResponse.json({
-        success: false,
-        message: "Coupon code required",
+    const code =
+      body.code?.toUpperCase();
+
+    const coupon =
+      await Coupon.findOne({
+        code,
+        active: true,
       });
-    }
-
-    const coupon = await Coupon.findOne({
-      code: code.toUpperCase(),
-      active: true,
-    });
 
     if (!coupon) {
-      return NextResponse.json({
-        success: false,
-        message: "Invalid Coupon",
-      });
-    }
-
-    if (coupon.expiry && new Date(coupon.expiry) < new Date()) {
-      return NextResponse.json({
-        success: false,
-        message: "Coupon Expired",
-      });
-    }
-
-    if (coupon.minCartValue && cartTotal < coupon.minCartValue) {
-      return NextResponse.json({
-        success: false,
-        message: `Minimum order ₹${coupon.minCartValue} required`,
-      });
+      throw new Error(
+        "Invalid coupon"
+      );
     }
 
     if (
-      coupon.usageLimit === 1 &&
-      coupon.usedBy?.includes(userId)
+      coupon.expiry &&
+      new Date(coupon.expiry) <
+        new Date()
     ) {
-      return NextResponse.json({
-        success: false,
-        message: "Already used",
-      });
+      throw new Error(
+        "Coupon expired"
+      );
     }
 
-    let discount = 0;
-
-    if (coupon.type === "percent") {
-      discount = (cartTotal * coupon.value) / 100;
-
-      if (coupon.maxDiscount) {
-        discount = Math.min(discount, coupon.maxDiscount);
-      }
-    } else {
-      discount = coupon.value;
+    if (
+      coupon.usageLimit > 0 &&
+      coupon.usedCount >=
+        coupon.usageLimit
+    ) {
+      throw new Error(
+        "Coupon usage limit reached"
+      );
     }
 
     return NextResponse.json({
       success: true,
-      discount,
-      couponId: coupon._id,
+      discount:
+        coupon.value,
+      coupon,
     });
 
-  } catch (err) {
-    console.error("VALIDATE COUPON ERROR:", err);
+  } catch (err: any) {
+    console.error(err);
 
-    return NextResponse.json({
-      success: false,
-      message: "Server error",
-    });
+    return NextResponse.json(
+      {
+        success: false,
+        message:
+          err.message ||
+          "Coupon invalid",
+      },
+      {
+        status: 400,
+      }
+    );
   }
 }
