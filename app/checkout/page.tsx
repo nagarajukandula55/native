@@ -293,23 +293,37 @@ useEffect(() => {
      SUMMARY (LOCAL PREVIEW ONLY)
   ========================================================= */
 
-  const previewSummary = useMemo(() => {
-    const subtotal = cart.reduce(
-      (acc: number, item: any) =>
-        acc +
-        safeNumber(item.price) *
-          safeNumber(item.qty),
-      0
-    );
-
-    const discount = safeNumber(couponData?.discount);
-
-    return {
-      subtotal,
-      discount,
-      grandTotal: Math.max(0, subtotal - discount),
-    };
-  }, [cart, couponData]);
+    const displaySummary =
+      summary.grandTotal > 0
+        ? summary
+        : {
+            subtotal: cart.reduce(
+              (acc: number, item: any) =>
+                acc +
+                safeNumber(item.price) *
+                  safeNumber(item.qty),
+              0
+            ),
+    
+            discount: safeNumber(
+              couponData?.discount
+            ),
+    
+            grandTotal: Math.max(
+              0,
+    
+              cart.reduce(
+                (acc: number, item: any) =>
+                  acc +
+                  safeNumber(item.price) *
+                    safeNumber(item.qty),
+                0
+              ) -
+                safeNumber(
+                  couponData?.discount
+                )
+            ),
+          };
 
   /* =========================================================
      VALIDATION
@@ -568,26 +582,26 @@ useEffect(() => {
             <div className="summary">
               <div className="summaryRow">
                 <span>Subtotal</span>
-                <span>₹{previewSummary.subtotal.toFixed(2)}</span>
+                <span>₹{displaySummary.subtotal.toFixed(2)}</span>
               </div>
 
-              {previewSummary.discount > 0 && (
+              {displaySummary.discount > 0 && (
                 <div className="summaryRow success">
                   <span>Discount</span>
-                  <span>- ₹{previewSummary.discount.toFixed(2)}</span>
+                  <span>- ₹{displaySummary.discount.toFixed(2)}</span>
                 </div>
               )}
 
               <div className="grandTotal">
                 <span>Grand Total</span>
-                <span>₹{previewSummary.grandTotal.toFixed(2)}</span>
+                <span>₹{displaySummary.grandTotal.toFixed(2)}</span>
               </div>
             </div>
 
             <button className="payBtn" onClick={handlePay} disabled={loading}>
               {loading
                 ? "Processing..."
-                : `Pay ₹${previewSummary.grandTotal.toFixed(2)}`}
+                : `Pay ₹${displaySummary.grandTotal.toFixed(2)}`}
             </button>
 
             <div className="secureNote">🔒 Protected by Razorpay Secure</div>
