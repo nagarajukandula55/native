@@ -34,7 +34,7 @@ export async function GET(
        CHECK DATABASE FIRST
     ======================================== */
 
-    const existing =
+    const existing: any =
       await Pincode.findOne({
         pincode: code,
       }).lean();
