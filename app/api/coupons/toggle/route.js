@@ -1,44 +1,54 @@
 import { NextResponse } from "next/server";
-import dbConnect from "@/lib/db";
+
+import connectDB from "@/lib/db";
+
 import Coupon from "@/models/Coupon";
 
-/* ================= TOGGLE + OPTIONAL EXPIRY UPDATE ================= */
-export async function PATCH(req) {
+export const runtime = "nodejs";
+
+export async function PATCH(
+  req: Request
+) {
   try {
-    await dbConnect();
+    await connectDB();
 
-    const { id, active, expiry } = await req.json();
+    const body =
+      await req.json();
 
-    if (!id) {
-      return NextResponse.json({
-        success: false,
-        message: "Coupon ID required",
-      });
-    }
-
-    const updateData = {};
-
-    // toggle active
-    if (typeof active === "boolean") {
-      updateData.active = active;
-    }
-
-    // extend expiry
-    if (expiry) {
-      updateData.expiry = new Date(expiry);
-    }
-
-    const updated = await Coupon.findByIdAndUpdate(
+    const {
       id,
-      { $set: updateData },
-      { new: true }
-    );
+      active,
+      expiry,
+    } = body;
+
+    const updateData: any = {};
+
+    if (
+      typeof active ===
+      "boolean"
+    ) {
+      updateData.active =
+        active;
+    }
+
+    if (expiry) {
+      updateData.expiry =
+        new Date(expiry);
+    }
+
+    const updated =
+      await Coupon.findByIdAndUpdate(
+        id,
+        updateData,
+        {
+          new: true,
+        }
+      );
 
     if (!updated) {
-      return NextResponse.json({
-        success: false,
-        message: "Coupon not found",
-      });
+      throw new Error(
+        "Coupon not found"
+      );
     }
 
     return NextResponse.json({
@@ -46,12 +56,19 @@ export async function PATCH(req) {
       coupon: updated,
     });
 
-  } catch (err) {
-    console.error("TOGGLE ERROR:", err);
+  } catch (err: any) {
+    console.error(err);
 
-    return NextResponse.json({
-      success: false,
-      message: "Server error",
-    });
+    return NextResponse.json(
+      {
+        success: false,
+        message:
+          err.message ||
+          "Update failed",
+      },
+      {
+        status: 500,
+      }
+    );
   }
 }
