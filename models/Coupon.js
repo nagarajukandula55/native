@@ -1,20 +1,71 @@
 import mongoose from "mongoose";
 
-const CouponSchema = new mongoose.Schema({
-  code: String,
-  type: String, // flat | percent
-  value: Number,
-  minCartValue: Number,
-  maxDiscount: Number,
-  usageLimit: Number,
-  usedBy: [String],
-  expiry: Date,
-  active: Boolean,
-  createdAt: {
-    type: Date,
-    default: Date.now,
-  },
-});
+const CouponSchema =
+  new mongoose.Schema(
+    {
+      code: {
+        type: String,
+        required: true,
+        unique: true,
+        uppercase: true,
+        trim: true,
+        index: true,
+      },
 
-export default mongoose.models.Coupon ||
-  mongoose.model("Coupon", CouponSchema);
+      type: {
+        type: String,
+        enum: ["flat", "percent"],
+        required: true,
+      },
+
+      value: {
+        type: Number,
+        required: true,
+      },
+
+      minCartValue: {
+        type: Number,
+        default: 0,
+      },
+
+      maxDiscount: {
+        type: Number,
+        default: 0,
+      },
+
+      usageLimit: {
+        type: Number,
+        default: 0,
+      },
+
+      usedCount: {
+        type: Number,
+        default: 0,
+      },
+
+      active: {
+        type: Boolean,
+        default: true,
+      },
+
+      expiry: {
+        type: Date,
+      },
+
+      usedBy: [
+        {
+          type: String,
+        },
+      ],
+    },
+    {
+      timestamps: true,
+    }
+  );
+
+export default
+  mongoose.models.Coupon ||
+  mongoose.model(
+    "Coupon",
+    CouponSchema
+  );
