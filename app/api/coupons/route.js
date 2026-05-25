@@ -1,27 +1,40 @@
 import { NextResponse } from "next/server";
-import dbConnect from "@/lib/db";
+
+import connectDB from "@/lib/db";
+
 import Coupon from "@/models/Coupon";
 
-/* ================= GET ALL COUPONS ================= */
+export const runtime = "nodejs";
+
 export async function GET() {
   try {
-    await dbConnect();
+    await connectDB();
 
-    const coupons = await Coupon.find({})
-      .sort({ createdAt: -1 })
-      .lean();
+    const coupons =
+      await Coupon.find()
+        .sort({
+          createdAt: -1,
+        })
+        .lean();
 
     return NextResponse.json({
       success: true,
       coupons,
     });
 
-  } catch (err) {
-    console.error("FETCH COUPONS ERROR:", err);
+  } catch (err: any) {
+    console.error(err);
 
-    return NextResponse.json({
-      success: false,
-      message: "Failed to fetch coupons",
-    });
+    return NextResponse.json(
+      {
+        success: false,
+        message:
+          err.message ||
+          "Failed to fetch coupons",
+      },
+      {
+        status: 500,
+      }
+    );
   }
 }
