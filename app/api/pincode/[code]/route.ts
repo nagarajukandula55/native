@@ -21,6 +21,11 @@ export async function GET(
 
     await connectDB();
 
+    console.log(
+      "CONNECTED DB:",
+      mongoose.connection.db?.databaseName
+    );
+
     /* ========================================
        GET PARAMS
     ======================================== */
