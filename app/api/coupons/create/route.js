@@ -1,15 +1,23 @@
-import dbConnect from "@/lib/db";
+import { NextResponse } from "next/server";
+
+import connectDB from "@/lib/db";
+
 import Coupon from "@/models/Coupon";
 
-export async function POST(req) {
-  try {
-    await dbConnect();
+export const runtime = "nodejs";
 
-    const body = await req.json();
+export async function POST(
+  req: Request
+) {
+  try {
+    await connectDB();
+
+    const body =
+      await req.json();
 
     const {
       code,
-      type, // flat | percent
+      type,
       value,
       minCartValue,
       maxDiscount,
@@ -17,46 +25,72 @@ export async function POST(req) {
       expiry,
     } = body;
 
-    if (!code || !type || !value) {
-      return Response.json({
-        success: false,
-        message: "Missing required fields",
-      });
+    if (!code) {
+      throw new Error(
+        "Coupon code required"
+      );
     }
 
-    const existing = await Coupon.findOne({
-      code: code.toUpperCase(),
-    });
+    const existing =
+      await Coupon.findOne({
+        code:
+          code.toUpperCase(),
+      });
 
     if (existing) {
-      return Response.json({
-        success: false,
-        message: "Coupon already exists",
-      });
+      throw new Error(
+        "Coupon already exists"
+      );
     }
 
-    const coupon = await Coupon.create({
-      code: code.toUpperCase(),
-      type,
-      value,
-      minCartValue: minCartValue || 0,
-      maxDiscount: maxDiscount || null,
-      usageLimit: usageLimit || 0,
-      usedBy: [],
-      expiry: expiry || null,
-      active: true,
-    });
+    const coupon =
+      await Coupon.create({
+        code:
+          code.toUpperCase(),
 
-    return Response.json({
+        type,
+
+        value: Number(
+          value || 0
+        ),
+
+        minCartValue: Number(
+          minCartValue || 0
+        ),
+
+        maxDiscount: Number(
+          maxDiscount || 0
+        ),
+
+        usageLimit: Number(
+          usageLimit || 0
+        ),
+
+        expiry: expiry
+          ? new Date(expiry)
+          : null,
+
+        active: true,
+      });
+
+    return NextResponse.json({
       success: true,
       coupon,
     });
-  } catch (err) {
-    console.error("CREATE COUPON ERROR:", err);
 
-    return Response.json({
-      success: false,
-      message: "Server error",
-    });
+  } catch (err: any) {
+    console.error(err);
+
+    return NextResponse.json(
+      {
+        success: false,
+        message:
+          err.message ||
+          "Coupon creation failed",
+      },
+      {
+        status: 500,
+      }
+    );
   }
 }
