@@ -1,17 +1,15 @@
-import { NextResponse } from "next/server";
-
-import connectDB from "@/lib/db";
-
-import Coupon from "@/models/Coupon";
-
 export const runtime = "nodejs";
+
+import { NextResponse } from "next/server";
+import connectDB from "@/lib/db";
+import Coupon from "@/models/Coupon";
 
 export async function GET() {
   try {
     await connectDB();
 
     const coupons =
-      await Coupon.find()
+      await Coupon.find({})
         .sort({
           createdAt: -1,
         })
@@ -22,14 +20,16 @@ export async function GET() {
       coupons,
     });
 
-  } catch (err: any) {
-    console.error(err);
+  } catch (err) {
+    console.error(
+      "FETCH COUPONS ERROR:",
+      err
+    );
 
     return NextResponse.json(
       {
         success: false,
         message:
-          err.message ||
           "Failed to fetch coupons",
       },
       {
