@@ -395,167 +395,219 @@ useEffect(() => {
   /* =========================================================
      PAY
   ========================================================= */
-
-  const handlePay = async () => {
-    if (!validateForm()) return;
-
-    if (!razorpayLoaded.current) {
-      alert("Payment gateway loading...");
-      return;
-    }
-
-    try {
-      setLoading(true);
-
-      const cleanedCart = cart
-        .filter((item: any) => item.productId || item._id)
-        .map((item: any) => ({
-          productKey: item.productKey,
-          qty: Math.max(1, Number(item.qty || 1)),
-          variant: item.variant || "default",
-        }));
-      
-      if (!cleanedCart.length) {
-        alert("Cart is not valid. Please refresh and add products again.");
+    
+    const handlePay = async () => {
+      if (!validateForm()) return;
+    
+      if (!razorpayLoaded.current) {
+        alert("Payment gateway loading...");
         return;
       }
-
-      const res = await fetch(
-        `${API_BASE}/api/orders/create`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            cart: cleanedCart,
-            address: form,
-            coupon,
-            paymentMethod: "RAZORPAY",
-          }),
+    
+      try {
+        setLoading(true);
+    
+        const cleanedCart = cart
+          .filter((item: any) => item.productId || item._id)
+          .map((item: any) => ({
+            productKey: item.productKey,
+            qty: Math.max(1, Number(item.qty || 1)),
+            variant: item.variant || "default",
+          }));
+    
+        if (!cleanedCart.length) {
+          alert(
+            "Cart is not valid. Please refresh and add products again."
+          );
+    
+          setLoading(false);
+          return;
         }
-      );
-
-      const data = await res.json();
-
-      if (!data.success) {
-        alert(data.message || "Order failed");
-        setLoading(false);
-        return;
-      }
-
-      setOrderSummary({ items: data.items || [] });
-
-      setSummary({
-        subtotal: safeNumber(data.subtotal),
-        discount: safeNumber(data.discount),
-        taxableAmount: safeNumber(data.taxableAmount),
-        gstTotal: safeNumber(data.gstTotal),
-        cgst: safeNumber(data.cgst),
-        sgst: safeNumber(data.sgst),
-        igst: safeNumber(data.igst),
-        grandTotal: safeNumber(data.amount),
-      });
-
-      const options = {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-        amount: data.razorpayOrder.amount,
-        currency: data.razorpayOrder.currency,
-        name: "Native",
-        description: "Secure Checkout",
-        order_id: data.razorpayOrder.id,
-
-        prefill: {
-          name: form.name,
-          contact: form.phone,
-          email: form.email,
-        },
-
-        notes: {
-          orderId: data.orderId,
-        },
-
-        handler: async function (response: any) {
-
-          console.log("RAZORPAY RESPONSE:", response);
-        
-          try {
-        
-            const verifyPayload = {
-              razorpay_order_id:
-                response.razorpay_order_id,
-        
-              razorpay_payment_id:
-                response.razorpay_payment_id,
-        
-              razorpay_signature:
-                response.razorpay_signature,
-        
-              internalOrderId:
-                data.orderId,
-            };
-        
+    
+        const res = await fetch(
+          `${API_BASE}/api/orders/create`,
+          {
+            method: "POST",
+    
+            headers: {
+              "Content-Type": "application/json",
+            },
+    
+            body: JSON.stringify({
+              cart: cleanedCart,
+              address: form,
+              coupon,
+              paymentMethod: "RAZORPAY",
+            }),
+          }
+        );
+    
+        const data = await res.json();
+    
+        console.log("CREATE ORDER RESPONSE:", data);
+    
+        if (!data.success) {
+          alert(data.error || data.message || "Order failed");
+          setLoading(false);
+          return;
+        }
+    
+        setOrderSummary({
+          items: data.items || [],
+        });
+    
+        setSummary({
+          subtotal: safeNumber(data.subtotal),
+          discount: safeNumber(data.discount),
+          taxableAmount: safeNumber(data.taxableAmount),
+          gstTotal: safeNumber(data.gstTotal),
+          cgst: safeNumber(data.cgst),
+          sgst: safeNumber(data.sgst),
+          igst: safeNumber(data.igst),
+          grandTotal: safeNumber(data.amount),
+        });
+    
+        const options = {
+          key:
+            process.env
+              .NEXT_PUBLIC_RAZORPAY_KEY_ID,
+    
+          amount:
+            data.razorpayOrder.amount,
+    
+          currency:
+            data.razorpayOrder.currency,
+    
+          name: "AN Group",
+    
+          description:
+            "Secure Checkout",
+    
+          order_id:
+            data.razorpayOrder.id,
+    
+          prefill: {
+            name: form.name,
+            contact: form.phone,
+            email: form.email,
+          },
+    
+          notes: {
+            internalOrderId:
+              data.orderId,
+          },
+    
+          handler: async function (
+            response: any
+          ) {
             console.log(
-              "VERIFY PAYLOAD:",
-              verifyPayload
+              "RAZORPAY RESPONSE:",
+              response
             );
-        
-            const verifyRes = await fetch(
-              `${API_BASE}/api/payment/verify`,
-              {
-                method: "POST",
-        
-                headers: {
-                  "Content-Type":
-                    "application/json",
-                },
-        
-                body: JSON.stringify(
-                  verifyPayload
-                ),
-              }
-            );
-        
-            const verifyData =
-              await verifyRes.json();
-        
-            console.log(
-              "VERIFY RESPONSE:",
-              verifyData
-            );
-        
-            if (verifyData.success) {
-        
-              setCart([]);
-        
-              closeCart();
-        
-              router.push(
-                `/order-success?orderId=${data.orderId}`
+    
+            try {
+              const verifyPayload = {
+                razorpay_order_id:
+                  response.razorpay_order_id,
+    
+                razorpay_payment_id:
+                  response.razorpay_payment_id,
+    
+                razorpay_signature:
+                  response.razorpay_signature,
+    
+                orderId:
+                  data.orderId,
+              };
+    
+              console.log(
+                "VERIFY PAYLOAD:",
+                verifyPayload
               );
-        
-            } else {
-        
+    
+              const verifyRes = await fetch(
+                `${API_BASE}/api/payment/verify`,
+                {
+                  method: "POST",
+    
+                  headers: {
+                    "Content-Type":
+                      "application/json",
+                  },
+    
+                  body: JSON.stringify(
+                    verifyPayload
+                  ),
+                }
+              );
+    
+              const verifyData =
+                await verifyRes.json();
+    
+              console.log(
+                "VERIFY RESPONSE:",
+                verifyData
+              );
+    
+              if (verifyData.success) {
+                setCart([]);
+    
+                closeCart();
+    
+                router.push(
+                  `/order-success?orderId=${data.orderId}`
+                );
+              } else {
+                alert(
+                  verifyData.message ||
+                    "Payment verification failed"
+                );
+    
+                setLoading(false);
+              }
+            } catch (err) {
+              console.error(
+                "VERIFY ERROR:",
+                err
+              );
+    
               alert(
-                verifyData.message ||
                 "Payment verification failed"
               );
-        
+    
               setLoading(false);
             }
-        
-          } catch (err) {
-        
-            console.error(
-              "VERIFY ERROR:",
-              err
-            );
-        
-            alert(
-              "Payment verification failed"
-            );
-        
-            setLoading(false);
-          }
-        },
+          },
+    
+          modal: {
+            ondismiss: () => {
+              setLoading(false);
+            },
+          },
+    
+          theme: {
+            color: "#111827",
+          },
+        };
+    
+        const rzp =
+          new window.Razorpay(
+            options
+          );
+    
+        rzp.open();
+    
+      } catch (err) {
+        console.error(
+          "CHECKOUT ERROR:",
+          err
+        );
+    
+        alert("Checkout failed");
+    
+        setLoading(false);
+      }
+    };
 
   /* =========================================================
      UI
