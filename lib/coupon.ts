@@ -1,5 +1,5 @@
 import Coupon from "@/models/Coupon";
-import { connectNativeDB } from "@/lib/native-mongodb";
+import connectDB from "@/lib/db";
 
 type ValidateCouponResult = {
   valid: boolean;
