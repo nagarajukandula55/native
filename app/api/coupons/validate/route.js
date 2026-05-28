@@ -124,14 +124,19 @@ export async function POST(req) {
       discount = Number(coupon.value);
     }
 
+    discount = Math.min(
+      Number(subtotal),
+      Number(discount)
+    );
+    
     return NextResponse.json({
       success: true,
       valid: true,
       coupon,
-
+    
       discount: Math.max(
         0,
-        Number(discount)
+        Number(discount.toFixed(2))
       ),
     });
   } catch (err) {
