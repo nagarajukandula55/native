@@ -271,7 +271,17 @@ useEffect(() => {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ code: coupon }),
+          body: JSON.stringify({
+            code: coupon,
+          
+            subtotal: cart.reduce(
+              (acc: number, item: any) =>
+                acc +
+                safeNumber(item.price) *
+                  safeNumber(item.qty),
+              0
+            ),
+          }),
         }
       );
 
