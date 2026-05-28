@@ -299,76 +299,70 @@ useEffect(() => {
     }
   };
 
-  /* =========================================================
-     SUMMARY (LOCAL PREVIEW ONLY)
-  ========================================================= */
-
-    const displaySummary =
-      summary.grandTotal > 0
-        ? summary
-        : (() => {
-    
-            const subtotal = cart.reduce(
-              (acc: number, item: any) =>
-                acc +
-                safeNumber(item.price) *
-                  safeNumber(item.qty),
-              0
-            );
-    
-            const discount = safeNumber(
-              couponData?.discount
-            );
-    
-            const discountedTotal =
-              Math.max(
-                0,
-                subtotal - discount
+    /* =========================================================
+       SUMMARY (LOCAL PREVIEW ONLY)
+    ========================================================= */
+      
+      const displaySummary = useMemo(() => {
+        if (summary.grandTotal > 0) {
+          return summary;
+        }
+      
+        const subtotal = cart.reduce(
+          (acc: number, item: any) =>
+            acc +
+            safeNumber(item.price) *
+              safeNumber(item.qty),
+          0
+        );
+      
+        const discount = safeNumber(
+          couponData?.discount
+        );
+      
+        const discountedTotal = Math.max(
+          0,
+          subtotal - discount
+        );
+      
+        const gstTotal = cart.reduce(
+          (acc: number, item: any) => {
+            const itemTotal =
+              safeNumber(item.price) *
+              safeNumber(item.qty);
+      
+            const ratio =
+              subtotal > 0
+                ? itemTotal / subtotal
+                : 0;
+      
+            const itemDiscount =
+              discount * ratio;
+      
+            const taxable =
+              itemTotal - itemDiscount;
+      
+            const gst =
+              taxable *
+              (
+                safeNumber(
+                  item.tax || item.gstRate
+                ) / 100
               );
-    
-            // GST FROM CART
-            const gstTotal = cart.reduce(
-              (acc: number, item: any) => {
-    
-                const itemTotal =
-                  safeNumber(item.price) *
-                  safeNumber(item.qty);
-    
-                const ratio =
-                  subtotal > 0
-                    ? itemTotal / subtotal
-                    : 0;
-    
-                const itemDiscount =
-                  discount * ratio;
-    
-                const taxable =
-                  itemTotal - itemDiscount;
-    
-                const gst =
-                  taxable *
-                  (
-                    safeNumber(
-                      item.tax || item.gstRate
-                    ) / 100
-                  );
-    
-                return acc + gst;
-    
-              },
-              0
-            );
-    
-            return {
-              subtotal,
-              discount,
-              gstTotal,
-              grandTotal:
-                discountedTotal +
-                gstTotal,
-            };
-    
-          })();
+      
+            return acc + gst;
+          },
+          0
+        );
+      
+        return {
+          subtotal,
+          discount,
+          gstTotal,
+          grandTotal:
+            discountedTotal + gstTotal,
+        };
+      }, [summary, cart, couponData]);
 
   /* =========================================================
      VALIDATION
