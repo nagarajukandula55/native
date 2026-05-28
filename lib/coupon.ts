@@ -24,7 +24,7 @@ export async function validateCoupon(
     }
 
     // CONNECT NATIVE DB
-    await connectNativeDB();
+    await connectDB();
 
     // FIND COUPON
     const coupon = await Coupon.findOne({
