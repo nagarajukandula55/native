@@ -296,34 +296,69 @@ useEffect(() => {
     const displaySummary =
       summary.grandTotal > 0
         ? summary
-        : {
-            subtotal: cart.reduce(
+        : (() => {
+    
+            const subtotal = cart.reduce(
               (acc: number, item: any) =>
                 acc +
                 safeNumber(item.price) *
                   safeNumber(item.qty),
               0
-            ),
+            );
     
-            discount: safeNumber(
+            const discount = safeNumber(
               couponData?.discount
-            ),
+            );
     
-            grandTotal: Math.max(
-              0,
+            const discountedTotal =
+              Math.max(
+                0,
+                subtotal - discount
+              );
     
-              cart.reduce(
-                (acc: number, item: any) =>
-                  acc +
+            // GST FROM CART
+            const gstTotal = cart.reduce(
+              (acc: number, item: any) => {
+    
+                const itemTotal =
                   safeNumber(item.price) *
-                    safeNumber(item.qty),
-                0
-              ) -
-                safeNumber(
-                  couponData?.discount
-                )
-            ),
-          };
+                  safeNumber(item.qty);
+    
+                const ratio =
+                  subtotal > 0
+                    ? itemTotal / subtotal
+                    : 0;
+    
+                const itemDiscount =
+                  discount * ratio;
+    
+                const taxable =
+                  itemTotal - itemDiscount;
+    
+                const gst =
+                  taxable *
+                  (
+                    safeNumber(
+                      item.tax || item.gstRate
+                    ) / 100
+                  );
+    
+                return acc + gst;
+    
+              },
+              0
+            );
+    
+            return {
+              subtotal,
+              discount,
+              gstTotal,
+              grandTotal:
+                discountedTotal +
+                gstTotal,
+            };
+    
+          })();
 
   /* =========================================================
      VALIDATION
@@ -579,24 +614,42 @@ useEffect(() => {
               ))}
             </div>
 
-            <div className="summary">
-              <div className="summaryRow">
-                <span>Subtotal</span>
-                <span>₹{displaySummary.subtotal.toFixed(2)}</span>
-              </div>
-
-              {displaySummary.discount > 0 && (
-                <div className="summaryRow success">
-                  <span>Discount</span>
-                  <span>- ₹{displaySummary.discount.toFixed(2)}</span>
+              <div className="summary">
+              
+                <div className="summaryRow">
+                  <span>Subtotal</span>
+                  <span>
+                    ₹{displaySummary.subtotal.toFixed(2)}
+                  </span>
                 </div>
-              )}
-
-              <div className="grandTotal">
-                <span>Grand Total</span>
-                <span>₹{displaySummary.grandTotal.toFixed(2)}</span>
+              
+                {displaySummary.discount > 0 && (
+                  <div className="summaryRow success">
+                    <span>Discount</span>
+                    <span>
+                      - ₹{displaySummary.discount.toFixed(2)}
+                    </span>
+                  </div>
+                )}
+              
+                {/* GST ROW */}
+                {displaySummary.gstTotal > 0 && (
+                  <div className="summaryRow">
+                    <span>GST</span>
+                    <span>
+                      ₹{displaySummary.gstTotal.toFixed(2)}
+                    </span>
+                  </div>
+                )}
+              
+                <div className="grandTotal">
+                  <span>Grand Total</span>
+                  <span>
+                    ₹{displaySummary.grandTotal.toFixed(2)}
+                  </span>
+                </div>
+              
               </div>
-            </div>
 
             <button className="payBtn" onClick={handlePay} disabled={loading}>
               {loading
