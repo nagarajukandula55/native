@@ -480,61 +480,88 @@ useEffect(() => {
         },
 
         handler: async function (response: any) {
+
+          console.log("RAZORPAY RESPONSE:", response);
+        
           try {
+        
+            const verifyPayload = {
+              razorpay_order_id:
+                response.razorpay_order_id,
+        
+              razorpay_payment_id:
+                response.razorpay_payment_id,
+        
+              razorpay_signature:
+                response.razorpay_signature,
+        
+              internalOrderId:
+                data.orderId,
+            };
+        
+            console.log(
+              "VERIFY PAYLOAD:",
+              verifyPayload
+            );
+        
             const verifyRes = await fetch(
               `${API_BASE}/api/payment/verify`,
               {
                 method: "POST",
+        
                 headers: {
-                  "Content-Type": "application/json",
+                  "Content-Type":
+                    "application/json",
                 },
-                body: JSON.stringify({
-                  razorpay_order_id:
-                    response.razorpay_order_id,
-                  razorpay_payment_id:
-                    response.razorpay_payment_id,
-                  razorpay_signature:
-                    response.razorpay_signature,
-                  orderId: data.orderId,
-                }),
+        
+                body: JSON.stringify(
+                  verifyPayload
+                ),
               }
             );
-
-            const verifyData = await verifyRes.json();
-
+        
+            const verifyData =
+              await verifyRes.json();
+        
+            console.log(
+              "VERIFY RESPONSE:",
+              verifyData
+            );
+        
             if (verifyData.success) {
+        
               setCart([]);
+        
               closeCart();
+        
               router.push(
                 `/order-success?orderId=${data.orderId}`
               );
+        
             } else {
+        
               alert(
                 verifyData.message ||
-                  "Payment verification failed"
+                "Payment verification failed"
               );
+        
+              setLoading(false);
             }
+        
           } catch (err) {
-            console.error(err);
-            alert("Payment verification failed");
+        
+            console.error(
+              "VERIFY ERROR:",
+              err
+            );
+        
+            alert(
+              "Payment verification failed"
+            );
+        
+            setLoading(false);
           }
         },
-
-        modal: {
-          ondismiss: () => setLoading(false),
-        },
-
-        theme: { color: "#111827" },
-      };
-
-      const rzp = new window.Razorpay(options);
-      rzp.open();
-    } catch (err) {
-      console.error(err);
-      alert("Checkout failed");
-      setLoading(false);
-    }
-  };
 
   /* =========================================================
      UI
