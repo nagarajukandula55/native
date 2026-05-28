@@ -422,7 +422,7 @@ useEffect(() => {
         }));
       
       if (!cleanedCart.length) {
-        alert("Cart is invalid. Please refresh and add products again.");
+        alert("Cart is not valid. Please refresh and add products again.");
         return;
       }
 
