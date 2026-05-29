@@ -1,29 +1,51 @@
-import { anFetch } from "./client";
+const API =
+  process.env.NEXT_PUBLIC_AN_API ||
+  "https://www.angroup.in";
 
-export const loadShippingRates = async (
+/* =========================================
+   LOAD COURIERS
+========================================= */
+
+export async function loadShippingRates(
   orderId: string
-) => {
-  return anFetch(
-    "/api/shipping/rates",
+) {
+  const res = await fetch(
+    `${API}/api/shipping/rates`,
     {
       method: "POST",
+
+      headers: {
+        "Content-Type":
+          "application/json",
+      },
 
       body: JSON.stringify({
         orderId,
       }),
     }
   );
-};
 
-export const createShipment = async (
+  return res.json();
+}
+
+/* =========================================
+   CREATE SHIPMENT
+========================================= */
+
+export async function createShipment(
   orderId: string,
   dispatchType: string,
   courierId?: string
-) => {
-  return anFetch(
-    "/api/shipping/create-shipment",
+) {
+  const res = await fetch(
+    `${API}/api/shipping/create-shipment`,
     {
       method: "POST",
+
+      headers: {
+        "Content-Type":
+          "application/json",
+      },
 
       body: JSON.stringify({
         orderId,
@@ -32,4 +54,6 @@ export const createShipment = async (
       }),
     }
   );
-};
+
+  return res.json();
+}
