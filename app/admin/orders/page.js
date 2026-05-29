@@ -450,14 +450,16 @@ Courier ID: ${c.courierId}
 
       {/* MAIN */}
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns:
-            "1.5fr 420px",
-          gap: 20,
-        }}
-      >
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns:
+              "minmax(0,1fr) 420px",
+            gap: 20,
+            height: "calc(100vh - 220px)",
+            overflow: "hidden",
+          }}
+        >
         {/* LEFT */}
 
         <div
@@ -467,6 +469,9 @@ Courier ID: ${c.courierId}
             border:
               "1px solid #e5e7eb",
             overflow: "hidden",
+            display: "flex",
+            flexDirection: "column",
+            height: "100%",
           }}
         >
           {/* TOOLBAR */}
@@ -536,11 +541,13 @@ Courier ID: ${c.courierId}
 
           {/* TABLE */}
 
-          <div
-            style={{
-              overflowX: "auto",
-            }}
-          >
+            <div
+              style={{
+                overflowX: "auto",
+                overflowY: "auto",
+                flex: 1,
+              }}
+            >
             <table
               style={{
                 width: "100%",
@@ -722,16 +729,20 @@ Courier ID: ${c.courierId}
 
         {/* RIGHT PANEL */}
 
-        <div
-          style={{
-            background: "#fff",
-            borderRadius: 20,
-            border:
-              "1px solid #e5e7eb",
-            overflow: "hidden",
-            height: "fit-content",
-          }}
-        >
+          <div
+            style={{
+              background: "#fff",
+              borderRadius: 20,
+              border:
+                "1px solid #e5e7eb",
+              overflow: "hidden",
+              height: "100%",
+              display: "flex",
+              flexDirection: "column",
+              position: "sticky",
+              top: 0,
+            }}
+          >
           {!selectedOrder ? (
             <div
               style={{
@@ -809,6 +820,8 @@ Courier ID: ${c.courierId}
               <div
                 style={{
                   padding: 24,
+                  overflowY: "auto",
+                  flex: 1,
                 }}
               >
                 {/* CUSTOMER */}
