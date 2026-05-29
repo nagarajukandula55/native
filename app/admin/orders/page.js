@@ -3,17 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 
 import {
-  Search,
-  RefreshCcw,
-  Package,
-  CreditCard,
-  Truck,
-  CheckCircle2,
-  AlertCircle,
-  IndianRupee,
-} from "lucide-react";
-
-import {
   getOrders,
   markAsPaid,
   updateOrderStatus,
@@ -70,33 +59,63 @@ export default function AdminOrdersPage() {
       o?.address?.state || "-"
     }`;
 
-  const getStatusClasses = (
-    currentStatus
-  ) => {
-    switch (currentStatus) {
+  const getStatusStyle = (status) => {
+    switch (status) {
       case "PENDING_PAYMENT":
-        return "bg-yellow-500/15 text-yellow-400 border-yellow-500/20";
+        return {
+          background: "#fff7ed",
+          color: "#ea580c",
+          border: "1px solid #fdba74",
+        };
 
       case "PAID":
-        return "bg-green-500/15 text-green-400 border-green-500/20";
+        return {
+          background: "#ecfdf5",
+          color: "#059669",
+          border: "1px solid #6ee7b7",
+        };
 
       case "PROCESSING":
-        return "bg-blue-500/15 text-blue-400 border-blue-500/20";
+        return {
+          background: "#eff6ff",
+          color: "#2563eb",
+          border: "1px solid #93c5fd",
+        };
 
       case "PACKED":
-        return "bg-purple-500/15 text-purple-400 border-purple-500/20";
+        return {
+          background: "#f5f3ff",
+          color: "#7c3aed",
+          border: "1px solid #c4b5fd",
+        };
 
       case "DISPATCHED":
-        return "bg-orange-500/15 text-orange-400 border-orange-500/20";
+        return {
+          background: "#fff7ed",
+          color: "#ea580c",
+          border: "1px solid #fdba74",
+        };
 
       case "DELIVERED":
-        return "bg-emerald-500/15 text-emerald-400 border-emerald-500/20";
+        return {
+          background: "#ecfeff",
+          color: "#0891b2",
+          border: "1px solid #67e8f9",
+        };
 
       case "FAILED":
-        return "bg-red-500/15 text-red-400 border-red-500/20";
+        return {
+          background: "#fef2f2",
+          color: "#dc2626",
+          border: "1px solid #fca5a5",
+        };
 
       default:
-        return "bg-zinc-500/15 text-zinc-400 border-zinc-500/20";
+        return {
+          background: "#f4f4f5",
+          color: "#52525b",
+          border: "1px solid #d4d4d8",
+        };
     }
   };
 
@@ -186,7 +205,7 @@ export default function AdminOrdersPage() {
 
       if (data.success) {
         fetchOrders();
-        alert("Payment updated");
+        alert("Payment Updated");
       }
     } catch (err) {
       console.log(err);
@@ -206,13 +225,14 @@ export default function AdminOrdersPage() {
 
       if (data.success) {
         fetchOrders();
+        alert("Status Updated");
       }
     } catch (err) {
       console.log(err);
     }
   };
 
-  const handleCouriers = async (
+  const handleLoadCouriers = async (
     orderId
   ) => {
     try {
@@ -236,11 +256,11 @@ export default function AdminOrdersPage() {
       let txt = "";
 
       data.couriers
-        .slice(0, 8)
+        .slice(0, 10)
         .forEach((c) => {
           txt += `
-${c.courierName}
-₹${c.rate}
+Courier: ${c.courierName}
+Rate: ₹${c.rate}
 ETA: ${c.etd}
 Courier ID: ${c.courierId}
 
@@ -262,7 +282,8 @@ Courier ID: ${c.courierId}
 
       if (dispatchType === "COURIER") {
         courierId =
-          prompt("Courier ID") || "";
+          prompt("Enter Courier ID") ||
+          "";
 
         if (!courierId) return;
       }
@@ -276,7 +297,7 @@ Courier ID: ${c.courierId}
 
       if (data.success) {
         fetchOrders();
-        alert("Shipment created");
+        alert("Shipment Created");
       }
     } catch (err) {
       console.log(err);
@@ -293,155 +314,192 @@ Courier ID: ${c.courierId}
   );
 
   return (
-    <div className="p-6 space-y-6">
+    <div
+      style={{
+        padding: 24,
+        background: "#f5f7fb",
+        minHeight: "100vh",
+      }}
+    >
       {/* HEADER */}
 
-      <div className="flex items-center justify-between">
+      <div
+        style={{
+          display: "flex",
+          justifyContent:
+            "space-between",
+          alignItems: "center",
+          marginBottom: 24,
+        }}
+      >
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">
-            Orders
+          <h1
+            style={{
+              fontSize: 34,
+              fontWeight: 700,
+              margin: 0,
+              color: "#111827",
+            }}
+          >
+            Orders Management
           </h1>
 
-          <p className="text-muted-foreground mt-1">
-            Native commerce operations
+          <p
+            style={{
+              color: "#6b7280",
+              marginTop: 8,
+            }}
+          >
+            Native Commerce Operations
           </p>
         </div>
 
         <button
           onClick={fetchOrders}
-          className="h-11 px-5 rounded-xl border bg-background hover:bg-accent flex items-center gap-2 transition-all"
+          style={{
+            height: 46,
+            padding:
+              "0px 20px",
+            borderRadius: 12,
+            border: "none",
+            background: "#111827",
+            color: "#fff",
+            fontWeight: 600,
+            cursor: "pointer",
+          }}
         >
-          <RefreshCcw size={16} />
-          Refresh
+          Refresh Orders
         </button>
       </div>
 
       {/* KPI */}
 
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
-        <div className="rounded-2xl border bg-card p-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-muted-foreground">
-                Orders
-              </p>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns:
+            "repeat(4,1fr)",
+          gap: 16,
+          marginBottom: 24,
+        }}
+      >
+        {[
+          {
+            title: "Total Orders",
+            value: orders.length,
+          },
 
-              <h2 className="text-3xl font-bold mt-2">
-                {orders.length}
-              </h2>
-            </div>
+          {
+            title: "Revenue",
+            value: `₹${revenue}`,
+          },
 
-            <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center">
-              <Package
-                size={22}
-                className="text-blue-500"
-              />
-            </div>
+          {
+            title: "Paid Orders",
+            value: orders.filter(
+              (o) =>
+                o.payment?.status ===
+                "PAID"
+            ).length,
+          },
+
+          {
+            title: "Dispatched",
+            value: orders.filter(
+              (o) =>
+                o.status ===
+                "DISPATCHED"
+            ).length,
+          },
+        ].map((item, index) => (
+          <div
+            key={index}
+            style={{
+              background: "#fff",
+              borderRadius: 18,
+              padding: 20,
+              border:
+                "1px solid #e5e7eb",
+              boxShadow:
+                "0 2px 10px rgba(0,0,0,0.04)",
+            }}
+          >
+            <p
+              style={{
+                margin: 0,
+                color: "#6b7280",
+                fontSize: 14,
+              }}
+            >
+              {item.title}
+            </p>
+
+            <h2
+              style={{
+                marginTop: 12,
+                marginBottom: 0,
+                fontSize: 32,
+                color: "#111827",
+              }}
+            >
+              {item.value}
+            </h2>
           </div>
-        </div>
-
-        <div className="rounded-2xl border bg-card p-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-muted-foreground">
-                Revenue
-              </p>
-
-              <h2 className="text-3xl font-bold mt-2">
-                ₹{revenue}
-              </h2>
-            </div>
-
-            <div className="w-12 h-12 rounded-xl bg-green-500/10 flex items-center justify-center">
-              <IndianRupee
-                size={22}
-                className="text-green-500"
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="rounded-2xl border bg-card p-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-muted-foreground">
-                Paid
-              </p>
-
-              <h2 className="text-3xl font-bold mt-2">
-                {
-                  orders.filter(
-                    (o) =>
-                      o.payment?.status ===
-                      "PAID"
-                  ).length
-                }
-              </h2>
-            </div>
-
-            <div className="w-12 h-12 rounded-xl bg-purple-500/10 flex items-center justify-center">
-              <CreditCard
-                size={22}
-                className="text-purple-500"
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="rounded-2xl border bg-card p-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-muted-foreground">
-                Dispatched
-              </p>
-
-              <h2 className="text-3xl font-bold mt-2">
-                {
-                  orders.filter(
-                    (o) =>
-                      o.status ===
-                      "DISPATCHED"
-                  ).length
-                }
-              </h2>
-            </div>
-
-            <div className="w-12 h-12 rounded-xl bg-orange-500/10 flex items-center justify-center">
-              <Truck
-                size={22}
-                className="text-orange-500"
-              />
-            </div>
-          </div>
-        </div>
+        ))}
       </div>
 
       {/* MAIN */}
 
-      <div className="grid xl:grid-cols-[1.4fr_420px] gap-6">
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns:
+            "1.5fr 420px",
+          gap: 20,
+        }}
+      >
         {/* LEFT */}
 
-        <div className="rounded-3xl border bg-card overflow-hidden">
+        <div
+          style={{
+            background: "#fff",
+            borderRadius: 20,
+            border:
+              "1px solid #e5e7eb",
+            overflow: "hidden",
+          }}
+        >
           {/* TOOLBAR */}
 
-          <div className="p-5 border-b flex flex-col xl:flex-row gap-4 xl:items-center xl:justify-between">
-            <div className="relative flex-1">
-              <Search
-                size={18}
-                className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground"
-              />
-
-              <input
-                value={search}
-                onChange={(e) =>
-                  setSearch(
-                    e.target.value
-                  )
-                }
-                placeholder="Search order, customer, phone"
-                className="w-full h-12 pl-11 pr-4 rounded-xl border bg-background outline-none"
-              />
-            </div>
+          <div
+            style={{
+              padding: 18,
+              borderBottom:
+                "1px solid #e5e7eb",
+              display: "flex",
+              gap: 14,
+            }}
+          >
+            <input
+              placeholder="Search orders..."
+              value={search}
+              onChange={(e) =>
+                setSearch(
+                  e.target.value
+                )
+              }
+              style={{
+                flex: 1,
+                height: 44,
+                borderRadius: 12,
+                border:
+                  "1px solid #d1d5db",
+                padding:
+                  "0px 14px",
+                outline: "none",
+                fontSize: 14,
+              }}
+            />
 
             <select
               value={status}
@@ -450,131 +508,211 @@ Courier ID: ${c.courierId}
                   e.target.value
                 )
               }
-              className="h-12 px-4 rounded-xl border bg-background min-w-[220px]"
+              style={{
+                width: 220,
+                borderRadius: 12,
+                border:
+                  "1px solid #d1d5db",
+                padding:
+                  "0px 14px",
+              }}
             >
               <option value="ALL">
                 All Orders
               </option>
 
-              {ORDER_STATUSES.map((s) => (
-                <option
-                  key={s}
-                  value={s}
-                >
-                  {s}
-                </option>
-              ))}
+              {ORDER_STATUSES.map(
+                (s) => (
+                  <option
+                    key={s}
+                    value={s}
+                  >
+                    {s}
+                  </option>
+                )
+              )}
             </select>
           </div>
 
           {/* TABLE */}
 
-          <div className="overflow-auto">
-            <table className="w-full">
-              <thead className="border-b bg-muted/30">
-                <tr className="text-left">
-                  <th className="px-5 py-4 text-sm font-medium">
-                    Order
-                  </th>
-
-                  <th className="px-5 py-4 text-sm font-medium">
-                    Customer
-                  </th>
-
-                  <th className="px-5 py-4 text-sm font-medium">
-                    Status
-                  </th>
-
-                  <th className="px-5 py-4 text-sm font-medium">
-                    Amount
-                  </th>
+          <div
+            style={{
+              overflowX: "auto",
+            }}
+          >
+            <table
+              style={{
+                width: "100%",
+                borderCollapse:
+                  "collapse",
+              }}
+            >
+              <thead>
+                <tr
+                  style={{
+                    background:
+                      "#f9fafb",
+                  }}
+                >
+                  {[
+                    "Order",
+                    "Customer",
+                    "Status",
+                    "Payment",
+                    "Amount",
+                  ].map((h) => (
+                    <th
+                      key={h}
+                      style={{
+                        padding: 16,
+                        textAlign:
+                          "left",
+                        fontSize: 14,
+                        color: "#6b7280",
+                        borderBottom:
+                          "1px solid #e5e7eb",
+                      }}
+                    >
+                      {h}
+                    </th>
+                  ))}
                 </tr>
               </thead>
 
               <tbody>
-                {loading ? (
-                  <tr>
-                    <td
-                      colSpan={4}
-                      className="p-10 text-center text-muted-foreground"
-                    >
-                      Loading...
-                    </td>
-                  </tr>
-                ) : filteredOrders.length ===
-                  0 ? (
-                  <tr>
-                    <td
-                      colSpan={4}
-                      className="p-10 text-center text-muted-foreground"
-                    >
-                      No orders found
-                    </td>
-                  </tr>
-                ) : (
-                  filteredOrders.map(
-                    (o) => (
-                      <tr
-                        key={o._id}
-                        onClick={() =>
-                          setSelectedOrder(
-                            o
-                          )
-                        }
-                        className={`border-b cursor-pointer transition-all hover:bg-muted/40 ${
+                {filteredOrders.map(
+                  (o) => (
+                    <tr
+                      key={o._id}
+                      onClick={() =>
+                        setSelectedOrder(
+                          o
+                        )
+                      }
+                      style={{
+                        cursor:
+                          "pointer",
+                        background:
                           selectedOrder?._id ===
                           o._id
-                            ? "bg-muted/50"
-                            : ""
-                        }`}
+                            ? "#f3f4f6"
+                            : "#fff",
+                      }}
+                    >
+                      <td
+                        style={{
+                          padding: 18,
+                          borderBottom:
+                            "1px solid #f3f4f6",
+                        }}
                       >
-                        <td className="px-5 py-5">
-                          <div>
-                            <h3 className="font-semibold">
-                              {
-                                o.orderId
-                              }
-                            </h3>
+                        <div
+                          style={{
+                            fontWeight: 600,
+                            color:
+                              "#111827",
+                          }}
+                        >
+                          {
+                            o.orderId
+                          }
+                        </div>
 
-                            <p className="text-sm text-muted-foreground mt-1">
-                              {new Date(
-                                o.createdAt
-                              ).toLocaleString()}
-                            </p>
-                          </div>
-                        </td>
+                        <div
+                          style={{
+                            fontSize: 12,
+                            color:
+                              "#6b7280",
+                            marginTop: 6,
+                          }}
+                        >
+                          {new Date(
+                            o.createdAt
+                          ).toLocaleString()}
+                        </div>
+                      </td>
 
-                        <td className="px-5 py-5">
-                          <div>
-                            <h3 className="font-medium">
-                              {getCustomerName(
-                                o
-                              )}
-                            </h3>
+                      <td
+                        style={{
+                          padding: 18,
+                          borderBottom:
+                            "1px solid #f3f4f6",
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontWeight: 600,
+                          }}
+                        >
+                          {getCustomerName(
+                            o
+                          )}
+                        </div>
 
-                            <p className="text-sm text-muted-foreground mt-1">
-                              {getCustomerPhone(
-                                o
-                              )}
-                            </p>
-                          </div>
-                        </td>
+                        <div
+                          style={{
+                            marginTop: 6,
+                            color:
+                              "#6b7280",
+                            fontSize: 13,
+                          }}
+                        >
+                          {getCustomerPhone(
+                            o
+                          )}
+                        </div>
+                      </td>
 
-                        <td className="px-5 py-5">
-                          <div
-                            className={`inline-flex px-3 py-1 rounded-full border text-xs font-semibold ${getStatusClasses(
+                      <td
+                        style={{
+                          padding: 18,
+                          borderBottom:
+                            "1px solid #f3f4f6",
+                        }}
+                      >
+                        <span
+                          style={{
+                            ...getStatusStyle(
                               o.status
-                            )}`}
-                          >
-                            {o.status}
-                          </div>
-                        </td>
+                            ),
+                            padding:
+                              "6px 12px",
+                            borderRadius: 999,
+                            fontSize: 12,
+                            fontWeight: 700,
+                          }}
+                        >
+                          {o.status}
+                        </span>
+                      </td>
 
-                        <td className="px-5 py-5 font-bold">
-                          ₹{o.amount}
-                        </td>
-                      </tr>
-                    )
+                      <td
+                        style={{
+                          padding: 18,
+                          borderBottom:
+                            "1px solid #f3f4f6",
+                          fontWeight: 600,
+                        }}
+                      >
+                        {o.payment
+                          ?.status ||
+                          "PENDING"}
+                      </td>
+
+                      <td
+                        style={{
+                          padding: 18,
+                          borderBottom:
+                            "1px solid #f3f4f6",
+                          fontWeight: 700,
+                          color:
+                            "#111827",
+                        }}
+                      >
+                        ₹{o.amount}
+                      </td>
+                    </tr>
                   )
                 )}
               </tbody>
@@ -584,167 +722,243 @@ Courier ID: ${c.courierId}
 
         {/* RIGHT PANEL */}
 
-        <div className="rounded-3xl border bg-card overflow-hidden h-fit sticky top-6">
+        <div
+          style={{
+            background: "#fff",
+            borderRadius: 20,
+            border:
+              "1px solid #e5e7eb",
+            overflow: "hidden",
+            height: "fit-content",
+          }}
+        >
           {!selectedOrder ? (
-            <div className="p-10 text-center text-muted-foreground">
+            <div
+              style={{
+                padding: 40,
+              }}
+            >
               Select Order
             </div>
           ) : (
             <>
               {/* TOP */}
 
-              <div className="p-6 border-b">
-                <div className="flex items-center justify-between">
+              <div
+                style={{
+                  padding: 24,
+                  borderBottom:
+                    "1px solid #e5e7eb",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent:
+                      "space-between",
+                    alignItems:
+                      "center",
+                  }}
+                >
                   <div>
-                    <h2 className="text-2xl font-bold">
+                    <h2
+                      style={{
+                        margin: 0,
+                        fontSize: 24,
+                      }}
+                    >
                       {
                         selectedOrder.orderId
                       }
                     </h2>
 
-                    <p className="text-muted-foreground mt-1">
+                    <p
+                      style={{
+                        color:
+                          "#6b7280",
+                        marginTop: 8,
+                      }}
+                    >
                       {new Date(
                         selectedOrder.createdAt
                       ).toLocaleString()}
                     </p>
                   </div>
 
-                  <div
-                    className={`px-3 py-1 rounded-full border text-xs font-semibold ${getStatusClasses(
-                      selectedOrder.status
-                    )}`}
+                  <span
+                    style={{
+                      ...getStatusStyle(
+                        selectedOrder.status
+                      ),
+                      padding:
+                        "8px 14px",
+                      borderRadius: 999,
+                      fontSize: 12,
+                      fontWeight: 700,
+                    }}
                   >
                     {
                       selectedOrder.status
                     }
-                  </div>
+                  </span>
                 </div>
               </div>
 
-              {/* BODY */}
+              {/* DETAILS */}
 
-              <div className="p-6 space-y-6">
+              <div
+                style={{
+                  padding: 24,
+                }}
+              >
                 {/* CUSTOMER */}
 
-                <div className="rounded-2xl border p-5">
-                  <h3 className="font-semibold mb-4">
-                    Customer
+                <div
+                  style={{
+                    marginBottom: 24,
+                  }}
+                >
+                  <h3>
+                    Customer Details
                   </h3>
 
-                  <div className="space-y-2">
-                    <p className="font-medium">
+                  <div
+                    style={{
+                      marginTop: 12,
+                      color:
+                        "#374151",
+                      lineHeight: 1.8,
+                    }}
+                  >
+                    <div>
+                      <b>Name:</b>{" "}
                       {getCustomerName(
                         selectedOrder
                       )}
-                    </p>
+                    </div>
 
-                    <p className="text-muted-foreground">
+                    <div>
+                      <b>Phone:</b>{" "}
                       {getCustomerPhone(
                         selectedOrder
                       )}
-                    </p>
+                    </div>
 
-                    <p className="text-muted-foreground">
-                      {selectedOrder
-                        ?.address
-                        ?.address1 || "-"}
-                    </p>
+                    <div>
+                      <b>Address:</b>{" "}
+                      {
+                        selectedOrder
+                          ?.address
+                          ?.address1
+                      }
+                    </div>
 
-                    <p className="text-muted-foreground">
+                    <div>
+                      <b>Location:</b>{" "}
                       {getLocation(
                         selectedOrder
                       )}
-                    </p>
+                    </div>
                   </div>
                 </div>
 
                 {/* PAYMENT */}
 
-                <div className="rounded-2xl border p-5">
-                  <h3 className="font-semibold mb-4">
-                    Payment
+                <div
+                  style={{
+                    marginBottom: 24,
+                  }}
+                >
+                  <h3>
+                    Payment Info
                   </h3>
 
-                  <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">
-                        Status
-                      </span>
-
-                      <span className="font-medium">
-                        {selectedOrder
-                          ?.payment
-                          ?.status ||
-                          "PENDING"}
-                      </span>
+                  <div
+                    style={{
+                      marginTop: 12,
+                      color:
+                        "#374151",
+                      lineHeight: 1.8,
+                    }}
+                  >
+                    <div>
+                      <b>Status:</b>{" "}
+                      {selectedOrder
+                        ?.payment
+                        ?.status ||
+                        "PENDING"}
                     </div>
 
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">
-                        Method
-                      </span>
-
-                      <span className="font-medium">
-                        {selectedOrder
-                          ?.payment
-                          ?.method ||
-                          "-"}
-                      </span>
+                    <div>
+                      <b>Method:</b>{" "}
+                      {selectedOrder
+                        ?.payment
+                        ?.method ||
+                        "-"}
                     </div>
 
-                    <div className="flex justify-between gap-3">
-                      <span className="text-muted-foreground">
-                        UTR
-                      </span>
-
-                      <span className="font-medium text-right break-all">
-                        {selectedOrder
-                          ?.payment
-                          ?.utr || "-"}
-                      </span>
+                    <div>
+                      <b>UTR:</b>{" "}
+                      {selectedOrder
+                        ?.payment
+                        ?.utr || "-"}
                     </div>
                   </div>
                 </div>
 
                 {/* SHIPPING */}
 
-                <div className="rounded-2xl border p-5">
-                  <h3 className="font-semibold mb-4">
-                    Shipping
+                <div
+                  style={{
+                    marginBottom: 24,
+                  }}
+                >
+                  <h3>
+                    Shipping Info
                   </h3>
 
-                  <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">
-                        Courier
-                      </span>
-
-                      <span className="font-medium">
-                        {selectedOrder
-                          ?.shipping
-                          ?.courierPartner ||
-                          "-"}
-                      </span>
+                  <div
+                    style={{
+                      marginTop: 12,
+                      color:
+                        "#374151",
+                      lineHeight: 1.8,
+                    }}
+                  >
+                    <div>
+                      <b>Courier:</b>{" "}
+                      {selectedOrder
+                        ?.shipping
+                        ?.courierPartner ||
+                        "-"}
                     </div>
 
-                    <div className="flex justify-between gap-3">
-                      <span className="text-muted-foreground">
-                        AWB
-                      </span>
+                    <div>
+                      <b>AWB:</b>{" "}
+                      {selectedOrder
+                        ?.shipping
+                        ?.awbNumber ||
+                        "-"}
+                    </div>
 
-                      <span className="font-medium break-all text-right">
-                        {selectedOrder
-                          ?.shipping
-                          ?.awbNumber ||
-                          "-"}
-                      </span>
+                    <div>
+                      <b>Status:</b>{" "}
+                      {selectedOrder
+                        ?.shipping
+                        ?.trackingStatus ||
+                        "-"}
                     </div>
                   </div>
                 </div>
 
                 {/* ACTIONS */}
 
-                <div className="space-y-3">
+                <div
+                  style={{
+                    display: "grid",
+                    gap: 12,
+                  }}
+                >
                   {selectedOrder
                     ?.payment?.status !==
                     "PAID" && (
@@ -754,7 +968,17 @@ Courier ID: ${c.courierId}
                           selectedOrder.orderId
                         )
                       }
-                      className="w-full h-12 rounded-xl bg-green-600 hover:bg-green-700 text-white font-semibold"
+                      style={{
+                        height: 48,
+                        border: "none",
+                        borderRadius: 12,
+                        background:
+                          "#16a34a",
+                        color: "#fff",
+                        fontWeight: 700,
+                        cursor:
+                          "pointer",
+                      }}
                     >
                       Mark As Paid
                     </button>
@@ -770,7 +994,14 @@ Courier ID: ${c.courierId}
                         e.target.value
                       )
                     }
-                    className="w-full h-12 rounded-xl border bg-background px-4"
+                    style={{
+                      height: 48,
+                      borderRadius: 12,
+                      border:
+                        "1px solid #d1d5db",
+                      padding:
+                        "0px 14px",
+                    }}
                   >
                     {ORDER_STATUSES.map(
                       (s) => (
@@ -786,11 +1017,21 @@ Courier ID: ${c.courierId}
 
                   <button
                     onClick={() =>
-                      handleCouriers(
+                      handleLoadCouriers(
                         selectedOrder.orderId
                       )
                     }
-                    className="w-full h-12 rounded-xl border hover:bg-accent font-medium"
+                    style={{
+                      height: 48,
+                      border: "none",
+                      borderRadius: 12,
+                      background:
+                        "#2563eb",
+                      color: "#fff",
+                      fontWeight: 700,
+                      cursor:
+                        "pointer",
+                    }}
                   >
                     Load Couriers
                   </button>
@@ -802,12 +1043,29 @@ Courier ID: ${c.courierId}
                         "COURIER"
                       )
                     }
-                    className="w-full h-12 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-semibold"
+                    style={{
+                      height: 48,
+                      border: "none",
+                      borderRadius: 12,
+                      background:
+                        "#ea580c",
+                      color: "#fff",
+                      fontWeight: 700,
+                      cursor:
+                        "pointer",
+                    }}
                   >
                     Dispatch Shipment
                   </button>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns:
+                        "1fr 1fr",
+                      gap: 10,
+                    }}
+                  >
                     <button
                       onClick={() =>
                         handleShipment(
@@ -815,7 +1073,17 @@ Courier ID: ${c.courierId}
                           "LOCAL_DELIVERY"
                         )
                       }
-                      className="h-11 rounded-xl border hover:bg-accent font-medium"
+                      style={{
+                        height: 46,
+                        borderRadius: 12,
+                        border:
+                          "1px solid #d1d5db",
+                        background:
+                          "#fff",
+                        fontWeight: 600,
+                        cursor:
+                          "pointer",
+                      }}
                     >
                       Local
                     </button>
@@ -827,7 +1095,17 @@ Courier ID: ${c.courierId}
                           "BY_HAND"
                         )
                       }
-                      className="h-11 rounded-xl border hover:bg-accent font-medium"
+                      style={{
+                        height: 46,
+                        borderRadius: 12,
+                        border:
+                          "1px solid #d1d5db",
+                        background:
+                          "#fff",
+                        fontWeight: 600,
+                        cursor:
+                          "pointer",
+                      }}
                     >
                       By Hand
                     </button>
