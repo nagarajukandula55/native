@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -13,16 +14,16 @@ import {
   createShipment,
 } from "@/lib/an-sdk/shipping";
 
+/* =========================================
+   TYPES
+========================================= */
+
 interface Order {
   _id: string;
   orderId: string;
   amount: number;
   status: string;
   createdAt?: string;
-
-  /* =========================================
-     SUPPORT MULTIPLE ORDER STRUCTURES
-  ========================================= */
 
   customer?: {
     name?: string;
@@ -57,6 +58,10 @@ interface Order {
   };
 }
 
+/* =========================================
+   HELPERS
+========================================= */
+
 const getCustomerName = (o: Order) => {
   return (
     o.customer?.name ||
@@ -76,41 +81,10 @@ const getCustomerPhone = (o: Order) => {
 };
 
 const getCustomerLocation = (o: Order) => {
-  return `${o.address?.city || "-"}, ${o.address?.state || "-"}`;
+  return `${o.address?.city || "-"}, ${
+    o.address?.state || "-"
+  }`;
 };
-
-export default function AdminOrdersPage() {
-  _id: string;
-  orderId: string;
-  amount: number;
-  status: string;
-  createdAt?: string;
-
-  customer?: {
-    name?: string;
-    phone?: string;
-    email?: string;
-  };
-
-  address?: {
-    address1?: string;
-    city?: string;
-    state?: string;
-    pincode?: string;
-  };
-
-  payment?: {
-    status?: string;
-    method?: string;
-    utr?: string;
-  };
-
-  shipping?: {
-    courierPartner?: string;
-    awbNumber?: string;
-    trackingStatus?: string;
-  };
-}
 
 const ORDER_STATUSES = [
   "PENDING_PAYMENT",
@@ -123,13 +97,14 @@ const ORDER_STATUSES = [
   "CANCELLED",
 ];
 
+/* =========================================
+   PAGE
+========================================= */
+
 export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
-
   const [search, setSearch] = useState("");
-
   const [status, setStatus] = useState("ALL");
-
   const [loading, setLoading] = useState(false);
 
   /* =========================================
@@ -146,7 +121,7 @@ export default function AdminOrdersPage() {
         setOrders(data.orders || []);
       }
     } catch (err) {
-      console.error(err);
+      console.log(err);
       alert("Failed to load orders");
     } finally {
       setLoading(false);
@@ -158,7 +133,7 @@ export default function AdminOrdersPage() {
   }, []);
 
   /* =========================================
-     FILTERED ORDERS
+     FILTER
   ========================================= */
 
   const filtered = useMemo(() => {
@@ -176,9 +151,9 @@ export default function AdminOrdersPage() {
           o.orderId
             ?.toLowerCase()
             .includes(search.toLowerCase()) ||
-          o.customer?.phone?.includes(search) ||
-          o.customer?.name
-            ?.toLowerCase()
+          getCustomerPhone(o).includes(search) ||
+          getCustomerName(o)
+            .toLowerCase()
             .includes(search.toLowerCase())
       );
     }
@@ -187,7 +162,7 @@ export default function AdminOrdersPage() {
   }, [orders, search, status]);
 
   /* =========================================
-     MARK AS PAID
+     MARK PAID
   ========================================= */
 
   const handleMarkAsPaid = async (
@@ -207,7 +182,6 @@ export default function AdminOrdersPage() {
 
       if (data.success) {
         alert("Payment Marked Successfully ✅");
-
         fetchOrders();
       } else {
         alert(data.message || "Failed");
@@ -234,7 +208,6 @@ export default function AdminOrdersPage() {
 
       if (data.success) {
         alert("Status Updated ✅");
-
         fetchOrders();
       } else {
         alert(data.message || "Failed");
@@ -256,8 +229,6 @@ export default function AdminOrdersPage() {
       const data = await loadShippingRates(
         orderId
       );
-
-      console.log(data);
 
       if (!data.success) {
         alert(data.message || "Failed");
@@ -305,9 +276,7 @@ Courier ID: ${c.courierId}
         courierId =
           prompt("Enter Courier ID") || "";
 
-        if (!courierId) {
-          return;
-        }
+        if (!courierId) return;
       }
 
       const data = await createShipment(
@@ -316,11 +285,8 @@ Courier ID: ${c.courierId}
         courierId
       );
 
-      console.log(data);
-
       if (data.success) {
         alert("Shipment Created ✅");
-
         fetchOrders();
       } else {
         alert(data.message || "Shipment failed");
@@ -332,7 +298,7 @@ Courier ID: ${c.courierId}
   };
 
   /* =========================================
-     STATUS COLOR
+     STATUS COLORS
   ========================================= */
 
   const getStatusColor = (
@@ -343,77 +309,77 @@ Courier ID: ${c.courierId}
         return "#f59e0b";
 
       case "PAID":
-        return "#16a34a";
+        return "#22c55e";
 
       case "PROCESSING":
-        return "#2563eb";
+        return "#3b82f6";
 
       case "PACKED":
-        return "#7c3aed";
+        return "#8b5cf6";
 
       case "DISPATCHED":
-        return "#ea580c";
+        return "#f97316";
 
       case "DELIVERED":
-        return "#111827";
+        return "#10b981";
 
       case "FAILED":
-        return "#dc2626";
+        return "#ef4444";
 
       default:
-        return "#666";
+        return "#6b7280";
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#0f172a] via-[#111827] to-black p-6">
+    <div className="min-h-screen bg-gradient-to-br from-black via-[#0f172a] to-[#111827] text-white p-6">
       {/* HEADER */}
 
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-5 mb-8">
         <div>
-          <h1 className="text-3xl font-bold">
-            📦 Native Orders
+          <h1 className="text-4xl font-black tracking-tight">
+            Native Orders
           </h1>
 
-          <p className="text-gray-500 mt-1">
-            Processing AN Group Orders
+          <p className="text-gray-400 mt-2">
+            AN Group Unified Commerce Engine
           </p>
         </div>
 
         <button
           onClick={fetchOrders}
-          className="bg-black text-white px-5 py-3 rounded-xl"
+          className="bg-white text-black font-bold px-6 py-3 rounded-2xl hover:scale-[1.03] transition-all"
         >
-          Refresh
+          Refresh Orders
         </button>
       </div>
 
       {/* SEARCH */}
 
-      <div className="bg-white p-4 rounded-2xl shadow-sm border mb-5">
+      <div className="bg-white/5 border border-white/10 backdrop-blur-2xl rounded-3xl p-5 mb-6">
         <input
-          placeholder="Search order / phone / customer"
+          placeholder="Search order / customer / phone"
           value={search}
           onChange={(e) =>
             setSearch(e.target.value)
           }
-          className="w-full border rounded-xl p-3 outline-none"
+          className="w-full bg-black/20 border border-white/10 rounded-2xl p-4 text-white outline-none"
         />
       </div>
 
       {/* FILTERS */}
 
-      <div className="flex flex-wrap gap-3 mb-6">
+      <div className="flex flex-wrap gap-3 mb-8">
         {["ALL", ...ORDER_STATUSES].map(
           (s) => (
             <button
               key={s}
               onClick={() => setStatus(s)}
-              className={`px-4 py-2 rounded-xl text-sm font-semibold transition
+              className={`px-5 py-3 rounded-2xl text-sm font-bold transition-all
               ${
                 status === s
-                  ? "bg-black text-white"
-                  : "bg-white border"
+                  ? "bg-white text-black"
+                  : "bg-white/5 border border-white/10 text-white"
               }`}
             >
               {s}
@@ -425,33 +391,31 @@ Courier ID: ${c.courierId}
       {/* LOADING */}
 
       {loading ? (
-        <div className="bg-white rounded-2xl p-10 text-center">
+        <div className="bg-white/5 rounded-3xl p-12 text-center border border-white/10">
           Loading Orders...
         </div>
       ) : filtered.length === 0 ? (
-        <div className="bg-white rounded-2xl p-10 text-center">
+        <div className="bg-white/5 rounded-3xl p-12 text-center border border-white/10">
           No Orders Found
         </div>
       ) : (
-        <div className="grid gap-5">
+        <div className="grid gap-6">
           {filtered.map((o) => (
             <div
               key={o._id}
-              className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-3xl p-6 shadow-2xl hover:border-white/20 transition-all duration-300"
+              className="bg-white/5 border border-white/10 backdrop-blur-2xl rounded-3xl p-6 shadow-2xl"
             >
-              {/* TOP */}
-
-              <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-5">
+              <div className="flex flex-col xl:flex-row xl:justify-between gap-8">
                 {/* LEFT */}
 
-                <div>
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <h2 className="text-xl font-bold">
+                <div className="flex-1">
+                  <div className="flex flex-wrap items-center gap-4">
+                    <h2 className="text-2xl font-black">
                       {o.orderId}
                     </h2>
 
                     <span
-                      className="text-white text-xs px-3 py-1 rounded-full font-semibold"
+                      className="px-4 py-2 rounded-full text-xs font-bold text-white"
                       style={{
                         background:
                           getStatusColor(o.status),
@@ -461,44 +425,106 @@ Courier ID: ${c.courierId}
                     </span>
                   </div>
 
-                  <div className="mt-3 text-sm text-gray-700">
-                    <div>
-                      👤
-                      <b>
+                  <div className="grid md:grid-cols-2 gap-5 mt-6">
+                    <div className="bg-black/20 rounded-2xl p-5 border border-white/5">
+                      <p className="text-gray-400 text-sm">
+                        Customer
+                      </p>
+
+                      <h3 className="text-lg font-bold mt-1">
                         {getCustomerName(o)}
-                      </b>
+                      </h3>
+
+                      <p className="text-gray-300 mt-2">
+                        {getCustomerPhone(o)}
+                      </p>
+
+                      <p className="text-gray-500 mt-1 text-sm">
+                        {getCustomerLocation(o)}
+                      </p>
                     </div>
 
-                    <div>
-                      📞
-                      {getCustomerPhone(o)}
-                    </div>
+                    <div className="bg-black/20 rounded-2xl p-5 border border-white/5">
+                      <p className="text-gray-400 text-sm">
+                        Payment
+                      </p>
 
-                    <div>
-                      📍
-                      {getCustomerLocation(o)}
-                    </div>
+                      <h3 className="text-2xl font-black mt-1">
+                        ₹{o.amount}
+                      </h3>
 
-                    <div className="mt-2">
-                      💳 Payment:
-                      <b>
-                        {o.payment?.status ||
-                          "PENDING"}
-                      </b>
-                    </div>
+                      <p className="mt-2">
+                        Status:
+                        <span className="font-bold ml-2">
+                          {o.payment?.status ||
+                            "PENDING"}
+                        </span>
+                      </p>
 
-                    <div>
-                      💰 Amount:
-                      <b>₹{o.amount}</b>
+                      <p className="text-sm text-gray-400 mt-1">
+                        Method:
+                        {" "}
+                        {o.payment?.method ||
+                          "N/A"}
+                      </p>
                     </div>
                   </div>
+
+                  {/* SHIPPING */}
+
+                  {o.shipping?.awbNumber && (
+                    <div className="mt-5 bg-black/20 rounded-2xl p-5 border border-white/5">
+                      <h3 className="font-bold mb-4">
+                        Shipping Details
+                      </h3>
+
+                      <div className="grid md:grid-cols-3 gap-4 text-sm">
+                        <div>
+                          <p className="text-gray-400">
+                            Courier
+                          </p>
+
+                          <p className="font-semibold mt-1">
+                            {
+                              o.shipping
+                                ?.courierPartner
+                            }
+                          </p>
+                        </div>
+
+                        <div>
+                          <p className="text-gray-400">
+                            AWB Number
+                          </p>
+
+                          <p className="font-semibold mt-1">
+                            {
+                              o.shipping
+                                ?.awbNumber
+                            }
+                          </p>
+                        </div>
+
+                        <div>
+                          <p className="text-gray-400">
+                            Tracking
+                          </p>
+
+                          <p className="font-semibold mt-1">
+                            {
+                              o.shipping
+                                ?.trackingStatus
+                            }
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* RIGHT */}
 
-                <div className="flex flex-col gap-3 min-w-[260px]">
-                  {/* MARK PAID */}
-
+                <div className="w-full xl:w-[280px] flex flex-col gap-4">
                   {o.payment?.status !==
                     "PAID" && (
                     <button
@@ -507,13 +533,11 @@ Courier ID: ${c.courierId}
                           o.orderId
                         )
                       }
-                      className="bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl font-semibold"
+                      className="bg-green-600 hover:bg-green-700 text-white py-4 rounded-2xl font-bold transition-all"
                     >
-                      ✅ Mark As Paid
+                      Mark As Paid
                     </button>
                   )}
-
-                  {/* STATUS */}
 
                   <select
                     defaultValue={o.status}
@@ -523,105 +547,67 @@ Courier ID: ${c.courierId}
                         e.target.value
                       )
                     }
-                    className="border p-3 rounded-xl"
+                    className="bg-black/30 border border-white/10 rounded-2xl p-4 text-white"
                   >
                     {ORDER_STATUSES.map((s) => (
                       <option
                         key={s}
                         value={s}
+                        className="text-black"
                       >
                         {s}
                       </option>
                     ))}
                   </select>
 
-                  {/* COURIER */}
+                  <button
+                    onClick={() =>
+                      handleLoadCouriers(
+                        o.orderId
+                      )
+                    }
+                    className="bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-2xl font-bold"
+                  >
+                    Load Couriers
+                  </button>
 
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      onClick={() =>
-                        handleLoadCouriers(
-                          o.orderId
-                        )
-                      }
-                      className="bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl text-sm font-semibold"
-                    >
-                      🚚 Couriers
-                    </button>
+                  <button
+                    onClick={() =>
+                      handleCreateShipment(
+                        o.orderId,
+                        "COURIER"
+                      )
+                    }
+                    className="bg-orange-500 hover:bg-orange-600 text-white py-4 rounded-2xl font-bold"
+                  >
+                    Dispatch Shipment
+                  </button>
 
-                    <button
-                      onClick={() =>
-                        handleCreateShipment(
-                          o.orderId,
-                          "COURIER"
-                        )
-                      }
-                      className="bg-orange-500 hover:bg-orange-600 text-white py-3 rounded-xl text-sm font-semibold"
-                    >
-                      Dispatch
-                    </button>
-                  </div>
+                  <button
+                    onClick={() =>
+                      handleCreateShipment(
+                        o.orderId,
+                        "LOCAL_DELIVERY"
+                      )
+                    }
+                    className="bg-purple-600 hover:bg-purple-700 text-white py-4 rounded-2xl font-bold"
+                  >
+                    Local Delivery
+                  </button>
 
-                  {/* LOCAL */}
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      onClick={() =>
-                        handleCreateShipment(
-                          o.orderId,
-                          "LOCAL_DELIVERY"
-                        )
-                      }
-                      className="bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-xl text-sm font-semibold"
-                    >
-                      Local
-                    </button>
-
-                    <button
-                      onClick={() =>
-                        handleCreateShipment(
-                          o.orderId,
-                          "BY_HAND"
-                        )
-                      }
-                      className="bg-gray-800 hover:bg-black text-white py-3 rounded-xl text-sm font-semibold"
-                    >
-                      By Hand
-                    </button>
-                  </div>
+                  <button
+                    onClick={() =>
+                      handleCreateShipment(
+                        o.orderId,
+                        "BY_HAND"
+                      )
+                    }
+                    className="bg-gray-700 hover:bg-gray-800 text-white py-4 rounded-2xl font-bold"
+                  >
+                    By Hand Delivery
+                  </button>
                 </div>
               </div>
-
-              {/* SHIPPING */}
-
-              {o.shipping?.awbNumber && (
-                <div className="mt-5 bg-gray-50 rounded-2xl p-4 border">
-                  <h3 className="font-bold mb-3">
-                    🚚 Shipping Details
-                  </h3>
-
-                  <div className="grid md:grid-cols-3 gap-3 text-sm">
-                    <div>
-                      <b>Courier:</b>
-                      {o.shipping
-                        ?.courierPartner}
-                    </div>
-
-                    <div>
-                      <b>AWB:</b>
-                      {o.shipping?.awbNumber}
-                    </div>
-
-                    <div>
-                      <b>Status:</b>
-                      {
-                        o.shipping
-                          ?.trackingStatus
-                      }
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
           ))}
         </div>
