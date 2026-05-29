@@ -1,7 +1,17 @@
-
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+
+import {
+  Search,
+  RefreshCcw,
+  Package,
+  CreditCard,
+  Truck,
+  CheckCircle2,
+  AlertCircle,
+  IndianRupee,
+} from "lucide-react";
 
 import {
   getOrders,
@@ -36,6 +46,9 @@ export default function AdminOrdersPage() {
   const [status, setStatus] =
     useState("ALL");
 
+  const [selectedOrder, setSelectedOrder] =
+    useState(null);
+
   /* =========================================
      HELPERS
   ========================================= */
@@ -57,36 +70,38 @@ export default function AdminOrdersPage() {
       o?.address?.state || "-"
     }`;
 
-  const getStatusColor = (status) => {
-    switch (status) {
+  const getStatusClasses = (
+    currentStatus
+  ) => {
+    switch (currentStatus) {
       case "PENDING_PAYMENT":
-        return "bg-yellow-500/20 text-yellow-300 border-yellow-500/30";
+        return "bg-yellow-500/15 text-yellow-400 border-yellow-500/20";
 
       case "PAID":
-        return "bg-green-500/20 text-green-300 border-green-500/30";
+        return "bg-green-500/15 text-green-400 border-green-500/20";
 
       case "PROCESSING":
-        return "bg-blue-500/20 text-blue-300 border-blue-500/30";
+        return "bg-blue-500/15 text-blue-400 border-blue-500/20";
 
       case "PACKED":
-        return "bg-purple-500/20 text-purple-300 border-purple-500/30";
+        return "bg-purple-500/15 text-purple-400 border-purple-500/20";
 
       case "DISPATCHED":
-        return "bg-orange-500/20 text-orange-300 border-orange-500/30";
+        return "bg-orange-500/15 text-orange-400 border-orange-500/20";
 
       case "DELIVERED":
-        return "bg-emerald-500/20 text-emerald-300 border-emerald-500/30";
+        return "bg-emerald-500/15 text-emerald-400 border-emerald-500/20";
 
       case "FAILED":
-        return "bg-red-500/20 text-red-300 border-red-500/30";
+        return "bg-red-500/15 text-red-400 border-red-500/20";
 
       default:
-        return "bg-gray-500/20 text-gray-300 border-gray-500/30";
+        return "bg-zinc-500/15 text-zinc-400 border-zinc-500/20";
     }
   };
 
   /* =========================================
-     FETCH ORDERS
+     FETCH
   ========================================= */
 
   const fetchOrders = async () => {
@@ -97,10 +112,19 @@ export default function AdminOrdersPage() {
 
       if (data?.success) {
         setOrders(data.orders || []);
+
+        if (
+          !selectedOrder &&
+          data.orders?.length
+        ) {
+          setSelectedOrder(
+            data.orders[0]
+          );
+        }
       }
     } catch (err) {
       console.log(err);
-      alert("Failed to load orders");
+      alert("Failed loading orders");
     } finally {
       setLoading(false);
     }
@@ -111,7 +135,7 @@ export default function AdminOrdersPage() {
   }, []);
 
   /* =========================================
-     FILTERED
+     FILTER
   ========================================= */
 
   const filteredOrders = useMemo(() => {
@@ -132,8 +156,9 @@ export default function AdminOrdersPage() {
           getCustomerName(o)
             .toLowerCase()
             .includes(search.toLowerCase()) ||
-          getCustomerPhone(o)
-            .includes(search)
+          getCustomerPhone(o).includes(
+            search
+          )
       );
     }
 
@@ -160,8 +185,8 @@ export default function AdminOrdersPage() {
       );
 
       if (data.success) {
-        alert("Payment Updated");
         fetchOrders();
+        alert("Payment updated");
       }
     } catch (err) {
       console.log(err);
@@ -198,13 +223,31 @@ export default function AdminOrdersPage() {
 
       console.log(data);
 
-      alert(
-        JSON.stringify(
-          data?.couriers?.slice(0, 5),
-          null,
-          2
-        )
-      );
+      if (!data.success) {
+        return alert("Failed");
+      }
+
+      if (!data.couriers?.length) {
+        return alert(
+          "No couriers found"
+        );
+      }
+
+      let txt = "";
+
+      data.couriers
+        .slice(0, 8)
+        .forEach((c) => {
+          txt += `
+${c.courierName}
+₹${c.rate}
+ETA: ${c.etd}
+Courier ID: ${c.courierId}
+
+`;
+        });
+
+      alert(txt);
     } catch (err) {
       console.log(err);
     }
@@ -219,8 +262,7 @@ export default function AdminOrdersPage() {
 
       if (dispatchType === "COURIER") {
         courierId =
-          prompt("Enter Courier ID") ||
-          "";
+          prompt("Courier ID") || "";
 
         if (!courierId) return;
       }
@@ -233,8 +275,8 @@ export default function AdminOrdersPage() {
         );
 
       if (data.success) {
-        alert("Shipment Created");
         fetchOrders();
+        alert("Shipment created");
       }
     } catch (err) {
       console.log(err);
@@ -242,124 +284,173 @@ export default function AdminOrdersPage() {
   };
 
   /* =========================================
-     TOTALS
+     STATS
   ========================================= */
 
-  const totalRevenue = orders.reduce(
+  const revenue = orders.reduce(
     (sum, o) => sum + (o.amount || 0),
     0
   );
 
   return (
-    <div className="min-h-screen bg-[#060816] text-white">
-      {/* BACKGROUND */}
+    <div className="p-6 space-y-6">
+      {/* HEADER */}
 
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 left-0 w-[600px] h-[600px] bg-blue-500/10 blur-[140px]" />
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">
+            Orders
+          </h1>
 
-        <div className="absolute bottom-0 right-0 w-[600px] h-[600px] bg-purple-500/10 blur-[140px]" />
+          <p className="text-muted-foreground mt-1">
+            Native commerce operations
+          </p>
+        </div>
+
+        <button
+          onClick={fetchOrders}
+          className="h-11 px-5 rounded-xl border bg-background hover:bg-accent flex items-center gap-2 transition-all"
+        >
+          <RefreshCcw size={16} />
+          Refresh
+        </button>
+      </div>
+
+      {/* KPI */}
+
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+        <div className="rounded-2xl border bg-card p-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">
+                Orders
+              </p>
+
+              <h2 className="text-3xl font-bold mt-2">
+                {orders.length}
+              </h2>
+            </div>
+
+            <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center">
+              <Package
+                size={22}
+                className="text-blue-500"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border bg-card p-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">
+                Revenue
+              </p>
+
+              <h2 className="text-3xl font-bold mt-2">
+                ₹{revenue}
+              </h2>
+            </div>
+
+            <div className="w-12 h-12 rounded-xl bg-green-500/10 flex items-center justify-center">
+              <IndianRupee
+                size={22}
+                className="text-green-500"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border bg-card p-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">
+                Paid
+              </p>
+
+              <h2 className="text-3xl font-bold mt-2">
+                {
+                  orders.filter(
+                    (o) =>
+                      o.payment?.status ===
+                      "PAID"
+                  ).length
+                }
+              </h2>
+            </div>
+
+            <div className="w-12 h-12 rounded-xl bg-purple-500/10 flex items-center justify-center">
+              <CreditCard
+                size={22}
+                className="text-purple-500"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border bg-card p-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">
+                Dispatched
+              </p>
+
+              <h2 className="text-3xl font-bold mt-2">
+                {
+                  orders.filter(
+                    (o) =>
+                      o.status ===
+                      "DISPATCHED"
+                  ).length
+                }
+              </h2>
+            </div>
+
+            <div className="w-12 h-12 rounded-xl bg-orange-500/10 flex items-center justify-center">
+              <Truck
+                size={22}
+                className="text-orange-500"
+              />
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* MAIN */}
 
-      <div className="relative z-10 p-6">
-        {/* TOP BAR */}
+      <div className="grid xl:grid-cols-[1.4fr_420px] gap-6">
+        {/* LEFT */}
 
-        <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-6 mb-8">
-          <div>
-            <h1 className="text-5xl font-black tracking-tight">
-              Orders OMS
-            </h1>
+        <div className="rounded-3xl border bg-card overflow-hidden">
+          {/* TOOLBAR */}
 
-            <p className="text-gray-400 mt-3 text-lg">
-              Native Commerce • Powered by
-              AN Group
-            </p>
-          </div>
+          <div className="p-5 border-b flex flex-col xl:flex-row gap-4 xl:items-center xl:justify-between">
+            <div className="relative flex-1">
+              <Search
+                size={18}
+                className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground"
+              />
 
-          <button
-            onClick={fetchOrders}
-            className="bg-white text-black font-bold px-7 py-4 rounded-2xl hover:scale-[1.03] transition-all"
-          >
-            Refresh Orders
-          </button>
-        </div>
-
-        {/* STATS */}
-
-        <div className="grid grid-cols-2 xl:grid-cols-4 gap-5 mb-8">
-          <div className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-3xl p-6">
-            <p className="text-gray-400 text-sm">
-              Total Orders
-            </p>
-
-            <h2 className="text-4xl font-black mt-3">
-              {orders.length}
-            </h2>
-          </div>
-
-          <div className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-3xl p-6">
-            <p className="text-gray-400 text-sm">
-              Revenue
-            </p>
-
-            <h2 className="text-4xl font-black mt-3">
-              ₹{totalRevenue}
-            </h2>
-          </div>
-
-          <div className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-3xl p-6">
-            <p className="text-gray-400 text-sm">
-              Paid Orders
-            </p>
-
-            <h2 className="text-4xl font-black mt-3 text-green-400">
-              {
-                orders.filter(
-                  (o) =>
-                    o.payment?.status ===
-                    "PAID"
-                ).length
-              }
-            </h2>
-          </div>
-
-          <div className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-3xl p-6">
-            <p className="text-gray-400 text-sm">
-              Dispatched
-            </p>
-
-            <h2 className="text-4xl font-black mt-3 text-orange-400">
-              {
-                orders.filter(
-                  (o) =>
-                    o.status ===
-                    "DISPATCHED"
-                ).length
-              }
-            </h2>
-          </div>
-        </div>
-
-        {/* FILTERS */}
-
-        <div className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-3xl p-5 mb-8">
-          <div className="flex flex-col xl:flex-row gap-4">
-            <input
-              placeholder="Search by order / customer / phone"
-              value={search}
-              onChange={(e) =>
-                setSearch(e.target.value)
-              }
-              className="flex-1 bg-black/30 border border-white/10 rounded-2xl px-5 py-4 outline-none"
-            />
+              <input
+                value={search}
+                onChange={(e) =>
+                  setSearch(
+                    e.target.value
+                  )
+                }
+                placeholder="Search order, customer, phone"
+                className="w-full h-12 pl-11 pr-4 rounded-xl border bg-background outline-none"
+              />
+            </div>
 
             <select
               value={status}
               onChange={(e) =>
-                setStatus(e.target.value)
+                setStatus(
+                  e.target.value
+                )
               }
-              className="bg-black/30 border border-white/10 rounded-2xl px-5 py-4 min-w-[240px]"
+              className="h-12 px-4 rounded-xl border bg-background min-w-[220px]"
             >
               <option value="ALL">
                 All Orders
@@ -369,311 +460,383 @@ export default function AdminOrdersPage() {
                 <option
                   key={s}
                   value={s}
-                  className="text-black"
                 >
                   {s}
                 </option>
               ))}
             </select>
           </div>
+
+          {/* TABLE */}
+
+          <div className="overflow-auto">
+            <table className="w-full">
+              <thead className="border-b bg-muted/30">
+                <tr className="text-left">
+                  <th className="px-5 py-4 text-sm font-medium">
+                    Order
+                  </th>
+
+                  <th className="px-5 py-4 text-sm font-medium">
+                    Customer
+                  </th>
+
+                  <th className="px-5 py-4 text-sm font-medium">
+                    Status
+                  </th>
+
+                  <th className="px-5 py-4 text-sm font-medium">
+                    Amount
+                  </th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td
+                      colSpan={4}
+                      className="p-10 text-center text-muted-foreground"
+                    >
+                      Loading...
+                    </td>
+                  </tr>
+                ) : filteredOrders.length ===
+                  0 ? (
+                  <tr>
+                    <td
+                      colSpan={4}
+                      className="p-10 text-center text-muted-foreground"
+                    >
+                      No orders found
+                    </td>
+                  </tr>
+                ) : (
+                  filteredOrders.map(
+                    (o) => (
+                      <tr
+                        key={o._id}
+                        onClick={() =>
+                          setSelectedOrder(
+                            o
+                          )
+                        }
+                        className={`border-b cursor-pointer transition-all hover:bg-muted/40 ${
+                          selectedOrder?._id ===
+                          o._id
+                            ? "bg-muted/50"
+                            : ""
+                        }`}
+                      >
+                        <td className="px-5 py-5">
+                          <div>
+                            <h3 className="font-semibold">
+                              {
+                                o.orderId
+                              }
+                            </h3>
+
+                            <p className="text-sm text-muted-foreground mt-1">
+                              {new Date(
+                                o.createdAt
+                              ).toLocaleString()}
+                            </p>
+                          </div>
+                        </td>
+
+                        <td className="px-5 py-5">
+                          <div>
+                            <h3 className="font-medium">
+                              {getCustomerName(
+                                o
+                              )}
+                            </h3>
+
+                            <p className="text-sm text-muted-foreground mt-1">
+                              {getCustomerPhone(
+                                o
+                              )}
+                            </p>
+                          </div>
+                        </td>
+
+                        <td className="px-5 py-5">
+                          <div
+                            className={`inline-flex px-3 py-1 rounded-full border text-xs font-semibold ${getStatusClasses(
+                              o.status
+                            )}`}
+                          >
+                            {o.status}
+                          </div>
+                        </td>
+
+                        <td className="px-5 py-5 font-bold">
+                          ₹{o.amount}
+                        </td>
+                      </tr>
+                    )
+                  )
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
 
-        {/* LOADING */}
+        {/* RIGHT PANEL */}
 
-        {loading ? (
-          <div className="bg-white/5 border border-white/10 rounded-3xl p-20 text-center text-xl">
-            Loading Orders...
-          </div>
-        ) : filteredOrders.length === 0 ? (
-          <div className="bg-white/5 border border-white/10 rounded-3xl p-20 text-center text-xl">
-            No Orders Found
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {filteredOrders.map((o) => (
-              <div
-                key={o._id}
-                className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-[32px] overflow-hidden"
-              >
-                {/* HEADER */}
+        <div className="rounded-3xl border bg-card overflow-hidden h-fit sticky top-6">
+          {!selectedOrder ? (
+            <div className="p-10 text-center text-muted-foreground">
+              Select Order
+            </div>
+          ) : (
+            <>
+              {/* TOP */}
 
-                <div className="border-b border-white/10 px-7 py-6 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-5">
+              <div className="p-6 border-b">
+                <div className="flex items-center justify-between">
                   <div>
-                    <div className="flex flex-wrap items-center gap-4">
-                      <h2 className="text-3xl font-black">
-                        {o.orderId}
-                      </h2>
-
-                      <div
-                        className={`px-4 py-2 rounded-full border text-xs font-bold ${getStatusColor(
-                          o.status
-                        )}`}
-                      >
-                        {o.status}
-                      </div>
-                    </div>
-
-                    <p className="text-gray-500 mt-3">
-                      {o.createdAt
-                        ? new Date(
-                            o.createdAt
-                          ).toLocaleString()
-                        : "N/A"}
-                    </p>
-                  </div>
-
-                  <div className="text-left xl:text-right">
-                    <p className="text-gray-500 text-sm">
-                      Order Value
-                    </p>
-
-                    <h2 className="text-5xl font-black mt-2">
-                      ₹{o.amount}
+                    <h2 className="text-2xl font-bold">
+                      {
+                        selectedOrder.orderId
+                      }
                     </h2>
-                  </div>
-                </div>
 
-                {/* BODY */}
-
-                <div className="grid xl:grid-cols-[1fr_340px]">
-                  {/* LEFT */}
-
-                  <div className="p-7">
-                    <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-5">
-                      {/* CUSTOMER */}
-
-                      <div className="bg-black/20 border border-white/5 rounded-3xl p-6">
-                        <p className="text-gray-500 text-xs uppercase tracking-widest">
-                          Customer
-                        </p>
-
-                        <h3 className="text-2xl font-bold mt-4">
-                          {getCustomerName(
-                            o
-                          )}
-                        </h3>
-
-                        <p className="text-gray-300 mt-2 text-lg">
-                          {getCustomerPhone(
-                            o
-                          )}
-                        </p>
-
-                        <div className="mt-5 text-gray-400 leading-relaxed">
-                          <p>
-                            {
-                              o.address
-                                ?.address1
-                            }
-                          </p>
-
-                          <p className="mt-1">
-                            {getLocation(o)}
-                          </p>
-
-                          <p className="mt-1">
-                            {
-                              o.address
-                                ?.pincode
-                            }
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* PAYMENT */}
-
-                      <div className="bg-black/20 border border-white/5 rounded-3xl p-6">
-                        <p className="text-gray-500 text-xs uppercase tracking-widest">
-                          Payment
-                        </p>
-
-                        <div className="space-y-5 mt-5">
-                          <div>
-                            <p className="text-gray-500 text-sm">
-                              Status
-                            </p>
-
-                            <h4 className="font-bold text-xl mt-1">
-                              {o.payment
-                                ?.status ||
-                                "PENDING"}
-                            </h4>
-                          </div>
-
-                          <div>
-                            <p className="text-gray-500 text-sm">
-                              Method
-                            </p>
-
-                            <h4 className="font-bold text-xl mt-1">
-                              {o.payment
-                                ?.method ||
-                                "-"}
-                            </h4>
-                          </div>
-
-                          <div>
-                            <p className="text-gray-500 text-sm">
-                              UTR
-                            </p>
-
-                            <h4 className="font-bold mt-1 break-all">
-                              {o.payment
-                                ?.utr ||
-                                "-"}
-                            </h4>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* SHIPPING */}
-
-                      <div className="bg-black/20 border border-white/5 rounded-3xl p-6">
-                        <p className="text-gray-500 text-xs uppercase tracking-widest">
-                          Shipping
-                        </p>
-
-                        <div className="space-y-5 mt-5">
-                          <div>
-                            <p className="text-gray-500 text-sm">
-                              Courier
-                            </p>
-
-                            <h4 className="font-bold text-xl mt-1">
-                              {o.shipping
-                                ?.courierPartner ||
-                                "-"}
-                            </h4>
-                          </div>
-
-                          <div>
-                            <p className="text-gray-500 text-sm">
-                              AWB
-                            </p>
-
-                            <h4 className="font-bold mt-1 break-all">
-                              {o.shipping
-                                ?.awbNumber ||
-                                "-"}
-                            </h4>
-                          </div>
-
-                          <div>
-                            <p className="text-gray-500 text-sm">
-                              Tracking
-                            </p>
-
-                            <h4 className="font-bold text-xl mt-1">
-                              {o.shipping
-                                ?.trackingStatus ||
-                                "-"}
-                            </h4>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                    <p className="text-muted-foreground mt-1">
+                      {new Date(
+                        selectedOrder.createdAt
+                      ).toLocaleString()}
+                    </p>
                   </div>
 
-                  {/* ACTIONS */}
-
-                  <div className="border-l border-white/10 bg-black/20 p-6">
-                    <div className="sticky top-6">
-                      <p className="text-gray-500 text-xs uppercase tracking-widest mb-5">
-                        Actions
-                      </p>
-
-                      <div className="space-y-4">
-                        {o.payment?.status !==
-                          "PAID" && (
-                          <button
-                            onClick={() =>
-                              handleMarkPaid(
-                                o.orderId
-                              )
-                            }
-                            className="w-full bg-green-600 hover:bg-green-700 text-white py-4 rounded-2xl font-bold text-lg transition-all"
-                          >
-                            Mark As Paid
-                          </button>
-                        )}
-
-                        <select
-                          defaultValue={o.status}
-                          onChange={(e) =>
-                            handleStatusUpdate(
-                              o.orderId,
-                              e.target.value
-                            )
-                          }
-                          className="w-full bg-black/40 border border-white/10 rounded-2xl px-5 py-4"
-                        >
-                          {ORDER_STATUSES.map(
-                            (s) => (
-                              <option
-                                key={s}
-                                value={s}
-                                className="text-black"
-                              >
-                                {s}
-                              </option>
-                            )
-                          )}
-                        </select>
-
-                        <button
-                          onClick={() =>
-                            handleCouriers(
-                              o.orderId
-                            )
-                          }
-                          className="w-full bg-blue-600 hover:bg-blue-700 py-4 rounded-2xl font-bold"
-                        >
-                          Load Couriers
-                        </button>
-
-                        <button
-                          onClick={() =>
-                            handleShipment(
-                              o.orderId,
-                              "COURIER"
-                            )
-                          }
-                          className="w-full bg-orange-500 hover:bg-orange-600 py-4 rounded-2xl font-bold"
-                        >
-                          Dispatch Shipment
-                        </button>
-
-                        <button
-                          onClick={() =>
-                            handleShipment(
-                              o.orderId,
-                              "LOCAL_DELIVERY"
-                            )
-                          }
-                          className="w-full bg-purple-600 hover:bg-purple-700 py-4 rounded-2xl font-bold"
-                        >
-                          Local Delivery
-                        </button>
-
-                        <button
-                          onClick={() =>
-                            handleShipment(
-                              o.orderId,
-                              "BY_HAND"
-                            )
-                          }
-                          className="w-full bg-gray-700 hover:bg-gray-800 py-4 rounded-2xl font-bold"
-                        >
-                          By Hand Delivery
-                        </button>
-                      </div>
-                    </div>
+                  <div
+                    className={`px-3 py-1 rounded-full border text-xs font-semibold ${getStatusClasses(
+                      selectedOrder.status
+                    )}`}
+                  >
+                    {
+                      selectedOrder.status
+                    }
                   </div>
                 </div>
               </div>
-            ))}
-          </div>
-        )}
+
+              {/* BODY */}
+
+              <div className="p-6 space-y-6">
+                {/* CUSTOMER */}
+
+                <div className="rounded-2xl border p-5">
+                  <h3 className="font-semibold mb-4">
+                    Customer
+                  </h3>
+
+                  <div className="space-y-2">
+                    <p className="font-medium">
+                      {getCustomerName(
+                        selectedOrder
+                      )}
+                    </p>
+
+                    <p className="text-muted-foreground">
+                      {getCustomerPhone(
+                        selectedOrder
+                      )}
+                    </p>
+
+                    <p className="text-muted-foreground">
+                      {selectedOrder
+                        ?.address
+                        ?.address1 || "-"}
+                    </p>
+
+                    <p className="text-muted-foreground">
+                      {getLocation(
+                        selectedOrder
+                      )}
+                    </p>
+                  </div>
+                </div>
+
+                {/* PAYMENT */}
+
+                <div className="rounded-2xl border p-5">
+                  <h3 className="font-semibold mb-4">
+                    Payment
+                  </h3>
+
+                  <div className="space-y-3">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">
+                        Status
+                      </span>
+
+                      <span className="font-medium">
+                        {selectedOrder
+                          ?.payment
+                          ?.status ||
+                          "PENDING"}
+                      </span>
+                    </div>
+
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">
+                        Method
+                      </span>
+
+                      <span className="font-medium">
+                        {selectedOrder
+                          ?.payment
+                          ?.method ||
+                          "-"}
+                      </span>
+                    </div>
+
+                    <div className="flex justify-between gap-3">
+                      <span className="text-muted-foreground">
+                        UTR
+                      </span>
+
+                      <span className="font-medium text-right break-all">
+                        {selectedOrder
+                          ?.payment
+                          ?.utr || "-"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* SHIPPING */}
+
+                <div className="rounded-2xl border p-5">
+                  <h3 className="font-semibold mb-4">
+                    Shipping
+                  </h3>
+
+                  <div className="space-y-3">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">
+                        Courier
+                      </span>
+
+                      <span className="font-medium">
+                        {selectedOrder
+                          ?.shipping
+                          ?.courierPartner ||
+                          "-"}
+                      </span>
+                    </div>
+
+                    <div className="flex justify-between gap-3">
+                      <span className="text-muted-foreground">
+                        AWB
+                      </span>
+
+                      <span className="font-medium break-all text-right">
+                        {selectedOrder
+                          ?.shipping
+                          ?.awbNumber ||
+                          "-"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ACTIONS */}
+
+                <div className="space-y-3">
+                  {selectedOrder
+                    ?.payment?.status !==
+                    "PAID" && (
+                    <button
+                      onClick={() =>
+                        handleMarkPaid(
+                          selectedOrder.orderId
+                        )
+                      }
+                      className="w-full h-12 rounded-xl bg-green-600 hover:bg-green-700 text-white font-semibold"
+                    >
+                      Mark As Paid
+                    </button>
+                  )}
+
+                  <select
+                    value={
+                      selectedOrder.status
+                    }
+                    onChange={(e) =>
+                      handleStatusUpdate(
+                        selectedOrder.orderId,
+                        e.target.value
+                      )
+                    }
+                    className="w-full h-12 rounded-xl border bg-background px-4"
+                  >
+                    {ORDER_STATUSES.map(
+                      (s) => (
+                        <option
+                          key={s}
+                          value={s}
+                        >
+                          {s}
+                        </option>
+                      )
+                    )}
+                  </select>
+
+                  <button
+                    onClick={() =>
+                      handleCouriers(
+                        selectedOrder.orderId
+                      )
+                    }
+                    className="w-full h-12 rounded-xl border hover:bg-accent font-medium"
+                  >
+                    Load Couriers
+                  </button>
+
+                  <button
+                    onClick={() =>
+                      handleShipment(
+                        selectedOrder.orderId,
+                        "COURIER"
+                      )
+                    }
+                    className="w-full h-12 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-semibold"
+                  >
+                    Dispatch Shipment
+                  </button>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      onClick={() =>
+                        handleShipment(
+                          selectedOrder.orderId,
+                          "LOCAL_DELIVERY"
+                        )
+                      }
+                      className="h-11 rounded-xl border hover:bg-accent font-medium"
+                    >
+                      Local
+                    </button>
+
+                    <button
+                      onClick={() =>
+                        handleShipment(
+                          selectedOrder.orderId,
+                          "BY_HAND"
+                        )
+                      }
+                      className="h-11 rounded-xl border hover:bg-accent font-medium"
+                    >
+                      By Hand
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
