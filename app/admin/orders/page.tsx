@@ -2,6 +2,17 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+import {
+  getOrders,
+  markAsPaid,
+  updateOrderStatus,
+} from "@/lib/an-sdk/orders";
+
+import {
+  loadShippingRates,
+  createShipment,
+} from "@/lib/an-sdk/shipping";
+
 interface Order {
   _id: string;
   orderId: string;
@@ -9,11 +20,17 @@ interface Order {
   status: string;
   createdAt?: string;
 
-  address?: {
+  customer?: {
     name?: string;
     phone?: string;
+    email?: string;
+  };
+
+  address?: {
+    address1?: string;
     city?: string;
     state?: string;
+    pincode?: string;
   };
 
   payment?: {
@@ -37,12 +54,16 @@ const ORDER_STATUSES = [
   "DISPATCHED",
   "DELIVERED",
   "FAILED",
+  "CANCELLED",
 ];
 
 export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
+
   const [search, setSearch] = useState("");
+
   const [status, setStatus] = useState("ALL");
+
   const [loading, setLoading] = useState(false);
 
   /* =========================================
@@ -53,19 +74,7 @@ export default function AdminOrdersPage() {
     try {
       setLoading(true);
 
-      /*
-        IMPORTANT:
-        THIS FETCHES FROM AN GROUP DB API
-      */
-
-      const res = await fetch(
-        "https://www.angroup.in/api/orders/list",
-        {
-          cache: "no-store",
-        }
-      );
-
-      const data = await res.json();
+      const data = await getOrders();
 
       if (data?.success) {
         setOrders(data.orders || []);
@@ -90,7 +99,9 @@ export default function AdminOrdersPage() {
     let temp = [...orders];
 
     if (status !== "ALL") {
-      temp = temp.filter((o) => o.status === status);
+      temp = temp.filter(
+        (o) => o.status === status
+      );
     }
 
     if (search) {
@@ -99,8 +110,8 @@ export default function AdminOrdersPage() {
           o.orderId
             ?.toLowerCase()
             .includes(search.toLowerCase()) ||
-          o.address?.phone?.includes(search) ||
-          o.address?.name
+          o.customer?.phone?.includes(search) ||
+          o.customer?.name
             ?.toLowerCase()
             .includes(search.toLowerCase())
       );
@@ -113,32 +124,24 @@ export default function AdminOrdersPage() {
      MARK AS PAID
   ========================================= */
 
-  const markAsPaid = async (orderId: string) => {
-    const utr = prompt("Enter UTR / Reference Number");
+  const handleMarkAsPaid = async (
+    orderId: string
+  ) => {
+    const utr = prompt(
+      "Enter UTR / Reference Number"
+    );
 
     if (utr === null) return;
 
     try {
-      const res = await fetch(
-        "https://www.angroup.in/api/payment/mark-paid",
-        {
-          method: "POST",
-
-          headers: {
-            "Content-Type": "application/json",
-          },
-
-          body: JSON.stringify({
-            orderId,
-            utr,
-          }),
-        }
+      const data = await markAsPaid(
+        orderId,
+        utr
       );
-
-      const data = await res.json();
 
       if (data.success) {
         alert("Payment Marked Successfully ✅");
+
         fetchOrders();
       } else {
         alert(data.message || "Failed");
@@ -153,31 +156,19 @@ export default function AdminOrdersPage() {
      UPDATE STATUS
   ========================================= */
 
-  const updateStatus = async (
+  const handleUpdateStatus = async (
     orderId: string,
     newStatus: string
   ) => {
     try {
-      const res = await fetch(
-        "https://www.angroup.in/api/admin/orders/update-status",
-        {
-          method: "POST",
-
-          headers: {
-            "Content-Type": "application/json",
-          },
-
-          body: JSON.stringify({
-            orderId,
-            status: newStatus,
-          }),
-        }
+      const data = await updateOrderStatus(
+        orderId,
+        newStatus
       );
-
-      const data = await res.json();
 
       if (data.success) {
         alert("Status Updated ✅");
+
         fetchOrders();
       } else {
         alert(data.message || "Failed");
@@ -192,24 +183,13 @@ export default function AdminOrdersPage() {
      LOAD COURIERS
   ========================================= */
 
-  const loadCouriers = async (orderId: string) => {
+  const handleLoadCouriers = async (
+    orderId: string
+  ) => {
     try {
-      const res = await fetch(
-        "https://www.angroup.in/api/shipping/rates",
-        {
-          method: "POST",
-
-          headers: {
-            "Content-Type": "application/json",
-          },
-
-          body: JSON.stringify({
-            orderId,
-          }),
-        }
+      const data = await loadShippingRates(
+        orderId
       );
-
-      const data = await res.json();
 
       console.log(data);
 
@@ -225,15 +205,17 @@ export default function AdminOrdersPage() {
 
       let text = "AVAILABLE COURIERS\n\n";
 
-      data.couriers.slice(0, 10).forEach((c: any) => {
-        text += `
+      data.couriers
+        .slice(0, 10)
+        .forEach((c: any) => {
+          text += `
 ${c.courierName}
 Rate: ₹${c.rate}
 ETA: ${c.etd}
 Courier ID: ${c.courierId}
 
 `;
-      });
+        });
 
       alert(text);
     } catch (err) {
@@ -246,7 +228,7 @@ Courier ID: ${c.courierId}
      CREATE SHIPMENT
   ========================================= */
 
-  const createShipment = async (
+  const handleCreateShipment = async (
     orderId: string,
     dispatchType: string
   ) => {
@@ -262,29 +244,17 @@ Courier ID: ${c.courierId}
         }
       }
 
-      const res = await fetch(
-        "https://www.angroup.in/api/shipping/create-shipment",
-        {
-          method: "POST",
-
-          headers: {
-            "Content-Type": "application/json",
-          },
-
-          body: JSON.stringify({
-            orderId,
-            courierId,
-            dispatchType,
-          }),
-        }
+      const data = await createShipment(
+        orderId,
+        dispatchType,
+        courierId
       );
-
-      const data = await res.json();
 
       console.log(data);
 
       if (data.success) {
         alert("Shipment Created ✅");
+
         fetchOrders();
       } else {
         alert(data.message || "Shipment failed");
@@ -299,7 +269,9 @@ Courier ID: ${c.courierId}
      STATUS COLOR
   ========================================= */
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (
+    status: string
+  ) => {
     switch (status) {
       case "PENDING_PAYMENT":
         return "#f59e0b";
@@ -338,7 +310,7 @@ Courier ID: ${c.courierId}
           </h1>
 
           <p className="text-gray-500 mt-1">
-            Managing AN Group Orders
+            Processing AN Group Orders
           </p>
         </div>
 
@@ -366,20 +338,22 @@ Courier ID: ${c.courierId}
       {/* FILTERS */}
 
       <div className="flex flex-wrap gap-3 mb-6">
-        {["ALL", ...ORDER_STATUSES].map((s) => (
-          <button
-            key={s}
-            onClick={() => setStatus(s)}
-            className={`px-4 py-2 rounded-xl text-sm font-semibold transition
-            ${
-              status === s
-                ? "bg-black text-white"
-                : "bg-white border"
-            }`}
-          >
-            {s}
-          </button>
-        ))}
+        {["ALL", ...ORDER_STATUSES].map(
+          (s) => (
+            <button
+              key={s}
+              onClick={() => setStatus(s)}
+              className={`px-4 py-2 rounded-xl text-sm font-semibold transition
+              ${
+                status === s
+                  ? "bg-black text-white"
+                  : "bg-white border"
+              }`}
+            >
+              {s}
+            </button>
+          )
+        )}
       </div>
 
       {/* LOADING */}
@@ -423,25 +397,27 @@ Courier ID: ${c.courierId}
 
                   <div className="mt-3 text-sm text-gray-700">
                     <div>
-                      👤{" "}
+                      👤
                       <b>
-                        {o.address?.name || "N/A"}
+                        {o.customer?.name ||
+                          "N/A"}
                       </b>
                     </div>
 
                     <div>
-                      📞{" "}
-                      {o.address?.phone || "N/A"}
+                      📞
+                      {o.customer?.phone ||
+                        "N/A"}
                     </div>
 
                     <div>
-                      📍{" "}
+                      📍
                       {o.address?.city},{" "}
                       {o.address?.state}
                     </div>
 
                     <div className="mt-2">
-                      💳 Payment:{" "}
+                      💳 Payment:
                       <b>
                         {o.payment?.status ||
                           "PENDING"}
@@ -449,7 +425,7 @@ Courier ID: ${c.courierId}
                     </div>
 
                     <div>
-                      💰 Amount:{" "}
+                      💰 Amount:
                       <b>₹{o.amount}</b>
                     </div>
                   </div>
@@ -460,10 +436,13 @@ Courier ID: ${c.courierId}
                 <div className="flex flex-col gap-3 min-w-[260px]">
                   {/* MARK PAID */}
 
-                  {o.payment?.status !== "PAID" && (
+                  {o.payment?.status !==
+                    "PAID" && (
                     <button
                       onClick={() =>
-                        markAsPaid(o.orderId)
+                        handleMarkAsPaid(
+                          o.orderId
+                        )
                       }
                       className="bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl font-semibold"
                     >
@@ -476,7 +455,7 @@ Courier ID: ${c.courierId}
                   <select
                     defaultValue={o.status}
                     onChange={(e) =>
-                      updateStatus(
+                      handleUpdateStatus(
                         o.orderId,
                         e.target.value
                       )
@@ -498,7 +477,9 @@ Courier ID: ${c.courierId}
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       onClick={() =>
-                        loadCouriers(o.orderId)
+                        handleLoadCouriers(
+                          o.orderId
+                        )
                       }
                       className="bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl text-sm font-semibold"
                     >
@@ -507,7 +488,7 @@ Courier ID: ${c.courierId}
 
                     <button
                       onClick={() =>
-                        createShipment(
+                        handleCreateShipment(
                           o.orderId,
                           "COURIER"
                         )
@@ -523,7 +504,7 @@ Courier ID: ${c.courierId}
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       onClick={() =>
-                        createShipment(
+                        handleCreateShipment(
                           o.orderId,
                           "LOCAL_DELIVERY"
                         )
@@ -535,7 +516,7 @@ Courier ID: ${c.courierId}
 
                     <button
                       onClick={() =>
-                        createShipment(
+                        handleCreateShipment(
                           o.orderId,
                           "BY_HAND"
                         )
@@ -558,18 +539,22 @@ Courier ID: ${c.courierId}
 
                   <div className="grid md:grid-cols-3 gap-3 text-sm">
                     <div>
-                      <b>Courier:</b>{" "}
-                      {o.shipping?.courierPartner}
+                      <b>Courier:</b>
+                      {o.shipping
+                        ?.courierPartner}
                     </div>
 
                     <div>
-                      <b>AWB:</b>{" "}
+                      <b>AWB:</b>
                       {o.shipping?.awbNumber}
                     </div>
 
                     <div>
-                      <b>Status:</b>{" "}
-                      {o.shipping?.trackingStatus}
+                      <b>Status:</b>
+                      {
+                        o.shipping
+                          ?.trackingStatus
+                      }
                     </div>
                   </div>
                 </div>
