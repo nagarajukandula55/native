@@ -20,6 +20,72 @@ interface Order {
   status: string;
   createdAt?: string;
 
+  /* =========================================
+     SUPPORT MULTIPLE ORDER STRUCTURES
+  ========================================= */
+
+  customer?: {
+    name?: string;
+    phone?: string;
+    email?: string;
+  };
+
+  address?: {
+    name?: string;
+    phone?: string;
+    address1?: string;
+    city?: string;
+    state?: string;
+    pincode?: string;
+  };
+
+  user?: {
+    name?: string;
+    phone?: string;
+  };
+
+  payment?: {
+    status?: string;
+    method?: string;
+    utr?: string;
+  };
+
+  shipping?: {
+    courierPartner?: string;
+    awbNumber?: string;
+    trackingStatus?: string;
+  };
+}
+
+const getCustomerName = (o: Order) => {
+  return (
+    o.customer?.name ||
+    o.address?.name ||
+    o.user?.name ||
+    "N/A"
+  );
+};
+
+const getCustomerPhone = (o: Order) => {
+  return (
+    o.customer?.phone ||
+    o.address?.phone ||
+    o.user?.phone ||
+    "N/A"
+  );
+};
+
+const getCustomerLocation = (o: Order) => {
+  return `${o.address?.city || "-"}, ${o.address?.state || "-"}`;
+};
+
+export default function AdminOrdersPage() {
+  _id: string;
+  orderId: string;
+  amount: number;
+  status: string;
+  createdAt?: string;
+
   customer?: {
     name?: string;
     phone?: string;
@@ -300,7 +366,7 @@ Courier ID: ${c.courierId}
   };
 
   return (
-    <div className="min-h-screen bg-[#f6f7fb] p-6">
+    <div className="min-h-screen bg-gradient-to-br from-[#0f172a] via-[#111827] to-black p-6">
       {/* HEADER */}
 
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
@@ -371,7 +437,7 @@ Courier ID: ${c.courierId}
           {filtered.map((o) => (
             <div
               key={o._id}
-              className="bg-white rounded-3xl border shadow-sm p-5"
+              className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-3xl p-6 shadow-2xl hover:border-white/20 transition-all duration-300"
             >
               {/* TOP */}
 
@@ -399,21 +465,18 @@ Courier ID: ${c.courierId}
                     <div>
                       👤
                       <b>
-                        {o.customer?.name ||
-                          "N/A"}
+                        {getCustomerName(o)}
                       </b>
                     </div>
 
                     <div>
                       📞
-                      {o.customer?.phone ||
-                        "N/A"}
+                      {getCustomerPhone(o)}
                     </div>
 
                     <div>
                       📍
-                      {o.address?.city},{" "}
-                      {o.address?.state}
+                      {getCustomerLocation(o)}
                     </div>
 
                     <div className="mt-2">
