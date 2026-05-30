@@ -38,6 +38,14 @@ export default function AdminOrdersPage() {
   const [selectedOrder, setSelectedOrder] =
     useState(null);
 
+  const [courierModal, setCourierModal] =
+    useState(false);
+  
+  const [couriers, setCouriers] = useState([]);
+
+  const [shipmentOrderId, setShipmentOrderId] =
+  useState(null);
+
   /* =========================================
      HELPERS
   ========================================= */
@@ -187,122 +195,198 @@ export default function AdminOrdersPage() {
   /* =========================================
      ACTIONS
   ========================================= */
-
-  const handleMarkPaid = async (
-    orderId
-  ) => {
-    const utr = prompt(
-      "Enter UTR Number"
-    );
-
-    if (!utr) return;
-
-    try {
-      const data = await markAsPaid(
-        orderId,
-        utr
+    
+    const handleMarkPaid = async (
+      orderId
+    ) => {
+      const utr = window.prompt(
+        "Enter UTR Number"
       );
-
-      if (data.success) {
-        fetchOrders();
-        alert("Payment Updated");
-      }
-    } catch (err) {
-      console.log(err);
-    }
-  };
-
-  const handleStatusUpdate = async (
-    orderId,
-    newStatus
-  ) => {
-    try {
-      const data =
-        await updateOrderStatus(
+    
+      if (!utr) return;
+    
+      try {
+        const data = await markAsPaid(
           orderId,
-          newStatus
+          utr
         );
-
-      if (data.success) {
-        fetchOrders();
-        alert("Status Updated");
+    
+        if (data.success) {
+          await fetchOrders();
+    
+          alert(
+            "Payment marked successfully"
+          );
+        } else {
+          alert(
+            data.message ||
+              "Payment update failed"
+          );
+        }
+      } catch (err) {
+        console.error(err);
+    
+        alert("Payment update failed");
       }
-    } catch (err) {
-      console.log(err);
-    }
-  };
-
-  const handleLoadCouriers = async (
-    orderId
-  ) => {
-    try {
-      const data =
-        await loadShippingRates(
+    };
+    
+    const handleStatusUpdate = async (
+      orderId,
+      newStatus
+    ) => {
+      try {
+        const data =
+          await updateOrderStatus(
+            orderId,
+            newStatus
+          );
+    
+        if (data.success) {
+          await fetchOrders();
+    
+          alert(
+            "Status updated successfully"
+          );
+        } else {
+          alert(
+            data.message ||
+              "Status update failed"
+          );
+        }
+      } catch (err) {
+        console.error(err);
+    
+        alert("Status update failed");
+      }
+    };
+    
+    const handleLoadCouriers = async (
+      orderId
+    ) => {
+      try {
+        const data =
+          await loadShippingRates(
+            orderId
+          );
+    
+        if (!data.success) {
+          alert(
+            data.message ||
+              "Unable to fetch couriers"
+          );
+    
+          return;
+        }
+    
+        setShipmentOrderId(orderId);
+    
+        setCouriers(
+          data.couriers || []
+        );
+    
+        setCourierModal(true);
+      } catch (err) {
+        console.error(err);
+    
+        alert(
+          "Unable to load couriers"
+        );
+      }
+    };
+    
+    const handleCourierSelect =
+      async (courier) => {
+        try {
+          const data =
+            await createShipment(
+              shipmentOrderId,
+              "COURIER",
+              courier.courierId
+            );
+    
+          if (data.success) {
+            setCourierModal(false);
+    
+            setCouriers([]);
+    
+            await fetchOrders();
+    
+            alert(
+              "Shipment created successfully"
+            );
+          } else {
+            alert(
+              data.message ||
+                "Shipment failed"
+            );
+          }
+        } catch (err) {
+          console.error(err);
+    
+          alert(
+            "Shipment creation failed"
+          );
+        }
+      };
+    
+    const handleShipment = async (
+      orderId,
+      dispatchType
+    ) => {
+      try {
+        if (
+          dispatchType ===
+          "LOCAL_DELIVERY"
+        ) {
+          const data =
+            await createShipment(
+              orderId,
+              "LOCAL_DELIVERY"
+            );
+    
+          if (data.success) {
+            await fetchOrders();
+    
+            alert(
+              "Local delivery created"
+            );
+          }
+    
+          return;
+        }
+    
+        if (
+          dispatchType ===
+          "BY_HAND"
+        ) {
+          const data =
+            await createShipment(
+              orderId,
+              "BY_HAND"
+            );
+    
+          if (data.success) {
+            await fetchOrders();
+    
+            alert(
+              "Marked as hand delivery"
+            );
+          }
+    
+          return;
+        }
+    
+        await handleLoadCouriers(
           orderId
         );
-
-      console.log(data);
-
-      if (!data.success) {
-        return alert("Failed");
-      }
-
-      if (!data.couriers?.length) {
-        return alert(
-          "No couriers found"
+      } catch (err) {
+        console.error(err);
+    
+        alert(
+          "Shipment creation failed"
         );
       }
-
-      let txt = "";
-
-      data.couriers
-        .slice(0, 10)
-        .forEach((c) => {
-          txt += `
-Courier: ${c.courierName}
-Rate: ₹${c.rate}
-ETA: ${c.etd}
-Courier ID: ${c.courierId}
-
-`;
-        });
-
-      alert(txt);
-    } catch (err) {
-      console.log(err);
-    }
-  };
-
-  const handleShipment = async (
-    orderId,
-    dispatchType
-  ) => {
-    try {
-      let courierId = "";
-
-      if (dispatchType === "COURIER") {
-        courierId =
-          prompt("Enter Courier ID") ||
-          "";
-
-        if (!courierId) return;
-      }
-
-      const data =
-        await createShipment(
-          orderId,
-          dispatchType,
-          courierId
-        );
-
-      if (data.success) {
-        fetchOrders();
-        alert("Shipment Created");
-      }
-    } catch (err) {
-      console.log(err);
-    }
-  };
+    };
 
   /* =========================================
      STATS
@@ -1128,7 +1212,148 @@ Courier ID: ${c.courierId}
             </>
           )}
         </div>
-      </div>
+            </div>
+
+      {/* COURIER MODAL */}
+
+      {courierModal && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background:
+              "rgba(0,0,0,0.55)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 99999,
+          }}
+        >
+          <div
+            style={{
+              width: 800,
+              maxHeight: "80vh",
+              overflowY: "auto",
+              background: "#fff",
+              borderRadius: 24,
+              padding: 24,
+              boxShadow:
+                "0 25px 80px rgba(0,0,0,0.25)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent:
+                  "space-between",
+                alignItems: "center",
+                marginBottom: 20,
+              }}
+            >
+              <h2
+                style={{
+                  margin: 0,
+                }}
+              >
+                Available Couriers
+              </h2>
+
+              <button
+                onClick={() =>
+                  setCourierModal(false)
+                }
+                style={{
+                  border: "none",
+                  background: "none",
+                  fontSize: 24,
+                  cursor: "pointer",
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div
+              style={{
+                display: "grid",
+                gap: 14,
+              }}
+            >
+              {couriers.map((c) => (
+                <div
+                  key={c.courierId}
+                  style={{
+                    border:
+                      "1px solid #e5e7eb",
+                    borderRadius: 18,
+                    padding: 18,
+                    display: "flex",
+                    justifyContent:
+                      "space-between",
+                    alignItems:
+                      "center",
+                  }}
+                >
+                  <div>
+                    <div
+                      style={{
+                        fontWeight: 700,
+                        fontSize: 18,
+                      }}
+                    >
+                      {c.courierName}
+                    </div>
+
+                    <div
+                      style={{
+                        marginTop: 6,
+                        color:
+                          "#6b7280",
+                      }}
+                    >
+                      ETA: {c.etd}
+                    </div>
+
+                    <div
+                      style={{
+                        marginTop: 6,
+                        color:
+                          "#059669",
+                        fontWeight: 700,
+                      }}
+                    >
+                      ₹{c.rate}
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() =>
+                      handleCourierSelect(
+                        c
+                      )
+                    }
+                    style={{
+                      height: 44,
+                      padding:
+                        "0 20px",
+                      borderRadius: 12,
+                      border: "none",
+                      background:
+                        "#2563eb",
+                      color: "#fff",
+                      fontWeight: 700,
+                      cursor:
+                        "pointer",
+                    }}
+                  >
+                    Select Courier
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
