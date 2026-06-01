@@ -9,19 +9,24 @@ import {
 } from "@/lib/an-sdk/orders";
 
 import {
-  loadShippingRates,
   createShipment,
 } from "@/lib/an-sdk/shipping";
 
 const ORDER_STATUSES = [
+  "CREATED",
   "PENDING_PAYMENT",
   "PAID",
   "PROCESSING",
   "PACKED",
   "DISPATCHED",
   "DELIVERED",
+  "COMPLETED",
   "FAILED",
+  "PAYMENT_FAILED",
   "CANCELLED",
+  "RETURNED",
+  "REFUNDED",
+  "EXPIRED",
 ];
 
 export default function AdminOrdersPage() {
@@ -151,10 +156,18 @@ export default function AdminOrdersPage() {
       if (data?.success) {
         setOrders(data.orders || []);
 
-        if (
-          !selectedOrder &&
-          data.orders?.length
-        ) {
+      if (selectedOrder) {
+        const latest =
+          data.orders.find(
+            (x) =>
+              x.orderId ===
+              selectedOrder.orderId
+          );
+      
+          if (latest) {
+            setSelectedOrder(latest);
+          }
+        } else if (data.orders?.length) {
           setSelectedOrder(
             data.orders[0]
           );
@@ -340,7 +353,7 @@ export default function AdminOrdersPage() {
             await createShipment(
               shipmentOrderId,
               "COURIER",
-              courier.courier_company_id
+              courier
             );
     
           if (data.success) {
@@ -431,10 +444,17 @@ export default function AdminOrdersPage() {
      STATS
   ========================================= */
 
-  const revenue = orders.reduce(
-    (sum, o) => sum + (o.amount || 0),
-    0
-  );
+  const revenue = orders
+    .filter(
+      (o) =>
+        o.payment?.status ===
+        "SUCCESS"
+    )
+    .reduce(
+      (sum, o) =>
+        sum + (o.amount || 0),
+      0
+    );
 
   return (
     <div
@@ -514,15 +534,14 @@ export default function AdminOrdersPage() {
 
           {
             title: "Revenue",
-            value: `₹${revenue}`,
+            value: `₹${revenue.toLocaleString("en-IN")}`,
           },
 
           {
             title: "Paid Orders",
             value: orders.filter(
               (o) =>
-                o.payment?.status ===
-                "PAID"
+                o.payment?.status === "SUCCESS"
             ).length,
           },
 
@@ -982,11 +1001,7 @@ export default function AdminOrdersPage() {
 
                     <div>
                       <b>Address:</b>{" "}
-                      {
-                        selectedOrder
-                          ?.address
-                          ?.address1
-                      }
+                        {selectedOrder?.address?.addressLine1}
                     </div>
 
                     <div>
@@ -1095,6 +1110,7 @@ export default function AdminOrdersPage() {
               .labelUrl
           }
           target="_blank"
+          rel="noopener noreferrer"
         >
           Download Label
         </a>
@@ -1108,9 +1124,7 @@ export default function AdminOrdersPage() {
                     gap: 12,
                   }}
                 >
-                  {selectedOrder
-                    ?.payment?.status !==
-                    "PAID" && (
+                  {selectedOrder?.payment?.status !== "SUCCESS" && (
                     <button
                       onClick={() =>
                         handleMarkPaid(
@@ -1163,27 +1177,6 @@ export default function AdminOrdersPage() {
                       )
                     )}
                   </select>
-
-                  <button
-                    onClick={() =>
-                      handleLoadCouriers(
-                        selectedOrder.orderId
-                      )
-                    }
-                    style={{
-                      height: 48,
-                      border: "none",
-                      borderRadius: 12,
-                      background:
-                        "#2563eb",
-                      color: "#fff",
-                      fontWeight: 700,
-                      cursor:
-                        "pointer",
-                    }}
-                  >
-                    Load Couriers
-                  </button>
 
                   <button
                     onClick={() =>
@@ -1433,7 +1426,7 @@ export default function AdminOrdersPage() {
             >
               {couriers.map((c) => (
                 <div
-                  key={c.courierId}
+                  key={c.courier_company_id}
                   style={{
                     border:
                       "1px solid #e5e7eb",
