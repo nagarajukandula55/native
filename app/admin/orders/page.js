@@ -292,34 +292,26 @@ export default function AdminOrdersPage() {
       setPackageModal(true);
     };
 
-    const fetchLiveCouriers = async () => {
-      try {
-        const res = await fetch(
-          "/api/shipping/rates",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type":
-                "application/json",
-            },
-            body: JSON.stringify({
-              orderId:
-                shipmentOrderId,
-    
-              weight:
-                packageData.weight,
-    
-              length:
-                packageData.length,
-    
-              width:
-                packageData.width,
-    
-              height:
-                packageData.height,
-            }),
-          }
-        );
+      const API =
+        process.env.NEXT_PUBLIC_AN_API ||
+        "https://www.angroup.in";
+      
+      const res = await fetch(
+        `${API}/api/shipping/rates`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            orderId: shipmentOrderId,
+            weight: packageData.weight,
+            length: packageData.length,
+            width: packageData.width,
+            height: packageData.height,
+          }),
+        }
+      );
     
         const data =
           await res.json();
