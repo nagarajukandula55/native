@@ -46,6 +46,17 @@ export default function AdminOrdersPage() {
   const [shipmentOrderId, setShipmentOrderId] =
   useState(null);
 
+  const [packageModal, setPackageModal] =
+  useState(false);
+
+  const [packageData, setPackageData] =
+    useState({
+      weight: 0.5,
+      length: 10,
+      width: 10,
+      height: 10,
+    });
+
   /* =========================================
      HELPERS
   ========================================= */
@@ -263,22 +274,50 @@ export default function AdminOrdersPage() {
     const handleLoadCouriers = async (
       orderId
     ) => {
+      setShipmentOrderId(orderId);
+    
+      setPackageModal(true);
+    };
+
+    const fetchLiveCouriers = async () => {
       try {
+        const res = await fetch(
+          "/api/shipping/rates",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+            body: JSON.stringify({
+              orderId:
+                shipmentOrderId,
+    
+              weight:
+                packageData.weight,
+    
+              length:
+                packageData.length,
+    
+              width:
+                packageData.width,
+    
+              height:
+                packageData.height,
+            }),
+          }
+        );
+    
         const data =
-          await loadShippingRates(
-            orderId
-          );
+          await res.json();
     
         if (!data.success) {
-          alert(
-            data.message ||
-              "Unable to fetch couriers"
+          return alert(
+            data.message
           );
-    
-          return;
         }
     
-        setShipmentOrderId(orderId);
+        setPackageModal(false);
     
         setCouriers(
           data.couriers || []
@@ -289,7 +328,7 @@ export default function AdminOrdersPage() {
         console.error(err);
     
         alert(
-          "Unable to load couriers"
+          "Failed loading couriers"
         );
       }
     };
@@ -301,7 +340,7 @@ export default function AdminOrdersPage() {
             await createShipment(
               shipmentOrderId,
               "COURIER",
-              courier.courierId
+              courier.courier_company_id
             );
     
           if (data.success) {
@@ -1048,6 +1087,19 @@ export default function AdminOrdersPage() {
                   </div>
                 </div>
 
+    {selectedOrder?.shipping
+        ?.labelUrl && (
+        <a
+          href={
+            selectedOrder.shipping
+              .labelUrl
+          }
+          target="_blank"
+        >
+          Download Label
+        </a>
+      )}
+
                 {/* ACTIONS */}
 
                 <div
@@ -1214,6 +1266,106 @@ export default function AdminOrdersPage() {
         </div>
             </div>
 
+    {packageModal && (
+  <div
+    style={{
+      position: "fixed",
+      inset: 0,
+      background:
+        "rgba(0,0,0,.6)",
+      display: "flex",
+      justifyContent:
+        "center",
+      alignItems: "center",
+      zIndex: 99999,
+    }}
+  >
+    <div
+      style={{
+        width: 500,
+        background: "#fff",
+        borderRadius: 20,
+        padding: 24,
+      }}
+    >
+      <h2>
+        Package Details
+      </h2>
+
+      <div
+        style={{
+          display: "grid",
+          gap: 12,
+        }}
+      >
+        <input
+          placeholder="Weight (kg)"
+          value={
+            packageData.weight
+          }
+          onChange={(e) =>
+            setPackageData({
+              ...packageData,
+              weight:
+              Number(e.target.value),
+            })
+          }
+        />
+
+        <input
+          placeholder="Length"
+          value={
+            packageData.length
+          }
+          onChange={(e) =>
+            setPackageData({
+              ...packageData,
+              length:
+              Number(e.target.value),
+            })
+          }
+        />
+
+        <input
+          placeholder="Width"
+          value={
+            packageData.width
+          }
+          onChange={(e) =>
+            setPackageData({
+              ...packageData,
+              width:
+              Number(e.target.value),
+            })
+          }
+        />
+
+        <input
+          placeholder="Height"
+          value={
+            packageData.height
+          }
+          onChange={(e) =>
+            setPackageData({
+              ...packageData,
+              height:
+              Number(e.target.value),
+            })
+          }
+        />
+
+        <button
+          onClick={
+            fetchLiveCouriers
+          }
+        >
+          Get Live Rates
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
       {/* COURIER MODAL */}
 
       {courierModal && (
@@ -1301,7 +1453,7 @@ export default function AdminOrdersPage() {
                         fontSize: 18,
                       }}
                     >
-                      {c.courierName}
+                      {c.courier_name}
                     </div>
 
                     <div
@@ -1311,7 +1463,7 @@ export default function AdminOrdersPage() {
                           "#6b7280",
                       }}
                     >
-                      ETA: {c.etd}
+                      ETA: {c.estimated_delivery_days} Days
                     </div>
 
                     <div
@@ -1322,7 +1474,7 @@ export default function AdminOrdersPage() {
                         fontWeight: 700,
                       }}
                     >
-                      ₹{c.rate}
+                      ₹{c.freight_charge}
                     </div>
                   </div>
 
