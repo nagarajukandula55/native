@@ -365,7 +365,7 @@ const fetchLiveCouriers = async () => {
             await createShipment(
               shipmentOrderId,
               "COURIER",
-              courier.courierId
+              String(courier.courierId)
             );
     
           if (data.success) {
