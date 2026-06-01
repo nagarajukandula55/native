@@ -126,7 +126,11 @@ export default function OrderSuccess() {
         "PENDING_PAYMENT"
       );
 
-      if (data.order && data.order.status !== "FAILED") {
+      if (
+        data.order &&
+        data.order.status === "PAID" &&
+        !invoice
+      ) {
         generateInvoice(id);
       }
 
@@ -172,13 +176,16 @@ export default function OrderSuccess() {
     try {
       setInvoiceLoading(true);
   
-      const res = await fetch("/api/invoice/generate", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ orderId: id }),
-      });
+      const res = await fetch(
+        "https://www.angroup.in/api/invoice/generate",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ orderId: id }),
+        }
+      );
   
       const data = await res.json();
   
