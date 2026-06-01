@@ -10,6 +10,7 @@ import {
 
 import {
   createShipment,
+  loadShippingRates,
 } from "@/lib/an-sdk/shipping";
 
 const ORDER_STATUSES = [
@@ -292,51 +293,70 @@ export default function AdminOrdersPage() {
       setPackageModal(true);
     };
 
-      const API =
-        process.env.NEXT_PUBLIC_AN_API ||
-        "https://www.angroup.in";
-      
-      const res = await fetch(
-        `${API}/api/shipping/rates`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            orderId: shipmentOrderId,
-            weight: packageData.weight,
-            length: packageData.length,
-            width: packageData.width,
-            height: packageData.height,
-          }),
-        }
-      );
-    
-        const data =
-          await res.json();
-    
-        if (!data.success) {
-          return alert(
-            data.message
-          );
-        }
-    
-        setPackageModal(false);
-    
-        setCouriers(
-          data.couriers || []
-        );
-    
-        setCourierModal(true);
-      } catch (err) {
-        console.error(err);
-    
-        alert(
-          "Failed loading couriers"
-        );
+const fetchLiveCouriers = async () => {
+  try {
+    const API =
+      process.env.NEXT_PUBLIC_AN_API ||
+      "https://www.angroup.in";
+
+    const res = await fetch(
+      `${API}/api/shipping/rates`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type":
+            "application/json",
+        },
+        body: JSON.stringify({
+          orderId:
+            shipmentOrderId,
+
+          weight:
+            packageData.weight,
+
+          length:
+            packageData.length,
+
+          width:
+            packageData.width,
+
+          height:
+            packageData.height,
+        }),
       }
-    };
+    );
+
+    const data =
+      await res.json();
+
+    console.log(
+      "Rates Response:",
+      data
+    );
+
+    if (!data.success) {
+      alert(
+        data.message ||
+          "Failed loading rates"
+      );
+      return;
+    }
+
+    setPackageModal(false);
+
+    setCouriers(
+      data.couriers || []
+    );
+
+    setCourierModal(true);
+  } catch (err) {
+    console.error(err);
+
+    alert(
+      "Failed loading couriers"
+    );
+  }
+};
     
     const handleCourierSelect =
       async (courier) => {
@@ -345,7 +365,7 @@ export default function AdminOrdersPage() {
             await createShipment(
               shipmentOrderId,
               "COURIER",
-              courier
+              courier.courierId
             );
     
           if (data.success) {
@@ -1438,7 +1458,7 @@ export default function AdminOrdersPage() {
                         fontSize: 18,
                       }}
                     >
-                      {c.courier_name}
+                      {c.courierName}
                     </div>
 
                     <div
@@ -1448,7 +1468,7 @@ export default function AdminOrdersPage() {
                           "#6b7280",
                       }}
                     >
-                      ETA: {c.estimated_delivery_days} Days
+                      ETA: {c.etd} Days
                     </div>
 
                     <div
@@ -1459,7 +1479,7 @@ export default function AdminOrdersPage() {
                         fontWeight: 700,
                       }}
                     >
-                      ₹{c.freight_charge}
+                      ₹{c.rate}
                     </div>
                   </div>
 
