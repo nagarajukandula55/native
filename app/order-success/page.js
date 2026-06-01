@@ -20,6 +20,10 @@ export default function OrderSuccess() {
   const [refreshing, setRefreshing] =
     useState(false);
 
+  const [invoice, setInvoice] = useState(null);
+  
+  const [invoiceLoading, setInvoiceLoading] = useState(false);
+
   /* =========================================
      INIT
   ========================================= */
@@ -122,6 +126,10 @@ export default function OrderSuccess() {
         "PENDING_PAYMENT"
       );
 
+      if (data.order && data.order.status !== "FAILED") {
+        generateInvoice(id);
+      }
+
     } catch (err) {
 
       console.log(err);
@@ -155,6 +163,32 @@ export default function OrderSuccess() {
     } catch (err) {
 
       console.log(err);
+    }
+  };
+
+  /* ==========================        ====================*/
+  
+  const generateInvoice = async (id) => {
+    try {
+      setInvoiceLoading(true);
+  
+      const res = await fetch("/api/invoice/generate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ orderId: id }),
+      });
+  
+      const data = await res.json();
+  
+      if (data?.success) {
+        setInvoice(data);
+      }
+    } catch (err) {
+      console.log("Invoice error:", err);
+    } finally {
+      setInvoiceLoading(false);
     }
   };
 
@@ -275,6 +309,31 @@ export default function OrderSuccess() {
           </button>
 
         </div>
+
+      {/* INVOICE SECTION */}
+        {invoice && (
+          <div style={styles.infoBox}>
+            <div style={styles.infoRow}>
+              <span>Invoice</span>
+              <b>{invoice.invoiceNumber}</b>
+            </div>
+        
+            <a
+              href={`/api/invoice/download/${invoice.invoiceId || invoice._id}`}
+              style={{
+                display: "inline-block",
+                marginTop: 10,
+                background: "#000",
+                color: "#fff",
+                padding: "10px 14px",
+                borderRadius: 10,
+                textDecoration: "none",
+              }}
+            >
+              Download Invoice
+            </a>
+          </div>
+        )}
 
         {/* STATUS */}
 
