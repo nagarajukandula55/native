@@ -143,7 +143,9 @@ const generateInvoice = async (id) => {
   try {
     setInvoiceLoading(true);
 
+    console.log("================================");
     console.log("GENERATING INVOICE FOR:", id);
+    console.log("================================");
 
     const res = await fetch(
       "https://www.angroup.in/api/invoice/generate",
@@ -152,24 +154,54 @@ const generateInvoice = async (id) => {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ orderId: id }),
+        body: JSON.stringify({
+          orderId: id,
+        }),
       }
     );
 
-    const data = await res.json();
+    console.log("HTTP STATUS:", res.status);
 
-    console.log("INVOICE RESPONSE:", data);
+    const text = await res.text();
+
+    console.log("RAW RESPONSE:", text);
+
+    let data = null;
+
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      console.error("INVALID JSON RESPONSE");
+      return;
+    }
+
+    console.log("PARSED RESPONSE:", data);
 
     if (data?.success) {
-      setInvoice(data);
+      setInvoice({
+        invoiceNumber: data.invoiceNumber,
+        invoiceUrl: data.invoiceUrl,
+      });
+
+      console.log(
+        "INVOICE CREATED:",
+        data.invoiceNumber
+      );
+    } else {
+      console.error(
+        "INVOICE FAILED:",
+        data?.message
+      );
     }
   } catch (err) {
-    console.log("Invoice error:", err);
+    console.error(
+      "GENERATE INVOICE ERROR:",
+      err
+    );
   } finally {
     setInvoiceLoading(false);
   }
 };
-
   /* =========================================
      STATUS COLOR
   ========================================= */
