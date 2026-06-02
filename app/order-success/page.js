@@ -326,7 +326,7 @@ const generateInvoice = async (id) => {
             </div>
         
             <a
-              href={invoice?.invoiceUrl}
+              href={`https://www.angroup.in/api/invoice/${invoice.invoiceNumber}`}
               target="_blank"
               rel="noopener noreferrer"
               style={{
@@ -339,7 +339,7 @@ const generateInvoice = async (id) => {
                 textDecoration: "none",
               }}
             >
-              Download Invoice
+              View / Print Invoice
             </a>
           </div>
         )}
