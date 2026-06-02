@@ -60,11 +60,8 @@ export default function OrderSuccess() {
        AUTO REFRESH EVERY 15s
     ========================================= */
 
-    const interval =
-      setInterval(() => {
-
+    const interval = setInterval(() => {
         fetchOrder(id, true);
-
       }, 15000);
 
     return () =>
@@ -87,11 +84,14 @@ export default function OrderSuccess() {
         setRefreshing(true);
       }
 
-      const res = await fetch("https://www.angroup.in/api/invoice/generate", {
-          cache: "no-store",
+      if (!silent && data?.order?.status === "PAID" && !invoice) {
+        generateInvoice(id);
+      }
 
-        }
-      );
+      const res = await fetch(
+          `https://www.angroup.in/api/orders/get-by-id?orderId=${id}`,
+          { cache: "no-store" }
+        );
 
       const data =
         await res.json();
@@ -122,12 +122,10 @@ export default function OrderSuccess() {
         "PENDING_PAYMENT"
       );
 
-      if (
-        data.order &&
-        data.order.status === "PAID" &&
-        !invoice
-      ) {
-        generateInvoice(id);
+      if (data?.order?.status === "PAID" && !invoiceLoading && !invoice) {
+        setTimeout(() => {
+          generateInvoice(id);
+        }, 1000);
       }
 
     } catch (err) {
@@ -314,7 +312,7 @@ export default function OrderSuccess() {
         </div>
 
       {/* INVOICE SECTION */}
-        {invoice && (
+        {invoice?.invoiceNumber && (
           <div style={styles.infoBox}>
             <div style={styles.infoRow}>
               <span>Invoice</span>
@@ -322,7 +320,7 @@ export default function OrderSuccess() {
             </div>
         
             <a
-              href={`/api/invoice/download/${invoice.invoiceId || invoice._id}`}
+              href={`/invoices/${invoice?.invoiceNumber}.html`}
               style={{
                 display: "inline-block",
                 marginTop: 10,
