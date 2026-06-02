@@ -24,9 +24,9 @@ export default function OrderSuccess() {
   
   const [invoiceLoading, setInvoiceLoading] = useState(false);
 
-  /* =========================================
-     INIT
-  ========================================= */
+/* =========================================
+   INIT
+========================================= */
 
 useEffect(() => {
   const id =
@@ -40,7 +40,11 @@ useEffect(() => {
   }
 
   setOrderId(id);
-  sessionStorage.setItem("lastOrderId", id);
+
+  sessionStorage.setItem(
+    "lastOrderId",
+    id
+  );
 
   fetchOrder(id);
 
@@ -48,21 +52,10 @@ useEffect(() => {
     fetchOrder(id, true);
   }, 15000);
 
-  return () => clearInterval(interval);
+  return () => {
+    clearInterval(interval);
+  };
 }, [params]);
-
-    /* =========================================
-       AUTO REFRESH EVERY 15s
-    ========================================= */
-
-    const interval = setInterval(() => {
-        fetchOrder(id, true);
-      }, 15000);
-
-    return () =>
-      clearInterval(interval);
-
-  }, [params]);
 
   /* =========================================
      FETCH ORDER
