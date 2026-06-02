@@ -29,32 +29,38 @@ export default function OrderSuccess() {
   ========================================= */
 
   useEffect(() => {
-
     const id =
-
       params.get("orderId") ||
-
-      sessionStorage.getItem(
-        "lastOrderId"
-      );
-
+      sessionStorage.getItem("lastOrderId");
+  
     if (!id) {
-
       setStatus("NOT_FOUND");
-
       setLoading(false);
-
       return;
     }
-
+  
     setOrderId(id);
-
-    sessionStorage.setItem(
-      "lastOrderId",
-      id
-    );
-
-    fetchOrder(id);
+    sessionStorage.setItem("lastOrderId", id);
+  
+    let mounted = true;
+  
+    const init = async () => {
+      await fetchOrder(id);
+    };
+  
+    init();
+  
+    const interval = setInterval(() => {
+      if (mounted) {
+        fetchOrder(id, true);
+      }
+    }, 15000);
+  
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
+  }, [params]);
 
     /* =========================================
        AUTO REFRESH EVERY 15s
@@ -73,71 +79,41 @@ export default function OrderSuccess() {
      FETCH ORDER
   ========================================= */
 
-  const fetchOrder = async (
-    id,
-    silent = false
-  ) => {
-
+  const fetchOrder = async (id, silent = false) => {
     try {
-
-      if (!silent) {
-        setRefreshing(true);
-      }
-
-      if (!silent && data?.order?.status === "PAID" && !invoice) {
-        generateInvoice(id);
-      }
-
+      if (!silent) setRefreshing(true);
+  
       const res = await fetch(
-          `https://www.angroup.in/api/orders/get-by-id?orderId=${id}`,
-          { cache: "no-store" }
-        );
-
-      const data =
-        await res.json();
-
-      console.log(
-        "ORDER FETCH:",
-        data
+        `https://www.angroup.in/api/orders/get-by-id?orderId=${id}`,
+        { cache: "no-store" }
       );
-
-      if (
-        !res.ok ||
-        !data?.success
-      ) {
-
-        setStatus(
-          "NOT_FOUND"
-        );
-
+  
+      const data = await res.json();
+  
+      if (!res.ok || !data?.success) {
+        setStatus("NOT_FOUND");
         return;
       }
-
-      setOrder(
-        data.order
-      );
-
-      setStatus(
-        data.order?.status ||
-        "PENDING_PAYMENT"
-      );
-
-      if (data?.order?.status === "PAID" && !invoiceLoading && !invoice) {
-        setTimeout(() => {
-          generateInvoice(id);
-        }, 1000);
+  
+      setOrder(data.order);
+      setStatus(data.order?.status || "PENDING_PAYMENT");
+  
+      // ✅ IMPORTANT FIX: prevent repeated invoice calls
+      const alreadyRequested = sessionStorage.getItem(`inv_${id}`);
+  
+      if (
+        data.order?.status === "PAID" &&
+        !alreadyRequested
+      ) {
+        sessionStorage.setItem(`inv_${id}`, "1");
+        generateInvoice(id);
       }
-
+  
     } catch (err) {
-
       console.log(err);
-
       setStatus("ERROR");
-
     } finally {
-
       setLoading(false);
-
       setRefreshing(false);
     }
   };
