@@ -79,12 +79,27 @@ useEffect(() => {
   
       setOrder(data.order);
       setStatus(data.order?.status || "PENDING_PAYMENT");
+
+      console.log(
+          "ORDER STATUS:",
+          data.order?.status
+        );
+        
+        if (data.order?.invoice?.invoiceNumber) {
+          setInvoice({
+            invoiceNumber:
+              data.order.invoice.invoiceNumber,
+            invoiceUrl:
+              data.order.invoice.invoiceUrl,
+          });
+        }
   
       // ✅ IMPORTANT FIX: prevent repeated invoice calls
       const alreadyRequested = sessionStorage.getItem(`inv_${id}`);
   
       if (
-        data.order?.status === "PAID" &&
+        ["PAID","PROCESSING","PACKED","DISPATCHED","DELIVERED"]
+          .includes(data.order?.status) &&
         !alreadyRequested
       ) {
         sessionStorage.setItem(`inv_${id}`, "1");
@@ -124,32 +139,36 @@ useEffect(() => {
 
   /* ==========================        ====================*/
   
-  const generateInvoice = async (id) => {
-    try {
-      setInvoiceLoading(true);
-  
-      const res = await fetch(
-        "https://www.angroup.in/api/invoice/generate",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ orderId: id }),
-        }
-      );
-  
-      const data = await res.json();
-  
-      if (data?.success) {
-        setInvoice(data);
+const generateInvoice = async (id) => {
+  try {
+    setInvoiceLoading(true);
+
+    console.log("GENERATING INVOICE FOR:", id);
+
+    const res = await fetch(
+      "https://www.angroup.in/api/invoice/generate",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ orderId: id }),
       }
-    } catch (err) {
-      console.log("Invoice error:", err);
-    } finally {
-      setInvoiceLoading(false);
+    );
+
+    const data = await res.json();
+
+    console.log("INVOICE RESPONSE:", data);
+
+    if (data?.success) {
+      setInvoice(data);
     }
-  };
+  } catch (err) {
+    console.log("Invoice error:", err);
+  } finally {
+    setInvoiceLoading(false);
+  }
+};
 
   /* =========================================
      STATUS COLOR
@@ -278,7 +297,7 @@ useEffect(() => {
             </div>
         
             <a
-              href={`/invoices/${invoice?.invoiceNumber}.html`}
+              href={invoice?.invoiceUrl}
               style={{
                 display: "inline-block",
                 marginTop: 10,
