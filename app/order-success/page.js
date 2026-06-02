@@ -95,14 +95,11 @@ useEffect(() => {
         }
   
       // ✅ IMPORTANT FIX: prevent repeated invoice calls
-      const alreadyRequested = sessionStorage.getItem(`inv_${id}`);
-  
       if (
         ["PAID","PROCESSING","PACKED","DISPATCHED","DELIVERED"]
-          .includes(data.order?.status) &&
-        !alreadyRequested
+          .includes(data.order?.status)
       ) {
-        sessionStorage.setItem(`inv_${id}`, "1");
+        console.log("CALLING GENERATE INVOICE");
         generateInvoice(id);
       }
   
