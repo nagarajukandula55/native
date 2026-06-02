@@ -28,39 +28,30 @@ export default function OrderSuccess() {
      INIT
   ========================================= */
 
-    useEffect(() => {
-      const id =
-        params.get("orderId") ||
-        sessionStorage.getItem("lastOrderId");
-    
-      if (!id) {
-        setStatus("NOT_FOUND");
-        setLoading(false);
-        return;
-      }
-    
-      setOrderId(id);
-      sessionStorage.setItem("lastOrderId", id);
-    
-      let mounted = true;
-    
-      const init = async () => {
-        await fetchOrder(id);
-      };
-    
-      init();
-    
-      const interval = setInterval(() => {
-        if (mounted) {
-          fetchOrder(id, true);
-        }
-      }, 15000);
-    
-      return () => {
-        mounted = false;
-        clearInterval(interval);
-      };
-    }, [params]);
+useEffect(() => {
+  const id =
+    params.get("orderId") ||
+    sessionStorage.getItem("lastOrderId");
+
+  if (!id) {
+    setStatus("NOT_FOUND");
+    setLoading(false);
+    return;
+  }
+
+  setOrderId(id);
+  sessionStorage.setItem("lastOrderId", id);
+
+  fetchOrder(id);
+
+  const interval = setInterval(() => {
+    fetchOrder(id, true);
+  }, 15000);
+
+  return function cleanup() {
+    clearInterval(interval);
+  };
+}, [params]);
 
     /* =========================================
        AUTO REFRESH EVERY 15s
