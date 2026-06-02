@@ -44,15 +44,13 @@ useEffect(() => {
 
   fetchOrder(id);
 
-  const interval = setInterval(function () {
+  const interval = setInterval(() => {
     fetchOrder(id, true);
   }, 15000);
 
-  function cleanup() {
+  return function cleanup() {
     clearInterval(interval);
-  }
-
-  return cleanup;
+  };
 }, [params]);
 
     /* =========================================
