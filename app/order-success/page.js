@@ -289,7 +289,7 @@ const generateInvoice = async (id) => {
         </h1>
 
         <p style={styles.subtitle}>
-          Thank you for shopping with us
+          Thank you for shopping with Native
         </p>
 
         {/* ORDER ID */}
@@ -327,6 +327,8 @@ const generateInvoice = async (id) => {
         
             <a
               href={invoice?.invoiceUrl}
+              target="_blank"
+              rel="noopener noreferrer"
               style={{
                 display: "inline-block",
                 marginTop: 10,
