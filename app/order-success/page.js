@@ -87,11 +87,7 @@ export default function OrderSuccess() {
         setRefreshing(true);
       }
 
-      const res = await fetch(
-
-        `https://www.angroup.in/api/orders/get-by-id?orderId=${id}`,
-
-        {
+      const res = await fetch("https://www.angroup.in/api/invoice/generate", {
           cache: "no-store",
 
         }
