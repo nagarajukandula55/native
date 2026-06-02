@@ -48,9 +48,7 @@ useEffect(() => {
     fetchOrder(id, true);
   }, 15000);
 
-  return function cleanup() {
-    clearInterval(interval);
-  };
+  return () => clearInterval(interval);
 }, [params]);
 
     /* =========================================
