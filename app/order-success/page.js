@@ -24,6 +24,8 @@ export default function OrderSuccess() {
   
   const [invoiceLoading, setInvoiceLoading] = useState(false);
 
+  const [invoiceRequested, setInvoiceRequested] = useState(false);
+
 /* =========================================
    INIT
 ========================================= */
@@ -95,8 +97,6 @@ useEffect(() => {
         }
   
       // ✅ IMPORTANT FIX: prevent repeated invoice calls
-
-      const [invoiceRequested, setInvoiceRequested] = useState(false);
       
       if (
         ["PAID","PROCESSING","PACKED","DISPATCHED","DELIVERED"].includes(data.order?.status)
