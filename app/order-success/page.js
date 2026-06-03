@@ -239,8 +239,6 @@ const generateInvoice = async (id) => {
 
   return (
 
-    console.log("INVOICE DATA", data);
-
     <div style={styles.page}>
 
       <div style={styles.card}>
