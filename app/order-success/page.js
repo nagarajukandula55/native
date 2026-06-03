@@ -361,50 +361,38 @@ const generateInvoice = async (id) => {
 
         </div>
 
-        {/* ORDER DETAILS */}
-
-        {order && (
-
-          <div style={styles.infoBox}>
-
-             <div style={styles.infoRow}>
-                <span>Customer</span>
-                <b>{order?.address?.name || "N/A"}</b>
-              </div>
-              
-              <div style={styles.infoRow}>
-                <span>Payment</span>
-                <b>{order?.payment?.method || "N/A"}</b>
-              </div>
-              
-              <div style={styles.infoRow}>
-                <span>Amount</span>
-                <b>₹{order?.amount ?? 0}</b>
-              </div>
-
-            <div style={styles.infoRow}>
-              <span>Phone</span>
-              <b>
-                {order.address?.phone}
-              </b>
-            </div>
-
-            <div style={styles.infoRow}>
-              <span>Amount</span>
-              <b>
-                ₹{order.amount}
-              </b>
-            </div>
-
-            <div style={styles.infoRow}>
-              <span>Payment</span>
-              <b>
-                {order.payment?.method}
-              </b>
-            </div>
-
+      {/* ORDER DETAILS */}
+      
+      {order && (
+        <div style={styles.infoBox}>
+      
+          <div style={styles.infoRow}>
+            <span>Customer</span>
+            <b>{order?.address?.name || "N/A"}</b>
           </div>
-        )}
+      
+          <div style={styles.infoRow}>
+            <span>Phone</span>
+            <b>{order?.address?.phone || "N/A"}</b>
+          </div>
+      
+          <div style={styles.infoRow}>
+            <span>Payment Method</span>
+            <b>{order?.payment?.method || "N/A"}</b>
+          </div>
+      
+          <div style={styles.infoRow}>
+            <span>Payment Status</span>
+            <b>{order?.payment?.status || "N/A"}</b>
+          </div>
+      
+          <div style={styles.infoRow}>
+            <span>Amount</span>
+            <b>₹{order?.amount ?? 0}</b>
+          </div>
+      
+        </div>
+      )}
 
         {/* TRACKING */}
 
