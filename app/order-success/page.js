@@ -367,14 +367,20 @@ const generateInvoice = async (id) => {
 
           <div style={styles.infoBox}>
 
-            <div style={styles.infoRow}>
-              <span>Customer</span>
-              <b>
-                {order?.address?.name || "N/A"
-                  order?.payment?.method || "N/A"
-                  order?.amount ?? 0}
-              </b>
-            </div>
+             <div style={styles.infoRow}>
+                <span>Customer</span>
+                <b>{order?.address?.name || "N/A"}</b>
+              </div>
+              
+              <div style={styles.infoRow}>
+                <span>Payment</span>
+                <b>{order?.payment?.method || "N/A"}</b>
+              </div>
+              
+              <div style={styles.infoRow}>
+                <span>Amount</span>
+                <b>₹{order?.amount ?? 0}</b>
+              </div>
 
             <div style={styles.infoRow}>
               <span>Phone</span>
