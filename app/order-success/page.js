@@ -85,21 +85,24 @@ useEffect(() => {
           data.order?.status
         );
         
-        if (data.order?.invoice?.invoiceNumber) {
+       const inv = data.order?.invoice;
+
+        if (inv?.invoiceNumber) {
           setInvoice({
-            invoiceNumber:
-              data.order.invoice.invoiceNumber,
-            invoiceUrl:
-              data.order.invoice.invoiceUrl,
+            invoiceNumber: inv.invoiceNumber,
+            invoiceUrl: inv.invoiceUrl || null,
           });
         }
   
       // ✅ IMPORTANT FIX: prevent repeated invoice calls
+
+      const [invoiceRequested, setInvoiceRequested] = useState(false);
+      
       if (
-        ["PAID","PROCESSING","PACKED","DISPATCHED","DELIVERED"]
-          .includes(data.order?.status)
+        ["PAID","PROCESSING","PACKED","DISPATCHED","DELIVERED"].includes(data.order?.status)
+        && !invoiceRequested
       ) {
-        console.log("CALLING GENERATE INVOICE");
+        setInvoiceRequested(true);
         generateInvoice(id);
       }
   
@@ -367,7 +370,9 @@ const generateInvoice = async (id) => {
             <div style={styles.infoRow}>
               <span>Customer</span>
               <b>
-                {order.address?.name}
+                {order?.address?.name || "N/A"
+                  order?.payment?.method || "N/A"
+                  order?.amount ?? 0}
               </b>
             </div>
 
