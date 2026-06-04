@@ -476,6 +476,16 @@ const OrderSchema = new mongoose.Schema(
       set: safeNumber,
     },
 
+    couponCode: {
+    type: String,
+    default: null,
+  },
+  
+  couponDiscount: {
+    type: Number,
+    default: 0,
+  },
+
     status: {
       type: String,
       enum: [
