@@ -6,10 +6,12 @@ import { syncTracking } from "@/lib/an-sdk/shipping";
 
 export default function TrackOrderPage() {
   const [input, setInput] = useState("");
-  const [order, setOrder] = useState<any>(null);
-  const [tracking, setTracking] = useState<any>(null);
+  const [order, setOrder] = useState(null);
+  const [tracking, setTracking] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  /* ================= FETCH ================= */
 
   const fetchTracking = async () => {
     try {
@@ -19,23 +21,23 @@ export default function TrackOrderPage() {
       setTracking(null);
 
       if (!input.trim()) {
-        setError("Enter Order ID or AWB");
+        setError("Please enter Order ID or AWB Number");
         return;
       }
 
       const ordersRes = await getOrders();
 
       if (!ordersRes?.success) {
-        setError("Failed to fetch orders");
+        setError("Failed to load orders");
         return;
       }
 
       const allOrders = ordersRes.orders || [];
 
       const foundOrder = allOrders.find(
-        (o: any) =>
-          o.orderId === input ||
-          o.shipping?.awbNumber === input
+        (o) =>
+          o?.orderId === input.trim() ||
+          o?.shipping?.awbNumber === input.trim()
       );
 
       if (!foundOrder) {
@@ -44,6 +46,8 @@ export default function TrackOrderPage() {
       }
 
       setOrder(foundOrder);
+
+      /* ================= LIVE TRACKING ================= */
 
       if (foundOrder?.shipping?.awbNumber) {
         const trackRes = await syncTracking(
@@ -56,11 +60,13 @@ export default function TrackOrderPage() {
       }
     } catch (err) {
       console.error(err);
-      setError("Something went wrong");
+      setError("Something went wrong while tracking order");
     } finally {
       setLoading(false);
     }
   };
+
+  /* ================= UI ================= */
 
   return (
     <div style={container}>
@@ -68,14 +74,14 @@ export default function TrackOrderPage() {
       <div style={hero}>
         <h1 style={title}>📦 Track Your Order</h1>
         <p style={sub}>
-          Enter Order ID or AWB Number
+          Enter Order ID or AWB Number to track shipment
         </p>
 
         <div style={searchBox}>
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Order ID / AWB"
+            placeholder="Enter Order ID / AWB"
             style={inputStyle}
           />
 
@@ -89,44 +95,61 @@ export default function TrackOrderPage() {
       {error && <div style={errorBox}>{error}</div>}
 
       {/* LOADING */}
-      {loading && <div style={loading}>Loading...</div>}
+      {loading && <div style={loadingBox}>Tracking your order...</div>}
 
       {/* ORDER CARD */}
       {order && (
         <div style={card}>
-          <h2>{order.orderId}</h2>
+          <h2 style={{ marginBottom: 8 }}>
+            Order #{order.orderId}
+          </h2>
 
-          <p>
-            {order.address?.name} | {order.address?.phone}
+          <p style={{ opacity: 0.8 }}>
+            {order?.address?.name} • {order?.address?.phone}
           </p>
 
           <div style={grid}>
-            <div>Status: {order.status}</div>
-            <div>Amount: ₹{order.amount}</div>
             <div>
-              AWB: {order.shipping?.awbNumber || "-"}
+              <b>Status</b>
+              <p>{order?.status}</p>
+            </div>
+
+            <div>
+              <b>Amount</b>
+              <p>₹{order?.amount}</p>
+            </div>
+
+            <div>
+              <b>AWB</b>
+              <p>{order?.shipping?.awbNumber || "-"}</p>
             </div>
           </div>
         </div>
       )}
 
-      {/* TRACKING */}
+      {/* TRACKING CARD */}
       {tracking && (
         <div style={card}>
-          <h2>🚚 Live Tracking</h2>
+          <h2>🚚 Live Shipment Tracking</h2>
 
-          <p>Status: {tracking.trackingStatus}</p>
+          <p>
+            Status: <b>{tracking?.trackingStatus || "IN_TRANSIT"}</b>
+          </p>
+
+          <p>
+            Order ID: <b>{tracking?.orderId}</b>
+          </p>
         </div>
       )}
     </div>
   );
 }
 
-/* ================= PREMIUM UI ================= */
+/* ================= PREMIUM DARK UI ================= */
 
 const container = {
   minHeight: "100vh",
-  background: "#0b0f19",
+  background: "linear-gradient(135deg,#0b0f19,#111827)",
   color: "#fff",
   padding: 24,
 };
@@ -136,7 +159,9 @@ const hero = {
   margin: "0 auto",
   padding: 40,
   borderRadius: 20,
-  background: "linear-gradient(135deg,#111827,#1f2937)",
+  background: "rgba(255,255,255,0.05)",
+  backdropFilter: "blur(10px)",
+  border: "1px solid rgba(255,255,255,0.08)",
 };
 
 const title = {
@@ -160,23 +185,27 @@ const inputStyle = {
   padding: 14,
   borderRadius: 12,
   border: "none",
+  outline: "none",
 };
 
 const btn = {
-  padding: "14px 20px",
+  padding: "14px 22px",
   background: "#3b82f6",
   border: "none",
   borderRadius: 12,
   color: "#fff",
   fontWeight: 700,
+  cursor: "pointer",
 };
 
 const card = {
   maxWidth: 900,
   margin: "20px auto",
-  background: "#111827",
+  background: "rgba(255,255,255,0.06)",
+  border: "1px solid rgba(255,255,255,0.08)",
+  borderRadius: 18,
   padding: 20,
-  borderRadius: 16,
+  backdropFilter: "blur(10px)",
 };
 
 const grid = {
@@ -194,7 +223,8 @@ const errorBox = {
   borderRadius: 12,
 };
 
-const loading = {
+const loadingBox = {
   textAlign: "center",
   marginTop: 20,
+  opacity: 0.8,
 };
