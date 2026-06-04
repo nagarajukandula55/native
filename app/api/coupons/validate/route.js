@@ -84,14 +84,15 @@ export async function POST(req) {
     ========================= */
 
     if (
-      coupon.usageLimit > 0 &&
-      (coupon.usedBy?.length || 0) >=
-        coupon.usageLimit
+      Number(coupon.usageLimit || 0) > 0 &&
+      Number(coupon.usedCount || 0) >=
+        Number(coupon.usageLimit)
     ) {
       return NextResponse.json(
         {
           success: false,
-          message: "Coupon usage limit reached",
+          message:
+            "Coupon usage limit reached",
         },
         {
           status: 400,
