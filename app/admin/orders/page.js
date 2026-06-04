@@ -362,11 +362,24 @@ const fetchLiveCouriers = async () => {
       async (courier) => {
         try {
           const data =
-            await createShipment(
-              shipmentOrderId,
-              "COURIER",
-              String(courier.courierId)
-            );
+              await createShipment(
+                shipmentOrderId,
+                "COURIER",
+                String(courier.courierId),
+                {
+                  weight:
+                    packageData.weight,
+            
+                  length:
+                    packageData.length,
+            
+                  width:
+                    packageData.width,
+            
+                  height:
+                    packageData.height,
+                }
+              );
     
           if (data.success) {
             setCourierModal(false);
