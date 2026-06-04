@@ -527,9 +527,16 @@ export default function CouponDashboard() {
             </p>
 
             <p style={{ margin: 4 }}>
-              Used:{" "}
-              {c.usedBy
-                ?.length || 0}
+              Used:
+              {c.usedCount || 0}
+            </p>
+            
+            <p style={{ margin: 4 }}>
+              Remaining:
+              {c.usageLimit > 0
+                ? c.usageLimit -
+                  (c.usedCount || 0)
+                : "Unlimited"}
             </p>
 
             <p style={{ margin: 4 }}>
