@@ -35,7 +35,8 @@ export async function loadShippingRates(
 export async function createShipment(
   orderId: string,
   dispatchType: string,
-  courierId?: string
+  courierId?: string,
+  packageData = {}
 ) {
   const res = await fetch(
     `${API}/api/shipping/create-shipment`,
@@ -51,6 +52,18 @@ export async function createShipment(
         orderId,
         dispatchType,
         courierId,
+      
+        weight:
+          packageData.weight,
+      
+        length:
+          packageData.length,
+      
+        width:
+          packageData.width,
+      
+        height:
+          packageData.height,
       }),
     }
   );
