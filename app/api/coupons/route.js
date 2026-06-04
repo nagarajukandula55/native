@@ -8,12 +8,12 @@ export async function GET() {
   try {
     await connectDB();
 
-    const coupons =
-      await Coupon.find({})
-        .sort({
-          createdAt: -1,
-        })
-        .lean();
+    const coupons = await Coupon.find({})
+      .sort({ createdAt: -1 })
+      .select(
+        "code type value minCartValue maxDiscount usageLimit usedCount active expiry usedBy createdAt updatedAt"
+      )
+      .lean();
 
     return NextResponse.json({
       success: true,
