@@ -7,12 +7,22 @@ type CouponType = {
   code: string;
   type: string;
   value: number;
+
   minCartValue?: number;
   maxDiscount?: number;
+
   usageLimit?: number;
+
+  usedCount?: number;   // ← ADD THIS
+
   usedBy?: string[];
+
   active: boolean;
+
   expiry?: string;
+
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 export default function CouponDashboard() {
