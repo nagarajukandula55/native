@@ -1,19 +1,17 @@
 "use client";
 
 import { useState } from "react";
+import { getOrders } from "@/lib/an-sdk/orders";
+import { syncTracking } from "@/lib/an-sdk/shipping";
 
 export default function TrackOrderPage() {
   const [input, setInput] = useState("");
-  const [order, setOrder] = useState(null);
-  const [tracking, setTracking] = useState(null);
+  const [order, setOrder] = useState<any>(null);
+  const [tracking, setTracking] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  /* =========================
-     FETCH
-  ========================= */
-
-  const fetchOrder = async () => {
+  const fetchTracking = async () => {
     try {
       setLoading(true);
       setError("");
@@ -21,103 +19,69 @@ export default function TrackOrderPage() {
       setTracking(null);
 
       if (!input.trim()) {
-        setError("Please enter Order ID or AWB");
+        setError("Enter Order ID or AWB");
         return;
       }
 
-      const res = await fetch(
-        `/api/orders/get-by-id?orderId=${input.trim()}`,
-        { cache: "no-store" }
+      const ordersRes = await getOrders();
+
+      if (!ordersRes?.success) {
+        setError("Failed to fetch orders");
+        return;
+      }
+
+      const allOrders = ordersRes.orders || [];
+
+      const foundOrder = allOrders.find(
+        (o: any) =>
+          o.orderId === input ||
+          o.shipping?.awbNumber === input
       );
 
-      const data = await res.json().catch(() => null);
-
-      if (res.ok && data?.success) {
-        setOrder(data.order);
-
-        const awb = data.order?.shipping?.awbNumber;
-        if (awb) await fetchTracking(awb);
-
+      if (!foundOrder) {
+        setError("Order not found");
         return;
       }
 
-      await fetchTracking(input.trim());
+      setOrder(foundOrder);
+
+      if (foundOrder?.shipping?.awbNumber) {
+        const trackRes = await syncTracking(
+          foundOrder.shipping.awbNumber
+        );
+
+        if (trackRes?.success) {
+          setTracking(trackRes);
+        }
+      }
     } catch (err) {
+      console.error(err);
       setError("Something went wrong");
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchTracking = async (awb) => {
-    try {
-      const res = await fetch(`/api/shipping/track/${awb}`);
-      const data = await res.json();
-      if (data?.success) setTracking(data);
-    } catch {}
-  };
-
-  /* =========================
-     FLOW
-  ========================= */
-
-  const steps = [
-    "ORDER PLACED",
-    "PAYMENT VERIFIED",
-    "PROCESSING",
-    "PACKED",
-    "SHIPPED",
-    "DELIVERED",
-  ];
-
-  const currentIndex = steps.indexOf(order?.status || "ORDER PLACED");
-
-  const items = Array.isArray(order?.items)
-    ? order.items
-    : Array.isArray(order?.cart)
-    ? order.cart
-    : [];
-
-  const activities =
-    tracking?.tracking?.tracking_data?.shipment_track_activities || [];
-
-  const shipment =
-    tracking?.tracking?.tracking_data?.shipment_track?.[0] || {};
-
-  const currentStatus =
-    shipment?.current_status ||
-    tracking?.tracking?.tracking_data?.shipment_status ||
-    "IN TRANSIT";
-
-  /* =========================
-     UI
-  ========================= */
-
   return (
-    <div style={page}>
-
+    <div style={container}>
       {/* HERO */}
       <div style={hero}>
-        <div style={heroOverlay} />
+        <h1 style={title}>📦 Track Your Order</h1>
+        <p style={sub}>
+          Enter Order ID or AWB Number
+        </p>
 
-        <div style={heroContent}>
-          <h1 style={title}>Track Your Order</h1>
-          <p style={subtitle}>
-            Enter Order ID or AWB to get real-time shipment updates
-          </p>
+        <div style={searchBox}>
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Order ID / AWB"
+            style={inputStyle}
+          />
 
-          <div style={searchBox}>
-            <input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Order ID / AWB"
-              style={inputStyle}
-            />
-
-            <button onClick={fetchOrder} style={btn}>
-              Track Order
-            </button>
-          </div>
+          <button onClick={fetchTracking} style={btn}>
+            Track
+          </button>
         </div>
       </div>
 
@@ -125,259 +89,101 @@ export default function TrackOrderPage() {
       {error && <div style={errorBox}>{error}</div>}
 
       {/* LOADING */}
-      {loading && <div style={loading}>Tracking your shipment...</div>}
+      {loading && <div style={loading}>Loading...</div>}
 
-      {/* CONTENT WRAPPER */}
-      <div style={container}>
+      {/* ORDER CARD */}
+      {order && (
+        <div style={card}>
+          <h2>{order.orderId}</h2>
 
-        {/* ORDER CARD */}
-        {order && (
-          <div style={card}>
-            <div style={cardHeader}>
-              <div>
-                <h2 style={{ margin: 0 }}>Order #{order.orderId}</h2>
-                <p style={{ color: "#666" }}>{order.address?.name}</p>
-              </div>
+          <p>
+            {order.address?.name} | {order.address?.phone}
+          </p>
 
-              <span style={badge}>{order.status}</span>
-            </div>
-
-            {/* PROGRESS BAR */}
-            <div style={progressWrap}>
-              {steps.map((s, i) => (
-                <div key={s} style={stepWrap}>
-                  <div
-                    style={{
-                      ...dot,
-                      background: i <= currentIndex ? "#16a34a" : "#ddd",
-                    }}
-                  />
-                  <div style={{ fontSize: 12, textAlign: "center" }}>
-                    {s}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* ITEMS */}
-            <div style={section}>
-              <h3>Items</h3>
-
-              {items.length === 0 ? (
-                <p style={{ color: "#888" }}>No items found</p>
-              ) : (
-                items.map((item, i) => (
-                  <div key={i} style={row}>
-                    <span>
-                      {item.name} × {item.qty}
-                    </span>
-                    <b>₹{item.price * item.qty}</b>
-                  </div>
-                ))
-              )}
+          <div style={grid}>
+            <div>Status: {order.status}</div>
+            <div>Amount: ₹{order.amount}</div>
+            <div>
+              AWB: {order.shipping?.awbNumber || "-"}
             </div>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* TRACKING CARD */}
-        {tracking && (
-          <div style={card}>
-            <div style={cardHeader}>
-              <div>
-                <h2 style={{ margin: 0 }}>Live Tracking</h2>
-                <p style={{ color: "#666" }}>AWB: {tracking.awb}</p>
-              </div>
+      {/* TRACKING */}
+      {tracking && (
+        <div style={card}>
+          <h2>🚚 Live Tracking</h2>
 
-              <span style={liveBadge}>{currentStatus}</span>
-            </div>
-
-            {/* COURIER */}
-            <div style={courierBox}>
-              <b>Courier:</b>{" "}
-              {shipment?.courier_name || "Assigning..."}
-            </div>
-
-            {/* TIMELINE */}
-            <div style={timeline}>
-              {activities.length === 0 ? (
-                <p style={{ color: "#888" }}>
-                  Tracking updates will appear soon
-                </p>
-              ) : (
-                activities.map((a, i) => (
-                  <div key={i} style={activity}>
-                    <div style={activityDot} />
-                    <div>
-                      <b>{a.activity}</b>
-                      <div style={{ color: "#666" }}>{a.location}</div>
-                      <small style={{ color: "#999" }}>{a.date}</small>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        )}
-
-      </div>
+          <p>Status: {tracking.trackingStatus}</p>
+        </div>
+      )}
     </div>
   );
 }
 
-/* =========================
-   PREMIUM STYLES
-========================= */
+/* ================= PREMIUM UI ================= */
 
-const page = {
+const container = {
   minHeight: "100vh",
-  background: "#0b1220",
+  background: "#0b0f19",
   color: "#fff",
+  padding: 24,
 };
 
 const hero = {
-  position: "relative",
-  padding: "80px 20px",
-  background: "linear-gradient(135deg,#0f172a,#1e293b)",
-};
-
-const heroOverlay = {
-  position: "absolute",
-  inset: 0,
-  background:
-    "radial-gradient(circle at top,#2563eb33,transparent)",
-};
-
-const heroContent = {
-  position: "relative",
   maxWidth: 900,
   margin: "0 auto",
-  textAlign: "center",
+  padding: 40,
+  borderRadius: 20,
+  background: "linear-gradient(135deg,#111827,#1f2937)",
 };
 
 const title = {
-  fontSize: 42,
-  fontWeight: 800,
+  fontSize: 34,
+  fontWeight: 700,
 };
 
-const subtitle = {
-  opacity: 0.8,
-  marginTop: 10,
+const sub = {
+  opacity: 0.7,
+  marginTop: 8,
 };
 
 const searchBox = {
-  marginTop: 30,
   display: "flex",
-  gap: 10,
-  justifyContent: "center",
-  flexWrap: "wrap",
+  gap: 12,
+  marginTop: 20,
 };
 
 const inputStyle = {
+  flex: 1,
   padding: 14,
   borderRadius: 12,
   border: "none",
-  width: 300,
 };
 
 const btn = {
   padding: "14px 20px",
-  borderRadius: 12,
+  background: "#3b82f6",
   border: "none",
-  background: "#2563eb",
+  borderRadius: 12,
   color: "#fff",
   fontWeight: 700,
-  cursor: "pointer",
-};
-
-const container = {
-  maxWidth: 1000,
-  margin: "40px auto",
-  display: "grid",
-  gap: 20,
 };
 
 const card = {
-  background: "rgba(255,255,255,0.05)",
-  backdropFilter: "blur(12px)",
-  border: "1px solid rgba(255,255,255,0.1)",
-  borderRadius: 20,
+  maxWidth: 900,
+  margin: "20px auto",
+  background: "#111827",
   padding: 20,
+  borderRadius: 16,
 };
 
-const cardHeader = {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-};
-
-const badge = {
-  background: "#f59e0b",
-  padding: "6px 12px",
-  borderRadius: 999,
-  fontSize: 12,
-};
-
-const liveBadge = {
-  background: "#16a34a",
-  padding: "6px 12px",
-  borderRadius: 999,
-  fontSize: 12,
-};
-
-const progressWrap = {
-  display: "flex",
-  justifyContent: "space-between",
-  marginTop: 25,
-  gap: 10,
-};
-
-const stepWrap = {
-  flex: 1,
-  textAlign: "center",
-};
-
-const dot = {
-  width: 12,
-  height: 12,
-  borderRadius: "50%",
-  margin: "0 auto 6px",
-};
-
-const section = {
-  marginTop: 20,
-};
-
-const row = {
-  display: "flex",
-  justifyContent: "space-between",
-  padding: "8px 0",
-  borderBottom: "1px solid rgba(255,255,255,0.1)",
-};
-
-const courierBox = {
-  marginTop: 15,
-  color: "#ddd",
-};
-
-const timeline = {
-  marginTop: 20,
-  display: "flex",
-  flexDirection: "column",
-  gap: 16,
-};
-
-const activity = {
-  display: "flex",
+const grid = {
+  display: "grid",
+  gridTemplateColumns: "repeat(3,1fr)",
   gap: 12,
-  position: "relative",
-};
-
-const activityDot = {
-  width: 10,
-  height: 10,
-  borderRadius: "50%",
-  background: "#2563eb",
-  marginTop: 6,
+  marginTop: 12,
 };
 
 const errorBox = {
@@ -385,7 +191,7 @@ const errorBox = {
   margin: "20px auto",
   background: "#7f1d1d",
   padding: 12,
-  borderRadius: 10,
+  borderRadius: 12,
 };
 
 const loading = {
