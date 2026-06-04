@@ -1225,6 +1225,43 @@ const fetchLiveCouriers = async () => {
                     Dispatch Shipment
                   </button>
 
+                <button
+                      onClick={async () => {
+                        try {
+                          const res = await fetch("/api/shipping/request-pickup", {
+                            method: "POST",
+                            headers: {
+                              "Content-Type": "application/json",
+                            },
+                            body: JSON.stringify({
+                              orderId: selectedOrder.orderId,
+                            }),
+                          });
+                    
+                          const data = await res.json();
+                    
+                          if (data.success) {
+                            alert("Pickup Requested Successfully 🚚");
+                            fetchOrders();
+                          } else {
+                            alert(data.message || "Pickup failed");
+                          }
+                        } catch (err) {
+                          alert("Pickup request failed");
+                        }
+                      }}
+                      style={{
+                        height: 48,
+                        borderRadius: 12,
+                        border: "none",
+                        background: "#0ea5e9",
+                        color: "#fff",
+                        fontWeight: 700,
+                      }}
+                    >
+                      Request Pickup
+                    </button>
+
                   <div
                     style={{
                       display: "grid",
