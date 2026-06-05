@@ -13,7 +13,14 @@ export async function generateMetadata({ params }) {
     };
   }
 
-  const data = await res.json();
+  let data = null;
+
+try {
+  data = await res.json();
+} catch (err) {
+  console.error("INVALID API RESPONSE");
+  return <div>Server Error</div>;
+}
   const p = data?.product;
 
   return {
