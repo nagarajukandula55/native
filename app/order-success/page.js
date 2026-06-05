@@ -4,6 +4,17 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 
+import { Suspense } from "react";
+import OrderSuccessClient from "./OrderSuccessClient";
+
+export default function Page() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <OrderSuccessClient />
+    </Suspense>
+  );
+}
+
 export default function OrderSuccess() {
 
   const params = useSearchParams();
