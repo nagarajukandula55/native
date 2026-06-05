@@ -60,6 +60,7 @@
     "node": ">=18.0.0"
   },
     "scripts": {
-    "import:pincodes": "tsx scripts/import-pincodes.ts"
+    "import:pincodes": "tsx scripts/import-pincodes.ts",
+    "postbuild": "next-sitemap"
   }
 }
