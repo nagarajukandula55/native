@@ -1,0 +1,17 @@
+User-agent: *
+Allow: /
+
+# Important pages
+Allow: /products
+Allow: /product
+Allow: /blog
+Allow: /
+
+# Block internal/private routes (optional)
+Disallow: /admin
+Disallow: /api
+Disallow: /cart
+Disallow: /checkout
+
+# Sitemap
+Sitemap: https://shopnative.in/sitemap.xml
