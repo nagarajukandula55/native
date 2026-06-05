@@ -8,9 +8,7 @@ export async function GET(req, { params }) {
   try {
     await connectDB();
 
-    const { slug } = params;
-
-    if (!slug) {
+    if (!params?.slug) {
       return NextResponse.json(
         { success: false, message: "Missing slug" },
         { status: 400 }
@@ -18,41 +16,29 @@ export async function GET(req, { params }) {
     }
 
     const product = await Product.findOne({
-      slug,
-      isActive: true,
-      isListed: true,
+      slug: params.slug,
     }).lean();
 
     if (!product) {
       return NextResponse.json(
-        { success: false, message: "Product not found" },
+        { success: false, message: "Not found" },
         { status: 404 }
       );
     }
 
-    const variants = product.variants?.length
-      ? product.variants
-      : product.primaryVariant
-      ? [product.primaryVariant]
-      : [];
-
-    const currentVariant = variants[0] || {};
-
     return NextResponse.json({
       success: true,
-      product: {
-        ...product,
-        sellingPrice:
-          currentVariant?.sellingPrice || product?.pricing?.sellingPrice || 0,
-        mrp:
-          currentVariant?.mrp || product?.pricing?.mrp || 0,
-        stock: currentVariant?.stock || 0,
-      },
-      variants,
+      product,
     });
+
   } catch (err) {
+    console.error("PRODUCT API ERROR:", err);
+
     return NextResponse.json(
-      { success: false, message: err.message },
+      {
+        success: false,
+        message: err.message || "Server error",
+      },
       { status: 500 }
     );
   }
