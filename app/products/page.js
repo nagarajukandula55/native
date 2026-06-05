@@ -140,6 +140,27 @@ export default function ProductsPage() {
         })}
       </div>
 
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Product",
+        "name": "Product Name",
+        "image": "https://yourdomain.com/image.jpg",
+        "description": "Product description",
+        "brand": {
+          "@type": "Brand",
+          "name": "Your Brand"
+        },
+        "offers": {
+          "@type": "Offer",
+          "price": "999",
+          "priceCurrency": "INR",
+          "availability": "https://schema.org/InStock"
+        }
+      }
+      </script>
+
       {/* ================= STYLES ================= */}
       <style jsx>{`
         .container {
