@@ -129,21 +129,50 @@ export default function Home() {
                       )}
                     </div>
 
-                    {/* ✅ FIXED ADD TO CART */}
-                    <button
-                      onClick={() => {
-                        addToCart({
-                          productId: p._id,
-                          productKey: p.productKey,
-                          name: p.name,
-                          price: Number(p.displayPrice || p.minPrice || 0),
-                          image: p.images?.[0] || "",
-                          qty: 1,
-                        });
-                      }}
-                    >
-                      Add to Cart
-                    </button>
+                   {/* BUTTON ROW */}
+                    <div className="btnRow">
+                
+                      {/* ADD TO CART */}
+                      <button
+                        onClick={() => {
+                          addToCart({
+                            productId: p._id,
+                            productKey: p.productKey,
+                            name: p.name,
+                            price: Number(p.displayPrice || p.minPrice || 0),
+                            image: p.images?.[0] || "",
+                            qty: 1,
+                          });
+                        }}
+                      >
+                        Add to Cart
+                      </button>
+                
+                      {/* SHARE BUTTON */}
+                      <button
+                        className="shareBtn"
+                        onClick={() => {
+                          const url = `${window.location.origin}/products/${p.slug || p._id}`;
+                          const text = `Check out this product: ${p.name}`;
+                
+                          // Native share (mobile)
+                          if (navigator.share) {
+                            navigator.share({
+                              title: p.name,
+                              text,
+                              url,
+                            });
+                          } else {
+                            // fallback copy
+                            navigator.clipboard.writeText(url);
+                            alert("Link copied!");
+                          }
+                        }}
+                      >
+                        Share
+                      </button>
+                
+                    </div>
                   </div>
                 </div>
               );
@@ -323,6 +352,32 @@ export default function Home() {
           font-size: 18px;
         }
 
+        .btnRow {
+          display: flex;
+          gap: 10px;
+          margin-top: 10px;
+        }
+        
+        .shareBtn {
+          flex: 1;
+          background: #222;
+          color: white;
+          border: none;
+          border-radius: 8px;
+          cursor: pointer;
+          padding: 10px;
+        }
+        
+        .productBody button {
+          flex: 1;
+          padding: 10px;
+          border: none;
+          border-radius: 8px;
+          cursor: pointer;
+          background: #c28b45;
+          color: white;
+        }
+        
         .mrp {
           text-decoration: line-through;
           color: #888;
