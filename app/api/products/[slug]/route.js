@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import Product from "@/models/Product";
 
-/* ================= GET PRODUCT BY SLUG ================= */
+export const dynamic = "force-dynamic";
+
 export async function GET(req, { params }) {
   try {
     await connectDB();
@@ -16,7 +17,6 @@ export async function GET(req, { params }) {
       );
     }
 
-    /* ================= FIND PRODUCT ================= */
     const product = await Product.findOne({
       slug,
       isActive: true,
@@ -30,7 +30,6 @@ export async function GET(req, { params }) {
       );
     }
 
-    /* ================= VARIANTS ================= */
     const variants = product.variants?.length
       ? product.variants
       : product.primaryVariant
@@ -39,34 +38,21 @@ export async function GET(req, { params }) {
 
     const currentVariant = variants[0] || {};
 
-    /* ================= RESPONSE ================= */
     return NextResponse.json({
       success: true,
       product: {
-        _id: product._id,
-        name: product.name,
-        slug: product.slug,
-        productKey: product.productKey,
-        description: product.description,
-        shortDescription: product.shortDescription,
-        images: product.images || [],
-
+        ...product,
         sellingPrice:
           currentVariant?.sellingPrice || product?.pricing?.sellingPrice || 0,
-
         mrp:
           currentVariant?.mrp || product?.pricing?.mrp || 0,
-
         stock: currentVariant?.stock || 0,
       },
       variants,
     });
-
   } catch (err) {
-    console.error("API ERROR:", err);
-
     return NextResponse.json(
-      { success: false, message: "Server error" },
+      { success: false, message: err.message },
       { status: 500 }
     );
   }
