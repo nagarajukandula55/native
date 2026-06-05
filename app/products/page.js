@@ -84,9 +84,8 @@ function handleShare(p) {
   try {
     const url = `${window.location.origin}/products/${p.slug}`;
 
-    const text = `🛍️ Check this product:\n\n${p.name}\n₹${p.displayPrice || 0}\n\n👉 ${url}`;
+    const text = `🛍️ ${p.name}\n₹${p.displayPrice || 0}\n\n${url}`;
 
-    // Web Share API (mobile + modern browsers)
     if (navigator.share) {
       navigator.share({
         title: p.name,
@@ -96,184 +95,111 @@ function handleShare(p) {
       return;
     }
 
-    // fallback → WhatsApp
-    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
-    window.open(whatsappUrl, "_blank");
+    window.open(
+      `https://wa.me/?text=${encodeURIComponent(text)}`,
+      "_blank"
+    );
 
-  } catch (err) {
-    console.error("Share failed:", err);
+  } catch (e) {
+    console.error(e);
   }
 }
 
   /* ================= UI ================= */
-  return (
-    <div className="container">
-      <h1>All Products</h1>
+return (
+  <div className="container">
 
-      <div className="grid">
-        {products.map((p) => {
-          const price = p.displayPrice || 0;
-          const mrp = p.mrp || 0;
+    <h1>All Products</h1>
 
-          const discount =
-            mrp && price
-              ? Math.round(((mrp - price) / mrp) * 100)
-              : 0;
+    <div className="grid">
+      {products.map((p) => {
+        const price = p.displayPrice || 0;
+        const mrp = p.mrp || 0;
 
-          return (
-            <div key={p.productKey} className="card">
+        const discount =
+          mrp && price
+            ? Math.round(((mrp - price) / mrp) * 100)
+            : 0;
 
-              {/* LINK AREA */}
-              <Link href={`/products/${p.slug}`} className="link">
+        return (
+          <div key={p._id} className="card">
 
-                <div className="imgWrap">
-                  <img
-                    src={p.images?.[0] || "/no-image.png"}
-                    alt={p.name}
-                  />
-
-                  {discount > 0 && (
-                    <span className="badge">{discount}% OFF</span>
-                  )}
-                </div>
-
-                <div className="content">
-                  <h3>{p.name}</h3>
-
-                  {p.shortDescription && (
-                    <p className="desc">{p.shortDescription}</p>
-                  )}
-
-                  <div className="price">
-                    <span className="sell">₹{price}</span>
-                    {mrp > price && (
-                      <span className="mrp">₹{mrp}</span>
-                    )}
-                  </div>
-                </div>
-              </Link>
-
-              {/* ADD TO CART */}
-              <div style={{ display: "flex", gap: 8, margin: 10 }}>
-  
-                <button
-                  className="cartBtn"
-                  style={{ flex: 1 }}
-                  disabled={addingId === p.productKey}
-                  onClick={() => handleAddToCart(p)}
-                >
-                  {addingId === p.productKey ? "Adding..." : "Add to Cart"}
-                </button>
-              
-                <button
-                  onClick={() => handleShare(p)}
-                  style={{
-                    padding: "10px 12px",
-                    borderRadius: 6,
-                    border: "1px solid #ddd",
-                    background: "#fff",
-                    cursor: "pointer",
-                    fontSize: 13,
-                    whiteSpace: "nowrap"
-                  }}
-                >
-                  📤 Share
-                </button>
-              
+            <Link href={`/products/${p.slug}`}>
+              <div className="imgWrap">
+                <img src={p.images?.[0]} alt={p.name} />
+                {discount > 0 && (
+                  <span className="badge">{discount}% OFF</span>
+                )}
               </div>
 
-      {/* ================= STYLES ================= */}
-      <style jsx>{`
-        .container {
-          max-width: 1200px;
-          margin: auto;
-          padding: 20px;
-        }
+              <div className="content">
+                <h3>{p.name}</h3>
+                <div className="price">
+                  <span className="sell">₹{price}</span>
+                  {mrp > price && <span className="mrp">₹{mrp}</span>}
+                </div>
+              </div>
+            </Link>
 
-        .grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-          gap: 20px;
-        }
+            {/* ACTIONS */}
+            <div style={{ display: "flex", gap: 8, margin: 10 }}>
+              <button
+                className="cartBtn"
+                style={{ flex: 1 }}
+                disabled={addingId === p._id}
+                onClick={() => handleAddToCart(p)}
+              >
+                {addingId === p._id ? "Adding..." : "Add to Cart"}
+              </button>
 
-        .card {
-          background: #fff;
-          border-radius: 12px;
-          overflow: hidden;
-          border: 1px solid #eee;
-          display: flex;
-          flex-direction: column;
-          transition: 0.25s;
-        }
+              <button
+                onClick={() => handleShare(p)}
+                style={{
+                  padding: "10px 12px",
+                  border: "1px solid #ddd",
+                  background: "#fff",
+                  cursor: "pointer",
+                }}
+              >
+                📤
+              </button>
+            </div>
 
-        .card:hover {
-          transform: translateY(-6px);
-          box-shadow: 0 10px 25px rgba(0,0,0,0.08);
-        }
-
-        .imgWrap {
-          position: relative;
-        }
-
-        img {
-          width: 100%;
-          height: 200px;
-          object-fit: cover;
-        }
-
-        .badge {
-          position: absolute;
-          top: 10px;
-          left: 10px;
-          background: #e53935;
-          color: #fff;
-          padding: 4px 8px;
-          font-size: 12px;
-          border-radius: 5px;
-        }
-
-        .content {
-          padding: 12px;
-        }
-
-        .desc {
-          font-size: 13px;
-          color: #666;
-          margin-bottom: 8px;
-          display: -webkit-box;
-          -webkit-line-clamp: 2;
-          -webkit-box-orient: vertical;
-          overflow: hidden;
-        }
-
-        .price {
-          display: flex;
-          gap: 8px;
-        }
-
-        .sell {
-          font-weight: bold;
-        }
-
-        .mrp {
-          text-decoration: line-through;
-          color: #888;
-        }
-
-        .cartBtn {
-          margin: 10px;
-          padding: 10px;
-          border: none;
-          background: black;
-          color: white;
-          border-radius: 6px;
-          cursor: pointer;
-        }
-
-        .cartBtn:disabled {
-          background: #aaa;
-        }
-      `}</style>
+          </div>
+        );
+      })}
     </div>
-  );
-}
+
+    {/* 👇 IMPORTANT: styles OUTSIDE map and OUTSIDE buttons */}
+    <style jsx>{`
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        gap: 20px;
+      }
+
+      .card {
+        background: #fff;
+        border-radius: 12px;
+        border: 1px solid #eee;
+      }
+
+      img {
+        width: 100%;
+        height: 200px;
+        object-fit: cover;
+      }
+
+      .badge {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        background: red;
+        color: #fff;
+        padding: 4px 8px;
+        font-size: 12px;
+      }
+    `}</style>
+
+  </div>
+);
