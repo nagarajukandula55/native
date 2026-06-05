@@ -1,8 +1,24 @@
+"use client";
+
+import { useEffect } from "react";
+import { viewProduct } from "@/lib/gtag";
 import { NextResponse } from "next/server";
 import connectDB from "@/lib/db";
 import Product from "@/models/Product";
 
 export const dynamic = "force-dynamic";
+
+export default function ProductPage({ product }) {
+  useEffect(() => {
+    viewProduct({
+      id: product.primaryVariant?.sku,
+      title: product.name,
+      price: product.primaryVariant?.sellingPrice,
+    });
+  }, []);
+
+  return <div>{product.name}</div>;
+}
 
 export async function GET(req, { params }) {
   try {
