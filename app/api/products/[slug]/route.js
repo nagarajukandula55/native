@@ -8,29 +8,70 @@ export async function GET(req, { params }) {
   try {
     await connectDB();
 
-    if (!params?.slug) {
+    const slug = params?.slug;
+
+    if (!slug) {
       return NextResponse.json(
-        { success: false, message: "Missing slug" },
+        {
+          success: false,
+          message: "Missing slug",
+        },
         { status: 400 }
       );
     }
 
     const product = await Product.findOne({
-      slug: params.slug,
+      slug,
     }).lean();
 
     if (!product) {
       return NextResponse.json(
-        { success: false, message: "Not found" },
+        {
+          success: false,
+          message: "Product not found",
+        },
         { status: 404 }
       );
     }
 
+    const variants =
+      product?.variants?.length > 0
+        ? product.variants
+        : product?.primaryVariant
+        ? [product.primaryVariant]
+        : [];
+
+    const currentVariant = variants[0] || {};
+
     return NextResponse.json({
       success: true,
-      product,
-    });
 
+      product: {
+        ...product,
+
+        sellingPrice:
+          currentVariant?.sellingPrice ??
+          product?.sellingPrice ??
+          0,
+
+        mrp:
+          currentVariant?.mrp ??
+          product?.mrp ??
+          0,
+
+        stock:
+          currentVariant?.stock ??
+          product?.stock ??
+          0,
+
+        images:
+          currentVariant?.images?.length
+            ? currentVariant.images
+            : product?.images || [],
+      },
+
+      variants,
+    });
   } catch (err) {
     console.error("PRODUCT API ERROR:", err);
 
