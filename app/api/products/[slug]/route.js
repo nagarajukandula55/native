@@ -1,42 +1,8 @@
-"use client";
-
-import { useEffect } from "react";
-import { viewProduct } from "@/lib/gtag";
-import { NextResponse } from "next/server";
-import connectDB from "@/lib/db";
-import Product from "@/models/Product";
-
-export const dynamic = "force-dynamic";
-
 import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import Product from "@/models/Product";
 
-export async function GET(req, { params }) {
-  try {
-    await connectDB();
-
-    const product = await Product.findOne({ slug: params.slug });
-
-    if (!product) {
-      return NextResponse.json(
-        { success: false, message: "Product not found" },
-        { status: 404 }
-      );
-    }
-
-    return NextResponse.json({
-      success: true,
-      product,
-    });
-  } catch (error) {
-    return NextResponse.json(
-      { success: false, message: error.message },
-      { status: 500 }
-    );
-  }
-}
-
+/* ================= GET PRODUCT BY SLUG ================= */
 export async function GET(req, { params }) {
   try {
     await connectDB();
@@ -50,7 +16,7 @@ export async function GET(req, { params }) {
       );
     }
 
-    /* ✅ FIND PRODUCT */
+    /* ================= FIND PRODUCT ================= */
     const product = await Product.findOne({
       slug,
       isActive: true,
@@ -64,7 +30,7 @@ export async function GET(req, { params }) {
       );
     }
 
-    /* ✅ VARIANTS */
+    /* ================= VARIANTS ================= */
     const variants = product.variants?.length
       ? product.variants
       : product.primaryVariant
@@ -73,7 +39,7 @@ export async function GET(req, { params }) {
 
     const currentVariant = variants[0] || {};
 
-    /* ✅ RESPONSE */
+    /* ================= RESPONSE ================= */
     return NextResponse.json({
       success: true,
       product: {
@@ -83,15 +49,19 @@ export async function GET(req, { params }) {
         productKey: product.productKey,
         description: product.description,
         shortDescription: product.shortDescription,
-        images: product.images,
+        images: product.images || [],
 
         sellingPrice:
-          currentVariant?.sellingPrice || product.sellingPrice,
-        mrp: currentVariant?.mrp || product.mrp,
+          currentVariant?.sellingPrice || product?.pricing?.sellingPrice || 0,
+
+        mrp:
+          currentVariant?.mrp || product?.pricing?.mrp || 0,
+
         stock: currentVariant?.stock || 0,
       },
       variants,
     });
+
   } catch (err) {
     console.error("API ERROR:", err);
 
