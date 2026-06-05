@@ -122,11 +122,13 @@ return (
             : 0;
 
         return (
-          <div key={p._id} className="card">
+          <div key={p._id || p.productKey} className="card">
 
+            {/* PRODUCT LINK */}
             <Link href={`/products/${p.slug}`}>
               <div className="imgWrap">
                 <img src={p.images?.[0]} alt={p.name} />
+
                 {discount > 0 && (
                   <span className="badge">{discount}% OFF</span>
                 )}
@@ -134,8 +136,9 @@ return (
 
               <div className="content">
                 <h3>{p.name}</h3>
+
                 <div className="price">
-                  <span className="sell">₹{price}</span>
+                  <span>₹{price}</span>
                   {mrp > price && <span className="mrp">₹{mrp}</span>}
                 </div>
               </div>
@@ -143,13 +146,13 @@ return (
 
             {/* ACTIONS */}
             <div style={{ display: "flex", gap: 8, margin: 10 }}>
+
               <button
                 className="cartBtn"
                 style={{ flex: 1 }}
-                disabled={addingId === p._id}
                 onClick={() => handleAddToCart(p)}
               >
-                {addingId === p._id ? "Adding..." : "Add to Cart"}
+                Add to Cart
               </button>
 
               <button
@@ -158,11 +161,11 @@ return (
                   padding: "10px 12px",
                   border: "1px solid #ddd",
                   background: "#fff",
-                  cursor: "pointer",
                 }}
               >
-                📤
+                📤 Share
               </button>
+
             </div>
 
           </div>
@@ -170,8 +173,14 @@ return (
       })}
     </div>
 
-    {/* 👇 IMPORTANT: styles OUTSIDE map and OUTSIDE buttons */}
+    {/* STYLES MUST ALWAYS BE OUTSIDE LOOP */}
     <style jsx>{`
+      .container {
+        max-width: 1200px;
+        margin: auto;
+        padding: 20px;
+      }
+
       .grid {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
@@ -182,6 +191,11 @@ return (
         background: #fff;
         border-radius: 12px;
         border: 1px solid #eee;
+        overflow: hidden;
+      }
+
+      .imgWrap {
+        position: relative;
       }
 
       img {
@@ -198,6 +212,24 @@ return (
         color: #fff;
         padding: 4px 8px;
         font-size: 12px;
+      }
+
+      .content {
+        padding: 12px;
+      }
+
+      .mrp {
+        text-decoration: line-through;
+        color: #888;
+      }
+
+      .cartBtn {
+        margin: 10px;
+        padding: 10px;
+        border: none;
+        background: black;
+        color: white;
+        border-radius: 6px;
       }
     `}</style>
 
