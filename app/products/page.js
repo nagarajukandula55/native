@@ -141,25 +141,21 @@ export default function ProductsPage() {
       </div>
 
 
-    <script type="application/ld+json">
-      {
-        "@context": "https://schema.org",
-        "@type": "Product",
-        "name": "Product Name",
-        "image": "https://yourdomain.com/image.jpg",
-        "description": "Product description",
-        "brand": {
-          "@type": "Brand",
-          "name": "Your Brand"
-        },
-        "offers": {
-          "@type": "Offer",
-          "price": "999",
-          "priceCurrency": "INR",
-          "availability": "https://schema.org/InStock"
-        }
-      }
-      </script>
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{
+        __html: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "ItemList",
+          itemListElement: products.slice(0, 10).map((p, index) => ({
+            "@type": "ListItem",
+            position: index + 1,
+            name: p.name,
+            url: `${window.location.origin}/products/${p.slug}`,
+          })),
+        }),
+      }}
+    />
 
       {/* ================= STYLES ================= */}
       <style jsx>{`
