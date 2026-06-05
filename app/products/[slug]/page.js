@@ -1,39 +1,40 @@
 import ProductView from "@/components/ProductView";
 import { notFound } from "next/navigation";
 
+/* ================= METADATA ================= */
 export async function generateMetadata({ params }) {
-  const res = await fetch(
-    `${process.env.NEXT_PUBLIC_BASE_URL}/api/products/${params.slug}`,
-    { cache: "no-store" }
-  );
+  try {
+    const res = await fetch(
+      `${process.env.NEXT_PUBLIC_BASE_URL}/api/products/${params.slug}`,
+      { cache: "no-store" }
+    );
 
-  if (!res.ok) {
+    if (!res.ok) {
+      return {
+        title: "Product Not Found",
+      };
+    }
+
+    const data = await res.json();
+    const p = data?.product;
+
     return {
-      title: "Product Not Found",
+      title: p?.name || "Product",
+      description: p?.description || "",
+      openGraph: {
+        title: p?.name,
+        description: p?.description,
+        images: p?.images ? [p.images[0]] : [],
+      },
+    };
+  } catch (err) {
+    return {
+      title: "Server Error",
     };
   }
-
-  let data = null;
-
-try {
-  data = await res.json();
-} catch (err) {
-  console.error("INVALID API RESPONSE");
-  return <div>Server Error</div>;
-}
-  const p = data?.product;
-
-  return {
-    title: p?.name || "Product",
-    description: p?.description || "",
-    openGraph: {
-      title: p?.name,
-      description: p?.description,
-      images: p?.images ? [p.images[0]] : [],
-    },
-  };
 }
 
+/* ================= PAGE ================= */
 export default async function ProductPage({ params }) {
   const slug = params?.slug;
 
@@ -41,22 +42,40 @@ export default async function ProductPage({ params }) {
 
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
 
-  const res = await fetch(`${baseUrl}/api/products/${slug}`, {
-    cache: "no-store",
-  });
+  let data;
 
-  if (!res.ok) return notFound();
+  try {
+    const res = await fetch(
+      `${baseUrl}/api/products/${slug}`,
+      { cache: "no-store" }
+    );
 
-  const data = await res.json();
+    if (!res.ok) return notFound();
+
+    data = await res.json();
+  } catch (err) {
+    return (
+      <div style={{ padding: 40, textAlign: "center" }}>
+        Server Error. Please try again later.
+      </div>
+    );
+  }
+
   const product = data?.product;
 
   if (!product) return notFound();
 
   const variants = (data?.variants || []).map((v) => ({
     ...v,
-    variant: v.variant || `${v.value || ""}${v.unit || ""}` || "Default",
+    variant:
+      v.variant || `${v.value || ""}${v.unit || ""}` || "Default",
     images: v.images?.length ? v.images : product.images || [],
   }));
 
-  return <ProductView product={product} variants={variants} />;
+  return (
+    <ProductView
+      product={product}
+      variants={variants}
+    />
+  );
 }
