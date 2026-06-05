@@ -1,78 +1,39 @@
 import { NextResponse } from "next/server";
-import Product from "@/models/Product";
 import connectDB from "@/lib/mongodb";
-import { transformProductForMerchant } from "@/lib/merchantTransform";
+import Product from "@/models/Product";
+
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
     await connectDB();
 
-  const products = await Product.find({
-    isDeleted: false,
-    isListed: true,
-    status: "approved",
-  });
+    const products = await Product.find({
+      isActive: true,
+      isListed: true,
+    }).lean();
 
-  const items = products
-    .map(transformProductForMerchant)
-    .filter(Boolean);
+    const feed = products.map((p) => ({
+      id: p._id,
+      title: p.name,
+      description: p.description || "",
+      link: `https://yourdomain.com/products/${p.slug}`,
+      image_link: p.images?.[0] || "",
+      price: p.pricing?.sellingPrice || 0,
+      availability: p.stock > 0 ? "in stock" : "out of stock",
+      condition: "new",
+      brand: p.brand || "Native",
+    }));
 
-  const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0"
- xmlns:g="http://base.google.com/ns/1.0">
-
-<channel>
-  <title>Your Store Merchant Feed</title>
-  <link>https://yourdomain.com</link>
-  <description>Auto-generated Google Shopping Feed</description>
-
-  ${items
-    .map((p) => {
-      return `
-  <item>
-    <g:id>${p.id}</g:id>
-    <g:title><![CDATA[${p.title}]]></g:title>
-    <g:description><![CDATA[${p.description}]]></g:description>
-    <g:link>${p.link}</g:link>
-    <g:image_link>${p.image}</g:image_link>
-
-    <g:brand>${p.brand}</g:brand>
-
-    <g:availability>${p.availability}</g:availability>
-
-    <g:price>${p.price}</g:price>
-
-    ${
-      p.salePrice
-        ? `<g:sale_price>${p.salePrice}</g:sale_price>`
-        : ""
-    }
-
-    <g:condition>${p.condition}</g:condition>
-
-    ${
-      p.gtin
-        ? `<g:gtin>${p.gtin}</g:gtin>`
-        : ""
-    }
-
-    ${
-      p.googleCategory
-        ? `<g:google_product_category>${p.googleCategory}</g:google_product_category>`
-        : ""
-    }
-
-  </item>`;
-    })
-    .join("")}
-
-</channel>
-</rss>`;
-
-  return new NextResponse(xml, {
-    headers: {
-      "Content-Type": "application/xml",
-      "Cache-Control": "s-maxage=3600, stale-while-revalidate=86400",
-    },
-  });
+    return NextResponse.json(feed, {
+      headers: {
+        "Cache-Control": "s-maxage=3600, stale-while-revalidate=86400",
+      },
+    });
+  } catch (err) {
+    return NextResponse.json(
+      { success: false, message: err.message },
+      { status: 500 }
+    );
+  }
 }
