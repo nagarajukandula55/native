@@ -7,6 +7,20 @@ import Script from "next/script";
 
 export const dynamic = "force-dynamic";
 
+export const metadata = {
+  title: "Your Store - Best Online Shopping",
+  description: "Shop quality products at best prices with fast delivery.",
+  keywords: ["ecommerce", "shopping", "online store"],
+  metadataBase: new URL("https://yourdomain.com"),
+  openGraph: {
+    title: "Your Store",
+    description: "Best online shopping experience",
+    url: "https://yourdomain.com",
+    siteName: "Your Store",
+    type: "website",
+  },
+};
+
 /* ================= FONTS ================= */
 
 const inter = Inter({
