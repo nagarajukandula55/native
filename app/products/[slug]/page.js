@@ -1,4 +1,4 @@
-import ProductView from "./ProductView";
+import ProductView from "@/components/ProductView";
 
 export default async function ProductPage({ params }) {
   const slug = decodeURIComponent(params?.slug || "");
