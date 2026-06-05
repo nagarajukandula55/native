@@ -94,6 +94,7 @@ export default function ProductsPage() {
 
       <div className="grid">
         {products.map((p) => {
+          if (!p?._id || !p?.slug) return null;
           const price = p.displayPrice || 0;
           const mrp = p.mrp || 0;
 
@@ -105,7 +106,8 @@ export default function ProductsPage() {
           return (
             <div key={p._id} className="card">
 
-              <Link href={`/products/${p.slug}`} className="link">
+              {p.slug && (
+                <Link href={`/products/${encodeURIComponent(p.slug)}`} className="link">
                 <div className="imgWrap">
                   <img src={p.images?.[0] || "/no-image.png"} />
                   {discount > 0 && (
@@ -151,7 +153,7 @@ export default function ProductsPage() {
             "@type": "ListItem",
             position: index + 1,
             name: p.name,
-            url: `${window.location.origin}/products/${p.slug}`,
+            url: `https://shopnative.in/products/${p.slug}`,
           })),
         }),
       }}
