@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import Product from "@/models/Product";
-import { connectDB } from "@/lib/db";
+import connectDB from "@/lib/mongodb";
 import { transformProductForMerchant } from "@/lib/merchantTransform";
 
 export async function GET() {
-  await connectDB();
+  try {
+    await connectDB();
 
   const products = await Product.find({
     isDeleted: false,
