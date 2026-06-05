@@ -2,6 +2,20 @@
 
 import ProductView from "@/components/ProductView";
 
+export async function generateMetadata({ params }) {
+  const product = await getProduct(params.slug);
+
+  return {
+    title: product.name,
+    description: product.description,
+    openGraph: {
+      title: product.name,
+      description: product.description,
+      images: [product.image],
+    },
+  };
+}
+
 export default async function ProductPage({ params }) {
   const slug = decodeURIComponent(params?.slug || "");
 
