@@ -1,4 +1,4 @@
-import { connectDB } from "@/lib/an-db";
+import { connectDB } from "@/lib/mongodb";
 import Blog from "@/models/Blog";
 
 export default async function BlogDetail({ params }) {
