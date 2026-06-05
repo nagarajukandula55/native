@@ -94,52 +94,58 @@ export default function ProductsPage() {
 
       <div className="grid">
         {products.map((p) => {
-          if (!p?._id || !p?.slug) return null;
-          const price = p.displayPrice || 0;
-          const mrp = p.mrp || 0;
+  if (!p?._id || !p?.slug) return null;
 
-          const discount =
-            mrp && price
-              ? Math.round(((mrp - price) / mrp) * 100)
-              : 0;
+  const price = p.displayPrice || 0;
+  const mrp = p.mrp || 0;
 
-          return (
-            <div key={p._id} className="card">
+  const discount =
+    mrp && price ? Math.round(((mrp - price) / mrp) * 100) : 0;
 
-              {p.slug && (
-                <Link href={`/products/${encodeURIComponent(p.slug)}`} className="link">
-                <div className="imgWrap">
-                  <img src={p.images?.[0] || "/no-image.png"} />
-                  {discount > 0 && (
-                    <span className="badge">{discount}% OFF</span>
-                  )}
-                </div>
+  return (
+    <div key={p._id} className="card">
 
-                <div className="content">
-                  <h3>{p.name}</h3>
-                  <p className="price">
-                    <b>₹{price}</b>{" "}
-                    {mrp > price && <span className="mrp">₹{mrp}</span>}
-                  </p>
-                </div>
-              </Link>
+      <Link href={`/products/${p.slug}`} className="link">
+        <div className="imgWrap">
+          <img src={p.images?.[0] || "/no-image.png"} />
 
-              <div className="actions">
-                <button
-                  onClick={() => handleAddToCart(p)}
-                  disabled={addingId === p._id}
-                  className="btn"
-                >
-                  {addingId === p._id ? "Adding..." : "Add to Cart"}
-                </button>
+          {discount > 0 && (
+            <span className="badge">{discount}% OFF</span>
+          )}
+        </div>
 
-                <button onClick={() => handleShare(p)} className="share">
-                  Share
-                </button>
-              </div>
-            </div>
-          );
-        })}
+        <div className="content">
+          <h3>{p.name}</h3>
+
+          <p className="price">
+            <b>₹{price}</b>{" "}
+            {mrp > price && (
+              <span className="mrp">₹{mrp}</span>
+            )}
+          </p>
+        </div>
+      </Link>
+
+      <div className="actions">
+        <button
+          onClick={() => handleAddToCart(p)}
+          disabled={addingId === p._id}
+          className="btn"
+        >
+          {addingId === p._id ? "Adding..." : "Add to Cart"}
+        </button>
+
+        <button
+          onClick={() => handleShare(p)}
+          className="share"
+        >
+          Share
+        </button>
+      </div>
+
+    </div>
+  );
+})}
       </div>
 
 
