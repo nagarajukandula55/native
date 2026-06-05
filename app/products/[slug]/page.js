@@ -1,3 +1,5 @@
+"use client";
+
 import ProductView from "@/components/ProductView";
 
 export default async function ProductPage({ params }) {
