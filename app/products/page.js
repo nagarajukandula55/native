@@ -78,6 +78,33 @@ export default function ProductsPage() {
     );
   }
 
+/* ============ Share ============= */
+
+function handleShare(p) {
+  try {
+    const url = `${window.location.origin}/products/${p.slug}`;
+
+    const text = `🛍️ Check this product:\n\n${p.name}\n₹${p.displayPrice || 0}\n\n👉 ${url}`;
+
+    // Web Share API (mobile + modern browsers)
+    if (navigator.share) {
+      navigator.share({
+        title: p.name,
+        text,
+        url,
+      });
+      return;
+    }
+
+    // fallback → WhatsApp
+    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
+    window.open(whatsappUrl, "_blank");
+
+  } catch (err) {
+    console.error("Share failed:", err);
+  }
+}
+
   /* ================= UI ================= */
   return (
     <div className="container">
@@ -127,20 +154,33 @@ export default function ProductsPage() {
               </Link>
 
               {/* ADD TO CART */}
-              <button
-                className="cartBtn"
-                disabled={addingId === p.productKey}
-                onClick={() => handleAddToCart(p)}
-              >
-                {addingId === p.productKey
-                  ? "Adding..."
-                  : "Add to Cart"}
-              </button>
-
-            </div>
-          );
-        })}
-      </div>
+              <div style={{ display: "flex", gap: 8, margin: 10 }}>
+  
+                <button
+                  className="cartBtn"
+                  style={{ flex: 1 }}
+                  disabled={addingId === p.productKey}
+                  onClick={() => handleAddToCart(p)}
+                >
+                  {addingId === p.productKey ? "Adding..." : "Add to Cart"}
+                </button>
+              
+                <button
+                  onClick={() => handleShare(p)}
+                  style={{
+                    padding: "10px 12px",
+                    borderRadius: 6,
+                    border: "1px solid #ddd",
+                    background: "#fff",
+                    cursor: "pointer",
+                    fontSize: 13,
+                    whiteSpace: "nowrap"
+                  }}
+                >
+                  📤 Share
+                </button>
+              
+              </div>
 
       {/* ================= STYLES ================= */}
       <style jsx>{`
