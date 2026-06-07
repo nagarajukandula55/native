@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useCart } from "@/context/CartContext";
+import { getProductDisplayName } from "@/lib/product";
 
 export default function ProductsPage() {
   const { addToCart } = useCart();
@@ -51,7 +52,7 @@ export default function ProductsPage() {
   function handleShare(p) {
     const url = `${window.location.origin}/products/${p.slug}`;
 
-    const text = `🛍️ ${p.name}\n₹${p.displayPrice || 0}\n\n${url}`;
+    const text = `🛍️ ${getProductDisplayName(p)}\n₹${p.displayPrice || 0}\n\n${url}`;
 
     if (navigator.share) {
       navigator.share({
@@ -115,7 +116,7 @@ export default function ProductsPage() {
         </div>
 
         <div className="content">
-          <h3>{p.name}</h3>
+          <h3>{getProductDisplayName(p)}</h3>
 
           <p className="price">
             <b>₹{price}</b>{" "}
@@ -158,7 +159,7 @@ export default function ProductsPage() {
           itemListElement: products.slice(0, 10).map((p, index) => ({
             "@type": "ListItem",
             position: index + 1,
-            name: p.name,
+            name: getProductDisplayName(p),
             url: `https://shopnative.in/products/${p.slug}`,
           })),
         }),
