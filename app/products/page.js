@@ -11,6 +11,7 @@ export default function ProductsPage() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [addingId, setAddingId] = useState(null);
+  const id = p.mongoId || p._id || p.productKey;
 
   useEffect(() => {
     fetch("/api/products", { cache: "no-store" })
