@@ -3,15 +3,9 @@ import connectDB from "@/lib/db";
 import Product from "@/models/Product";
 import { getProductDisplayName } from "@/lib/product";
 
-return {
-  products: products.map(p => ({
-    ...p.toObject(),
-    displayName: getProductDisplayName(p),
-  }))
-};
-
 export const dynamic = "force-dynamic";
 
+/* ================= GET PRODUCTS ================= */
 export async function GET(req) {
   try {
     await connectDB();
@@ -29,7 +23,7 @@ export async function GET(req) {
     const match = {
       status: "approved",
       isActive: true,
-      isListed: true, // 🔥 IMPORTANT FIX (only show listed products)
+      isListed: true,
     };
 
     if (category) {
@@ -44,28 +38,27 @@ export async function GET(req) {
     const pipeline = [
       { $match: match },
 
-      /* sort by price (safe nested path) */
       {
         $sort: {
           "primaryVariant.sellingPrice": 1,
         },
       },
 
-      /* ================= GROUP BY PRODUCT ================= */
+      /* ================= GROUP ================= */
       {
         $group: {
           _id: "$productKey",
-          mongoId: { $first: "$_id" }, // ✅ preserve real ID
+          mongoId: { $first: "$_id" },
 
           name: { $first: "$name" },
-          
+          brand: { $first: "$brand" }, // ✅ IMPORTANT (needed for display name)
+
           productKey: { $first: "$productKey" },
           slug: { $first: "$slug" },
           category: { $first: "$category" },
 
           images: { $first: "$images" },
 
-          /* PRICE */
           mrp: { $max: "$primaryVariant.mrp" },
           minPrice: { $min: "$primaryVariant.sellingPrice" },
           maxPrice: { $max: "$primaryVariant.sellingPrice" },
@@ -76,13 +69,11 @@ export async function GET(req) {
           createdAt: { $first: "$createdAt" },
 
           variantsCount: { $sum: 1 },
-
-          /* SKU tracking */
           skus: { $push: "$primaryVariant.sku" },
         },
       },
 
-      /* ================= DISCOUNT CALC ================= */
+      /* ================= CALCULATIONS ================= */
       {
         $addFields: {
           discount: {
@@ -112,7 +103,6 @@ export async function GET(req) {
         },
       },
 
-      /* newest first */
       { $sort: { createdAt: -1 } },
 
       /* ================= PAGINATION ================= */
@@ -131,14 +121,21 @@ export async function GET(req) {
 
     const result = await Product.aggregate(pipeline);
 
+    const products = result?.[0]?.data || [];
+
+    /* ================= ADD DISPLAY NAME HERE ================= */
+    const enrichedProducts = products.map((p) => ({
+      ...p,
+      displayName: getProductDisplayName(p),
+    }));
+
     return NextResponse.json({
       success: true,
-      products: result?.[0]?.data || [],
+      products: enrichedProducts,
       total: result?.[0]?.totalCount?.[0]?.count || 0,
       page,
       limit,
     });
-
   } catch (err) {
     console.error("PUBLIC PRODUCTS ERROR:", err);
 
