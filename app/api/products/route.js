@@ -54,6 +54,11 @@ export async function GET(req) {
           name: { $first: "$name" },
           brand: { $first: "$brand" }, // ✅ IMPORTANT (needed for display name)
 
+          shortDescription: { $first: "$shortDescription" }, // ✅ ADD THIS
+
+          sizeValue: { $first: "$primaryVariant.value" },     // ✅ ADD THIS
+          sizeUnit: { $first: "$primaryVariant.unit" },       // ✅ ADD THIS
+
           productKey: { $first: "$productKey" },
           slug: { $first: "$slug" },
           category: { $first: "$category" },
