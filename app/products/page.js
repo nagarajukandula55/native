@@ -11,7 +11,6 @@ export default function ProductsPage() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [addingId, setAddingId] = useState(null);
-  const id = p.mongoId || p._id || p.productKey;
 
   useEffect(() => {
     fetch("/api/products", { cache: "no-store" })
@@ -26,24 +25,22 @@ export default function ProductsPage() {
   /* ================= ADD TO CART ================= */
   function handleAddToCart(p) {
     try {
-      const id = p.mongoId || p._id;
+      const id = p.mongoId || p._id || p.productKey;
       if (!id) return;
 
       setAddingId(id);
 
-      const item = {
+      addToCart({
         _id: id,
         productId: id,
         productKey: p.productKey || id,
-        name: p.name || "Product",
+        name: p.displayName || p.name || "Product",
         price: Number(p.displayPrice || 0),
         mrp: Number(p.mrp || 0),
         image: p.images?.[0] || "/no-image.png",
         variant: "default",
         qty: 1,
-      };
-
-      addToCart(item);
+      });
     } finally {
       setTimeout(() => setAddingId(null), 200);
     }
@@ -57,7 +54,7 @@ export default function ProductsPage() {
 
     if (navigator.share) {
       navigator.share({
-        title: p.name,
+        title: p.displayName,
         text,
         url,
       });
@@ -89,85 +86,91 @@ export default function ProductsPage() {
     );
   }
 
-  /* ================= UI ================= */
-    <div className="grid">
-      {products.map((p) => {
-        if (!p?._id || !p?.slug) return null;
-    
-        const price = p.displayPrice || 0;
-        const mrp = p.mrp || 0;
-    
-        const discount =
-          mrp && price ? Math.round(((mrp - price) / mrp) * 100) : 0;
-    
-        return (
-          <div className="card" key={p._id}>
-            <Link href={`/products/${p.slug}`} className="link">
-              <div className="imgWrap">
-                <img src={p.images?.[0] || "/no-image.png"} />
-    
-                {discount > 0 && (
-                  <span className="badge">{discount}% OFF</span>
-                )}
-              </div>
-    
-              <div className="content">
-                <h3>{p.displayName}</h3>
-    
-                {/* SIZE */}
-                {p.sizeValue && (
-                  <p style={{ fontSize: "12px", color: "#666" }}>
-                    {p.sizeValue} {p.sizeUnit}
+  return (
+    <div className="container">
+      <h2>All Products</h2>
+
+      <div className="grid">
+        {products.map((p) => {
+          if (!p?._id || !p?.slug) return null;
+
+          const price = p.displayPrice || 0;
+          const mrp = p.mrp || 0;
+
+          const discount =
+            mrp && price ? Math.round(((mrp - price) / mrp) * 100) : 0;
+
+          return (
+            <div className="card" key={p._id}>
+              <Link href={`/products/${p.slug}`} className="link">
+                <div className="imgWrap">
+                  <img src={p.images?.[0] || "/no-image.png"} />
+
+                  {discount > 0 && (
+                    <span className="badge">{discount}% OFF</span>
+                  )}
+                </div>
+
+                <div className="content">
+                  <h3>{p.displayName}</h3>
+
+                  {/* SIZE */}
+                  {p.sizeValue && (
+                    <p style={{ fontSize: "12px", color: "#666" }}>
+                      {p.sizeValue} {p.sizeUnit}
+                    </p>
+                  )}
+
+                  {/* SHORT DESCRIPTION */}
+                  {p.shortDescription && (
+                    <p style={{ fontSize: "12px", color: "#888", marginTop: 4 }}>
+                      {p.shortDescription.slice(0, 60)}...
+                    </p>
+                  )}
+
+                  <p className="price">
+                    <b>₹{price}</b>
+                    {mrp > price && (
+                      <span className="mrp">₹{mrp}</span>
+                    )}
                   </p>
-                )}
-    
-                {/* SHORT DESCRIPTION */}
-                {p.shortDescription && (
-                  <p style={{ fontSize: "12px", color: "#888", marginTop: 4 }}>
-                    {p.shortDescription.slice(0, 60)}...
-                  </p>
-                )}
-    
-                <p className="price">
-                  <b>₹{price}</b>
-                  {mrp > price && <span className="mrp">₹{mrp}</span>}
-                </p>
+                </div>
+              </Link>
+
+              <div className="actions">
+                <button
+                  onClick={() => handleAddToCart(p)}
+                  disabled={addingId === p._id}
+                  className="btn"
+                >
+                  {addingId === p._id ? "Adding..." : "Add to Cart"}
+                </button>
+
+                <button onClick={() => handleShare(p)} className="share">
+                  Share
+                </button>
               </div>
-            </Link>
-    
-            <div className="actions">
-              <button
-                onClick={() => handleAddToCart(p)}
-                disabled={addingId === p._id}
-                className="btn"
-              >
-                {addingId === p._id ? "Adding..." : "Add to Cart"}
-              </button>
-    
-              <button onClick={() => handleShare(p)} className="share">
-                Share
-              </button>
             </div>
-          </div>
-        );
-      })}
-    </div>
-    
-    <script
-      type="application/ld+json"
-      dangerouslySetInnerHTML={{
-        __html: JSON.stringify({
-          "@context": "https://schema.org",
-          "@type": "ItemList",
-          itemListElement: products.slice(0, 10).map((p, index) => ({
-            "@type": "ListItem",
-            position: index + 1,
-            name: p.displayName,
-            url: `https://shopnative.in/products/${p.slug}`,
-          })),
-        }),
-      }}
-    />
+          );
+        })}
+      </div>
+
+      {/* ================= SEO JSON-LD ================= */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "ItemList",
+            itemListElement: products.slice(0, 10).map((p, index) => ({
+              "@type": "ListItem",
+              position: index + 1,
+              name: p.displayName,
+              url: `https://shopnative.in/products/${p.slug}`,
+            })),
+          }),
+        }}
+      />
 
       {/* ================= STYLES ================= */}
       <style jsx>{`
@@ -192,6 +195,10 @@ export default function ProductsPage() {
           flex-direction: column;
         }
 
+        .imgWrap {
+          position: relative;
+        }
+
         .imgWrap img {
           width: 100%;
           height: 200px;
@@ -200,7 +207,8 @@ export default function ProductsPage() {
 
         .badge {
           position: absolute;
-          margin: 10px;
+          top: 10px;
+          left: 10px;
           background: red;
           color: #fff;
           padding: 4px 8px;
