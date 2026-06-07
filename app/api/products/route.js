@@ -47,7 +47,7 @@ export async function GET(req) {
       /* ================= GROUP ================= */
       {
         $group: {
-          _id: { $first: "$_id" },
+          _id: "$productKey",
           mongoId: { $first: "$_id" },
           realId: { $first: "$_id" },
 
