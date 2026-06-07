@@ -133,49 +133,217 @@ export default function OrderSuccessClient() {
     }
   };
 
-  return (
-    <div style={styles.page}>
-      <div style={styles.card}>
-
-        <h1 style={styles.title}>Order Success</h1>
-
-        <div style={styles.orderCard}>
-          <div>
-            <div style={styles.label}>ORDER ID</div>
-            <div style={styles.orderId}>{orderId}</div>
-          </div>
-
-          <button onClick={copyOrderId} style={styles.copyBtn}>
-            Copy
-          </button>
-        </div>
-
+    return (
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "#f5f7fa",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        padding: "30px 15px",
+      }}
+    >
+      <div
+        style={{
+          width: "100%",
+          maxWidth: "750px",
+          background: "#fff",
+          borderRadius: "20px",
+          padding: "40px",
+          boxShadow:
+            "0 10px 30px rgba(0,0,0,0.08)",
+        }}
+      >
+        {/* SUCCESS ICON */}
+  
         <div
           style={{
-            ...styles.statusBox,
-            background: getStatusColor(),
+            textAlign: "center",
+            fontSize: "70px",
           }}
         >
-          {status}
+          ✅
         </div>
-
-        {invoice?.invoiceNumber && (
-          <div style={styles.infoBox}>
+  
+        {/* TITLE */}
+  
+        <h1
+          style={{
+            textAlign: "center",
+            marginTop: 10,
+            marginBottom: 10,
+            color: "#16a34a",
+          }}
+        >
+          Order Placed Successfully
+        </h1>
+  
+        <p
+          style={{
+            textAlign: "center",
+            color: "#666",
+            fontSize: "16px",
+            marginBottom: "30px",
+          }}
+        >
+          Thank you for shopping with
+          <strong> Native ❤️</strong>
+  
+          <br />
+  
+          Your order has been received and
+          payment was completed successfully.
+        </p>
+  
+        {/* ORDER DETAILS */}
+  
+        <div
+          style={{
+            background: "#f8fafc",
+            padding: "20px",
+            borderRadius: "12px",
+            marginBottom: "20px",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent:
+                "space-between",
+              alignItems: "center",
+            }}
+          >
             <div>
-              <b>Invoice:</b> {invoice.invoiceNumber}
+              <div
+                style={{
+                  fontSize: 12,
+                  color: "#666",
+                }}
+              >
+                ORDER ID
+              </div>
+  
+              <div
+                style={{
+                  fontWeight: 700,
+                  fontSize: 18,
+                }}
+              >
+                {orderId}
+              </div>
             </div>
-        
+  
+            <button
+              onClick={copyOrderId}
+              style={{
+                background: "#000",
+                color: "#fff",
+                border: "none",
+                padding: "10px 15px",
+                borderRadius: "8px",
+                cursor: "pointer",
+              }}
+            >
+              Copy
+            </button>
+          </div>
+        </div>
+  
+        {/* STATUS */}
+  
+        <div
+          style={{
+            background: getStatusColor(),
+            color: "#fff",
+            padding: "15px",
+            borderRadius: "10px",
+            textAlign: "center",
+            fontWeight: "bold",
+            marginBottom: "20px",
+          }}
+        >
+          Status : {status}
+        </div>
+  
+        {/* CUSTOMER DETAILS */}
+  
+        {order && (
+          <div
+            style={{
+              background: "#fafafa",
+              border: "1px solid #eee",
+              padding: "20px",
+              borderRadius: "12px",
+              marginBottom: "20px",
+            }}
+          >
+            <h3>
+              Customer Information
+            </h3>
+  
+            <p>
+              <strong>Name:</strong>{" "}
+              {order?.address?.name}
+            </p>
+  
+            <p>
+              <strong>Phone:</strong>{" "}
+              {order?.address?.phone}
+            </p>
+  
+            <p>
+              <strong>Email:</strong>{" "}
+              {order?.address?.email}
+            </p>
+  
+            <p>
+              <strong>Total Amount:</strong>{" "}
+              ₹{order?.amount}
+            </p>
+          </div>
+        )}
+  
+        {/* INVOICE */}
+  
+        {invoice?.invoiceNumber && (
+          <div
+            style={{
+              background: "#ecfdf5",
+              border:
+                "1px solid #10b981",
+              padding: "20px",
+              borderRadius: "12px",
+              marginBottom: "20px",
+            }}
+          >
+            <div>
+              <strong>
+                Invoice Generated
+              </strong>
+            </div>
+  
+            <div
+              style={{
+                marginTop: 5,
+              }}
+            >
+              Invoice No:
+              {" "}
+              {invoice.invoiceNumber}
+            </div>
+  
             <a
               href={`https://www.angroup.in/invoice/${invoice.invoiceNumber}`}
               target="_blank"
               rel="noopener noreferrer"
               style={{
                 display: "inline-block",
-                marginTop: "10px",
+                marginTop: "15px",
                 background: "#16a34a",
                 color: "#fff",
-                padding: "10px 15px",
-                borderRadius: "6px",
+                padding: "12px 18px",
+                borderRadius: "8px",
                 textDecoration: "none",
                 fontWeight: "600",
               }}
@@ -184,20 +352,76 @@ export default function OrderSuccessClient() {
             </a>
           </div>
         )}
-
-        <div style={styles.actions}>
-          <button
-            onClick={() => fetchOrder(orderId)}
-            style={styles.refreshBtn}
+  
+        {invoiceLoading && (
+          <div
+            style={{
+              textAlign: "center",
+              marginBottom: 20,
+            }}
           >
-            Refresh
+            Generating Invoice...
+          </div>
+        )}
+  
+        {/* ACTIONS */}
+  
+        <div
+          style={{
+            display: "flex",
+            gap: "10px",
+          }}
+        >
+          <button
+            onClick={() =>
+              fetchOrder(orderId)
+            }
+            style={{
+              flex: 1,
+              padding: "14px",
+              borderRadius: "8px",
+              border: "none",
+              cursor: "pointer",
+            }}
+          >
+            Refresh Status
           </button>
-
-          <Link href="/products">
-            <button style={styles.shopBtn}>Continue Shopping</button>
+  
+          <Link
+            href="/products"
+            style={{ flex: 1 }}
+          >
+            <button
+              style={{
+                width: "100%",
+                padding: "14px",
+                background:
+                  "#16a34a",
+                color: "#fff",
+                border: "none",
+                borderRadius: "8px",
+                cursor: "pointer",
+              }}
+            >
+              Continue Shopping
+            </button>
           </Link>
         </div>
-
+  
+        {/* FOOTER */}
+  
+        <div
+          style={{
+            textAlign: "center",
+            marginTop: "30px",
+            color: "#888",
+            fontSize: "13px",
+          }}
+        >
+          Thank you for choosing Native ❤️
+          <br />
+          We look forward to serving you again.
+        </div>
       </div>
     </div>
   );
