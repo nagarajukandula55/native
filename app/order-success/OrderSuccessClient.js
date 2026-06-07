@@ -60,7 +60,10 @@ export default function OrderSuccessClient() {
 
       const inv = data.order?.invoice;
 
-      if (inv?.invoiceNumber) {
+      if (
+        inv?.invoiceNumber ||
+        inv?.invoiceUrl
+      ) {
         setInvoice(inv);
       }
 
@@ -223,6 +226,18 @@ export default function OrderSuccessClient() {
               >
                 ORDER ID
               </div>
+
+              {order?.address?.email && (
+                  <div
+                    style={{
+                      marginTop: "10px",
+                      color: "#666",
+                      fontSize: "14px",
+                    }}
+                  >
+                    Email: {order.address.email}
+                  </div>
+                )}
   
               <div
                 style={{
