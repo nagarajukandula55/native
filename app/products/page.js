@@ -117,13 +117,25 @@ export default function ProductsPage() {
         </div>
 
         <div className="content">
-          <h3>{getProductDisplayName(p)}</h3>
-
+          <h3>{p.displayName}</h3>
+        
+          {/* SIZE */}
+          {p.sizeValue && (
+            <p style={{ fontSize: "12px", color: "#666" }}>
+              {p.sizeValue} {p.sizeUnit}
+            </p>
+          )}
+        
+          {/* SHORT DESCRIPTION */}
+          {p.shortDescription && (
+            <p style={{ fontSize: "12px", color: "#888", marginTop: 4 }}>
+              {p.shortDescription.slice(0, 60)}...
+            </p>
+          )}
+        
           <p className="price">
-            <b>₹{price}</b>{" "}
-            {mrp > price && (
-              <span className="mrp">₹{mrp}</span>
-            )}
+            <b>₹{price}</b>
+            {mrp > price && <span className="mrp">₹{mrp}</span>}
           </p>
         </div>
       </Link>
