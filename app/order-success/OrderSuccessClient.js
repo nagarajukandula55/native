@@ -86,7 +86,7 @@ export default function OrderSuccessClient() {
       setInvoiceLoading(true);
 
       const res = await fetch(
-        "https://www.angroup.in/invoice/generate",
+        "https://www.angroup.in/api/invoice/generate",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
