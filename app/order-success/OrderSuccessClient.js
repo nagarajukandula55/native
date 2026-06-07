@@ -161,7 +161,27 @@ export default function OrderSuccessClient() {
 
         {invoice?.invoiceNumber && (
           <div style={styles.infoBox}>
-            <b>Invoice: {invoice.invoiceNumber}</b>
+            <div>
+              <b>Invoice:</b> {invoice.invoiceNumber}
+            </div>
+        
+            <a
+              href={`/invoice/${invoice.invoiceNumber}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: "inline-block",
+                marginTop: "10px",
+                background: "#16a34a",
+                color: "#fff",
+                padding: "10px 15px",
+                borderRadius: "6px",
+                textDecoration: "none",
+                fontWeight: "600",
+              }}
+            >
+              Download Invoice
+            </a>
           </div>
         )}
 
