@@ -86,7 +86,7 @@ export default function OrderSuccessClient() {
       setInvoiceLoading(true);
 
       const res = await fetch(
-        "https://www.angroup.in/api/invoice/generate",
+        "https://www.angroup.in/invoice/generate",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -166,7 +166,7 @@ export default function OrderSuccessClient() {
             </div>
         
             <a
-              href={`/invoice/${invoice.invoiceNumber}`}
+              href={`https://www.angroup.in/invoice/${invoice.invoiceNumber}`}
               target="_blank"
               rel="noopener noreferrer"
               style={{
