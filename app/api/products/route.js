@@ -47,8 +47,9 @@ export async function GET(req) {
       /* ================= GROUP ================= */
       {
         $group: {
-          _id: "$productKey",
+          _id: { $first: "$_id" },
           mongoId: { $first: "$_id" },
+          realId: { $first: "$_id" },
 
           name: { $first: "$name" },
           brand: { $first: "$brand" }, // ✅ IMPORTANT (needed for display name)
@@ -126,6 +127,7 @@ export async function GET(req) {
     /* ================= ADD DISPLAY NAME HERE ================= */
     const enrichedProducts = products.map((p) => ({
       ...p,
+      _id: p.mongoId || p._id,
       displayName: getProductDisplayName(p),
     }));
 
