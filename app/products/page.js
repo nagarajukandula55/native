@@ -90,79 +90,69 @@ export default function ProductsPage() {
   }
 
   /* ================= UI ================= */
-  return (
-    <div className="container">
-      <h2>All Products</h2>
-
-      <div className="grid">
-        {products.map((p) => {
-  if (!p?._id || !p?.slug) return null;
-
-  const price = p.displayPrice || 0;
-  const mrp = p.mrp || 0;
-
-  const discount =
-    mrp && price ? Math.round(((mrp - price) / mrp) * 100) : 0;
-
-  return (
-    <div key={p._id} className="card">
-
-      <Link href={`/products/${p.slug}`} className="link">
-        <div className="imgWrap">
-          <img src={p.images?.[0] || "/no-image.png"} />
-
-          {discount > 0 && (
-            <span className="badge">{discount}% OFF</span>
-          )}
-        </div>
-
-        <div className="content">
-          <h3>{p.displayName}</h3>
-        
-          {/* SIZE */}
-          {p.sizeValue && (
-            <p style={{ fontSize: "12px", color: "#666" }}>
-              {p.sizeValue} {p.sizeUnit}
-            </p>
-          )}
-        
-          {/* SHORT DESCRIPTION */}
-          {p.shortDescription && (
-            <p style={{ fontSize: "12px", color: "#888", marginTop: 4 }}>
-              {p.shortDescription.slice(0, 60)}...
-            </p>
-          )}
-        
-          <p className="price">
-            <b>₹{price}</b>
-            {mrp > price && <span className="mrp">₹{mrp}</span>}
-          </p>
-        </div>
-      </Link>
-
-      <div className="actions">
-        <button
-          onClick={() => handleAddToCart(p)}
-          disabled={addingId === p._id}
-          className="btn"
-        >
-          {addingId === p._id ? "Adding..." : "Add to Cart"}
-        </button>
-
-        <button
-          onClick={() => handleShare(p)}
-          className="share"
-        >
-          Share
-        </button>
-      </div>
-
+    <div className="grid">
+      {products.map((p) => {
+        if (!p?._id || !p?.slug) return null;
+    
+        const price = p.displayPrice || 0;
+        const mrp = p.mrp || 0;
+    
+        const discount =
+          mrp && price ? Math.round(((mrp - price) / mrp) * 100) : 0;
+    
+        return (
+          <div className="card" key={p._id}>
+            <Link href={`/products/${p.slug}`} className="link">
+              <div className="imgWrap">
+                <img src={p.images?.[0] || "/no-image.png"} />
+    
+                {discount > 0 && (
+                  <span className="badge">{discount}% OFF</span>
+                )}
+              </div>
+    
+              <div className="content">
+                <h3>{p.displayName}</h3>
+    
+                {/* SIZE */}
+                {p.sizeValue && (
+                  <p style={{ fontSize: "12px", color: "#666" }}>
+                    {p.sizeValue} {p.sizeUnit}
+                  </p>
+                )}
+    
+                {/* SHORT DESCRIPTION */}
+                {p.shortDescription && (
+                  <p style={{ fontSize: "12px", color: "#888", marginTop: 4 }}>
+                    {p.shortDescription.slice(0, 60)}...
+                  </p>
+                )}
+    
+                <p className="price">
+                  <b>₹{price}</b>
+                  {mrp > price && <span className="mrp">₹{mrp}</span>}
+                </p>
+              </div>
+            </Link>
+    
+            <div className="actions">
+              <button
+                onClick={() => handleAddToCart(p)}
+                disabled={addingId === p._id}
+                className="btn"
+              >
+                {addingId === p._id ? "Adding..." : "Add to Cart"}
+              </button>
+    
+              <button onClick={() => handleShare(p)} className="share">
+                Share
+              </button>
+            </div>
+          </div>
+        );
+      })}
     </div>
-  );
-})}
-      </div>
-
-
+    
     <script
       type="application/ld+json"
       dangerouslySetInnerHTML={{
@@ -172,7 +162,7 @@ export default function ProductsPage() {
           itemListElement: products.slice(0, 10).map((p, index) => ({
             "@type": "ListItem",
             position: index + 1,
-            name: getProductDisplayName(p),
+            name: p.displayName,
             url: `https://shopnative.in/products/${p.slug}`,
           })),
         }),
