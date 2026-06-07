@@ -163,7 +163,7 @@ export default function ProductsPage() {
             "@type": "ListItem",
             position: index + 1,
             name: p.displayName,
-            url: `https://shopnative.in/products/${p.slug}`,
+            url: `${window.location.origin}/products/${p.slug}`,
           })),
         }),
       }}
