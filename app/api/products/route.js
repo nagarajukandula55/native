@@ -1,6 +1,14 @@
 import { NextResponse } from "next/server";
 import connectDB from "@/lib/db";
 import Product from "@/models/Product";
+import { getProductDisplayName } from "@/lib/product";
+
+return {
+  products: products.map(p => ({
+    ...p.toObject(),
+    displayName: getProductDisplayName(p),
+  }))
+};
 
 export const dynamic = "force-dynamic";
 
