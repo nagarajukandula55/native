@@ -189,7 +189,14 @@ export async function POST(req) {
     };
 
     // ================= SAVE =================
-    const newProduct = await Product.create(productData);
+    console.log(
+     "📦 FINAL PRODUCT DATA:",
+     JSON.stringify(productData, null, 2)
+   );
+   
+   const newProduct = await Product.create(productData);
+   
+   console.log("✅ PRODUCT SAVED:", newProduct._id);
 
     return NextResponse.json({
       success: true,
