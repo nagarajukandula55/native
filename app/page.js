@@ -110,6 +110,13 @@ export default function Home() {
                     {/* NAME */}
                     <h3>{p.name}</h3>
 
+                    {/* SIZE */}
+                    {p.sizeValue && (
+                      <p style={{ fontSize: "12px", color: "#666" }}>
+                        {p.sizeValue} {p.sizeUnit}
+                      </p>
+                    )}
+
                     {/* DESCRIPTION */}
                     <p className="desc">
                       {p.shortDescription ||
