@@ -87,7 +87,7 @@ export default function Home() {
           <p className="center">No products found</p>
         ) : (
           <div className="productGrid">
-            {products.slice(0, 5).map((p) => {
+            {products.slice(0, 4).map((p) => {
               const price = p.displayPrice || p.minPrice || 0;
               const mrp = p.mrp || 0;
 
