@@ -87,7 +87,7 @@ export default function Home() {
           <p className="center">No products found</p>
         ) : (
           <div className="productGrid">
-            {products.map((p) => {
+            {products.slice(0, 5).map((p) => {
               const price = p.displayPrice || p.minPrice || 0;
               const mrp = p.mrp || 0;
 
@@ -134,6 +134,17 @@ export default function Home() {
                           <span className="off">{discount}% OFF</span>
                         </>
                       )}
+                    </div>
+
+                  <div className="viewAllWrap">
+                      <button
+                        className="viewAllBtn"
+                        onClick={() => {
+                          window.location.href = "/products";
+                        }}
+                      >
+                        View All Products
+                      </button>
                     </div>
 
                    {/* BUTTON ROW */}
@@ -320,6 +331,26 @@ export default function Home() {
           overflow: hidden;
           box-shadow: 0 5px 15px rgba(0,0,0,0.05);
           height: 100%;
+        }
+
+        .viewAllWrap {
+          text-align: center;
+          margin-top: 40px;
+        }
+        
+        .viewAllBtn {
+          background: #222;
+          color: white;
+          padding: 14px 35px;
+          border-radius: 30px;
+          font-size: 15px;
+          cursor: pointer;
+          border: none;
+          transition: 0.3s;
+        }
+        
+        .viewAllBtn:hover {
+          transform: translateY(-2px);
         }
 
         .productCard img {
