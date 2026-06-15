@@ -112,7 +112,7 @@ export default function ProductUpload() {
     : form.name;
 
   const categoryMap = {
-    "Instant Mixes": ["Dosa Mix", "Idli Mix", "Ragi Mix"],
+    "Instant Mixes": ["Dosa Mix", "Idli Mix", "Ragi Mix", "Vada Mix", "Chutney Mix", "Juice Mix"],
     "Spices & Masalas": ["Chilli Powder", "Garam Masala"],
     "Oils": ["Groundnut Oil", "Coconut Oil"],
   };
