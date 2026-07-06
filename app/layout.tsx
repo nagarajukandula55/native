@@ -2,6 +2,10 @@ import "./globals.css";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { CartProvider } from "@/context/CartContext";
+import { WishlistProvider } from "@/context/WishlistContext";
+import { UserProvider } from "@/context/UserContext";
+import CookieConsent from "@/components/CookieConsent";
+import { Toaster } from "react-hot-toast";
 import { Inter, Poppins } from "next/font/google";
 import Script from "next/script";
 import type { Metadata } from "next";
@@ -45,7 +49,7 @@ export default function RootLayout({
       <head>
         {/* Google Analytics 4 */}
         <Script
-          src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXX"
+          src={`https://www.googletagmanager.com/gtag/js?id=${process.env.NEXT_PUBLIC_GA_ID || "G-XXXXXXX"}`}
           strategy="afterInteractive"
         />
 
@@ -55,8 +59,8 @@ export default function RootLayout({
             function gtag(){dataLayer.push(arguments);}
             gtag('js', new Date());
 
-            gtag('config', 'G-XXXXXXX');
-            gtag('config', 'AW-XXXXXXX');
+            gtag('config', '${process.env.NEXT_PUBLIC_GA_ID || "G-XXXXXXX"}');
+            gtag('config', '${process.env.NEXT_PUBLIC_ADS_ID || "AW-XXXXXXX"}');
           `}
         </Script>
 
@@ -68,13 +72,20 @@ export default function RootLayout({
       </head>
 
       <body>
-        <CartProvider>
-          <Navbar />
+        <UserProvider>
+          <CartProvider>
+            <WishlistProvider>
+              <Toaster position="top-center" toastOptions={{ duration: 3000 }} />
 
-          <main className="app-main">{children}</main>
+              <Navbar />
 
-          <Footer />
-        </CartProvider>
+              <main className="app-main">{children}</main>
+
+              <Footer />
+              <CookieConsent />
+            </WishlistProvider>
+          </CartProvider>
+        </UserProvider>
       </body>
     </html>
   );

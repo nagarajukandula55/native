@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400" role="img" aria-label="Native — Eat Healthy, Stay Healthy — Refined from the Source">
+  <defs>
+    <path id="topArc" d="M 60,200 A 140,140 0 0 1 340,200" />
+    <path id="bottomArc" d="M 60,215 A 140,140 0 0 0 340,215" />
+    <radialGradient id="innerFill" cx="45%" cy="35%" r="75%">
+      <stop offset="0%" stop-color="#5a4028" />
+      <stop offset="100%" stop-color="#3a2a1c" />
+    </radialGradient>
+  </defs>
+
+  <!-- outer ring -->
+  <circle cx="200" cy="200" r="196" fill="#3a2a1c" />
+  <circle cx="200" cy="200" r="188" fill="#faf3e4" />
+  <circle cx="200" cy="200" r="182" fill="none" stroke="#3a2a1c" stroke-width="2" />
+
+  <!-- inner badge -->
+  <circle cx="200" cy="200" r="150" fill="url(#innerFill)" />
+  <circle cx="200" cy="200" r="150" fill="none" stroke="#faf3e4" stroke-width="3" />
+
+  <!-- ring banners (top / bottom text bands) -->
+  <path d="M 50,200 A 150,150 0 0 1 350,200 L 320,200 A 120,120 0 0 0 80,200 Z" fill="#faf3e4" />
+  <path d="M 350,205 A 150,150 0 0 1 50,205 L 80,205 A 120,120 0 0 0 320,205 Z" fill="#faf3e4" />
+
+  <!-- ring copy -->
+  <text font-family="Georgia, 'Times New Roman', serif" font-size="19" font-weight="600" fill="#3a2a1c" letter-spacing="0.5">
+    <textPath href="#topArc" startOffset="50%" text-anchor="middle">EAT HEALTHY, STAY HEALTHY</textPath>
+  </text>
+  <text font-family="Georgia, 'Times New Roman', serif" font-size="17" font-weight="600" fill="#3a2a1c" letter-spacing="1.5">
+    <textPath href="#bottomArc" startOffset="50%" text-anchor="middle">REFINED FROM THE SOURCE</textPath>
+  </text>
+
+  <!-- decorative pins where banners meet the badge -->
+  <circle cx="82" cy="200" r="3.5" fill="#3a2a1c" />
+  <circle cx="318" cy="200" r="3.5" fill="#3a2a1c" />
+  <line x1="82" y1="200" x2="82" y2="214" stroke="#3a2a1c" stroke-width="2" />
+  <line x1="318" y1="200" x2="318" y2="214" stroke="#3a2a1c" stroke-width="2" />
+
+  <!-- wordmark -->
+  <text x="200" y="222" font-family="'Brush Script MT', 'Segoe Script', cursive" font-size="80" font-style="italic" fill="#faf3e4" text-anchor="middle">Native</text>
+
+  <!-- leaf accent above the "t" -->
+  <g transform="translate(246,118) rotate(18)">
+    <path d="M0,26 C -4,10 2,-8 20,-16 C 24,2 18,20 0,26 Z" fill="#7cb342" stroke="#4d7c22" stroke-width="1" />
+    <path d="M0,26 C 4,12 8,-2 18,-14" fill="none" stroke="#4d7c22" stroke-width="1" />
+  </g>
+
+  <!-- wheat sprig -->
+  <g transform="translate(150,238)">
+    <path d="M -90,10 Q -20,-6 70,-30" fill="none" stroke="#d1a13a" stroke-width="3" stroke-linecap="round" />
+    <g fill="#e8bd52" stroke="#b8862a" stroke-width="0.75">
+      <ellipse cx="-40" cy="-1" rx="10" ry="5" transform="rotate(-18 -40 -1)" />
+      <ellipse cx="-22" cy="-8" rx="10" ry="5" transform="rotate(-18 -22 -8)" />
+      <ellipse cx="-4" cy="-14" rx="10" ry="5" transform="rotate(-18 -4 -14)" />
+      <ellipse cx="14" cy="-20" rx="10" ry="5" transform="rotate(-18 14 -20)" />
+      <ellipse cx="32" cy="-25" rx="10" ry="5" transform="rotate(-18 32 -25)" />
+      <ellipse cx="50" cy="-29" rx="9" ry="4.5" transform="rotate(-18 50 -29)" />
+    </g>
+  </g>
+
+  <!-- lower double leaf -->
+  <g transform="translate(200,258)">
+    <path d="M0,0 C -34,6 -50,32 -46,58 C -18,54 4,32 0,0 Z" fill="#7cb342" stroke="#4d7c22" stroke-width="1" />
+    <path d="M0,0 C -22,10 -34,30 -40,52" fill="none" stroke="#4d7c22" stroke-width="1" />
+    <path d="M0,0 C 34,6 50,32 46,58 C 18,54 -4,32 0,0 Z" fill="#8fc94a" stroke="#4d7c22" stroke-width="1" />
+    <path d="M0,0 C 22,10 34,30 40,52" fill="none" stroke="#4d7c22" stroke-width="1" />
+  </g>
+</svg>

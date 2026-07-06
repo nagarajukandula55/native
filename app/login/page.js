@@ -1,24 +1,24 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { login } from "@/lib/an-sdk/auth";
+import { ApiError } from "@/lib/an-sdk/client";
+import { isSsoMode, isSsoConfigured, startSsoLogin } from "@/lib/an-sdk/sso";
+import { useUser } from "@/context/UserContext";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { refreshUser } = useUser();
+  const ssoMode = isSsoMode();
 
-  const [form, setForm] = useState({
-    email: "",
-    password: "",
-  });
-
+  const [form, setForm] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const handleChange = (e) => {
-    setForm({
-      ...form,
-      [e.target.name]: e.target.value,
-    });
+    setForm({ ...form, [e.target.name]: e.target.value });
   };
 
   const handleLogin = async (e) => {
@@ -32,103 +32,203 @@ export default function LoginPage() {
 
     try {
       setLoading(true);
-
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(form),
-      });
-
-      const data = await res.json();
-
-      if (!data.success) {
-        setError(data.message || "Login failed");
-        return;
-      }
-
-      // store token if you use JWT
-      if (data.token) {
-        localStorage.setItem("token", data.token);
-      }
-
-      router.push("/admin"); // redirect after login
+      await login(form.email, form.password);
+      await refreshUser();
+      router.push("/");
     } catch (err) {
       console.error(err);
-      setError("Something went wrong here");
+      if (err instanceof ApiError) {
+        setError(err.message || "Login failed");
+      } else {
+        setError("Something went wrong. Please try again.");
+      }
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div style={styles.container}>
-      <form style={styles.card} onSubmit={handleLogin}>
-        <h2 style={{ marginBottom: 20 }}>Login</h2>
+    <div className="wrap">
+      <div className="card">
+        <div className="logo">
+          <img src="/logo.svg" alt="Native" />
+        </div>
 
-        <input
-          name="email"
-          placeholder="Email"
-          value={form.email}
-          onChange={handleChange}
-          style={styles.input}
-        />
+        <h2>Welcome back</h2>
+        <p className="sub">Log in to your Native account</p>
 
-        <input
-          name="password"
-          type="password"
-          placeholder="Password"
-          value={form.password}
-          onChange={handleChange}
-          style={styles.input}
-        />
+        {ssoMode ? (
+          <>
+            <button
+              type="button"
+              className="ssoBtn"
+              onClick={() => startSsoLogin("/")}
+              disabled={!isSsoConfigured()}
+            >
+              Continue with AN Account
+            </button>
+            {!isSsoConfigured() && (
+              <p className="hint">
+                Single sign-on isn't configured yet — set
+                NEXT_PUBLIC_AN_SSO_URL to enable it.
+              </p>
+            )}
+          </>
+        ) : (
+          <form onSubmit={handleLogin}>
+            <input
+              name="email"
+              placeholder="Email or phone"
+              value={form.email}
+              onChange={handleChange}
+              className="input"
+            />
+            <input
+              name="password"
+              type="password"
+              placeholder="Password"
+              value={form.password}
+              onChange={handleChange}
+              className="input"
+            />
 
-        {error && <p style={styles.error}>{error}</p>}
+            <div className="row">
+              <Link href="/reset-password" className="link">
+                Forgot password?
+              </Link>
+            </div>
 
-        <button style={styles.button} disabled={loading}>
-          {loading ? "Logging in..." : "Login"}
-        </button>
-      </form>
+            {error && <p className="error">{error}</p>}
+
+            <button className="submitBtn" disabled={loading}>
+              {loading ? "Logging in..." : "Login"}
+            </button>
+          </form>
+        )}
+
+        <p className="footer">
+          New to Native?{" "}
+          <Link href="/signup" className="link">
+            Create an account
+          </Link>
+        </p>
+
+        <p className="footer sell">
+          Want to sell on Native?{" "}
+          <Link href="/sell" className="link">
+            Become a vendor
+          </Link>
+        </p>
+      </div>
+
+      <style jsx>{`
+        .wrap {
+          min-height: calc(100vh - 200px);
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          background: #faf8f3;
+          padding: 40px 16px;
+        }
+        .card {
+          width: 100%;
+          max-width: 380px;
+          background: #fff;
+          padding: 36px 32px;
+          border-radius: 16px;
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+          text-align: center;
+        }
+        .logo img {
+          height: 84px;
+          object-fit: contain;
+          margin-bottom: 16px;
+        }
+        h2 {
+          margin: 0 0 4px;
+          font-size: 22px;
+        }
+        .sub {
+          color: #888;
+          font-size: 13px;
+          margin-bottom: 24px;
+        }
+        .input {
+          width: 100%;
+          padding: 13px 14px;
+          border-radius: 8px;
+          border: 1px solid #ddd;
+          margin-bottom: 14px;
+          outline: none;
+          font-size: 14px;
+          box-sizing: border-box;
+        }
+        .input:focus {
+          border-color: #c28b45;
+        }
+        .row {
+          text-align: right;
+          margin-bottom: 14px;
+        }
+        .error {
+          color: #e11d48;
+          font-size: 12px;
+          margin-bottom: 12px;
+        }
+        .submitBtn {
+          width: 100%;
+          padding: 13px;
+          background: #c28b45;
+          color: #fff;
+          border: none;
+          border-radius: 8px;
+          font-size: 15px;
+          font-weight: 600;
+          cursor: pointer;
+        }
+        .submitBtn:hover {
+          background: #a36d32;
+        }
+        .submitBtn:disabled {
+          opacity: 0.7;
+          cursor: default;
+        }
+        .ssoBtn {
+          width: 100%;
+          padding: 14px;
+          background: #000;
+          color: #fff;
+          border: none;
+          border-radius: 8px;
+          font-size: 15px;
+          font-weight: 600;
+          cursor: pointer;
+          margin-bottom: 8px;
+        }
+        .ssoBtn:disabled {
+          opacity: 0.5;
+          cursor: default;
+        }
+        .hint {
+          color: #888;
+          font-size: 12px;
+          margin-bottom: 8px;
+        }
+        .link {
+          color: #c28b45;
+          text-decoration: none;
+          font-weight: 600;
+        }
+        .footer {
+          margin-top: 18px;
+          font-size: 13px;
+          color: #555;
+        }
+        .footer.sell {
+          margin-top: 8px;
+          font-size: 12px;
+        }
+      `}</style>
     </div>
   );
 }
-
-/* ================= SIMPLE STYLES ================= */
-const styles = {
-  container: {
-    height: "100vh",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    background: "#f5f5f5",
-  },
-  card: {
-    width: 320,
-    padding: 20,
-    background: "#fff",
-    borderRadius: 10,
-    boxShadow: "0 0 10px rgba(0,0,0,0.1)",
-    display: "flex",
-    flexDirection: "column",
-    gap: 10,
-  },
-  input: {
-    padding: 10,
-    border: "1px solid #ddd",
-    borderRadius: 5,
-    outline: "none",
-  },
-  button: {
-    padding: 10,
-    background: "black",
-    color: "white",
-    border: "none",
-    borderRadius: 5,
-    cursor: "pointer",
-  },
-  error: {
-    color: "red",
-    fontSize: 12,
-  },
-};

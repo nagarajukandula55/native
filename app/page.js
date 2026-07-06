@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useCart } from "@/context/CartContext";
+import { getProducts } from "@/lib/an-sdk/products";
+import WishlistButton from "@/components/WishlistButton";
+import RecentlyViewed from "@/components/RecentlyViewed";
 
 export default function Home() {
   const { addToCart } = useCart();
@@ -13,11 +16,7 @@ export default function Home() {
   useEffect(() => {
     async function loadProducts() {
       try {
-        const res = await fetch("/api/products", {
-          cache: "no-store",
-        });
-
-        const data = await res.json();
+        const data = await getProducts({ sort: "newest" });
         const list = data?.products || [];
 
         setProducts(list);
@@ -96,14 +95,48 @@ export default function Home() {
                   ? Math.round(((mrp - price) / mrp) * 100)
                   : 0;
 
+              const stockLevel = p.stock ?? null;
+              const inStock = stockLevel === null ? true : stockLevel > 0;
+
               return (
                 <div key={p._id} className="productCard">
 
                   {/* IMAGE */}
-                  <img
-                    src={p.images?.[0] || "/placeholder.png"}
-                    alt={p.name}
-                  />
+                  <div className="imgWrap">
+                    <img
+                      src={p.images?.[0] || "/placeholder.png"}
+                      alt={p.name}
+                    />
+
+                    {!inStock && (
+                      <span
+                        style={{
+                          position: "absolute",
+                          top: 10,
+                          left: 10,
+                          background: "#6b7280",
+                          color: "#fff",
+                          padding: "4px 8px",
+                          fontSize: 12,
+                          borderRadius: 5,
+                        }}
+                      >
+                        Out of Stock
+                      </span>
+                    )}
+
+                    <div className="wishlistWrap">
+                      <WishlistButton
+                        product={{
+                          productId: p._id,
+                          slug: p.slug,
+                          name: p.name,
+                          price: Number(p.displayPrice || p.minPrice || 0),
+                          image: p.images?.[0] || "",
+                        }}
+                      />
+                    </div>
+                  </div>
 
                   <div className="productBody">
 
@@ -152,18 +185,21 @@ export default function Home() {
                 
                       {/* ADD TO CART */}
                       <button
+                        disabled={!inStock}
                         onClick={() => {
+                          if (!inStock) return;
                           addToCart({
                             productId: p._id,
                             productKey: p.productKey,
                             name: p.name,
+                            slug: p.slug,
                             price: Number(p.displayPrice || p.minPrice || 0),
                             image: p.images?.[0] || "",
                             qty: 1,
                           });
                         }}
                       >
-                        Add to Cart
+                        {inStock ? "Add to Cart" : "Out of Stock"}
                       </button>
                 
                       {/* SHARE BUTTON */}
@@ -217,6 +253,9 @@ export default function Home() {
           ))}
         </div>
       </section>
+
+      {/* ================= RECENTLY VIEWED ================= */}
+      <RecentlyViewed />
 
       {/* ================= STYLES ================= */}
       <style jsx>{`
@@ -351,6 +390,16 @@ export default function Home() {
         
         .viewAllBtn:hover {
           transform: translateY(-2px);
+        }
+
+        .imgWrap {
+          position: relative;
+        }
+
+        .wishlistWrap {
+          position: absolute;
+          top: 10px;
+          right: 10px;
         }
 
         .productCard img {

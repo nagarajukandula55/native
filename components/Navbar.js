@@ -4,19 +4,34 @@ import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useCart } from "@/context/CartContext";
+import { useWishlist } from "@/context/WishlistContext";
+import { useUser } from "@/context/UserContext";
 import CartDrawer from "./CartDrawer";
-import { ShoppingCart, Menu, X } from "lucide-react";
+import SearchBar from "./SearchBar";
+import { ShoppingCart, Menu, X, Heart, User, LogOut } from "lucide-react";
+
+// "super_admin" (underscore) is the role string used elsewhere in this
+// codebase (app/super-admin/users/page.js's role picker); kept alongside
+// other separator variants defensively.
+const ADMIN_ROLES = ["admin", "super_admin", "super-admin", "superadmin", "owner"];
+const VENDOR_ROLES = ["vendor", ...ADMIN_ROLES];
 
 export default function Navbar() {
   const { cartCount, drawerOpen, openCart, closeCart } = useCart();
+  const wishlistCtx = useWishlist();
+  const wishlistCount = wishlistCtx?.wishlistCount || 0;
 
-  const user = null; // auth disabled for now
+  const { user, loading: userLoading, logout } = useUser();
+  const role = (user?.role || "").toLowerCase();
+  const isVendor = VENDOR_ROLES.includes(role);
+  const isAdmin = ADMIN_ROLES.includes(role);
 
   const router = useRouter();
   const pathname = usePathname();
 
   const [mobile, setMobile] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
 
   /* ================= RESPONSIVE ================= */
   useEffect(() => {
@@ -26,50 +41,105 @@ export default function Navbar() {
     return () => window.removeEventListener("resize", resize);
   }, []);
 
-  const showPublic = !user;
-
   /* ================= HANDLERS ================= */
   const handleCartClick = () => {
-    openCart?.(); // 🔥 safe call
+    openCart?.();
+  };
+
+  const handleLogout = () => {
+    logout();
+    setAccountOpen(false);
+    setMenuOpen(false);
+    router.push("/");
   };
 
   return (
     <>
-      <header style={header}>
+      <header className="header">
         {/* LOGO */}
-        <Link href="/">
-          <img src="/logo.png" style={logo} alt="logo" />
+        <Link href="/" className="logoLink">
+          <img src="/logo-horizontal.svg" className="logo" alt="Native" />
         </Link>
 
-        <nav style={nav}>
-          {/* PUBLIC MENU */}
-          {showPublic && (
+        {!mobile && (
+          <div className="searchWrap">
+            <SearchBar />
+          </div>
+        )}
+
+        <nav className="nav">
+          {!mobile && (
             <>
               <NavLink href="/" label="Home" pathname={pathname} />
               <NavLink href="/products" label="Products" pathname={pathname} />
               <NavLink href="/track" label="Track" pathname={pathname} />
               <NavLink href="/blog" label="Blog" pathname={pathname} />
-              <NavLink href="/login" label="Login" pathname={pathname} />
+              <NavLink href="/sell" label="Sell on Native" pathname={pathname} />
             </>
           )}
 
+          {/* WISHLIST */}
+          <Link href="/wishlist" className="iconBtn" title="Wishlist">
+            <Heart size={18} />
+            <span>{wishlistCount}</span>
+          </Link>
+
           {/* CART */}
-          <div
-            onClick={handleCartClick}
-            style={cart}
-            role="button"
-            tabIndex={0}
-          >
+          <div onClick={handleCartClick} className="iconBtn" role="button" tabIndex={0} title="Cart">
             <ShoppingCart size={18} />
             <span>{cartCount}</span>
           </div>
 
-          {/* MOBILE MENU */}
+          {/* ACCOUNT */}
+          {!mobile && !userLoading && (
+            <div className="account">
+              {user ? (
+                <>
+                  <button className="accountBtn" onClick={() => setAccountOpen((o) => !o)}>
+                    <User size={18} />
+                    <span>{user.name?.split(" ")[0] || "Account"}</span>
+                  </button>
+
+                  {accountOpen && (
+                    <div className="dropdown" onMouseLeave={() => setAccountOpen(false)}>
+                      <Link href="/profile" onClick={() => setAccountOpen(false)}>
+                        Profile
+                      </Link>
+                      <Link href="/orders" onClick={() => setAccountOpen(false)}>
+                        My Orders
+                      </Link>
+                      {isVendor && (
+                        <Link href="/vendor/dashboard" onClick={() => setAccountOpen(false)}>
+                          Vendor Dashboard
+                        </Link>
+                      )}
+                      {isAdmin && (
+                        <Link href="/admin" onClick={() => setAccountOpen(false)}>
+                          Admin Panel
+                        </Link>
+                      )}
+                      <button onClick={handleLogout} className="logoutRow">
+                        <LogOut size={14} /> Logout
+                      </button>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  <Link href="/login" className="loginLink">
+                    Login
+                  </Link>
+                  <Link href="/signup" className="signupBtn">
+                    Sign Up
+                  </Link>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* MOBILE MENU TOGGLE */}
           {mobile && (
-            <div
-              onClick={() => setMenuOpen(!menuOpen)}
-              style={{ cursor: "pointer" }}
-            >
+            <div onClick={() => setMenuOpen(!menuOpen)} className="menuToggle">
               {menuOpen ? <X /> : <Menu />}
             </div>
           )}
@@ -78,17 +148,218 @@ export default function Navbar() {
 
       {/* MOBILE MENU */}
       {mobile && menuOpen && (
-        <div style={mobileMenu}>
-          <Link href="/">Home</Link>
-          <Link href="/products">Products</Link>
-          <Link href="/track">Track</Link>
-          <Link href="/blog">Blog</Link>
-          <Link href="/login">Login</Link>
+        <div className="mobileMenu">
+          <SearchBar />
+          <Link href="/" onClick={() => setMenuOpen(false)}>
+            Home
+          </Link>
+          <Link href="/products" onClick={() => setMenuOpen(false)}>
+            Products
+          </Link>
+          <Link href="/wishlist" onClick={() => setMenuOpen(false)}>
+            Wishlist ({wishlistCount})
+          </Link>
+          <Link href="/track" onClick={() => setMenuOpen(false)}>
+            Track
+          </Link>
+          <Link href="/blog" onClick={() => setMenuOpen(false)}>
+            Blog
+          </Link>
+          <Link href="/sell" onClick={() => setMenuOpen(false)}>
+            Sell on Native
+          </Link>
+
+          <hr />
+
+          {user ? (
+            <>
+              <Link href="/profile" onClick={() => setMenuOpen(false)}>
+                Profile
+              </Link>
+              <Link href="/orders" onClick={() => setMenuOpen(false)}>
+                My Orders
+              </Link>
+              {isVendor && (
+                <Link href="/vendor/dashboard" onClick={() => setMenuOpen(false)}>
+                  Vendor Dashboard
+                </Link>
+              )}
+              {isAdmin && (
+                <Link href="/admin" onClick={() => setMenuOpen(false)}>
+                  Admin Panel
+                </Link>
+              )}
+              <button onClick={handleLogout} className="mobileLogout">
+                Logout
+              </button>
+            </>
+          ) : (
+            <>
+              <Link href="/login" onClick={() => setMenuOpen(false)}>
+                Login
+              </Link>
+              <Link href="/signup" className="mobileSignup" onClick={() => setMenuOpen(false)}>
+                Sign Up
+              </Link>
+            </>
+          )}
         </div>
       )}
 
       {/* CART DRAWER */}
       <CartDrawer open={drawerOpen} setOpen={closeCart} />
+
+      <style jsx>{`
+        .header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 12px 24px;
+          border-bottom: 1px solid #eee;
+          background: #fff;
+          position: sticky;
+          top: 0;
+          z-index: 50;
+          gap: 16px;
+        }
+        .logoLink {
+          flex-shrink: 0;
+        }
+        .logo {
+          height: 40px;
+        }
+        .searchWrap {
+          flex: 1;
+          max-width: 360px;
+        }
+        .nav {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .iconBtn {
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 8px 10px;
+          border-radius: 8px;
+          color: #333;
+          text-decoration: none;
+        }
+        .iconBtn:hover {
+          background: #faf5ec;
+        }
+        .account {
+          position: relative;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          margin-left: 4px;
+        }
+        .accountBtn {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          background: none;
+          border: 1px solid #eee;
+          padding: 8px 12px;
+          border-radius: 20px;
+          cursor: pointer;
+          font-size: 14px;
+        }
+        .dropdown {
+          position: absolute;
+          top: 44px;
+          right: 0;
+          background: #fff;
+          border-radius: 10px;
+          box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+          padding: 8px;
+          display: flex;
+          flex-direction: column;
+          min-width: 180px;
+          z-index: 60;
+        }
+        .dropdown :global(a),
+        .dropdown .logoutRow {
+          padding: 10px 12px;
+          border-radius: 6px;
+          text-decoration: none;
+          color: #333;
+          font-size: 14px;
+          text-align: left;
+          background: none;
+          border: none;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+        .dropdown :global(a:hover),
+        .dropdown .logoutRow:hover {
+          background: #faf5ec;
+        }
+        .logoutRow {
+          color: #e11d48;
+        }
+        .loginLink {
+          color: #333;
+          text-decoration: none;
+          font-weight: 500;
+          font-size: 14px;
+        }
+        .signupBtn {
+          background: #c28b45;
+          color: #fff;
+          padding: 9px 20px;
+          border-radius: 30px;
+          text-decoration: none;
+          font-weight: 600;
+          font-size: 14px;
+        }
+        .signupBtn:hover {
+          background: #a36d32;
+        }
+        .menuToggle {
+          cursor: pointer;
+        }
+        .mobileMenu {
+          position: absolute;
+          top: 64px;
+          right: 10px;
+          left: 10px;
+          background: #fff;
+          padding: 16px;
+          border-radius: 12px;
+          box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          z-index: 999;
+        }
+        .mobileMenu :global(a) {
+          color: #333;
+          text-decoration: none;
+        }
+        .mobileSignup {
+          background: #c28b45;
+          color: #fff !important;
+          padding: 10px;
+          border-radius: 8px;
+          text-align: center;
+          font-weight: 600;
+        }
+        .mobileLogout {
+          background: none;
+          border: none;
+          color: #e11d48;
+          text-align: left;
+          padding: 0;
+          font-size: 14px;
+          cursor: pointer;
+        }
+      `}</style>
     </>
   );
 }
@@ -101,56 +372,16 @@ function NavLink({ href, label, pathname }) {
     <Link
       href={href}
       style={{
-        marginRight: 12,
-        color: active ? "#2563eb" : "#333",
+        marginRight: 4,
+        padding: "8px 10px",
+        borderRadius: 8,
+        color: active ? "#c28b45" : "#333",
         fontWeight: active ? "600" : "500",
         textDecoration: "none",
+        fontSize: 14,
       }}
     >
       {label}
     </Link>
   );
 }
-
-/* ================= STYLES ================= */
-
-const header = {
-  display: "flex",
-  justifyContent: "space-between",
-  padding: "12px 20px",
-  borderBottom: "1px solid #eee",
-  background: "#fff",
-  position: "sticky",
-  top: 0,
-  zIndex: 50,
-};
-
-const nav = {
-  display: "flex",
-  alignItems: "center",
-  gap: 12,
-};
-
-const logo = { height: 40 };
-
-const cart = {
-  cursor: "pointer",
-  display: "flex",
-  alignItems: "center",
-  gap: 6,
-  padding: "6px 10px",
-  borderRadius: 8,
-};
-
-const mobileMenu = {
-  position: "absolute",
-  top: 60,
-  right: 10,
-  background: "#fff",
-  padding: 15,
-  borderRadius: 10,
-  display: "flex",
-  flexDirection: "column",
-  gap: 10,
-  zIndex: 999,
-};

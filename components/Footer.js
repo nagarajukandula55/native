@@ -2,9 +2,29 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import { useState } from "react";
+import { subscribeNewsletter } from "@/lib/an-sdk/contact";
+import { ApiError } from "@/lib/an-sdk/client";
 
 export default function Footer() {
   const year = new Date().getFullYear();
+
+  const [email, setEmail] = useState("");
+  const [status, setStatus] = useState("idle"); // idle | loading | done | error
+
+  async function handleSubscribe(e) {
+    e.preventDefault();
+    if (!email.trim()) return;
+    setStatus("loading");
+    try {
+      await subscribeNewsletter(email.trim());
+      setStatus("done");
+      setEmail("");
+    } catch (err) {
+      console.error("Newsletter signup failed:", err);
+      setStatus(err instanceof ApiError ? "error" : "error");
+    }
+  }
 
   return (
     <footer className="footer">
@@ -40,6 +60,28 @@ export default function Footer() {
         <h2>Native</h2>
         <p>Eat Healthy, Stay Healthy</p>
         <span>© {year} Native. All rights reserved.</span>
+
+        <form className="newsletter" onSubmit={handleSubscribe}>
+          {status === "done" ? (
+            <p className="subscribed">You're subscribed — thank you!</p>
+          ) : (
+            <>
+              <input
+                type="email"
+                required
+                placeholder="Your email for offers & updates"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+              <button type="submit" disabled={status === "loading"}>
+                {status === "loading" ? "..." : "Subscribe"}
+              </button>
+            </>
+          )}
+          {status === "error" && (
+            <p className="subError">Couldn't subscribe right now — please try again later.</p>
+          )}
+        </form>
       </div>
 
       {/* SITEMAP */}
@@ -47,8 +89,27 @@ export default function Footer() {
         <h3>Sitemap</h3>
         <Link href="/">Home</Link>
         <Link href="/products">Products</Link>
+        <Link href="/track">Track Order</Link>
         <Link href="/about">About Us</Link>
         <Link href="/contact">Contact</Link>
+      </div>
+
+      {/* MARKETPLACE */}
+      <div className="col">
+        <h3>Marketplace</h3>
+        <Link href="/sell">Sell on Native</Link>
+        <Link href="/orders">My Orders</Link>
+        <Link href="/wishlist">Wishlist</Link>
+        <Link href="/support">Support</Link>
+      </div>
+
+      {/* LEGAL */}
+      <div className="col">
+        <h3>Legal</h3>
+        <Link href="/privacy-policy">Privacy Policy</Link>
+        <Link href="/terms-and-conditions">Terms & Conditions</Link>
+        <Link href="/refund-policy">Refund & Cancellation</Link>
+        <Link href="/shipping-policy">Shipping Policy</Link>
       </div>
 
       {/* CONTACT */}
@@ -131,6 +192,62 @@ export default function Footer() {
           margin: 0;
           font-size: 14px;
           color: #ddd;
+        }
+
+        .newsletter {
+          margin-top: 14px;
+          display: flex;
+          gap: 8px;
+          justify-content: center;
+          flex-wrap: wrap;
+        }
+
+        .newsletter input {
+          padding: 9px 12px;
+          border-radius: 20px;
+          border: 1px solid #5a4028;
+          background: #4a3524;
+          color: #fff;
+          font-size: 13px;
+          outline: none;
+          min-width: 200px;
+        }
+
+        .newsletter input::placeholder {
+          color: #bbb;
+        }
+
+        .newsletter button {
+          padding: 9px 18px;
+          border-radius: 20px;
+          border: none;
+          background: #c28b45;
+          color: #fff;
+          font-weight: 600;
+          font-size: 13px;
+          cursor: pointer;
+        }
+
+        .newsletter button:hover {
+          background: #a36d32;
+        }
+
+        .newsletter button:disabled {
+          opacity: 0.7;
+          cursor: default;
+        }
+
+        .subscribed {
+          color: #7cb342;
+          font-weight: 600;
+          font-size: 13px;
+        }
+
+        .subError {
+          width: 100%;
+          color: #f87171;
+          font-size: 12px;
+          margin-top: 4px;
         }
 
         /* RESPONSIVE */

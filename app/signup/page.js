@@ -1,24 +1,29 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { signup } from "@/lib/an-sdk/auth";
+import { ApiError } from "@/lib/an-sdk/client";
+import { isSsoMode, isSsoConfigured, startSsoLogin } from "@/lib/an-sdk/sso";
+import { useUser } from "@/context/UserContext";
 
 export default function SignupPage() {
-  const [form, setForm] = useState({
-    name: "",
-    email: "",
-    password: "",
-  });
+  const router = useRouter();
+  const { refreshUser } = useUser();
+  const ssoMode = isSsoMode();
 
+  const [form, setForm] = useState({ name: "", email: "", phone: "", password: "" });
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState("");
 
-  async function handleSignup() {
+  async function handleSignup(e) {
+    e.preventDefault();
     setMsg("");
 
     if (!form.name || !form.email || !form.password) {
-      setMsg("Please fill all fields");
+      setMsg("Please fill all required fields");
       return;
     }
 
@@ -30,223 +35,232 @@ export default function SignupPage() {
     setLoading(true);
 
     try {
-      const res = await fetch("/api/auth/signup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      });
-
-      const data = await res.json();
-
-      if (!data.success) {
-        setMsg(data.msg);
-        setLoading(false);
-        return;
-      }
-
-      setMsg("✅ Account created successfully");
-
-      setTimeout(() => {
-        window.location.href = "/login";
-      }, 1500);
-
+      await signup(form);
+      await refreshUser();
+      setMsg("success:Account created — redirecting...");
+      setTimeout(() => router.push("/"), 1200);
     } catch (err) {
       console.error(err);
-      setMsg("Server error");
+      if (err instanceof ApiError) {
+        setMsg(err.message || "Server error");
+      } else {
+        setMsg("Server error. Please try again.");
+      }
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   }
 
+  const isSuccess = msg.startsWith("success:");
+  const displayMsg = isSuccess ? msg.slice(8) : msg;
+
   return (
-    <div style={container}>
-      
-      {/* LOGO */}
-      <div style={{ marginBottom: 30 }}>
-        <Image
-          src="/logo.png"
-          alt="Logo"
-          width={170}
-          height={60}
-          style={{ objectFit: "contain" }}
-          priority
-        />
-      </div>
-
-      {/* CARD */}
-      <div style={card}>
-        <h2 style={title}>Create your account</h2>
-
-        {/* NAME */}
-        <div style={field}>
-          <input
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-            style={input}
-          />
-          <label style={form.name ? labelActive : label}>Full Name</label>
+    <div className="wrap">
+      <div className="card">
+        <div className="logo">
+          <img src="/logo.svg" alt="Native" />
         </div>
 
-        {/* EMAIL */}
-        <div style={field}>
-          <input
-            value={form.email}
-            onChange={(e) => setForm({ ...form, email: e.target.value })}
-            style={input}
-          />
-          <label style={form.email ? labelActive : label}>Email</label>
-        </div>
+        <h2>Create your account</h2>
+        <p className="sub">Join Native for a healthier everyday</p>
 
-        {/* PASSWORD */}
-        <div style={field}>
-          <input
-            type={showPass ? "text" : "password"}
-            value={form.password}
-            onChange={(e) => setForm({ ...form, password: e.target.value })}
-            style={input}
-          />
-          <label style={form.password ? labelActive : label}>Password</label>
+        {ssoMode ? (
+          <>
+            <button
+              type="button"
+              className="ssoBtn"
+              onClick={() => startSsoLogin("/")}
+              disabled={!isSsoConfigured()}
+            >
+              Continue with AN Account
+            </button>
+            {!isSsoConfigured() && (
+              <p className="hint">
+                Single sign-on isn't configured yet — set
+                NEXT_PUBLIC_AN_SSO_URL to enable it.
+              </p>
+            )}
+          </>
+        ) : (
+          <form onSubmit={handleSignup}>
+            <input
+              placeholder="Full name"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              className="input"
+            />
+            <input
+              placeholder="Email"
+              type="email"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              className="input"
+            />
+            <input
+              placeholder="Phone (optional)"
+              value={form.phone}
+              onChange={(e) => setForm({ ...form, phone: e.target.value })}
+              className="input"
+            />
+            <div className="passWrap">
+              <input
+                type={showPass ? "text" : "password"}
+                placeholder="Password"
+                value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
+                className="input"
+              />
+              <span onClick={() => setShowPass(!showPass)} className="eye">
+                {showPass ? "Hide" : "Show"}
+              </span>
+            </div>
 
-          <span onClick={() => setShowPass(!showPass)} style={eye}>
-            {showPass ? "🙈" : "👁"}
-          </span>
-        </div>
+            {msg && (
+              <p className={isSuccess ? "success" : "error"}>{displayMsg}</p>
+            )}
 
-        {/* MESSAGE */}
-        {msg && <p style={msgStyle}>{msg}</p>}
+            <button className="submitBtn" disabled={loading}>
+              {loading ? "Creating account..." : "Create Account"}
+            </button>
+          </form>
+        )}
 
-        {/* BUTTON */}
-        <button
-          onClick={handleSignup}
-          disabled={loading}
-          style={{ ...button, opacity: loading ? 0.7 : 1 }}
-        >
-          {loading ? <Spinner /> : "Create Account"}
-        </button>
-
-        {/* FOOTER */}
-        <p style={footer}>
+        <p className="footer">
           Already have an account?{" "}
-          <span
-            onClick={() => (window.location.href = "/login")}
-            style={link}
-          >
+          <Link href="/login" className="link">
             Login
-          </span>
+          </Link>
+        </p>
+
+        <p className="footer sell">
+          Want to sell on Native?{" "}
+          <Link href="/sell" className="link">
+            Become a vendor
+          </Link>
         </p>
       </div>
+
+      <style jsx>{`
+        .wrap {
+          min-height: calc(100vh - 200px);
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          background: #faf8f3;
+          padding: 40px 16px;
+        }
+        .card {
+          width: 100%;
+          max-width: 400px;
+          background: #fff;
+          padding: 36px 32px;
+          border-radius: 16px;
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+          text-align: center;
+        }
+        .logo img {
+          height: 84px;
+          object-fit: contain;
+          margin-bottom: 16px;
+        }
+        h2 {
+          margin: 0 0 4px;
+          font-size: 22px;
+        }
+        .sub {
+          color: #888;
+          font-size: 13px;
+          margin-bottom: 24px;
+        }
+        .input {
+          width: 100%;
+          padding: 13px 14px;
+          border-radius: 8px;
+          border: 1px solid #ddd;
+          margin-bottom: 14px;
+          outline: none;
+          font-size: 14px;
+          box-sizing: border-box;
+        }
+        .input:focus {
+          border-color: #c28b45;
+        }
+        .passWrap {
+          position: relative;
+        }
+        .eye {
+          position: absolute;
+          right: 14px;
+          top: 14px;
+          font-size: 12px;
+          color: #c28b45;
+          cursor: pointer;
+          font-weight: 600;
+        }
+        .error {
+          color: #e11d48;
+          font-size: 12px;
+          margin-bottom: 12px;
+        }
+        .success {
+          color: #16a34a;
+          font-size: 12px;
+          margin-bottom: 12px;
+        }
+        .submitBtn {
+          width: 100%;
+          padding: 13px;
+          background: #c28b45;
+          color: #fff;
+          border: none;
+          border-radius: 8px;
+          font-size: 15px;
+          font-weight: 600;
+          cursor: pointer;
+        }
+        .submitBtn:hover {
+          background: #a36d32;
+        }
+        .submitBtn:disabled {
+          opacity: 0.7;
+          cursor: default;
+        }
+        .ssoBtn {
+          width: 100%;
+          padding: 14px;
+          background: #000;
+          color: #fff;
+          border: none;
+          border-radius: 8px;
+          font-size: 15px;
+          font-weight: 600;
+          cursor: pointer;
+          margin-bottom: 8px;
+        }
+        .ssoBtn:disabled {
+          opacity: 0.5;
+          cursor: default;
+        }
+        .hint {
+          color: #888;
+          font-size: 12px;
+          margin-bottom: 8px;
+        }
+        .link {
+          color: #c28b45;
+          text-decoration: none;
+          font-weight: 600;
+        }
+        .footer {
+          margin-top: 18px;
+          font-size: 13px;
+          color: #555;
+        }
+        .footer.sell {
+          margin-top: 8px;
+          font-size: 12px;
+        }
+      `}</style>
     </div>
   );
 }
-
-/* ===== SPINNER ===== */
-function Spinner() {
-  return (
-    <div
-      style={{
-        width: 18,
-        height: 18,
-        border: "2px solid #fff",
-        borderTop: "2px solid transparent",
-        borderRadius: "50%",
-        animation: "spin 0.8s linear infinite",
-        margin: "auto",
-      }}
-    />
-  );
-}
-
-/* ===== STYLES ===== */
-
-const container = {
-  minHeight: "100vh",
-  display: "flex",
-  flexDirection: "column",
-  justifyContent: "center",
-  alignItems: "center",
-  background: "#f3f4f6",
-};
-
-const card = {
-  width: 400,
-  background: "#fff",
-  padding: 32,
-  borderRadius: 18,
-  boxShadow: "0 15px 40px rgba(0,0,0,0.08)",
-};
-
-const title = {
-  fontSize: 24,
-  fontWeight: 600,
-  marginBottom: 25,
-  textAlign: "center",
-};
-
-const field = {
-  position: "relative",
-  marginBottom: 18,
-};
-
-const input = {
-  width: "100%",
-  padding: "14px 12px",
-  borderRadius: 8,
-  border: "1px solid #ddd",
-  fontSize: 14,
-  outline: "none",
-};
-
-const label = {
-  position: "absolute",
-  left: 12,
-  top: 14,
-  fontSize: 13,
-  color: "#777",
-  transition: "0.2s",
-  pointerEvents: "none",
-};
-
-const labelActive = {
-  ...label,
-  top: -8,
-  fontSize: 11,
-  color: "#111",
-  background: "#fff",
-  padding: "0 4px",
-};
-
-const eye = {
-  position: "absolute",
-  right: 12,
-  top: 14,
-  cursor: "pointer",
-};
-
-const button = {
-  width: "100%",
-  padding: 14,
-  marginTop: 10,
-  borderRadius: 8,
-  border: "none",
-  background: "#111",
-  color: "#fff",
-  fontSize: 15,
-  cursor: "pointer",
-};
-
-const msgStyle = {
-  fontSize: 13,
-  color: "#e11d48",
-  marginBottom: 10,
-};
-
-const footer = {
-  textAlign: "center",
-  marginTop: 15,
-  fontSize: 13,
-};
-
-const link = {
-  color: "#2563eb",
-  cursor: "pointer",
-};

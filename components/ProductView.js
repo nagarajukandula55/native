@@ -1,13 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useCart } from "@/context/CartContext";
+import WishlistButton from "./WishlistButton";
+import RelatedProducts from "./RelatedProducts";
+import RecentlyViewed from "./RecentlyViewed";
+import ReviewsSection from "./ReviewsSection";
+import { trackProductView } from "@/lib/recentlyViewed";
 
 export default function ProductView({
   product,
   variants = [],
 }) {
   const { addToCart } = useCart();
+
+  /* Track this view for the "Recently Viewed" rail (client-only, no
+     backend dependency). */
+  useEffect(() => {
+    if (product) trackProductView(product);
+  }, [product]);
 
   const [selectedImage, setSelectedImage] = useState(
     product?.images?.[0] || ""
@@ -27,6 +39,16 @@ export default function ProductView({
     product?.sellingPrice ??
     0;
 
+  // Stock is tracked per-variant when variants exist, else on the product
+  // itself (see models/Product.js `stock` field in backend-reference).
+  // Previously there was no out-of-stock handling anywhere on the
+  // customer-facing site — Add to Cart worked (or silently failed later)
+  // regardless, and structured data always claimed "InStock".
+  const stockLevel =
+    selectedVariant?.stock ?? product?.stock ?? null;
+  const inStock = stockLevel === null ? true : stockLevel > 0;
+  const lowStock = inStock && stockLevel !== null && stockLevel <= 5;
+
   const discount =
     mrp > 0
       ? Math.round(
@@ -45,6 +67,7 @@ export default function ProductView({
       productId: product._id,
       productKey: product.productKey,
       name: product.name,
+      slug: product.slug,
       price: sellingPrice,
       mrp,
       image: selectedImage,
@@ -89,8 +112,9 @@ export default function ProductView({
       "@type": "Offer",
       price: sellingPrice,
       priceCurrency: "INR",
-      availability:
-        "https://schema.org/InStock",
+      availability: inStock
+        ? "https://schema.org/InStock"
+        : "https://schema.org/OutOfStock",
     },
   };
 
@@ -168,6 +192,22 @@ export default function ProductView({
           {/* RIGHT */}
           <div>
             <h1>{product.name}</h1>
+
+            {product?.vendor && (
+              <Link
+                href={`/vendors/${product.vendor.id || product.vendor._id}`}
+                style={{
+                  display: "inline-block",
+                  fontSize: "13px",
+                  color: "#c28b45",
+                  fontWeight: 600,
+                  textDecoration: "none",
+                  marginBottom: "6px",
+                }}
+              >
+                Sold by {product.vendor.name || product.vendor.businessName}
+              </Link>
+            )}
 
             <div
               style={{
@@ -253,6 +293,29 @@ export default function ProductView({
               {product.description}
             </p>
 
+            {!inStock ? (
+              <p
+                style={{
+                  color: "#e11d48",
+                  fontWeight: 700,
+                  margin: "10px 0",
+                }}
+              >
+                Out of Stock
+              </p>
+            ) : lowStock ? (
+              <p
+                style={{
+                  color: "#b45309",
+                  fontWeight: 600,
+                  margin: "10px 0",
+                  fontSize: "13px",
+                }}
+              >
+                Only {stockLevel} left in stock — order soon
+              </p>
+            ) : null}
+
             <div
               style={{
                 display: "flex",
@@ -262,17 +325,18 @@ export default function ProductView({
             >
               <button
                 onClick={handleAddToCart}
+                disabled={!inStock}
                 style={{
                   flex: 1,
-                  background: "#000",
+                  background: inStock ? "#000" : "#aaa",
                   color: "#fff",
                   border: "none",
                   padding: "14px",
                   borderRadius: "10px",
-                  cursor: "pointer",
+                  cursor: inStock ? "pointer" : "not-allowed",
                 }}
               >
-                Add To Cart
+                {inStock ? "Add To Cart" : "Out of Stock"}
               </button>
 
               <button
@@ -290,6 +354,16 @@ export default function ProductView({
               >
                 Share
               </button>
+
+              <WishlistButton
+                product={{
+                  productId: product._id,
+                  slug: product.slug,
+                  name: product.name,
+                  price: sellingPrice,
+                  image: selectedImage,
+                }}
+              />
             </div>
 
             <hr
@@ -330,6 +404,12 @@ export default function ProductView({
           </div>
         </div>
       </div>
+
+      <ReviewsSection productId={product._id} />
+
+      <RelatedProducts slug={product.slug} />
+
+      <RecentlyViewed excludeId={product._id} />
     </>
   );
 }

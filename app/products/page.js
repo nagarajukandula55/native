@@ -1,26 +1,59 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useCart } from "@/context/CartContext";
 import { getProductDisplayName } from "@/lib/product";
+import { getProducts } from "@/lib/an-sdk/products";
+import FilterSidebar from "@/components/FilterSidebar";
+import SearchBar from "@/components/SearchBar";
+import WishlistButton from "@/components/WishlistButton";
 
 export default function ProductsPage() {
+  return (
+    <Suspense fallback={<div className="container">Loading...</div>}>
+      <ProductsPageInner />
+    </Suspense>
+  );
+}
+
+function ProductsPageInner() {
   const { addToCart } = useCart();
+  const searchParams = useSearchParams();
 
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [addingId, setAddingId] = useState(null);
 
+  const search = searchParams.get("search") || "";
+  const category = searchParams.get("category") || "";
+  const sort = searchParams.get("sort") || "";
+  const minPrice = searchParams.get("minPrice") || "";
+  const maxPrice = searchParams.get("maxPrice") || "";
+  const vendor = searchParams.get("vendor") || "";
+
+  /* ================= FETCH (SEARCH + FILTERS + SORT) ================= */
   useEffect(() => {
-    fetch("/api/products", { cache: "no-store" })
-      .then((res) => res.json())
+    let cancelled = false;
+    setLoading(true);
+
+    getProducts({ search, category, sort, minPrice, maxPrice, vendor })
       .then((data) => {
-        setProducts(data.products || []);
-        setLoading(false);
+        if (!cancelled) setProducts(data?.products || []);
       })
-      .catch(() => setLoading(false));
-  }, []);
+      .catch((err) => {
+        console.error("Product fetch error:", err);
+        if (!cancelled) setProducts([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [search, category, sort, minPrice, maxPrice, vendor]);
 
   /* ================= ADD TO CART ================= */
   function handleAddToCart(p) {
@@ -35,6 +68,7 @@ export default function ProductsPage() {
         productId: id,
         productKey: p.productKey || id,
         name: p.displayName || p.name || "Product",
+        slug: p.slug,
         price: Number(p.displayPrice || 0),
         mrp: Number(p.mrp || 0),
         image: p.images?.[0] || "/no-image.png",
@@ -66,118 +100,172 @@ export default function ProductsPage() {
     }
   }
 
-  /* ================= LOADING ================= */
-  if (loading) {
-    return (
-      <div className="container">
-        <h2>All Products</h2>
-        <p>Loading...</p>
-      </div>
-    );
-  }
-
-  /* ================= EMPTY ================= */
-  if (!products.length) {
-    return (
-      <div className="container">
-        <h2>All Products</h2>
-        <p>No products available</p>
-      </div>
-    );
-  }
-
   return (
-    <div className="container">
-      <h2>All Products</h2>
+    <div className="page">
+      <FilterSidebar />
 
-      <div className="grid">
-        {products.map((p) => {
-          if (!p?._id || !p?.slug) return null;
+      <div className="container">
+        <div className="topBar">
+          <h2>{search ? `Results for "${search}"` : "All Products"}</h2>
+          <div className="mobileSearch">
+            <SearchBar defaultValue={search} />
+          </div>
+        </div>
 
-          const price = p.displayPrice || 0;
-          const mrp = p.mrp || 0;
+        {loading ? (
+          <p>Loading...</p>
+        ) : !products.length ? (
+          <p>No products found{search ? ` for "${search}"` : ""}.</p>
+        ) : (
+          <div className="grid">
+            {products.map((p) => {
+              if (!p?._id || !p?.slug) return null;
 
-          const discount =
-            mrp && price ? Math.round(((mrp - price) / mrp) * 100) : 0;
+              const price = p.displayPrice || 0;
+              const mrp = p.mrp || 0;
 
-          return (
-            <div className="card" key={p._id}>
-              <Link href={`/products/${p.slug}`} className="link">
-                <div className="imgWrap">
-                  <img src={p.images?.[0] || "/no-image.png"} />
+              const discount =
+                mrp && price ? Math.round(((mrp - price) / mrp) * 100) : 0;
 
-                  {discount > 0 && (
-                    <span className="badge">{discount}% OFF</span>
-                  )}
+              const stockLevel = p.stock ?? null;
+              const inStock = stockLevel === null ? true : stockLevel > 0;
+
+              return (
+                <div className="card" key={p._id}>
+                  <Link href={`/products/${p.slug}`} className="link">
+                    <div className="imgWrap">
+                      <img src={p.images?.[0] || "/no-image.png"} />
+
+                      {discount > 0 && inStock && (
+                        <span className="badge">{discount}% OFF</span>
+                      )}
+                      {!inStock && (
+                        <span className="badge outOfStock">Out of Stock</span>
+                      )}
+                    </div>
+
+                    <div className="content">
+                      <h3>{p.displayName}</h3>
+
+                      {/* SOLD BY (multi-vendor) */}
+                      {p.vendor && (
+                        <p className="soldBy">
+                          Sold by {p.vendor.name || p.vendor.businessName}
+                        </p>
+                      )}
+
+                      {/* SIZE */}
+                      {p.sizeValue && (
+                        <p style={{ fontSize: "12px", color: "#666" }}>
+                          {p.sizeValue} {p.sizeUnit}
+                        </p>
+                      )}
+
+                      {/* SHORT DESCRIPTION */}
+                      {p.shortDescription && (
+                        <p style={{ fontSize: "12px", color: "#888", marginTop: 4 }}>
+                          {p.shortDescription.slice(0, 60)}...
+                        </p>
+                      )}
+
+                      <p className="price">
+                        <b>₹{price}</b>
+                        {mrp > price && (
+                          <span className="mrp">₹{mrp}</span>
+                        )}
+                      </p>
+                    </div>
+                  </Link>
+
+                  <div className="wishlistWrap">
+                    <WishlistButton
+                      product={{
+                        productId: p._id,
+                        slug: p.slug,
+                        name: p.displayName || p.name,
+                        price,
+                        image: p.images?.[0] || "",
+                      }}
+                    />
+                  </div>
+
+                  <div className="actions">
+                    <button
+                      onClick={() => handleAddToCart(p)}
+                      disabled={addingId === p._id || !inStock}
+                      className="btn"
+                    >
+                      {!inStock
+                        ? "Out of Stock"
+                        : addingId === p._id
+                        ? "Adding..."
+                        : "Add to Cart"}
+                    </button>
+
+                    <button onClick={() => handleShare(p)} className="share">
+                      Share
+                    </button>
+                  </div>
                 </div>
+              );
+            })}
+          </div>
+        )}
 
-                <div className="content">
-                  <h3>{p.displayName}</h3>
-
-                  {/* SIZE */}
-                  {p.sizeValue && (
-                    <p style={{ fontSize: "12px", color: "#666" }}>
-                      {p.sizeValue} {p.sizeUnit}
-                    </p>
-                  )}
-
-                  {/* SHORT DESCRIPTION */}
-                  {p.shortDescription && (
-                    <p style={{ fontSize: "12px", color: "#888", marginTop: 4 }}>
-                      {p.shortDescription.slice(0, 60)}...
-                    </p>
-                  )}
-
-                  <p className="price">
-                    <b>₹{price}</b>
-                    {mrp > price && (
-                      <span className="mrp">₹{mrp}</span>
-                    )}
-                  </p>
-                </div>
-              </Link>
-
-              <div className="actions">
-                <button
-                  onClick={() => handleAddToCart(p)}
-                  disabled={addingId === p._id}
-                  className="btn"
-                >
-                  {addingId === p._id ? "Adding..." : "Add to Cart"}
-                </button>
-
-                <button onClick={() => handleShare(p)} className="share">
-                  Share
-                </button>
-              </div>
-            </div>
-          );
-        })}
+        {/* ================= SEO JSON-LD ================= */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "ItemList",
+              itemListElement: products.slice(0, 10).map((p, index) => ({
+                "@type": "ListItem",
+                position: index + 1,
+                name: p.displayName,
+                url: `https://shopnative.in/products/${p.slug}`,
+              })),
+            }),
+          }}
+        />
       </div>
-
-      {/* ================= SEO JSON-LD ================= */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
-            "@context": "https://schema.org",
-            "@type": "ItemList",
-            itemListElement: products.slice(0, 10).map((p, index) => ({
-              "@type": "ListItem",
-              position: index + 1,
-              name: p.displayName,
-              url: `https://shopnative.in/products/${p.slug}`,
-            })),
-          }),
-        }}
-      />
 
       {/* ================= STYLES ================= */}
       <style jsx>{`
+        .page {
+          display: flex;
+          align-items: flex-start;
+          max-width: 1400px;
+          margin: 0 auto;
+        }
+
         .container {
-          max-width: 1200px;
-          margin: auto;
+          flex: 1;
           padding: 20px;
+        }
+
+        .topBar {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 16px;
+          flex-wrap: wrap;
+          margin-bottom: 16px;
+        }
+
+        .mobileSearch {
+          display: none;
+          width: 100%;
+        }
+
+        @media (max-width: 900px) {
+          .page {
+            flex-direction: column;
+          }
+
+          .mobileSearch {
+            display: block;
+          }
         }
 
         .grid {
@@ -187,6 +275,7 @@ export default function ProductsPage() {
         }
 
         .card {
+          position: relative;
           background: #fff;
           border-radius: 12px;
           overflow: hidden;
@@ -216,6 +305,16 @@ export default function ProductsPage() {
           border-radius: 5px;
         }
 
+        .badge.outOfStock {
+          background: #6b7280;
+        }
+
+        .wishlistWrap {
+          position: absolute;
+          top: 10px;
+          right: 10px;
+        }
+
         .content {
           padding: 12px;
         }
@@ -229,6 +328,13 @@ export default function ProductsPage() {
         .mrp {
           text-decoration: line-through;
           color: #888;
+        }
+
+        .soldBy {
+          font-size: 11px;
+          color: #c28b45;
+          font-weight: 600;
+          margin: 2px 0 0;
         }
 
         .actions {
