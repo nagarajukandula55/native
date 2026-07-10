@@ -258,7 +258,10 @@ export default function ProfilePage() {
       <section style={{ marginTop: 30 }}>
         <h3>Your Wishlist</h3>
         {(!wishlist || wishlist.length === 0) ? (
-          <p>Your wishlist is empty. <Link href="/products">Browse products</Link></p>
+          <div style={{ textAlign: "center", padding: "16px 0" }}>
+            <p style={{ marginBottom: 12 }}>Your wishlist is empty.</p>
+            <Link href="/products" className="btn btn-primary">Browse products</Link>
+          </div>
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 16 }}>
             {wishlist.map((item) => (

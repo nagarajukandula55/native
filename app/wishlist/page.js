@@ -17,8 +17,8 @@ export default function WishlistPage() {
       {items.length === 0 ? (
         <div className="empty">
           <p>Your wishlist is empty.</p>
-          <Link href="/products">
-            <button>Browse Products</button>
+          <Link href="/products" className="btn btn-primary">
+            Browse Products
           </Link>
         </div>
       ) : (

@@ -114,10 +114,10 @@ export default function SellPage() {
           <div className="card center">
             <p>Log in or create an account first to apply as a vendor.</p>
             <div className="ctaRow">
-              <Link href="/login?next=/sell" className="btn">
+              <Link href="/login?next=/sell" className="btn btn-primary">
                 Login
               </Link>
-              <Link href="/signup?next=/sell" className="btnGhost">
+              <Link href="/signup?next=/sell" className="btn btn-outline">
                 Sign up
               </Link>
             </div>
@@ -127,7 +127,7 @@ export default function SellPage() {
         ) : vendorState === "active" ? (
           <div className="card center">
             <p>You're already an approved vendor.</p>
-            <Link href="/vendor/dashboard" className="btn">
+            <Link href="/vendor/dashboard" className="btn btn-primary">
               Go to vendor dashboard
             </Link>
           </div>
@@ -196,7 +196,7 @@ export default function SellPage() {
 
             {error && <p className="error">{error}</p>}
 
-            <button className="btn" disabled={submitting}>
+            <button className="btn btn-primary btn-lg submitBtn" disabled={submitting}>
               {submitting ? "Submitting..." : "Submit application"}
             </button>
           </form>
@@ -282,40 +282,18 @@ export default function SellPage() {
           color: #e11d48;
           font-size: 13px;
         }
-        .btn {
-          padding: 13px;
-          background: #c28b45;
-          color: #fff;
-          border: none;
-          border-radius: 30px;
-          font-weight: 600;
-          cursor: pointer;
-          text-align: center;
-          text-decoration: none;
-          display: inline-block;
-        }
-        .btn:hover {
-          background: #a36d32;
-        }
-        .btn:disabled {
-          opacity: 0.7;
-          cursor: default;
-        }
-        .btnGhost {
-          padding: 13px;
-          background: #fff;
-          color: #c28b45;
-          border: 1px solid #c28b45;
-          border-radius: 30px;
-          font-weight: 600;
-          cursor: pointer;
-          text-decoration: none;
-          display: inline-block;
-        }
         .ctaRow {
           display: flex;
           gap: 12px;
           justify-content: center;
+          align-items: center;
+          flex-wrap: wrap;
+          width: 100%;
+        }
+        .submitBtn {
+          width: 100%;
+          align-self: center;
+          margin-top: 4px;
         }
       `}</style>
     </div>

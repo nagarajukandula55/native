@@ -181,12 +181,21 @@ export default function HomeClient() {
         ) : (
           <div className="catTiles">
             {categories.map((cat, i) => {
-              const cover = products.find((p) => p.category === cat.name)?.images?.[0];
+              // Only trust a cover photo once the products fetch has actually
+              // finished — otherwise every tile briefly (or permanently, if
+              // products load slower/fail) renders with `cover === undefined`
+              // which used to fall back to a bare pale-green box with a
+              // floating icon and a gradient hanging over nothing, reading as
+              // "broken" rather than intentional.
+              const cover = !loading
+                ? products.find((p) => p.category === cat.name)?.images?.[0]
+                : undefined;
+              const catId = cat.id || cat._id || i;
               return (
                 <Link
-                  key={cat.id || cat._id || i}
-                  href={`/products?category=${encodeURIComponent(cat.id || cat._id)}`}
-                  className="catTile"
+                  key={catId}
+                  href={`/products?category=${encodeURIComponent(catId)}`}
+                  className={cover ? "catTile" : "catTile catTileNoCover"}
                   style={cover ? { backgroundImage: `url(${cover})` } : undefined}
                 >
                   {!cover && <span className="catTileIcon">{iconForCategory(cat.name)}</span>}
@@ -402,6 +411,39 @@ export default function HomeClient() {
           justify-content: center;
           text-decoration: none;
           box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+          transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .catTile:hover {
+          transform: translateY(-3px);
+          box-shadow: 0 12px 24px rgba(0, 0, 0, 0.14);
+        }
+
+        /* No product cover photo yet (or products still loading) — show an
+           intentional brand-colored tile instead of a bare pale box with a
+           floating icon and an overlay gradient hanging over nothing. */
+        .catTileNoCover {
+          background: linear-gradient(160deg, #234a34, #1f3d2b 55%, #16301f);
+          flex-direction: column;
+          justify-content: flex-end;
+        }
+
+        .catTileNoCover .catTileIcon {
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -68%);
+          font-size: 44px;
+          filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.25));
+        }
+
+        .catTileNoCover .catTileOverlay {
+          background: none;
+          position: static;
+          margin-top: auto;
+          align-items: center;
+          text-align: center;
+          padding-bottom: 22px;
         }
 
         .catTileIcon {

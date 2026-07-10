@@ -6,19 +6,22 @@ import { WishlistProvider } from "@/context/WishlistContext";
 import { UserProvider } from "@/context/UserContext";
 import CookieConsent from "@/components/CookieConsent";
 import { Toaster } from "react-hot-toast";
-import { Fraunces, Manrope } from "next/font/google";
+import { Playfair_Display, DM_Sans } from "next/font/google";
 import Script from "next/script";
 import type { Metadata } from "next";
 import { getBusinessBranding } from "@/lib/an-sdk/company";
 
 /* ================= FONTS =================
-   Fraunces (warm, editorial serif with real optical-size character — reads
-   as premium/artisanal, well suited to a natural-foods brand's "Eat Healthy,
-   Stay Healthy" headline voice) paired with Manrope (clean, highly-legible
-   geometric sans for body copy, prices, forms, and UI chrome). Replaces the
-   generic Inter/Poppins pairing the owner felt looked off-brand. */
+   Fraunces read as too "quirky/odd" for the owner's taste (its distinctive
+   optical-size personality is polarizing). Swapped to a safer, still-premium
+   pairing: Playfair Display (a classic, elegant, widely-used editorial serif
+   for headings — far more conventional than Fraunces while still feeling
+   upscale) with DM Sans (a clean, neutral, highly-legible geometric sans for
+   body copy, prices, forms, and UI chrome). Both load via next/font/google
+   with display: swap and CSS variables consumed globally in globals.css
+   (--font-heading / --font-body), same wiring as before. */
 
-const fraunces = Fraunces({
+const playfair = Playfair_Display({
   subsets: ["latin"],
   weight: ["500", "600", "700"],
   style: ["normal", "italic"],
@@ -26,9 +29,9 @@ const fraunces = Fraunces({
   display: "swap",
 });
 
-const manrope = Manrope({
+const dmSans = DM_Sans({
   subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
+  weight: ["400", "500", "600", "700"],
   variable: "--font-body",
   display: "swap",
 });
@@ -92,7 +95,7 @@ export default async function RootLayout({
   return (
     <html
       lang="en"
-      className={`${manrope.variable} ${fraunces.variable}`}
+      className={`${dmSans.variable} ${playfair.variable}`}
       suppressHydrationWarning
     >
       <head>

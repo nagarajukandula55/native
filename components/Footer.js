@@ -130,9 +130,12 @@ export default function Footer() {
 
       {/* BOTTOM COPYRIGHT BAR */}
       <div className="bottomBar">
-        <h2>Native</h2>
-        <p>Eat Healthy, Stay Healthy</p>
-        <span>© {year} Native. All rights reserved.</span>
+        <div className="brandRow">
+          <h2>Native</h2>
+          <span className="tagline">Eat Healthy, Stay Healthy</span>
+        </div>
+        <span className="divider">—</span>
+        <span className="rights">© {year} Native. All rights reserved.</span>
       </div>
 
       {/* STYLE */}
@@ -164,9 +167,41 @@ export default function Footer() {
           padding: 20px;
           text-align: center;
           display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 4px;
+          flex-direction: row;
+          flex-wrap: wrap;
+          align-items: baseline;
+          justify-content: center;
+          gap: 10px;
+        }
+
+        .brandRow {
+          display: flex;
+          align-items: baseline;
+          gap: 10px;
+        }
+
+        .tagline {
+          font-size: 14px;
+          color: #ddd;
+        }
+
+        .divider {
+          color: #5a4028;
+        }
+
+        .rights {
+          font-size: 13px;
+          color: #bbb;
+        }
+
+        @media (max-width: 480px) {
+          .bottomBar {
+            flex-direction: column;
+            gap: 6px;
+          }
+          .divider {
+            display: none;
+          }
         }
 
         .logoBox {

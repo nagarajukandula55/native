@@ -53,7 +53,7 @@ export default function VendorStorefrontPage() {
     return (
       <div className="container">
         <p>This vendor storefront isn't available yet.</p>
-        <Link href="/products" className="link">
+        <Link href="/products" className="btn btn-primary linkBtn">
           Browse all products
         </Link>
         <style jsx>{`
@@ -62,9 +62,8 @@ export default function VendorStorefrontPage() {
             margin: 60px auto;
             text-align: center;
           }
-          .link {
-            color: #c28b45;
-            font-weight: 600;
+          .linkBtn {
+            margin-top: 16px;
           }
         `}</style>
       </div>
