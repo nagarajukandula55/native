@@ -1,17 +1,28 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { login } from "@/lib/an-sdk/auth";
 import { ApiError } from "@/lib/an-sdk/client";
 import { isSsoMode, isSsoConfigured, startSsoLogin } from "@/lib/an-sdk/sso";
 import { useUser } from "@/context/UserContext";
+import { getBusinessBranding } from "@/lib/an-sdk/company";
 
 export default function LoginPage() {
   const router = useRouter();
   const { refreshUser } = useUser();
   const ssoMode = isSsoMode();
+
+  // Dynamic business-uploaded logo, same pattern as Navbar's logoUrl prop
+  // (sourced from ANgroup's public GET /api/businesses/public). Falls
+  // back to the static asset on error/absence.
+  const [logoUrl, setLogoUrl] = useState(null);
+  useEffect(() => {
+    getBusinessBranding()
+      .then((b) => setLogoUrl(b?.logo || null))
+      .catch(() => setLogoUrl(null));
+  }, []);
 
   const [form, setForm] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
@@ -51,7 +62,14 @@ export default function LoginPage() {
     <div className="wrap">
       <div className="card">
         <div className="logo">
-          <img src="/logo.svg" alt="Native" />
+          <img
+            src={logoUrl || "/logo.svg"}
+            alt="Native"
+            onError={(e) => {
+              e.currentTarget.onerror = null;
+              e.currentTarget.src = "/logo.svg";
+            }}
+          />
         </div>
 
         <h2>Welcome back</h2>

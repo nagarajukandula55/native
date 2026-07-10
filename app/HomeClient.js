@@ -6,6 +6,7 @@ import { useCart } from "@/context/CartContext";
 import { getProducts, getCategories } from "@/lib/an-sdk/products";
 import WishlistButton from "@/components/WishlistButton";
 import RecentlyViewed from "@/components/RecentlyViewed";
+import HeroSlideshow from "@/components/HeroSlideshow";
 
 // Simple keyword → emoji map so real category names (whatever the backend
 // returns) still get a sensible icon without needing per-category image
@@ -73,11 +74,39 @@ export default function HomeClient() {
     loadCategories();
   }, []);
 
-  // Real product photos (from the live catalogue) used inside the hero
-  // collage instead of a fabricated "5 pouches" studio shot — there is no
-  // matching asset for that in public/, so this reuses whatever the first
-  // few real products actually look like.
+  // Real product photos (from the live catalogue), used as slideshow
+  // backgrounds when a dedicated hero asset isn't present at /hero/slide-N.jpg
+  // — see HeroSlideshow below for the fallback chain.
   const heroImages = products.slice(0, 3).map((p) => p.images?.[0]).filter(Boolean);
+
+  // Slide content — each slide expects a full-bleed banner image at
+  // /public/hero/slide-1.jpg, slide-2.jpg, slide-3.jpg. Drop real
+  // photography there (e.g. the product-lineup banner) to replace the
+  // fallback, which reuses real catalogue product photos so the slideshow
+  // never shows a broken image even before those assets exist.
+  const slides = [
+    {
+      img: "/hero/slide-1.jpg",
+      fallback: heroImages[0] || "/hero.png",
+      eyebrow: "REFINED FROM THE SOURCE",
+      heading: "Eat Healthy,\nStay Healthy",
+      sub: "100% Natural | No Preservatives | Traditional & Healthy",
+    },
+    {
+      img: "/hero/slide-2.jpg",
+      fallback: heroImages[1] || heroImages[0] || "/hero.png",
+      eyebrow: "STONE-GROUND · SUN-DRIED",
+      heading: "Traditional Recipes,\nModern Convenience",
+      sub: "Sourced directly from farmers across India — no shortcuts, no additives.",
+    },
+    {
+      img: "/hero/slide-3.jpg",
+      fallback: heroImages[2] || heroImages[0] || "/hero.png",
+      eyebrow: "FSSAI CERTIFIED",
+      heading: "Every Pack,\nNaturally Made",
+      sub: "From our kitchens to yours — nutrition without compromise.",
+    },
+  ];
 
   return (
     <div className="home">
@@ -88,53 +117,25 @@ export default function HomeClient() {
         <span>🕐 Fast Delivery in 24-48 Hrs</span>
       </div>
 
-      {/* ================= HERO ================= */}
-      <section className="hero">
-        <div className="heroInner">
-          <div className="heroLeft">
-            <h1>
-              Eat Healthy,
-              <br />
-              Stay Healthy
-            </h1>
-            <p className="heroSub">
-              100% Natural | No Preservatives
-              <br />
-              Traditional &amp; Healthy
-            </p>
+      {/* ================= HERO SLIDESHOW ================= */}
+      <HeroSlideshow slides={slides} />
 
-            <Link href="/products" className="shopNowBtn">
-              SHOP NOW
-            </Link>
-
-            <div className="heroFeatures">
-              {[
-                ["🌿", "100% Natural"],
-                ["🚫", "No Preservatives"],
-                ["🍲", "Traditional Foods"],
-                ["❤️", "Made with Love"],
-              ].map(([icon, label]) => (
-                <div key={label} className="heroFeature">
-                  <span className="heroFeatureIcon">{icon}</span>
-                  <span className="heroFeatureLabel">{label}</span>
-                </div>
-              ))}
-            </div>
+      {/* ================= FEATURE STRIP (moved out of hero so it reads
+          cleanly under the full-bleed slideshow rather than overlaid on
+          a photo) ================= */}
+      <div className="heroFeatures">
+        {[
+          ["🌿", "100% Natural"],
+          ["🚫", "No Preservatives"],
+          ["🍲", "Traditional Foods"],
+          ["❤️", "Made with Love"],
+        ].map(([icon, label]) => (
+          <div key={label} className="heroFeature">
+            <span className="heroFeatureIcon">{icon}</span>
+            <span className="heroFeatureLabel">{label}</span>
           </div>
-
-          <div className="heroRight">
-            {heroImages.length > 0 ? (
-              <div className="heroCollage">
-                {heroImages.map((src, i) => (
-                  <img key={i} src={src} alt="Native product" className={`heroImg heroImg${i}`} />
-                ))}
-              </div>
-            ) : (
-              <img src="/hero.png" alt="Native natural products" className="heroFallbackImg" />
-            )}
-          </div>
-        </div>
-      </section>
+        ))}
+      </div>
 
       {/* ================= CATEGORY TILES ================= */}
       <section id="categories" className="catSection">
@@ -264,10 +265,10 @@ export default function HomeClient() {
         <div className="trustItem">
           <span className="trustIcon">🎧</span>
           <strong>CUSTOMER SUPPORT</strong>
-          {/* No support phone is exposed by GET /api/businesses/public
-              (only name/logo/favicon/industry) — placeholder until a real
-              number is configured. */}
-          <span>+91 8XXXX XXXXX</span>
+          {/* Support phone not exposed by GET /api/businesses/public
+              (only name/logo/favicon/industry) — reuse the real WhatsApp
+              support number shown in Footer.js. */}
+          <span>+91 89852 29693</span>
         </div>
       </section>
 
@@ -304,61 +305,14 @@ export default function HomeClient() {
           text-align: center;
         }
 
-        /* ===== HERO ===== */
-        .hero {
-          background: linear-gradient(135deg, #f5ecd9, #ede0c4);
-          padding: 50px 24px;
-        }
-
-        .heroInner {
-          max-width: 1200px;
-          margin: 0 auto;
-          display: flex;
-          align-items: center;
-          gap: 40px;
-          flex-wrap: wrap;
-        }
-
-        .heroLeft {
-          flex: 1 1 420px;
-          min-width: 280px;
-        }
-
-        .heroLeft h1 {
-          font-family: var(--font-heading, serif);
-          font-size: clamp(32px, 5vw, 56px);
-          color: #1f3d2b;
-          margin: 0 0 12px;
-          line-height: 1.1;
-        }
-
-        .heroSub {
-          font-style: italic;
-          font-size: clamp(15px, 2vw, 19px);
-          color: #4a5d43;
-          margin: 0 0 24px;
-        }
-
-        .shopNowBtn {
-          display: inline-block;
-          background: #1f3d2b;
-          color: #fff;
-          padding: 14px 36px;
-          border-radius: 30px;
-          text-decoration: none;
-          font-weight: 600;
-          letter-spacing: 0.5px;
-        }
-
-        .shopNowBtn:hover {
-          background: #16301f;
-        }
-
+        /* ===== FEATURE STRIP (below the hero slideshow) ===== */
         .heroFeatures {
           display: flex;
-          gap: 20px;
-          margin-top: 36px;
+          justify-content: center;
+          gap: 40px;
           flex-wrap: wrap;
+          background: linear-gradient(135deg, #f5ecd9, #ede0c4);
+          padding: 26px 24px;
         }
 
         .heroFeature {
@@ -387,41 +341,6 @@ export default function HomeClient() {
           text-transform: uppercase;
           letter-spacing: 0.4px;
           color: #333;
-        }
-
-        .heroRight {
-          flex: 1 1 380px;
-          min-width: 260px;
-          max-width: 100%;
-        }
-
-        .heroCollage {
-          display: flex;
-          gap: 12px;
-          justify-content: center;
-          flex-wrap: wrap;
-        }
-
-        .heroImg {
-          width: 140px;
-          height: 180px;
-          object-fit: cover;
-          border-radius: 16px;
-          box-shadow: 0 10px 25px rgba(0, 0, 0, 0.12);
-          max-width: 100%;
-        }
-
-        .heroImg1 {
-          transform: translateY(-16px);
-        }
-
-        .heroFallbackImg {
-          width: 100%;
-          max-width: 480px;
-          height: auto;
-          border-radius: 16px;
-          display: block;
-          margin: 0 auto;
         }
 
         /* ===== CATEGORY TILES ===== */

@@ -97,13 +97,14 @@ export default function ContactPage() {
 
         <div style={styles.info}>
           <p>📍 Chennai, Tamil Nadu</p>
-          <p>📞 +91 90000 00000</p>
+          <p>📞 +91 89852 29693</p>
           <p>📧 support@shopnative.in</p>
           <p>💬 WhatsApp: Click below</p>
 
           <a
-            href="https://wa.me/919000000000"
+            href="https://wa.me/918985229693"
             target="_blank"
+            rel="noreferrer"
             style={styles.whatsapp}
           >
             Chat on WhatsApp
@@ -150,10 +151,12 @@ const styles = {
   },
   button: {
     padding: 12,
-    background: "black",
+    background: "#1f3d2b",
     color: "white",
     border: "none",
-    borderRadius: 6,
+    borderRadius: 8,
+    fontWeight: 600,
+    fontSize: 15,
     cursor: "pointer",
   },
   info: {

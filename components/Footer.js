@@ -28,109 +28,111 @@ export default function Footer() {
 
   return (
     <footer className="footer">
-      {/* LEFT */}
-      <div className="col">
-        <div className="logoBox">
-          <Image
-            src="/fssai-logo.png"
-            alt="FSSAI Logo"
-            width={120}
-            height={60}
-          />
-          <span className="smallText">
-            License No: 20126021000129
-          </span>
+      <div className="cols">
+        {/* LEFT */}
+        <div className="col">
+          <div className="logoBox">
+            <Image
+              src="/fssai-logo.png"
+              alt="FSSAI Logo"
+              width={120}
+              height={60}
+            />
+            <span className="smallText">
+              License No: 20126021000129
+            </span>
+          </div>
+
+          <div className="socials">
+            <a href="https://facebook.com" target="_blank" rel="noreferrer">
+              <img src="/icons/facebook.svg" alt="Facebook" width={24} />
+            </a>
+            <a href="https://instagram.com/native_foodstore" target="_blank" rel="noreferrer">
+              <img src="/icons/instagram.svg" alt="Instagram" width={24} />
+            </a>
+            <a href="https://twitter.com" target="_blank" rel="noreferrer">
+              <img src="/icons/twitter.svg" alt="Twitter" width={24} />
+            </a>
+          </div>
         </div>
 
-        <div className="socials">
-          <a href="https://facebook.com" target="_blank" rel="noreferrer">
-            <img src="/icons/facebook.svg" alt="Facebook" width={24} />
-          </a>
-          <a href="https://instagram.com/native_foodstore" target="_blank" rel="noreferrer">
-            <img src="/icons/instagram.svg" alt="Instagram" width={24} />
-          </a>
-          <a href="https://twitter.com" target="_blank" rel="noreferrer">
-            <img src="/icons/twitter.svg" alt="Twitter" width={24} />
-          </a>
+        {/* SITEMAP */}
+        <div className="col">
+          <h3>Sitemap</h3>
+          <Link href="/">Home</Link>
+          <Link href="/products">Products</Link>
+          <Link href="/track">Track Order</Link>
+          <Link href="/about">About Us</Link>
+          <Link href="/contact">Contact</Link>
+        </div>
+
+        {/* MARKETPLACE */}
+        <div className="col">
+          <h3>Marketplace</h3>
+          <Link href="/sell">Sell on Native</Link>
+          <Link href="/orders">My Orders</Link>
+          <Link href="/wishlist">Wishlist</Link>
+          <Link href="/support">Support</Link>
+        </div>
+
+        {/* LEGAL */}
+        <div className="col">
+          <h3>Legal</h3>
+          <Link href="/privacy-policy">Privacy Policy</Link>
+          <Link href="/terms-and-conditions">Terms & Conditions</Link>
+          <Link href="/refund-policy">Refund & Cancellation</Link>
+          <Link href="/shipping-policy">Shipping Policy</Link>
+        </div>
+
+        {/* CONTACT */}
+        <div className="col">
+          <h3>Contact</h3>
+          <p>
+            Email:{" "}
+            <a href="mailto:care@shopnative.in">
+              care@shopnative.in
+            </a>
+          </p>
+          <p>
+            WhatsApp:{" "}
+            <a
+              href="https://wa.me/918985229693"
+              target="_blank"
+              rel="noreferrer"
+            >
+              +91 89852 29693
+            </a>
+          </p>
+
+          <form className="newsletter" onSubmit={handleSubscribe}>
+            {status === "done" ? (
+              <p className="subscribed">You're subscribed — thank you!</p>
+            ) : (
+              <>
+                <input
+                  type="email"
+                  required
+                  placeholder="Your email for offers & updates"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+                <button type="submit" disabled={status === "loading"}>
+                  {status === "loading" ? "..." : "Subscribe"}
+                </button>
+              </>
+            )}
+            {status === "error" && (
+              <p className="subError">Couldn't subscribe right now — please try again later.</p>
+            )}
+          </form>
         </div>
       </div>
 
-      {/* CENTER */}
-      <div className="col center">
+      {/* BOTTOM COPYRIGHT BAR */}
+      <div className="bottomBar">
         <h2>Native</h2>
         <p>Eat Healthy, Stay Healthy</p>
         <span>© {year} Native. All rights reserved.</span>
-
-        <form className="newsletter" onSubmit={handleSubscribe}>
-          {status === "done" ? (
-            <p className="subscribed">You're subscribed — thank you!</p>
-          ) : (
-            <>
-              <input
-                type="email"
-                required
-                placeholder="Your email for offers & updates"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-              <button type="submit" disabled={status === "loading"}>
-                {status === "loading" ? "..." : "Subscribe"}
-              </button>
-            </>
-          )}
-          {status === "error" && (
-            <p className="subError">Couldn't subscribe right now — please try again later.</p>
-          )}
-        </form>
-      </div>
-
-      {/* SITEMAP */}
-      <div className="col">
-        <h3>Sitemap</h3>
-        <Link href="/">Home</Link>
-        <Link href="/products">Products</Link>
-        <Link href="/track">Track Order</Link>
-        <Link href="/about">About Us</Link>
-        <Link href="/contact">Contact</Link>
-      </div>
-
-      {/* MARKETPLACE */}
-      <div className="col">
-        <h3>Marketplace</h3>
-        <Link href="/sell">Sell on Native</Link>
-        <Link href="/orders">My Orders</Link>
-        <Link href="/wishlist">Wishlist</Link>
-        <Link href="/support">Support</Link>
-      </div>
-
-      {/* LEGAL */}
-      <div className="col">
-        <h3>Legal</h3>
-        <Link href="/privacy-policy">Privacy Policy</Link>
-        <Link href="/terms-and-conditions">Terms & Conditions</Link>
-        <Link href="/refund-policy">Refund & Cancellation</Link>
-        <Link href="/shipping-policy">Shipping Policy</Link>
-      </div>
-
-      {/* CONTACT */}
-      <div className="col">
-        <h3>Contact</h3>
-        <p>
-          Email:{" "}
-          <a href="mailto:care@shopnative.in">
-            care@shopnative.in
-          </a>
-        </p>
-        <p>
-          WhatsApp:{" "}
-          <a
-            href="https://wa.me/918985229693"
-            target="_blank"
-            rel="noreferrer"
-          >
-            +91 89852 29693
-          </a>
-        </p>
       </div>
 
       {/* STYLE */}
@@ -138,11 +140,15 @@ export default function Footer() {
         .footer {
           background: #3a2a1c;
           color: #fff;
-          padding: 40px 20px;
+          padding: 40px 20px 0;
+        }
+
+        .cols {
           display: flex;
           justify-content: space-between;
           flex-wrap: wrap;
           gap: 25px;
+          padding-bottom: 32px;
         }
 
         .col {
@@ -153,8 +159,14 @@ export default function Footer() {
           gap: 10px;
         }
 
-        .center {
+        .bottomBar {
+          border-top: 1px solid #5a4028;
+          padding: 20px;
           text-align: center;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 4px;
         }
 
         .logoBox {
@@ -195,10 +207,10 @@ export default function Footer() {
         }
 
         .newsletter {
-          margin-top: 14px;
+          margin-top: 6px;
           display: flex;
           gap: 8px;
-          justify-content: center;
+          justify-content: flex-start;
           flex-wrap: wrap;
         }
 
@@ -252,7 +264,7 @@ export default function Footer() {
 
         /* RESPONSIVE */
         @media (max-width: 768px) {
-          .footer {
+          .cols {
             flex-direction: column;
             align-items: center;
             text-align: center;
@@ -260,6 +272,10 @@ export default function Footer() {
 
           .col {
             align-items: center;
+          }
+
+          .newsletter {
+            justify-content: center;
           }
         }
       `}</style>
