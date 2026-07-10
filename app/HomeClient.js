@@ -183,10 +183,12 @@ export default function HomeClient() {
             {categories.map((cat, i) => {
               // Only trust a cover photo once the products fetch has actually
               // finished — otherwise every tile briefly (or permanently, if
-              // products load slower/fail) renders with `cover === undefined`
-              // which used to fall back to a bare pale-green box with a
-              // floating icon and a gradient hanging over nothing, reading as
-              // "broken" rather than intentional.
+              // products load slower/fail) renders with `cover === undefined`.
+              // Using a real <img> (with onError) instead of a CSS
+              // background-image — a failed background-image fails silently
+              // (no error event, no fallback possible), which is exactly how
+              // a tile can end up rendering as an empty/collapsed box while
+              // its absolutely-positioned label overlay still shows.
               const cover = !loading
                 ? products.find((p) => p.category === cat.name)?.images?.[0]
                 : undefined;
@@ -196,9 +198,20 @@ export default function HomeClient() {
                   key={catId}
                   href={`/products?category=${encodeURIComponent(catId)}`}
                   className={cover ? "catTile" : "catTile catTileNoCover"}
-                  style={cover ? { backgroundImage: `url(${cover})` } : undefined}
                 >
-                  {!cover && <span className="catTileIcon">{iconForCategory(cat.name)}</span>}
+                  {cover ? (
+                    <img
+                      src={cover}
+                      alt=""
+                      className="catTileImg"
+                      onError={(e) => {
+                        e.currentTarget.style.display = "none";
+                        e.currentTarget.parentElement?.classList.add("catTileNoCover");
+                      }}
+                    />
+                  ) : (
+                    <span className="catTileIcon">{iconForCategory(cat.name)}</span>
+                  )}
                   <div className="catTileOverlay">
                     <span className="catTileName">{(cat.name || "").toUpperCase()}</span>
                     <span className="catTileCta">SHOP NOW</span>
@@ -231,7 +244,20 @@ export default function HomeClient() {
               return (
                 <div key={p.id || p._id} className="productCard">
                   <Link href={`/products/${p.slug || p._id}`} className="imgWrap">
-                    <img src={p.images?.[0] || "/placeholder.png"} alt={p.name} />
+                    <img
+                      src={p.images?.[0] || "/placeholder.png"}
+                      alt={p.name}
+                      onError={(e) => {
+                        // A failed image (e.g. an unreachable placehold.co
+                        // URL) otherwise falls back to rendering the alt
+                        // text as large, unstyled inline text — looks like
+                        // a giant broken watermark instead of a missing
+                        // photo. Swap to a real local placeholder instead.
+                        if (e.currentTarget.src.indexOf("/placeholder.png") === -1) {
+                          e.currentTarget.src = "/placeholder.png";
+                        }
+                      }}
+                    />
                     {!inStock && <span className="outOfStockBadge">Out of Stock</span>}
                     <div className="wishlistWrap" onClick={(e) => e.preventDefault()}>
                       <WishlistButton
@@ -405,13 +431,23 @@ export default function HomeClient() {
           height: 220px;
           border-radius: 16px;
           overflow: hidden;
-          background: #dfead9 center/cover no-repeat;
+          background: #dfead9;
           display: flex;
           align-items: center;
           justify-content: center;
           text-decoration: none;
           box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
           transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .catTileImg {
+          position: absolute;
+          inset: 0;
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          object-position: center;
+          display: block;
         }
 
         .catTile:hover {
