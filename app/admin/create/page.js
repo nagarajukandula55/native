@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { registerAdmin } from "@/lib/an-sdk/users"
 
 export default function CreateAdmin(){
 
@@ -11,18 +12,16 @@ export default function CreateAdmin(){
 
   async function create(){
 
-    const res = await fetch("/api/admin/register",{
-      method:"POST",
-      headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify({ name,email,password })
-    })
+    try {
+      const data = await registerAdmin({ name, email, password })
 
-    const data = await res.json()
-
-    if(data.success){
-      setMsg("✅ Admin Created Successfully")
-    }else{
-      setMsg("❌ Failed")
+      if(data.success){
+        setMsg("✅ Admin Created Successfully")
+      }else{
+        setMsg("❌ Failed")
+      }
+    } catch (err) {
+      setMsg(err?.message || "❌ Failed")
     }
 
   }

@@ -3,6 +3,8 @@
 import { useState, useEffect, useRef } from "react";
 import JsBarcode from "jsbarcode";
 import { useRouter } from "next/navigation";
+import { generateAiContent, runAiCompliance, generateAiSeoMulti, adminCreateProduct } from "@/lib/an-sdk/products";
+import { uploadImage } from "@/lib/an-sdk/upload";
 
 export default function ProductUpload() {
 
@@ -436,23 +438,17 @@ function removeIngredient(i) {
         }
     
         console.log("🚀 Calling AI API...");
-    
-        const res = await fetch("/api/ai-content", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: form.name,
-            category: form.category,
-            subcategory: form.subcategory,
-            ingredients: formatIngredients(form.ingredients),
-          }),
+
+        const data = await generateAiContent({
+          name: form.name,
+          category: form.category,
+          subcategory: form.subcategory,
+          ingredients: formatIngredients(form.ingredients),
         });
-    
-        const data = await res.json();
-    
+
         console.log("📦 AI RESPONSE:", data);
-    
-        if (!res.ok || !data.success) {
+
+        if (!data.success) {
           return alert(data.message || "AI generation failed");
         }
     
@@ -473,27 +469,19 @@ function removeIngredient(i) {
     
       } catch (err) {
         console.error("🔥 AI ERROR:", err);
-        alert("AI error");
+        alert(err?.message || "AI error");
       }
     };
-  
+
     async function generateComplianceAI() {
       try {
-        const res = await fetch("/api/ai-compliance", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            name: form.name,
-            category: form.category,
-            ingredients: form.ingredients?.map(i => i?.name) || [],
-            productType: form.productType,
-          }),
+        const data = await runAiCompliance({
+          name: form.name,
+          category: form.category,
+          ingredients: form.ingredients?.map(i => i?.name) || [],
+          productType: form.productType,
         });
-    
-        const data = await res.json();
-    
+
         if (!data.success) {
           alert("AI compliance generation failed");
           return;
@@ -511,26 +499,25 @@ function removeIngredient(i) {
     
       } catch (err) {
         console.error(err);
-        alert("AI compliance error");
+        alert(err?.message || "AI compliance error");
       }
     }
 
     async function generateMultiSEO() {
-    const res = await fetch("/api/ai-seo-multi", {
-      method: "POST",
-      body: JSON.stringify({
+    try {
+      const data = await generateAiSeoMulti({
         name: form.name,
         category: form.category
-      })
-    });
-  
-    const data = await res.json();
-  
-    setSeoMulti({
-      en: data.en,
-      te: data.te,
-      hi: data.hi
-    });
+      });
+
+      setSeoMulti({
+        en: data.en,
+        te: data.te,
+        hi: data.hi
+      });
+    } catch (err) {
+      console.error("AI SEO multi error:", err);
+    }
   }
 
   /* ================= STEP VALIDATION ================= */
@@ -590,48 +577,40 @@ function removeIngredient(i) {
   async function handleImageUpload(e) {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
-  
+
     setLoading(true);
-  
+
     const uploaded = [];
-  
+
     try {
       for (const file of files) {
-        const formData = new FormData();
-        formData.append("file", file);
-        formData.append("upload_preset", "native_upload");
-  
-        const res = await fetch(
-          `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUD_NAME}/image/upload`,
-          {
-            method: "POST",
-            body: formData,
+        try {
+          const json = await uploadImage(file, form.sku || form.productId);
+
+          if (!json?.url && !json?.secure_url) {
+            console.error("Upload failed:", json);
+            continue; // skip failed file
           }
-        );
-  
-        const json = await res.json();
-  
-        if (!res.ok || !json.secure_url) {
-          console.error("Cloudinary upload failed:", json);
-          continue; // skip failed file
+
+          uploaded.push(json.url || json.secure_url);
+        } catch (uploadErr) {
+          console.error("Upload error for file:", file?.name, uploadErr);
         }
-  
-        uploaded.push(json.secure_url);
       }
-  
+
       if (uploaded.length === 0) {
-        alert("No images were uploaded. Check Cloudinary config.");
+        alert("No images were uploaded. Check upload service config.");
         return;
       }
-  
+
       setForm(prev => ({
         ...prev,
         images: [...(prev.images || []), ...uploaded],
       }));
-  
+
     } catch (err) {
       console.error("Upload error:", err);
-      alert("Image upload failed due to network error");
+      alert(err?.message || "Image upload failed due to network error");
     } finally {
       setLoading(false);
     }
@@ -716,43 +695,34 @@ function removeIngredient(i) {
       images: form.images || [],
     };
   
-      const res = await fetch("/api/admin/products", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(cleanPayload),
-      });
-      
       console.log("📡 CALLING API...");
-      console.log("STATUS CODE:", res.status);
-      
-        const data = await res.json(); // ✅ simpler & safer
 
-      console.log("FULL RESPONSE:", data);
-      
-        if (!res.ok || !data.success) {
-          console.error("❌ API FAILED");
-          console.error("STATUS:", res.status);
-          console.error("RESPONSE:", data);
-        
-          console.error("FULL ERROR RESPONSE:", {
-            status: res.status,
-            data,
-            payload: cleanPayload
-          });
-        
-          setError(data.message || "Product submission failed");
-          return;
-        }
+      let data;
+      try {
+        data = await adminCreateProduct(cleanPayload);
+      } catch (apiErr) {
+        console.error("❌ API FAILED");
+        console.error("STATUS:", apiErr?.status);
+        console.error("RESPONSE:", apiErr?.data);
+
+        console.error("FULL ERROR RESPONSE:", {
+          status: apiErr?.status,
+          data: apiErr?.data,
+          payload: cleanPayload
+        });
+
+        setError(apiErr?.message || "Product submission failed");
+        return;
+      }
+
       console.log("✅ SUCCESS:", data);
-  
+
       // ✅ SUCCESS
       alert("Product submitted successfully!");
-  
+
       setForm(emptyForm);
       router.push("/admin/products/list");
-  
+
     } catch (err) {
       console.error(err);
       setError("Network or server error");

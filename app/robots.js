@@ -5,6 +5,9 @@ export default function robots() {
     rules: {
       userAgent: "*",
       allow: "/",
+      // Private/transactional/account routes — no SEO value, shouldn't
+      // show up in search results.
+      disallow: ["/admin", "/checkout", "/profile", "/cart", "/orders", "/api"],
     },
 
     sitemap: "https://shopnative.in/sitemap.xml",

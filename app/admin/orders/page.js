@@ -4,13 +4,14 @@ import { useEffect, useMemo, useState } from "react";
 
 import {
   getOrders,
-  markAsPaid,
   updateOrderStatus,
+  markOrderPaid,
 } from "@/lib/an-sdk/orders";
 
 import {
   createShipment,
   loadShippingRates,
+  requestPickup,
 } from "@/lib/an-sdk/shipping";
 
 const ORDER_STATUSES = [
@@ -154,25 +155,23 @@ export default function AdminOrdersPage() {
 
       const data = await getOrders();
 
-      if (data?.success) {
-        setOrders(data.orders || []);
+      setOrders(data.orders || []);
 
       if (selectedOrder) {
         const latest =
-          data.orders.find(
+          data.orders?.find(
             (x) =>
               x.orderId ===
               selectedOrder.orderId
           );
-      
-          if (latest) {
-            setSelectedOrder(latest);
-          }
-        } else if (data.orders?.length) {
-          setSelectedOrder(
-            data.orders[0]
-          );
+
+        if (latest) {
+          setSelectedOrder(latest);
         }
+      } else if (data.orders?.length) {
+        setSelectedOrder(
+          data.orders[0]
+        );
       }
     } catch (err) {
       console.log(err);
@@ -224,64 +223,46 @@ export default function AdminOrdersPage() {
     const handleMarkPaid = async (
       orderId
     ) => {
-      const utr = window.prompt(
-        "Enter UTR Number"
+      const confirmed = window.confirm(
+        "Mark this order as paid? (ANgroup records this as a manual mark-paid, not a UTR entry.)"
       );
-    
-      if (!utr) return;
-    
+
+      if (!confirmed) return;
+
       try {
-        const data = await markAsPaid(
-          orderId,
-          utr
+        await markOrderPaid(orderId, "MANUAL");
+
+        await fetchOrders();
+
+        alert(
+          "Payment marked successfully"
         );
-    
-        if (data.success) {
-          await fetchOrders();
-    
-          alert(
-            "Payment marked successfully"
-          );
-        } else {
-          alert(
-            data.message ||
-              "Payment update failed"
-          );
-        }
       } catch (err) {
         console.error(err);
-    
-        alert("Payment update failed");
+
+        alert(err.message || "Payment update failed");
       }
     };
-    
+
     const handleStatusUpdate = async (
       orderId,
       newStatus
     ) => {
       try {
-        const data =
-          await updateOrderStatus(
-            orderId,
-            newStatus
-          );
-    
-        if (data.success) {
-          await fetchOrders();
-    
-          alert(
-            "Status updated successfully"
-          );
-        } else {
-          alert(
-            data.message ||
-              "Status update failed"
-          );
-        }
+        await updateOrderStatus(
+          orderId,
+          newStatus
+        );
+
+        await fetchOrders();
+
+        alert(
+          "Status updated successfully"
+        );
       } catch (err) {
         console.error(err);
-    
-        alert("Status update failed");
+
+        alert(err.message || "Status update failed");
       }
     };
     
@@ -295,52 +276,18 @@ export default function AdminOrdersPage() {
 
 const fetchLiveCouriers = async () => {
   try {
-    const API =
-      process.env.NEXT_PUBLIC_AN_API ||
-      "https://www.angroup.in";
-
-    const res = await fetch(
-      `${API}/api/shipping/rates`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type":
-            "application/json",
-        },
-        body: JSON.stringify({
-          orderId:
-            shipmentOrderId,
-
-          weight:
-            packageData.weight,
-
-          length:
-            packageData.length,
-
-          width:
-            packageData.width,
-
-          height:
-            packageData.height,
-        }),
-      }
+    // NOTE: shipping.loadShippingRates(orderId) only forwards orderId —
+    // the SDK signature has no slot for weight/length/width/height, so
+    // packageData is collected in the modal but not sent. Flag for the
+    // AN group if per-shipment package dimensions need to reach /shipping/rates.
+    const data = await loadShippingRates(
+      shipmentOrderId
     );
-
-    const data =
-      await res.json();
 
     console.log(
       "Rates Response:",
       data
     );
-
-    if (!data.success) {
-      alert(
-        data.message ||
-          "Failed loading rates"
-      );
-      return;
-    }
 
     setPackageModal(false);
 
@@ -353,6 +300,7 @@ const fetchLiveCouriers = async () => {
     console.error(err);
 
     alert(
+      err.message ||
       "Failed loading couriers"
     );
   }
@@ -361,51 +309,44 @@ const fetchLiveCouriers = async () => {
     const handleCourierSelect =
       async (courier) => {
         try {
-          const data =
-              await createShipment(
-                shipmentOrderId,
-                "COURIER",
-                String(courier.courierId),
-                {
-                  weight:
-                    packageData.weight,
-            
-                  length:
-                    packageData.length,
-            
-                  width:
-                    packageData.width,
-            
-                  height:
-                    packageData.height,
-                }
-              );
-    
-          if (data.success) {
-            setCourierModal(false);
-    
-            setCouriers([]);
-    
-            await fetchOrders();
-    
-            alert(
-              "Shipment created successfully"
-            );
-          } else {
-            alert(
-              data.message ||
-                "Shipment failed"
-            );
-          }
+          await createShipment(
+            shipmentOrderId,
+            "COURIER",
+            String(courier.courierId),
+            {
+              weight:
+                packageData.weight,
+
+              length:
+                packageData.length,
+
+              width:
+                packageData.width,
+
+              height:
+                packageData.height,
+            }
+          );
+
+          setCourierModal(false);
+
+          setCouriers([]);
+
+          await fetchOrders();
+
+          alert(
+            "Shipment created successfully"
+          );
         } catch (err) {
           console.error(err);
-    
+
           alert(
+            err.message ||
             "Shipment creation failed"
           );
         }
       };
-    
+
     const handleShipment = async (
       orderId,
       dispatchType
@@ -415,51 +356,46 @@ const fetchLiveCouriers = async () => {
           dispatchType ===
           "LOCAL_DELIVERY"
         ) {
-          const data =
-            await createShipment(
-              orderId,
-              "LOCAL_DELIVERY"
-            );
-    
-          if (data.success) {
-            await fetchOrders();
-    
-            alert(
-              "Local delivery created"
-            );
-          }
-    
+          await createShipment(
+            orderId,
+            "LOCAL_DELIVERY"
+          );
+
+          await fetchOrders();
+
+          alert(
+            "Local delivery created"
+          );
+
           return;
         }
-    
+
         if (
           dispatchType ===
           "BY_HAND"
         ) {
-          const data =
-            await createShipment(
-              orderId,
-              "BY_HAND"
-            );
-    
-          if (data.success) {
-            await fetchOrders();
-    
-            alert(
-              "Marked as hand delivery"
-            );
-          }
-    
+          await createShipment(
+            orderId,
+            "BY_HAND"
+          );
+
+          await fetchOrders();
+
+          alert(
+            "Marked as hand delivery"
+          );
+
           return;
         }
-    
+
         await handleLoadCouriers(
           orderId
         );
       } catch (err) {
         console.error(err);
-    
+
         alert(
+          err.message ||
           "Shipment creation failed"
         );
       }
@@ -1228,26 +1164,16 @@ const fetchLiveCouriers = async () => {
                 <button
                       onClick={async () => {
                         try {
-                          const res = await fetch("/api/shipping/request-pickup", {
-                            method: "POST",
-                            headers: {
-                              "Content-Type": "application/json",
-                            },
-                            body: JSON.stringify({
-                              orderId: selectedOrder.orderId,
-                            }),
-                          });
-                    
-                          const data = await res.json();
-                    
-                          if (data.success) {
-                            alert("Pickup Requested Successfully 🚚");
-                            fetchOrders();
-                          } else {
-                            alert(data.message || "Pickup failed");
-                          }
+                          // NOTE: no real backend route exists yet for
+                          // request-pickup (see FRONTEND_GAPS.md) — wired
+                          // to shipping.requestPickup() anyway; expected
+                          // to fail soft until the AN group adds it.
+                          await requestPickup(selectedOrder.orderId);
+
+                          alert("Pickup Requested Successfully 🚚");
+                          fetchOrders();
                         } catch (err) {
-                          alert("Pickup request failed");
+                          alert(err.message || "Pickup request failed");
                         }
                       }}
                       style={{

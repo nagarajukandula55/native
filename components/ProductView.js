@@ -7,6 +7,7 @@ import WishlistButton from "./WishlistButton";
 import RelatedProducts from "./RelatedProducts";
 import RecentlyViewed from "./RecentlyViewed";
 import ReviewsSection from "./ReviewsSection";
+import RelatedReads from "./RelatedReads";
 import { trackProductView } from "@/lib/recentlyViewed";
 
 export default function ProductView({
@@ -406,6 +407,8 @@ export default function ProductView({
       </div>
 
       <ReviewsSection productId={product._id} />
+
+      <RelatedReads category={product.category} />
 
       <RelatedProducts slug={product.slug} />
 

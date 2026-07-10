@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import OrderTimeline from "@/components/OrderTimeline";
+import { getOrders, adminUpdateOrderStatus, markOrderPaid } from "@/lib/an-sdk/orders";
+import { getCouriers, createShipment as createShipmentApi } from "@/lib/an-sdk/shipping";
 
 export default function FulfillmentPage() {
   const [orders, setOrders] = useState([]);
@@ -18,13 +20,11 @@ export default function FulfillmentPage() {
     try {
       setLoading(true);
 
-      const res = await fetch("/api/orders/list", {
-        cache: "no-store",
-      });
+      const data = await getOrders();
 
-      const data = await res.json();
-
-      if (data?.success) setOrders(data.orders || []);
+      setOrders(data.orders || []);
+    } catch (err) {
+      console.log(err);
     } finally {
       setLoading(false);
     }
@@ -77,43 +77,41 @@ export default function FulfillmentPage() {
   /* ================= ACTIONS ================= */
 
   const updateStatus = async (id, newStatus) => {
-    await fetch("/api/admin/orders/update-status", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, status: newStatus }),
-    });
+    try {
+      await adminUpdateOrderStatus(id, newStatus);
+    } catch (err) {
+      console.log(err);
+      alert(err.message);
+    }
 
     fetchOrders();
   };
 
   const markAsPaid = async (order) => {
-    const utr = prompt("Enter UTR (optional)");
+    if (!confirm("Mark this order as paid?")) return;
 
-    await fetch("/api/payment/mark-paid", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        orderId: order.orderId,
-        utr,
-      }),
-    });
+    try {
+      await markOrderPaid(order.orderId, "MANUAL");
+    } catch (err) {
+      console.log(err);
+      alert(err.message);
+    }
 
     fetchOrders();
   };
 
   const loadCouriers = async (order) => {
-    const res = await fetch("/api/shipping/couriers", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ orderId: order.orderId }),
-    });
+    try {
+      const data = await getCouriers({ orderId: order.orderId });
 
-    const data = await res.json();
-
-    setCouriers((prev) => ({
-      ...prev,
-      [order.orderId]: data.couriers || [],
-    }));
+      setCouriers((prev) => ({
+        ...prev,
+        [order.orderId]: data.couriers || [],
+      }));
+    } catch (err) {
+      console.log(err);
+      alert(err.message);
+    }
   };
 
   const createShipment = async (order, courierId) => {
@@ -122,15 +120,12 @@ export default function FulfillmentPage() {
     const dispatchType =
       document.getElementById(`dispatch-${order._id}`)?.value || "COURIER";
 
-    await fetch("/api/shipping/create-shipment", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        orderId: order.orderId,
-        courierId,
-        dispatchType,
-      }),
-    });
+    try {
+      await createShipmentApi(order.orderId, dispatchType, courierId);
+    } catch (err) {
+      console.log(err);
+      alert(err.message);
+    }
 
     setCreating("");
     fetchOrders();

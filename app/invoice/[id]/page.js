@@ -3,6 +3,10 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import QRCode from "react-qr-code";
+import { getOrder } from "@/lib/an-sdk/orders";
+import { getCompany } from "@/lib/an-sdk/company";
+import { getInvoice } from "@/lib/an-sdk/invoices";
+import { anPost } from "@/lib/an-sdk/client";
 
 export default function InvoicePage() {
   const { id } = useParams();
@@ -13,13 +17,9 @@ export default function InvoicePage() {
   useEffect(() => {
     const load = async () => {
       try {
-        const o = await fetch(`/api/orders/${id}`).then((r) =>
-          r.json()
-        );
+        const o = await getOrder(id);
 
-        const c = await fetch(`/api/company`).then((r) =>
-          r.json()
-        );
+        const c = await getCompany();
 
         if (o.success) setOrder(o.order);
 
@@ -91,19 +91,7 @@ export default function InvoicePage() {
 
   const resendEmail = async (id) => {
     try {
-      const res = await fetch(
-        `/api/orders/resend-email`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-          body: JSON.stringify({ id }),
-        }
-      );
-
-      const data = await res.json();
+      const data = await anPost("/api/orders/resend-email", { id });
 
       alert(
         data.success
@@ -118,19 +106,7 @@ export default function InvoicePage() {
 
   const resendWhatsApp = async (id) => {
     try {
-      const res = await fetch(
-        `/api/orders/resend-whatsapp`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-          body: JSON.stringify({ id }),
-        }
-      );
-
-      const data = await res.json();
+      const data = await anPost("/api/orders/resend-whatsapp", { id });
 
       alert(
         data.success

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { adminListCategoriesAdmin, adminCreateCategory } from "@/lib/an-sdk/products";
 
 export default function CategoryManager() {
   const [categories, setCategories] = useState([]);
@@ -15,21 +16,23 @@ export default function CategoryManager() {
   }, []);
 
   async function loadCategories() {
-    const res = await fetch("/api/admin/categories");
-    const data = await res.json();
-    setCategories(data.categories || []);
+    try {
+      const data = await adminListCategoriesAdmin();
+      setCategories(data.categories || []);
+    } catch (err) {
+      console.error(err);
+      setCategories([]);
+    }
   }
 
   async function handleSubmit(e) {
     e.preventDefault();
 
-    await fetch("/api/admin/categories", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(form),
-    });
+    try {
+      await adminCreateCategory(form);
+    } catch (err) {
+      console.error(err);
+    }
 
     setForm({ name: "", type: "website", parent: "" });
     loadCategories();

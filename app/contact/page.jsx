@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { sendContactMessage } from "@/lib/an-sdk/contact";
 
 export default function ContactPage() {
   const [form, setForm] = useState({
@@ -28,15 +29,7 @@ export default function ContactPage() {
     try {
       setLoading(true);
 
-      const res = await fetch("/api/contact", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(form),
-      });
-
-      const data = await res.json();
+      const data = await sendContactMessage(form);
 
       if (data.success) {
         setSuccess(true);

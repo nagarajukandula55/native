@@ -9,16 +9,16 @@ import {
 
 import { useCart } from "../../context/CartContext";
 import { useRouter } from "next/navigation";
+import { verifyGst } from "@/lib/an-sdk/gst";
+import { createOrder } from "@/lib/an-sdk/orders";
+import { verifyPayment } from "@/lib/an-sdk/payments";
+import { getMe, isLoggedIn } from "@/lib/an-sdk/auth";
 
 declare global {
   interface Window {
     Razorpay: any;
   }
 }
-
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE ||
-  "https://www.angroup.in";
 
 /* =========================================================
    VALIDATIONS
@@ -100,6 +100,32 @@ export default function CheckoutPage() {
     state: "",
     gstNumber: "",
   });
+
+  /* =========================================================
+     AUTOFILL FROM PROFILE (logged-in convenience only — guests
+     are never blocked or required to log in; this just saves a
+     logged-in customer from retyping their own details).
+  ========================================================= */
+
+  useEffect(() => {
+    if (!isLoggedIn()) return;
+
+    let cancelled = false;
+
+    getMe().then((me: any) => {
+      if (cancelled || !me) return;
+      setForm((prev) => ({
+        ...prev,
+        name: prev.name || me.name || "",
+        phone: prev.phone || me.phone || "",
+        email: prev.email || me.email || "",
+      }));
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   /* =========================================================
      LOAD RAZORPAY
@@ -240,15 +266,7 @@ useEffect(() => {
     }
 
     try {
-      const res = await fetch("/api/gst/verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          gstNumber: form.gstNumber,
-        }),
-      });
-
-      const data = await res.json();
+      const data = await verifyGst(form.gstNumber);
 
       if (data.success) {
         setGstData(data.data);
@@ -424,28 +442,27 @@ useEffect(() => {
           return;
         }
     
-        const res = await fetch(
-          `${API_BASE}/api/orders/create`,
-          {
-            method: "POST",
-    
-            headers: {
-              "Content-Type": "application/json",
-            },
-    
-            body: JSON.stringify({
-              cart: cleanedCart,
-              address: form,
-              coupon,
-              paymentMethod: "RAZORPAY",
-            }),
-          }
-        );
-    
-        const data = await res.json();
-    
+        // Guest checkout: no login required. ANgroup's Order model keeps a
+        // `customer: {name, phone, email}` sub-object independent of any
+        // userId/customerId, so an unauthenticated visitor's order still
+        // carries their contact/address details straight through here.
+        // createOrder() routes through the shared SDK client, which attaches
+        // the businessId + bearer token (when one exists) automatically —
+        // a raw fetch() here would silently drop both.
+        const data: any = await createOrder({
+          cart: cleanedCart,
+          address: form,
+          customer: {
+            name: form.name,
+            phone: form.phone,
+            email: form.email,
+          },
+          coupon,
+          paymentMethod: "RAZORPAY",
+        });
+
         console.log("CREATE ORDER RESPONSE:", data);
-    
+
         if (!data.success) {
           alert(data.error || data.message || "Order failed");
           setLoading(false);
@@ -509,41 +526,26 @@ useEffect(() => {
               const verifyPayload = {
                 razorpay_order_id:
                   response.razorpay_order_id,
-    
+
                 razorpay_payment_id:
                   response.razorpay_payment_id,
-    
+
                 razorpay_signature:
                   response.razorpay_signature,
-    
+
                 orderId:
                   data.orderId,
               };
-    
+
               console.log(
                 "VERIFY PAYLOAD:",
                 verifyPayload
               );
-    
-              const verifyRes = await fetch(
-                `${API_BASE}/api/payment/verify`,
-                {
-                  method: "POST",
-    
-                  headers: {
-                    "Content-Type":
-                      "application/json",
-                  },
-    
-                  body: JSON.stringify(
-                    verifyPayload
-                  ),
-                }
+
+              const verifyData: any = await verifyPayment(
+                verifyPayload
               );
-    
-              const verifyData =
-                await verifyRes.json();
-    
+
               console.log(
                 "VERIFY RESPONSE:",
                 verifyData

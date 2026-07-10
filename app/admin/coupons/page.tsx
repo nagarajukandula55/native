@@ -1,6 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import {
+  adminListCoupons,
+  adminCreateCoupon,
+  adminToggleCoupon,
+  adminDeleteCoupon,
+} from "@/lib/an-sdk/coupons";
+import { anPatch } from "@/lib/an-sdk/client";
 
 type CouponType = {
   _id: string;
@@ -54,24 +61,10 @@ export default function CouponDashboard() {
       try {
         setLoading(true);
 
-        const res =
-          await fetch(
-            "/api/coupons"
-          );
-
-        let data: any;
-
-        try {
-          data =
-            await res.json();
-        } catch {
-          throw new Error(
-            "Invalid response"
-          );
-        }
+        const data: any =
+          await adminListCoupons();
 
         if (
-          res.ok &&
           data.success
         ) {
           setCoupons(
@@ -86,6 +79,7 @@ export default function CouponDashboard() {
           "FETCH COUPONS ERROR:",
           err
         );
+        setCoupons([]);
       } finally {
         setLoading(false);
       }
@@ -111,61 +105,37 @@ export default function CouponDashboard() {
 
         setCreating(true);
 
-        const res =
-          await fetch(
-            "/api/coupons/create",
-            {
-              method: "POST",
+        const data: any =
+          await adminCreateCoupon({
+            ...form,
 
-              headers: {
-                "Content-Type":
-                  "application/json",
-              },
+            code:
+              form.code.toUpperCase(),
 
-              body: JSON.stringify({
-                ...form,
+            value: Number(
+              form.value || 0
+            ),
 
-                code:
-                  form.code.toUpperCase(),
+            minCartValue:
+              Number(
+                form.minCartValue ||
+                  0
+              ),
 
-                value: Number(
-                  form.value || 0
-                ),
+            maxDiscount:
+              Number(
+                form.maxDiscount ||
+                  0
+              ),
 
-                minCartValue:
-                  Number(
-                    form.minCartValue ||
-                      0
-                  ),
-
-                maxDiscount:
-                  Number(
-                    form.maxDiscount ||
-                      0
-                  ),
-
-                usageLimit:
-                  Number(
-                    form.usageLimit ||
-                      0
-                  ),
-              }),
-            }
-          );
-
-        let data: any;
-
-        try {
-          data =
-            await res.json();
-        } catch {
-          throw new Error(
-            "Invalid API response"
-          );
-        }
+            usageLimit:
+              Number(
+                form.usageLimit ||
+                  0
+              ),
+          });
 
         if (
-          !res.ok ||
           !data.success
         ) {
           alert(
@@ -187,10 +157,11 @@ export default function CouponDashboard() {
 
         await fetchCoupons();
 
-      } catch (err) {
+      } catch (err: any) {
         console.error(err);
 
         alert(
+          err?.message ||
           "Error creating coupon"
         );
       } finally {
@@ -208,29 +179,13 @@ export default function CouponDashboard() {
       active: boolean
     ) => {
       try {
-        const res =
-          await fetch(
-            "/api/coupons/toggle",
-            {
-              method: "PATCH",
-
-              headers: {
-                "Content-Type":
-                  "application/json",
-              },
-
-              body: JSON.stringify({
-                id,
-                active,
-              }),
-            }
+        const data: any =
+          await adminToggleCoupon(
+            id,
+            active
           );
 
-        const data =
-          await res.json();
-
         if (
-          !res.ok ||
           !data.success
         ) {
           alert(
@@ -243,8 +198,9 @@ export default function CouponDashboard() {
 
         await fetchCoupons();
 
-      } catch (err) {
+      } catch (err: any) {
         console.error(err);
+        alert(err?.message || "Update failed");
       }
     };
 
@@ -262,29 +218,19 @@ export default function CouponDashboard() {
       if (!newDate) return;
 
       try {
-        const res =
-          await fetch(
+        // No dedicated sdk helper exists for extending expiry (it shares
+        // the same /api/coupons/toggle route as adminToggleCoupon but with
+        // a different payload shape), so we call the shared PATCH client.
+        const data: any =
+          await anPatch(
             "/api/coupons/toggle",
             {
-              method: "PATCH",
-
-              headers: {
-                "Content-Type":
-                  "application/json",
-              },
-
-              body: JSON.stringify({
-                id,
-                expiry: newDate,
-              }),
+              id,
+              expiry: newDate,
             }
           );
 
-        const data =
-          await res.json();
-
         if (
-          !res.ok ||
           !data.success
         ) {
           alert(
@@ -297,8 +243,9 @@ export default function CouponDashboard() {
 
         await fetchCoupons();
 
-      } catch (err) {
+      } catch (err: any) {
         console.error(err);
+        alert(err?.message || "Failed");
       }
     };
 
@@ -317,28 +264,12 @@ export default function CouponDashboard() {
         return;
 
       try {
-        const res =
-          await fetch(
-            "/api/coupons/delete",
-            {
-              method: "DELETE",
-
-              headers: {
-                "Content-Type":
-                  "application/json",
-              },
-
-              body: JSON.stringify({
-                id,
-              }),
-            }
+        const data: any =
+          await adminDeleteCoupon(
+            id
           );
 
-        const data =
-          await res.json();
-
         if (
-          !res.ok ||
           !data.success
         ) {
           alert(
@@ -351,8 +282,9 @@ export default function CouponDashboard() {
 
         await fetchCoupons();
 
-      } catch (err) {
+      } catch (err: any) {
         console.error(err);
+        alert(err?.message || "Delete failed");
       }
     };
 

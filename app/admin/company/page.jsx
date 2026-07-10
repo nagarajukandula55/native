@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { getCompany, updateCompany } from "@/lib/an-sdk/company";
 
 export default function CompanyAdmin() {
   const [form, setForm] = useState(null);
@@ -9,11 +10,14 @@ export default function CompanyAdmin() {
   /* ================= LOAD ================= */
   useEffect(() => {
     const fetchData = async () => {
-      const res = await fetch("/api/company");
-      const data = await res.json();
+      try {
+        const data = await getCompany();
 
-      if (data.success) {
-        setForm(data.data);
+        if (data.success) {
+          setForm(data.data);
+        }
+      } catch (err) {
+        console.error("FETCH COMPANY ERROR:", err);
       }
     };
 
@@ -29,13 +33,7 @@ export default function CompanyAdmin() {
     setLoading(true);
 
     try {
-      const res = await fetch("/api/company", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      });
-
-      const data = await res.json();
+      const data = await updateCompany(form);
 
       if (data.success) {
         alert("Company Updated Successfully");
@@ -44,7 +42,7 @@ export default function CompanyAdmin() {
       }
     } catch (err) {
       console.error(err);
-      alert("Error saving company");
+      alert(err?.message || "Error saving company");
     } finally {
       setLoading(false);
     }

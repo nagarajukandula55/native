@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { adminCreateUser } from "@/lib/an-sdk/users";
 
 const ROLES = [
   "super_admin",
@@ -40,36 +41,24 @@ export default function CreateUserPage() {
     setLoading(true);
 
     try {
-      const res = await fetch("/api/admin/users", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(form),
+      await adminCreateUser(form);
+
+      setMsg("✅ User Created Successfully");
+
+      setForm({
+        name: "",
+        email: "",
+        password: "",
+        role: "",
+        phone: "",
+        businessName: "",
+        gstNumber: "",
+        address: "",
       });
-
-      const data = await res.json();
-
-      if (!data.success) {
-        setMsg("❌ " + data.message);
-      } else {
-        setMsg("✅ User Created Successfully");
-
-        setForm({
-          name: "",
-          email: "",
-          password: "",
-          role: "",
-          phone: "",
-          businessName: "",
-          gstNumber: "",
-          address: "",
-        });
-      }
 
     } catch (err) {
       console.error(err);
-      setMsg("❌ Error creating user");
+      setMsg("❌ " + (err?.message || "Error creating user"));
     }
 
     setLoading(false);

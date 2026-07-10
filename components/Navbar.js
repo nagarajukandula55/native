@@ -16,7 +16,7 @@ import { ShoppingCart, Menu, X, Heart, User, LogOut } from "lucide-react";
 const ADMIN_ROLES = ["admin", "super_admin", "super-admin", "superadmin", "owner"];
 const VENDOR_ROLES = ["vendor", ...ADMIN_ROLES];
 
-export default function Navbar() {
+export default function Navbar({ logoUrl } = {}) {
   const { cartCount, drawerOpen, openCart, closeCart } = useCart();
   const wishlistCtx = useWishlist();
   const wishlistCount = wishlistCtx?.wishlistCount || 0;
@@ -58,7 +58,18 @@ export default function Navbar() {
       <header className="header">
         {/* LOGO */}
         <Link href="/" className="logoLink">
-          <img src="/logo-horizontal.svg" className="logo" alt="Native" />
+          {/* Dynamic business-uploaded logo (ANgroup Business.logo, via
+              app/layout.tsx's getBusinessBranding()) with a graceful
+              fallback to the static asset when none is configured. */}
+          <img
+            src={logoUrl || "/logo-horizontal.svg"}
+            className="logo"
+            alt="Native"
+            onError={(e) => {
+              e.currentTarget.onerror = null;
+              e.currentTarget.src = "/logo-horizontal.svg";
+            }}
+          />
         </Link>
 
         {!mobile && (
@@ -250,6 +261,19 @@ export default function Navbar() {
         .iconBtn:hover {
           background: #faf5ec;
         }
+        .iconBtn :global(span) {
+          background: #1f3d2b;
+          color: #fff;
+          font-size: 11px;
+          font-weight: 700;
+          min-width: 18px;
+          height: 18px;
+          border-radius: 999px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          padding: 0 5px;
+        }
         .account {
           position: relative;
           display: flex;
@@ -375,10 +399,12 @@ function NavLink({ href, label, pathname }) {
         marginRight: 4,
         padding: "8px 10px",
         borderRadius: 8,
-        color: active ? "#c28b45" : "#333",
-        fontWeight: active ? "600" : "500",
+        color: active ? "#1f3d2b" : "#333",
+        fontWeight: active ? "700" : "600",
         textDecoration: "none",
-        fontSize: 14,
+        fontSize: 13,
+        textTransform: "uppercase",
+        letterSpacing: "0.4px",
       }}
     >
       {label}

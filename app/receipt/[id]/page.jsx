@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
+import { getOrder } from "@/lib/an-sdk/orders";
 
 export default function ReceiptPage() {
   const { id } = useParams();
@@ -14,8 +15,7 @@ export default function ReceiptPage() {
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await fetch(`/api/orders/${id}`);
-        const json = await res.json();
+        const json = await getOrder(id);
         if (json.success) setData(json.order);
       } catch (err) {
         console.error(err);

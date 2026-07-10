@@ -23,18 +23,69 @@ function toQueryString(params: Record<string, any> = {}) {
   return str ? `?${str}` : "";
 }
 
+/**
+ * ANgroup's real storefront API returns each product's mongo id as `id`,
+ * but every page/component in this frontend (HomeClient, ProductsPageClient,
+ * RelatedProducts, CartContext, WishlistButton, ...) was written against an
+ * older shape expecting `_id`/`mongoId`/`productKey` — none of which the
+ * real API ever sends. That silently broke "Add to Cart" and product links
+ * for every real product (the id resolved to undefined and the handler
+ * no-op'd). Rather than hunt down and patch every call site individually,
+ * normalize once here so the rest of the app keeps working unmodified.
+ */
+function normalizeProduct(p: any) {
+  if (!p || typeof p !== "object") return p;
+  const id = p.id || p._id || p.mongoId;
+  return {
+    ...p,
+    id,
+    _id: id,
+    mongoId: id,
+    productKey: p.productKey || p.sku || id,
+  };
+}
+
+function normalizeProductList(payload: any) {
+  if (!payload) return payload;
+  const list = payload.products || payload.data;
+  if (Array.isArray(list)) {
+    const normalized = list.map(normalizeProduct);
+    if (payload.products) return { ...payload, products: normalized };
+    return { ...payload, data: normalized };
+  }
+  return payload;
+}
+
+/**
+ * ANgroup now has a dedicated PUBLIC, unauthenticated storefront catalog
+ * at GET /api/storefront/products (businessId/category/search/page/limit)
+ * — deliberately separate from the authenticated ERP inventory listing at
+ * GET /api/products, which 401s for logged-out visitors and returns
+ * internal fields (sku/basePrice/hsn/reorderLevel). sort/minPrice/maxPrice/
+ * vendor aren't read server-side yet (harmless no-ops there).
+ */
 export async function getProducts(query: ProductQuery = {}) {
-  return anGet(`/api/products${toQueryString(query)}`);
+  const data = await anGet(`/api/storefront/products${toQueryString(query)}`);
+  return normalizeProductList(data);
 }
 
+/**
+ * Public single-product page — GET /api/storefront/products/:slug
+ * (businessId-scoped). Returns real SEO fields (metaTitle, metaDescription,
+ * keywords, canonicalSlug) alongside the product data — see
+ * ANgroup's src/app/api/storefront/products/[slug]/route.ts.
+ */
 export async function getProductBySlug(slug: string) {
-  return anGet(`/api/products/${encodeURIComponent(slug)}`);
+  const data = await anGet(`/api/storefront/products/${encodeURIComponent(slug)}`);
+  return data?.product ? { ...data, product: normalizeProduct(data.product) } : normalizeProduct(data);
 }
 
+/** Same-category cross-sell rail — GET /api/products/:slug/related. */
 export async function getRelatedProducts(slug: string, limit = 8) {
-  return anGet(
+  const data = await anGet(
     `/api/products/${encodeURIComponent(slug)}/related${toQueryString({ limit })}`
   );
+  return normalizeProductList(data);
 }
 
 export async function adminListProducts(query: Record<string, any> = {}) {
@@ -101,6 +152,10 @@ export async function generateAiSeoMulti(payload: any) {
   return anPost("/api/ai-seo-multi", payload);
 }
 
+/**
+ * Public storefront category list — GET /api/categories (businessId-scoped,
+ * derives distinct NativeProduct.category values). No auth required.
+ */
 export async function getCategories() {
   return anGet("/api/categories");
 }

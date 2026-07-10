@@ -5,62 +5,37 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "mock-backend": "node mock-backend/server.js",
+    "smoke-test": "node mock-backend/smoke-test.js"
   },
   "dependencies": {
+    "html2canvas": "1.4.1",
+    "jsbarcode": "^3.12.3",
+    "jspdf": "^2.5.1",
+    "lucide-react": "^0.468.0",
     "next": "14.2.3",
     "react": "18.2.0",
     "react-dom": "18.2.0",
-    "mongoose": "^7.6.1",
-    "jsonwebtoken": "^9.0.2",
-    "bcryptjs": "^2.4.3",
-    "html2canvas": "1.4.1",
-    "react-rnd": "10.4.6",
-    "react-icons": "4.12.0",
-    "qrcode.react": "3.1.0",
-    "uuid": "9.0.1",
-    "razorpay": "^2.9.4",
-    "react-qr-code": "^2.0.15",
-    "cloudinary": "^1.41.0",
-    "axios": "^1.6.0",
-    "slugify": "^1.6.6",
     "react-hook-form": "^7.47.0",
     "react-hot-toast": "^2.4.0",
-    "swr": "^2.2.1",
-    "glob": "^10.3.10",
-    "qrcode": "^1.5.4",
-    "lucide-react": "^0.468.0",
-    "pdfkit": "^0.15.0",
-    "jspdf": "^2.5.1",
-    "puppeteer": "^22.0.0",
-    "resend": "^4.0.0",
+    "react-icons": "4.12.0",
+    "react-qr-code": "^2.0.15",
     "socket.io-client": "^4.x",
-    "nodemailer": "^6.x.x",
-    "pdfkit": "^0.15.0",
-    "blob-stream": "^0.1.3",
-    "pdf-lib": "^1.17.1",
-    "iconv-lite": "^0.6.3",
-    "linebreak": "^1.1.0"    
+    "swr": "^2.2.1"
   },
   "devDependencies": {
+    "@types/node": "^22.15.21",
+    "@types/react": "^19.1.5",
+    "autoprefixer": "^10.4.19",
     "eslint": "8.47.0",
     "eslint-config-next": "14.2.3",
-    "autoprefixer": "^10.4.19",
+    "next-sitemap": "^4.2.3",
     "postcss": "^8.4.39",
     "tailwindcss": "^3.4.4",
-    "jsbarcode": "^3.11.6",
-    "chrome-aws-lambda": "^10.0.0",
-    "puppeteer": "^23.0.0",
-    "@types/node": "^22.15.21", 
-    "@types/react": "^19.1.5", 
-    "typescript": "^5.8.3",
-    "csv-parser": "^3.0.0"
+    "typescript": "^5.8.3"
   },
   "engines": {
     "node": ">=18.0.0"
-  },
-    "scripts": {
-    "import:pincodes": "tsx scripts/import-pincodes.ts",
-    "postbuild": "next-sitemap"
   }
 }

@@ -1,17 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { getOrders } from "@/lib/an-sdk/orders";
+import { updateWarehouseStatus } from "@/lib/an-sdk/warehouse";
 
 export default function WarehousePage() {
   const [orders, setOrders] = useState([]);
 
   useEffect(() => {
     const fetchOrders = async () => {
-      const res = await fetch("/api/orders/list");
-      const data = await res.json();
-
-      if (data.success) {
-        setOrders(data.orders);
+      try {
+        const data = await getOrders();
+        setOrders(data.orders || []);
+      } catch (err) {
+        console.log(err);
       }
     };
 
@@ -19,25 +21,23 @@ export default function WarehousePage() {
   }, []);
 
   const updateWarehouse = async (id, status) => {
-    await fetch("/api/warehouse/update", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        orderId: id,
-        status,
-      }),
-    });
+    try {
+      await updateWarehouseStatus({ orderId: id, status });
 
-    setOrders((prev) =>
-      prev.map((o) =>
-        o._id === id
-          ? {
-              ...o,
-              warehouse: { ...o.warehouse, status },
-            }
-          : o
-      )
-    );
+      setOrders((prev) =>
+        prev.map((o) =>
+          o._id === id
+            ? {
+                ...o,
+                warehouse: { ...o.warehouse, status },
+              }
+            : o
+        )
+      );
+    } catch (err) {
+      console.log(err);
+      alert(err.message);
+    }
   };
 
   return (

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { adminGetProduct, submitProductAction } from "@/lib/an-sdk/products";
 
 export default function ProductView() {
   const params = useParams();
@@ -18,8 +19,7 @@ export default function ProductView() {
       setLoading(true);
       setError("");
 
-      const res = await fetch(`/api/admin/products/${id}`);
-      const data = await res.json();
+      const data = await adminGetProduct(id);
 
       if (!data.success) {
         setProduct(null);
@@ -29,7 +29,7 @@ export default function ProductView() {
 
       setProduct(data.product);
     } catch (err) {
-      setError("Failed to load product");
+      setError(err?.message || "Failed to load product");
     } finally {
       setLoading(false);
     }
@@ -40,14 +40,11 @@ export default function ProductView() {
   }, [id]);
 
   async function action(type) {
-    await fetch("/api/admin/products/action", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        productId: id,
-        action: type,
-      }),
-    });
+    try {
+      await submitProductAction({ id, action: type });
+    } catch (err) {
+      console.error("Action error:", err);
+    }
 
     load();
   }

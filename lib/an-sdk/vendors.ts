@@ -40,9 +40,26 @@ export type VendorApplication = {
   message?: string;
 };
 
-/** Submit a "Sell on Native" application. */
+/**
+ * Submit a "Sell on Native" application.
+ * ANgroup's real /api/vendors/apply route (path matches exactly) expects
+ * companyName/contactPerson rather than businessName/contactName, plus
+ * panNumber/businessType/address/bankDetails — mapping the fields we do
+ * collect onto its shape here so the path match isn't undone by a field
+ * mismatch. Anything ANgroup requires that our form doesn't collect yet
+ * (panNumber, businessType, bankDetails) is sent as empty/undefined; add
+ * those form fields when the vendor-onboarding UI needs to go further.
+ */
 export async function applyAsVendor(payload: VendorApplication) {
-  return anPost("/api/vendors/apply", payload);
+  return anPost("/api/vendors/apply", {
+    companyName: payload.businessName,
+    contactPerson: payload.contactName,
+    email: payload.email,
+    phone: payload.phone,
+    gstNumber: payload.gstNumber,
+    category: payload.category,
+    message: payload.message,
+  });
 }
 
 /** Status of the current user's own vendor application/account, if any. */
@@ -52,46 +69,67 @@ export async function getMyVendorStatus() {
 
 /* ============================================================
    VENDOR SELF-SERVICE (once approved)
+   ---------------------------------------------------------------
+   Paths below point at ANgroup's REAL routes (confirmed by reading
+   its route files): singular "/api/vendor/*", not "/api/vendors/me/*"
+   as originally proposed. ANgroup implements dashboard/orders/profile;
+   there's no confirmed equivalent for per-product CRUD or a payouts
+   list distinct from "statement" — those are flagged below and will
+   404 against ANgroup until it adds them. Mock backend still uses the
+   original /api/vendors/me/* paths, so these functions will only work
+   fully against ANgroup once mock-backend/server.js is updated to
+   match, or a config toggle is added — for today's ANgroup go-live,
+   these point at ANgroup's real paths.
 ============================================================ */
 
 export async function getVendorProfile() {
-  return anGet("/api/vendors/me");
+  return anGet("/api/vendor/profile");
 }
 
 export async function updateVendorProfile(payload: Record<string, any>) {
-  return anPut("/api/vendors/me", payload);
+  return anPut("/api/vendor/profile", payload);
 }
 
 export async function getVendorDashboardStats() {
-  return anGet("/api/vendors/me/stats");
+  return anGet("/api/vendor/dashboard");
 }
 
+/**
+ * NOTE: no confirmed ANgroup route for vendor-scoped product CRUD
+ * (nothing like /api/vendor/products found in its route tree during
+ * audit — only dashboard/orders/profile/staff/payout-account/statement
+ * were confirmed present). Will 404 against ANgroup until added there.
+ */
 export async function getVendorProducts(query: Record<string, any> = {}) {
-  return anGet(`/api/vendors/me/products${toQueryString(query)}`);
+  return anGet(`/api/vendor/products${toQueryString(query)}`);
 }
 
 export async function createVendorProduct(payload: any) {
-  return anPost("/api/vendors/me/products", payload);
+  return anPost("/api/vendor/products", payload);
 }
 
 export async function updateVendorProduct(id: string, payload: any) {
-  return anPut(`/api/vendors/me/products/${id}`, payload);
+  return anPut(`/api/vendor/products/${id}`, payload);
 }
 
 export async function deleteVendorProduct(id: string) {
-  return anDelete(`/api/vendors/me/products/${id}`);
+  return anDelete(`/api/vendor/products/${id}`);
 }
 
 export async function getVendorOrders(query: Record<string, any> = {}) {
-  return anGet(`/api/vendors/me/orders${toQueryString(query)}`);
+  return anGet(`/api/vendor/orders${toQueryString(query)}`);
 }
 
 export async function updateVendorOrderStatus(orderId: string, status: string) {
-  return anPost(`/api/vendors/me/orders/${orderId}/status`, { status });
+  return anPost(`/api/vendor/orders/${orderId}/status`, { status });
 }
 
+/**
+ * ANgroup's confirmed route is /api/vendor/statement, not a distinct
+ * "/payouts" list — mapped here so existing callers don't need to change.
+ */
 export async function getVendorPayouts(query: Record<string, any> = {}) {
-  return anGet(`/api/vendors/me/payouts${toQueryString(query)}`);
+  return anGet(`/api/vendor/statement${toQueryString(query)}`);
 }
 
 /* ============================================================

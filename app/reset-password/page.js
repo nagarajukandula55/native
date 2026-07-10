@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { confirmPasswordReset } from "@/lib/an-sdk/auth";
 
 export default function ResetPasswordPage() {
   const router = useRouter();
@@ -52,13 +53,7 @@ export default function ResetPasswordPage() {
     setLoading(true);
 
     try {
-      const res = await fetch("/api/auth/reset-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, password }),
-      });
-
-      const data = await res.json();
+      const data = await confirmPasswordReset({ token, password });
 
       if (!data.success) {
         setMsg(data.msg || "Failed to reset password");

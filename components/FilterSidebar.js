@@ -2,6 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect } from "react";
+import { getCategories } from "@/lib/an-sdk/products";
 
 export default function FilterSidebar() {
   const router = useRouter();
@@ -11,6 +12,7 @@ export default function FilterSidebar() {
   const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
   const [sort, setSort] = useState("");
+  const [categories, setCategories] = useState([]);
 
   /* ================= LOAD FROM URL ================= */
   useEffect(() => {
@@ -20,9 +22,35 @@ export default function FilterSidebar() {
     setSort(searchParams.get("sort") || "");
   }, [searchParams]);
 
+  /* ================= LOAD REAL CATEGORIES =================
+     NOTE: this used to be a hardcoded list of category *names* (e.g.
+     "Cold Pressed Oils"), but every product's `category` field is a
+     category _id (e.g. "cat_1") — so filtering by the hardcoded names
+     silently matched zero products. Fetching the real list from
+     GET /api/categories and filtering by _id fixes that for real. */
+  useEffect(() => {
+    let cancelled = false;
+    getCategories()
+      .then((data) => {
+        if (!cancelled) setCategories(data?.categories || []);
+      })
+      .catch((err) => {
+        console.error("Category fetch error:", err);
+        if (!cancelled) setCategories([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   /* ================= APPLY FILTER ================= */
   function applyFilters() {
     const params = new URLSearchParams();
+
+    // Preserve an active search query — filters narrow the search, they
+    // don't replace it.
+    const search = searchParams.get("search");
+    if (search) params.set("search", search);
 
     if (category) params.set("category", category);
     if (minPrice) params.set("minPrice", minPrice);
@@ -34,19 +62,9 @@ export default function FilterSidebar() {
 
   /* ================= RESET ================= */
   function resetFilters() {
-    router.push("/products");
+    const search = searchParams.get("search");
+    router.push(search ? `/products?search=${encodeURIComponent(search)}` : "/products");
   }
-
-  const categories = [
-    "Instant Mixes",
-    "Spices & Masalas",
-    "Cold Pressed Oils",
-    "Flours & Millets",
-    "Ready to Cook",
-    "Ready to Eat",
-    "Pickles & Chutneys",
-    "Snacks & Namkeen",
-  ];
 
   return (
     <div className="sidebar">
@@ -55,14 +73,22 @@ export default function FilterSidebar() {
       {/* CATEGORY */}
       <div className="section">
         <h4>Category</h4>
+        <label>
+          <input
+            type="radio"
+            checked={category === ""}
+            onChange={() => setCategory("")}
+          />
+          All Categories
+        </label>
         {categories.map((c) => (
-          <label key={c}>
+          <label key={c._id}>
             <input
               type="radio"
-              checked={category === c}
-              onChange={() => setCategory(c)}
+              checked={category === c._id}
+              onChange={() => setCategory(c._id)}
             />
-            {c}
+            {c.name}
           </label>
         ))}
       </div>
@@ -89,6 +115,7 @@ export default function FilterSidebar() {
         <h4>Sort By</h4>
         <select value={sort} onChange={(e) => setSort(e.target.value)}>
           <option value="">Latest</option>
+          <option value="popular">Most Popular</option>
           <option value="price_asc">Price Low → High</option>
           <option value="price_desc">Price High → Low</option>
         </select>

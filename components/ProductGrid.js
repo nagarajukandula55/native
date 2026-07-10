@@ -1,3 +1,5 @@
+"use client";
+
 import ProductCard from "./ProductCard";
 
 export default function ProductGrid({ products }) {

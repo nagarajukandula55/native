@@ -18,12 +18,20 @@
  *     itself. It redirects the browser to AN group's shared login
  *     (NEXT_PUBLIC_AN_SSO_URL), the user authenticates there exactly like
  *     they would on any other AN group property, and AN group redirects
- *     back to /auth/callback on this site with either:
- *       - `?token=...`            a bearer token straight in the query, or
- *       - `?code=...&state=...`   an auth code this frontend exchanges for
- *                                  a token via POST /api/auth/sso/exchange
- *                                  (a proposed endpoint — see
- *                                  backend-reference/API_CONTRACT.md).
+ *     back to /auth/callback on this site with `?token=...` — a bearer
+ *     token straight in the query.
+ *
+ * NOTE on ANgroup's real contract (confirmed by reading its routes): there
+ * is no code-exchange endpoint — ANgroup implements POST /api/sso/token
+ * (an already-authenticated session asking for a short-lived SSO token to
+ * hand to another AN-group property) and POST /api/sso/verify (verifying a
+ * token someone hands *to* this app). There's no `/api/auth/sso/exchange`
+ * for turning a `?code=` into a token — ANgroup's model assumes the token
+ * itself arrives via the redirect, not a code needing a follow-up call.
+ * completeSsoCallback() below therefore only supports the `?token=` shape
+ * against ANgroup; the `?code=` branch is kept only for a future/other
+ * backend that does implement a real code-exchange route, and will fail
+ * with a clear error against both ANgroup and the mock backend today.
  *
  * Whichever mode is active, once we have a token we call the existing
  * setToken()/getToken() pair from client.ts, so every other SDK module
@@ -138,25 +146,40 @@ export async function completeSsoCallback(
 
   const code = searchParams.get("code");
   if (code) {
-    try {
-      // Proposed endpoint — AN group's backend exchanges the auth code for
-      // a bearer token the same way it would for any other property.
-      const data = await anPost("/api/auth/sso/exchange", { code });
-      if (data?.token) {
-        setToken(data.token);
-        return { ok: true, returnTo };
-      }
-      return { ok: false, returnTo: "/login", error: "No token returned" };
-    } catch (err: any) {
-      return {
-        ok: false,
-        returnTo: "/login",
-        error: err?.message || "SSO exchange failed",
-      };
-    }
+    // ANgroup has no code-exchange route today (see the file header note)
+    // — this branch only exists for a future/other backend that does
+    // implement POST /api/auth/sso/exchange. Fails clearly rather than
+    // silently no-op-ing so this doesn't look like a hang if it's ever hit.
+    return {
+      ok: false,
+      returnTo: "/login",
+      error:
+        "This backend does not support SSO code-exchange — expected a token directly in the callback URL instead.",
+    };
   }
 
   return { ok: false, returnTo: "/login", error: "Missing token or code" };
+}
+
+/**
+ * Verifies a token via ANgroup's real POST /api/sso/verify route. Useful
+ * when this app receives a token issued by another AN-group property and
+ * wants to confirm it's valid/current before trusting it (rather than the
+ * outbound direction — see requestSsoToken below for that).
+ */
+export async function verifySsoToken(token: string) {
+  return anPost("/api/sso/verify", { token });
+}
+
+/**
+ * ANgroup's real POST /api/sso/token route — called by an *already
+ * logged-in* user here to get a short-lived token to hand to another
+ * AN-group property (the reverse direction of the login redirect flow
+ * above). Requires an existing session (cookie or bearer), which anFetch
+ * already attaches automatically.
+ */
+export async function requestSsoToken(appName?: string) {
+  return anPost("/api/sso/token", appName ? { app: appName } : {});
 }
 
 /** Convenience re-export so callers only need one import for "am I logged in". */

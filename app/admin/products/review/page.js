@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { getReviewQueue, submitProductAction, adminUpdateProductInline } from "@/lib/an-sdk/products";
 
 export default function ReviewPage() {
   const [products, setProducts] = useState([]);
@@ -14,8 +15,7 @@ export default function ReviewPage() {
   /* ================= LOAD ================= */
   async function loadProducts() {
     try {
-      const res = await fetch("/api/admin/products/review");
-      const data = await res.json();
+      const data = await getReviewQueue();
 
       if (data.success) {
         setProducts(data.products || []);
@@ -61,13 +61,13 @@ export default function ReviewPage() {
 
     setLoadingId(id);
 
-    await fetch("/api/admin/products/action", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ productId: id, action: "approve" }),
-    });
+    try {
+      await submitProductAction({ id, action: "approve" });
+      pushLog("APPROVED", id);
+    } catch (err) {
+      console.error("Approve error:", err);
+    }
 
-    pushLog("APPROVED", id);
     await loadProducts();
     setLoadingId(null);
   }
@@ -77,13 +77,13 @@ export default function ReviewPage() {
 
     setLoadingId(id);
 
-    await fetch("/api/admin/products/action", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ productId: id, action: "reject" }),
-    });
+    try {
+      await submitProductAction({ id, action: "reject" });
+      pushLog("REJECTED", id);
+    } catch (err) {
+      console.error("Reject error:", err);
+    }
 
-    pushLog("REJECTED", id);
     await loadProducts();
     setLoadingId(null);
   }
@@ -96,13 +96,12 @@ export default function ReviewPage() {
 
     setProducts(updated);
 
-    await fetch("/api/admin/products/update-inline", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ productId: id, field, value }),
-    });
-
-    pushLog(`UPDATED ${field}`, id);
+    try {
+      await adminUpdateProductInline(id, { [field]: value });
+      pushLog(`UPDATED ${field}`, id);
+    } catch (err) {
+      console.error("Inline update error:", err);
+    }
   }
 
   /* ================= UI ================= */

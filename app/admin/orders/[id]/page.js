@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import { getOrder, updateOrderStatus, markOrderPaid } from "@/lib/an-sdk/orders";
 
 export default function OrderDetailsPage() {
   const { id } = useParams();
@@ -13,12 +14,8 @@ export default function OrderDetailsPage() {
   useEffect(() => {
     const fetchOrder = async () => {
       try {
-        const res = await fetch(`/api/orders/${id}`);
-        const data = await res.json();
-
-        if (data.success) {
-          setOrder(data.order);
-        }
+        const data = await getOrder(id);
+        setOrder(data.order);
       } catch (err) {
         console.error(err);
       } finally {
@@ -31,30 +28,25 @@ export default function OrderDetailsPage() {
 
   /* ================= ACTION ================= */
   const updateStatus = async (status) => {
-    await fetch("/api/orders/update-status", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ id: order._id, status }),
-    });
+    try {
+      await updateOrderStatus(order.orderId, status);
+    } catch (err) {
+      console.error(err);
+      alert(err.message);
+    }
 
     location.reload();
   };
 
   const markPaid = async () => {
-    const utr = prompt("Enter UTR (optional)");
+    if (!confirm("Mark this order as paid?")) return;
 
-    await fetch("/api/payment/mark-paid", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        orderId: order.orderId,
-        utr,
-      }),
-    });
+    try {
+      await markOrderPaid(order.orderId, "MANUAL");
+    } catch (err) {
+      console.error(err);
+      alert(err.message);
+    }
 
     location.reload();
   };

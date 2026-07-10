@@ -1,39 +1,29 @@
-"use client";
+import BlogPageClient from "./BlogPageClient";
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
+export const metadata = {
+  title: "Indian Food Blog | Native",
+  description:
+    "Recipes, ingredient guides, and stories about natural, traditional Indian food — from cold-pressed oils to millets and spices — from the Native team.",
+  openGraph: {
+    title: "Indian Food Blog | Native",
+    description:
+      "Recipes, ingredient guides, and stories about natural, traditional Indian food from the Native team.",
+    url: "https://shopnative.in/blog",
+    siteName: "Native",
+    type: "website",
+    locale: "en_IN",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Indian Food Blog | Native",
+    description:
+      "Recipes, ingredient guides, and stories about natural, traditional Indian food.",
+  },
+  alternates: {
+    canonical: "https://shopnative.in/blog",
+  },
+};
 
 export default function BlogPage() {
-  const [blogs, setBlogs] = useState([]);
-
-  useEffect(() => {
-    fetch("/api/blog/list")
-      .then((res) => res.json())
-      .then((data) => setBlogs(data.blogs || []));
-  }, []);
-
-  return (
-    <div style={{ padding: 40 }}>
-      <h1>Indian Food Blog</h1>
-
-      <div style={{ display: "grid", gap: 20 }}>
-        {blogs.map((b) => (
-          <Link key={b._id} href={`/blog/${b.slug}`}>
-            <div style={card}>
-              <img src={b.image} style={{ width: "100%", height: 200, objectFit: "cover" }} />
-              <h2>{b.title}</h2>
-              <p>{b.excerpt}</p>
-            </div>
-          </Link>
-        ))}
-      </div>
-    </div>
-  );
+  return <BlogPageClient />;
 }
-
-const card = {
-  border: "1px solid #ddd",
-  padding: 16,
-  borderRadius: 12,
-  cursor: "pointer",
-};

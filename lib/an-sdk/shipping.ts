@@ -29,6 +29,46 @@ export async function loadShippingRates(
 }
 
 /* =========================================
+   LIST AVAILABLE COURIERS
+   Matches ANgroup's /api/shipping/couriers.
+========================================= */
+
+export async function getCouriers(payload: { orderId: string }) {
+  const res = await fetch(`${API}/api/shipping/couriers`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  return res.json();
+}
+
+/**
+ * NOTE: ANgroup has no dedicated pickup-request route today (see
+ * ANGROUP_INTEGRATION_STATUS.md / FRONTEND_GAPS.md) — wiring this to the
+ * closest plausible path so it fails soft (404) rather than throwing a
+ * build/runtime error, until AN group adds a real route.
+ */
+export async function requestPickup(orderId: string) {
+  const res = await fetch(`${API}/api/shipping/request-pickup`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ orderId }),
+  });
+
+  return res.json();
+}
+
+/**
+ * Live tracking sync by AWB number — matches ANgroup's
+ * /api/shipping/track/:awb route.
+ */
+export async function syncTracking(awb: string) {
+  const res = await fetch(`${API}/api/shipping/track/${encodeURIComponent(awb)}`);
+  return res.json();
+}
+
+/* =========================================
    CREATE SHIPMENT
 ========================================= */
 

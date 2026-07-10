@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { io } from "socket.io-client";
+import { adminGetOrders, setOrderStatus, markOrderPaid } from "@/lib/an-sdk/orders";
+import { getPaymentSettings, updatePaymentSettings } from "@/lib/an-sdk/payments";
 
 export default function AdminDashboard() {
 
@@ -60,9 +62,7 @@ export default function AdminDashboard() {
 
     try {
 
-      const res = await fetch("/api/admin/orders");
-
-      const data = await res.json();
+      const data = await adminGetOrders();
 
       if (data.success) {
         setOrders(data.orders || []);
@@ -78,9 +78,7 @@ export default function AdminDashboard() {
 
     try {
 
-      const res = await fetch("/api/admin/payment-settings");
-
-      const data = await res.json();
+      const data = await getPaymentSettings();
 
       if (data.success) {
         setPaymentModes(data.settings);
@@ -101,21 +99,7 @@ export default function AdminDashboard() {
   /* ================= UPDATE STATUS ================= */
   const updateStatus = async (orderId, status) => {
 
-    const res = await fetch("/api/orders/status", {
-
-      method: "POST",
-
-      headers: {
-        "Content-Type": "application/json",
-      },
-
-      body: JSON.stringify({
-        orderId,
-        status,
-      }),
-    });
-
-    const data = await res.json();
+    const data = await setOrderStatus(orderId, status);
 
     if (data.success) {
 
@@ -130,23 +114,9 @@ export default function AdminDashboard() {
   };
 
   /* ================= MARK AS PAID ================= */
-  const markAsPaid = async (orderId, utr) => {
+  const markAsPaid = async (orderId) => {
 
-    const res = await fetch("/api/orders/mark-paid", {
-
-      method: "POST",
-
-      headers: {
-        "Content-Type": "application/json",
-      },
-
-      body: JSON.stringify({
-        orderId,
-        utr,
-      }),
-    });
-
-    const data = await res.json();
+    const data = await markOrderPaid(orderId, "MANUAL");
 
     if (data.success) {
 
@@ -174,20 +144,7 @@ export default function AdminDashboard() {
 
       setPaymentModes(updated);
 
-      const res = await fetch(
-        "/api/admin/payment-settings",
-        {
-          method: "POST",
-
-          headers: {
-            "Content-Type": "application/json",
-          },
-
-          body: JSON.stringify(updated),
-        }
-      );
-
-      const data = await res.json();
+      const data = await updatePaymentSettings(updated);
 
       if (!data.success) {
         alert("Failed to update");

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import axios from "axios";
+import { adminListCategoriesAdmin, adminCreateCategory } from "@/lib/an-sdk/products";
 
 export default function AdminCategoriesPage() {
   const [categories, setCategories] = useState([]);
@@ -13,8 +13,8 @@ export default function AdminCategoriesPage() {
   const fetchCategories = async () => {
     setLoading(true);
     try {
-      const res = await axios.get("/api/admin/categories");
-      if (res.data.success) setCategories(res.data.categories);
+      const data = await adminListCategoriesAdmin();
+      if (data.success) setCategories(data.categories);
     } catch (err) {
       console.error("FETCH CATEGORIES ERROR:", err);
     }
@@ -30,13 +30,9 @@ export default function AdminCategoriesPage() {
     if (!newCategory.trim()) return;
 
     try {
-      if (editingCategory) {
-        await axios.put(`/api/admin/categories/${editingCategory._id}`, {
-          name: newCategory,
-        });
-      } else {
-        await axios.post("/api/admin/categories", { name: newCategory });
-      }
+      // NOTE: no backend route exists yet for updating an existing category
+      // (documented gap) — both add and "update" currently go through create.
+      await adminCreateCategory({ name: newCategory });
       setNewCategory("");
       setEditingCategory(null);
       fetchCategories();

@@ -2,14 +2,15 @@
 
 import { useState } from "react";
 import useSWR from "swr";
+import { adminListProducts, adminUpdateProduct, adminDeleteProduct } from "@/lib/an-sdk/products";
 
-const fetcher = (url) => fetch(url).then((res) => res.json());
+const fetcher = () => adminListProducts();
 
 export default function AdminProductsList() {
   const [filter, setFilter] = useState("all");
 
   const { data, isLoading, mutate } = useSWR(
-    "/api/admin/products",
+    "admin-products-list",
     fetcher,
     {
       refreshInterval: 5000,
@@ -22,11 +23,7 @@ export default function AdminProductsList() {
 
   async function updateProduct(id, action) {
     try {
-      await fetch(`/api/admin/products/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action }),
-      });
+      await adminUpdateProduct(id, { action });
 
       mutate();
     } catch (err) {
@@ -38,9 +35,7 @@ export default function AdminProductsList() {
     if (!confirm("Delete product?")) return;
 
     try {
-      await fetch(`/api/admin/products/${id}`, {
-        method: "DELETE",
-      });
+      await adminDeleteProduct(id);
 
       mutate();
     } catch (err) {

@@ -1,26 +1,25 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { getPaymentSettings, updatePaymentSettings } from "@/lib/an-sdk/payments";
 
 export default function PaymentSettingsPage() {
   const [settings, setSettings] = useState(null);
 
   useEffect(() => {
-    fetch("/api/admin/payment-settings")
-      .then(res => res.json())
-      .then(data => {
-        if (data.success) setSettings(data.settings);
-      });
+    getPaymentSettings()
+      .then(data => setSettings(data.settings))
+      .catch(err => console.log(err));
   }, []);
 
   const update = async () => {
-    await fetch("/api/admin/payment-settings", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(settings),
-    });
-
-    alert("Saved");
+    try {
+      await updatePaymentSettings(settings);
+      alert("Saved");
+    } catch (err) {
+      console.log(err);
+      alert(err.message);
+    }
   };
 
   if (!settings) return <p>Loading...</p>;

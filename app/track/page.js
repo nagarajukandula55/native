@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { getOrders } from "@/lib/an-sdk/orders";
+import { getOrderById } from "@/lib/an-sdk/orders";
 import { syncTracking } from "@/lib/an-sdk/shipping";
 
 export default function TrackOrderPage() {
@@ -25,20 +25,11 @@ export default function TrackOrderPage() {
         return;
       }
 
-      const ordersRes = await getOrders();
-
-      if (!ordersRes?.success) {
-        setError("Failed to load orders");
-        return;
-      }
-
-      const allOrders = ordersRes.orders || [];
-
-      const foundOrder = allOrders.find(
-        (o) =>
-          o?.orderId === input.trim() ||
-          o?.shipping?.awbNumber === input.trim()
-      );
+      // Look up by orderId directly instead of pulling the entire (currently
+      // unauthenticated, unfiltered) /api/orders/list — see lib/an-sdk/orders.ts
+      // for why that route shouldn't be used for a customer-facing lookup.
+      const res = await getOrderById(input.trim());
+      const foundOrder = res?.order || (res?.success ? res : null);
 
       if (!foundOrder) {
         setError("Order not found");

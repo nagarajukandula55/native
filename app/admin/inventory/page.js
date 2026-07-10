@@ -1,26 +1,25 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { getInventory, updateInventory } from "@/lib/an-sdk/inventory";
 
 export default function InventoryPage() {
   const [items, setItems] = useState([]);
 
   useEffect(() => {
-    fetch("/api/inventory")
-      .then(res => res.json())
-      .then(data => setItems(data.items || []));
+    getInventory()
+      .then(data => setItems(data.items || []))
+      .catch(err => console.log(err));
   }, []);
 
   async function updateStock(sku, stock) {
-    await fetch("/api/inventory", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ sku, stock: Number(stock) }),
-    });
-
-    alert("Stock Updated");
+    try {
+      await updateInventory({ sku, stock: Number(stock) });
+      alert("Stock Updated");
+    } catch (err) {
+      console.log(err);
+      alert(err.message);
+    }
   }
 
   return (
