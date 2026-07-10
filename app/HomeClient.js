@@ -41,6 +41,8 @@ export default function HomeClient() {
   const [loading, setLoading] = useState(true);
   const [categories, setCategories] = useState([]);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
+  const [failedCatImages, setFailedCatImages] = useState({});
+  const [failedProductImages, setFailedProductImages] = useState({});
   const [dynamicSlides, setDynamicSlides] = useState(null);
 
   /* ================= FETCH PRODUCTS ================= */
@@ -189,10 +191,20 @@ export default function HomeClient() {
               // (no error event, no fallback possible), which is exactly how
               // a tile can end up rendering as an empty/collapsed box while
               // its absolutely-positioned label overlay still shows.
-              const cover = !loading
+              const catId = cat.id || cat._id || i;
+              const rawCover = !loading
                 ? products.find((p) => p.category === cat.name)?.images?.[0]
                 : undefined;
-              const catId = cat.id || cat._id || i;
+              // Track failed image loads in real React state rather than
+              // mutating the DOM directly from onError -- a direct DOM
+              // mutation (classList.add/style.display) is invisible to
+              // React, so the NEXT re-render (triggered by any unrelated
+              // state change elsewhere on the page) silently reverts it,
+              // making a tile that had already recovered from a failed
+              // image flicker back to its broken state — which is very
+              // plausibly what read as "the category section closing
+              // itself" without any user action.
+              const cover = rawCover && !failedCatImages[catId] ? rawCover : undefined;
               return (
                 <Link
                   key={catId}
@@ -204,10 +216,9 @@ export default function HomeClient() {
                       src={cover}
                       alt=""
                       className="catTileImg"
-                      onError={(e) => {
-                        e.currentTarget.style.display = "none";
-                        e.currentTarget.parentElement?.classList.add("catTileNoCover");
-                      }}
+                      onError={() =>
+                        setFailedCatImages((prev) => ({ ...prev, [catId]: true }))
+                      }
                     />
                   ) : (
                     <span className="catTileIcon">{iconForCategory(cat.name)}</span>
@@ -241,20 +252,30 @@ export default function HomeClient() {
               const stockLevel = p.stock ?? null;
               const inStock = stockLevel === null ? true : stockLevel > 0;
 
+              const pid = p.id || p._id;
+              const imgSrc =
+                failedProductImages[pid] || !p.images?.[0]
+                  ? "/placeholder.png"
+                  : p.images[0];
+
               return (
-                <div key={p.id || p._id} className="productCard">
+                <div key={pid} className="productCard">
                   <Link href={`/products/${p.slug || p._id}`} className="imgWrap">
                     <img
-                      src={p.images?.[0] || "/placeholder.png"}
+                      src={imgSrc}
                       alt={p.name}
-                      onError={(e) => {
-                        // A failed image (e.g. an unreachable placehold.co
-                        // URL) otherwise falls back to rendering the alt
-                        // text as large, unstyled inline text — looks like
-                        // a giant broken watermark instead of a missing
-                        // photo. Swap to a real local placeholder instead.
-                        if (e.currentTarget.src.indexOf("/placeholder.png") === -1) {
-                          e.currentTarget.src = "/placeholder.png";
+                      onError={() => {
+                        // Was reassigning e.currentTarget.src directly --
+                        // invisible to React, so any unrelated re-render
+                        // resets the <img>'s src back to the still-broken
+                        // original URL from JSX, causing a fail/retry/fail
+                        // flicker (a failed image otherwise also falls back
+                        // to rendering its alt text as large, unstyled
+                        // inline text — a giant broken watermark instead of
+                        // a missing photo). Track failures in state instead
+                        // so the fallback src sticks across re-renders.
+                        if (!failedProductImages[pid]) {
+                          setFailedProductImages((prev) => ({ ...prev, [pid]: true }));
                         }
                       }}
                     />
