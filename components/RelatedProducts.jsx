@@ -125,11 +125,12 @@ export default function RelatedProducts({ slug, title = "You May Also Like" }) {
 
         .card button {
           margin: 0 8px 10px;
-          padding: 8px;
+          padding: 9px;
           border: none;
-          border-radius: 8px;
-          background: #222;
+          border-radius: 30px;
+          background: #1f3d2b;
           color: #fff;
+          font-weight: 700;
           cursor: pointer;
           font-size: 12px;
         }

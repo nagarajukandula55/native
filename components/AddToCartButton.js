@@ -11,7 +11,8 @@ export default function AddToCartButton({ product }) {
 
     <button
       onClick={() => addToCart(product)}
-      className="bg-black text-white px-4 py-2 rounded mt-3"
+      className="btn btn-accent"
+      style={{ marginTop: 12 }}
     >
       Add To Cart
     </button>

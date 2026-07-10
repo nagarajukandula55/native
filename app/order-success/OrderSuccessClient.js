@@ -249,17 +249,7 @@ export default function OrderSuccessClient() {
               </div>
             </div>
   
-            <button
-              onClick={copyOrderId}
-              style={{
-                background: "#000",
-                color: "#fff",
-                border: "none",
-                padding: "10px 15px",
-                borderRadius: "8px",
-                cursor: "pointer",
-              }}
-            >
+            <button onClick={copyOrderId} className="btn btn-primary btn-sm">
               Copy
             </button>
           </div>
@@ -391,33 +381,17 @@ export default function OrderSuccessClient() {
             onClick={() =>
               fetchOrder(orderId)
             }
-            style={{
-              flex: 1,
-              padding: "14px",
-              borderRadius: "8px",
-              border: "none",
-              cursor: "pointer",
-            }}
+            className="btn btn-secondary"
+            style={{ flex: 1 }}
           >
             Refresh Status
           </button>
-  
+
           <Link
             href="/products"
             style={{ flex: 1 }}
           >
-            <button
-              style={{
-                width: "100%",
-                padding: "14px",
-                background:
-                  "#16a34a",
-                color: "#fff",
-                border: "none",
-                borderRadius: "8px",
-                cursor: "pointer",
-              }}
-            >
+            <button className="btn btn-accent" style={{ width: "100%" }}>
               Continue Shopping
             </button>
           </Link>

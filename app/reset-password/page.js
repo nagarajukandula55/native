@@ -162,11 +162,12 @@ const input = {
 
 const btn = {
   width: "100%",
-  padding: 12,
+  padding: 13,
   border: "none",
-  borderRadius: 8,
-  background: "#111",
+  borderRadius: 30,
+  background: "#1f3d2b",
   color: "#fff",
+  fontWeight: 700,
   cursor: "pointer",
 };
 
@@ -183,6 +184,7 @@ const footer = {
 };
 
 const link = {
-  color: "#2563eb",
+  color: "#c28b45",
+  fontWeight: 600,
   cursor: "pointer",
 };

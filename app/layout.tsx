@@ -6,24 +6,30 @@ import { WishlistProvider } from "@/context/WishlistContext";
 import { UserProvider } from "@/context/UserContext";
 import CookieConsent from "@/components/CookieConsent";
 import { Toaster } from "react-hot-toast";
-import { Inter, Poppins } from "next/font/google";
+import { Fraunces, Manrope } from "next/font/google";
 import Script from "next/script";
 import type { Metadata } from "next";
 import { getBusinessBranding } from "@/lib/an-sdk/company";
 
-/* ================= FONTS ================= */
+/* ================= FONTS =================
+   Fraunces (warm, editorial serif with real optical-size character — reads
+   as premium/artisanal, well suited to a natural-foods brand's "Eat Healthy,
+   Stay Healthy" headline voice) paired with Manrope (clean, highly-legible
+   geometric sans for body copy, prices, forms, and UI chrome). Replaces the
+   generic Inter/Poppins pairing the owner felt looked off-brand. */
 
-const inter = Inter({
+const fraunces = Fraunces({
   subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
-  variable: "--font-body",
+  weight: ["500", "600", "700"],
+  style: ["normal", "italic"],
+  variable: "--font-heading",
   display: "swap",
 });
 
-const poppins = Poppins({
+const manrope = Manrope({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-heading",
+  weight: ["300", "400", "500", "600", "700"],
+  variable: "--font-body",
   display: "swap",
 });
 
@@ -86,7 +92,7 @@ export default async function RootLayout({
   return (
     <html
       lang="en"
-      className={`${inter.variable} ${poppins.variable}`}
+      className={`${manrope.variable} ${fraunces.variable}`}
       suppressHydrationWarning
     >
       <head>

@@ -210,9 +210,10 @@ export default function ReviewsSection({ productId }) {
 
         .writeBtn {
           margin-left: auto;
-          padding: 10px 18px;
+          padding: 10px 20px;
           border: none;
-          border-radius: 8px;
+          border-radius: 30px;
+          font-weight: 700;
           background: #c28b45;
           color: #fff;
           cursor: pointer;
@@ -238,12 +239,22 @@ export default function ReviewsSection({ productId }) {
         }
 
         .form button {
-          padding: 10px;
+          padding: 11px;
           border: none;
-          border-radius: 8px;
-          background: #222;
+          border-radius: 30px;
+          background: #1f3d2b;
           color: #fff;
+          font-weight: 700;
           cursor: pointer;
+        }
+
+        .form button:hover:not(:disabled) {
+          background: #16301f;
+        }
+
+        .form button:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
         }
 
         .error {

@@ -858,8 +858,8 @@ useEffect(() => {
           border: none;
           background: linear-gradient(
             135deg,
-            #111827,
-            #1e293b
+            #1f3d2b,
+            #16301f
           );
           color: white;
           border-radius: 16px;

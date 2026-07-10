@@ -1,6 +1,6 @@
 :root {
-  --font-body: var(--font-inter);
-  --font-heading: var(--font-poppins);
+  /* Set directly by next/font's CSS variables (Manrope / Fraunces) via the
+     className on <html> in app/layout.tsx. */
 }
 
 /* GLOBAL RESET */
@@ -40,9 +40,16 @@ p {
   --muted: #6b7280;
   --border: #e5e7eb;
 
-  --primary: #2563eb;
+  /* Brand palette — matches HeroSlideshow.jsx / Footer.js / HomeClient.js.
+     Every button on the site should draw from these, not one-off colors. */
+  --brand-green: #1f3d2b;
+  --brand-green-dark: #16301f;
+  --brand-gold: #c28b45;
+  --brand-gold-dark: #a36d32;
+
+  --primary: var(--brand-green);
   --success: #16a34a;
-  --warning: #f59e0b;
+  --warning: var(--brand-gold);
   --danger: #ef4444;
 
   --radius: 14px;
@@ -61,16 +68,69 @@ body {
   box-shadow: var(--shadow);
 }
 
+/* ================= BUTTON SYSTEM =================
+   Site-wide reusable button variants, built on the established brand
+   palette (dark green primary / gold accent). Use these classes (or
+   components/ui/Button.js, which applies them) instead of ad-hoc
+   inline-styled buttons. */
 .btn {
   border: none;
-  padding: 10px 14px;
-  border-radius: 10px;
-  font-weight: 600;
+  padding: 12px 26px;
+  border-radius: 30px;
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.3px;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background 160ms ease, transform 160ms ease, border-color 160ms ease, color 160ms ease;
+  text-decoration: none;
 }
 
-.btn-primary { background: var(--primary); color: white; }
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+.btn:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+
+/* Primary — dark green, main call-to-action */
+.btn-primary { background: var(--brand-green); color: #fff; }
+.btn-primary:not(:disabled):hover { background: var(--brand-green-dark); }
+
+/* Accent — gold, for high-emphasis CTAs (Shop Now, Subscribe, etc.) */
+.btn-accent { background: var(--brand-gold); color: #1f1208; }
+.btn-accent:not(:disabled):hover { background: var(--brand-gold-dark); color: #fff; }
+
+/* Secondary / outline — subdued, for secondary actions */
+.btn-secondary,
+.btn-outline {
+  background: transparent;
+  color: var(--brand-green);
+  border: 1.5px solid var(--brand-green);
+}
+.btn-secondary:not(:disabled):hover,
+.btn-outline:not(:disabled):hover {
+  background: var(--brand-green);
+  color: #fff;
+}
+
+/* Ghost — minimal, for tertiary actions on light or dark backgrounds */
+.btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--text); }
+.btn-ghost:not(:disabled):hover { background: rgba(0,0,0,0.04); }
+
+/* Danger — destructive actions (remove, cancel, delete) */
+.btn-danger { background: var(--danger); color: #fff; }
+.btn-danger:not(:disabled):hover { background: #dc2626; }
+
+/* Success / warning kept for admin dashboards that already reference them */
 .btn-success { background: var(--success); color: white; }
-.btn-warning { background: var(--warning); color: white; }
-.btn-danger { background: var(--danger); color: white; }
-.btn-ghost { background: transparent; border: 1px solid var(--border); }
+.btn-warning { background: var(--brand-gold); color: #1f1208; }
+
+.btn-sm { padding: 8px 18px; font-size: 13px; }
+.btn-lg { padding: 15px 34px; font-size: 15px; }

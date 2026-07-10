@@ -265,27 +265,19 @@ export default function ProductView({
                     marginTop: "10px",
                   }}
                 >
-                  {variants.map((v) => (
-                    <button
-                      key={v._id}
-                      onClick={() =>
-                        setSelectedVariant(v)
-                      }
-                      style={{
-                        padding:
-                          "8px 15px",
-                        border:
-                          "1px solid #ddd",
-                        borderRadius:
-                          "8px",
-                        background:
-                          "#fff",
-                      }}
-                    >
-                      {v.value}
-                      {v.unit}
-                    </button>
-                  ))}
+                  {variants.map((v) => {
+                    const active = selectedVariant?._id === v._id;
+                    return (
+                      <button
+                        key={v._id}
+                        onClick={() => setSelectedVariant(v)}
+                        className={active ? "btn btn-primary btn-sm" : "btn btn-outline btn-sm"}
+                      >
+                        {v.value}
+                        {v.unit}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -327,13 +319,10 @@ export default function ProductView({
               <button
                 onClick={handleAddToCart}
                 disabled={!inStock}
+                className="btn btn-accent"
                 style={{
                   flex: 1,
-                  background: inStock ? "#000" : "#aaa",
-                  color: "#fff",
-                  border: "none",
-                  padding: "14px",
-                  borderRadius: "10px",
+                  background: inStock ? undefined : "#aaa",
                   cursor: inStock ? "pointer" : "not-allowed",
                 }}
               >
@@ -342,16 +331,7 @@ export default function ProductView({
 
               <button
                 onClick={handleShare}
-                style={{
-                  padding:
-                    "14px 20px",
-                  border:
-                    "1px solid #ddd",
-                  background: "#fff",
-                  borderRadius:
-                    "10px",
-                  cursor: "pointer",
-                }}
+                className="btn btn-secondary"
               >
                 Share
               </button>

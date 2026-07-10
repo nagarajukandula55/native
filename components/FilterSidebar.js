@@ -123,8 +123,8 @@ export default function FilterSidebar() {
 
       {/* ACTIONS */}
       <div className="actions">
-        <button onClick={applyFilters}>Apply</button>
-        <button onClick={resetFilters} className="reset">
+        <button onClick={applyFilters} className="btn btn-primary btn-sm" style={{ flex: 1 }}>Apply</button>
+        <button onClick={resetFilters} className="btn btn-outline btn-sm" style={{ flex: 1 }}>
           Reset
         </button>
       </div>
@@ -159,20 +159,6 @@ export default function FilterSidebar() {
         .actions {
           display: flex;
           gap: 10px;
-        }
-
-        button {
-          flex: 1;
-          padding: 10px;
-          border: none;
-          background: black;
-          color: white;
-          cursor: pointer;
-        }
-
-        .reset {
-          background: #ccc;
-          color: black;
         }
       `}</style>
     </div>

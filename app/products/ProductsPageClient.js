@@ -379,21 +379,40 @@ function ProductsPageInner() {
         .btn {
           flex: 1;
           padding: 10px;
-          background: black;
+          background: #1f3d2b;
           color: white;
           border: none;
-          border-radius: 8px;
+          border-radius: 30px;
+          font-weight: 700;
+          font-size: 13px;
+          cursor: pointer;
+          transition: background 160ms ease;
+        }
+
+        .btn:hover:not(:disabled) {
+          background: #16301f;
         }
 
         .btn:disabled {
           background: #aaa;
+          cursor: not-allowed;
         }
 
         .share {
-          padding: 10px;
-          border: 1px solid #ddd;
+          padding: 10px 16px;
+          border: 1.5px solid #1f3d2b;
           background: white;
-          border-radius: 8px;
+          color: #1f3d2b;
+          border-radius: 30px;
+          font-weight: 600;
+          font-size: 13px;
+          cursor: pointer;
+          transition: background 160ms ease, color 160ms ease;
+        }
+
+        .share:hover {
+          background: #1f3d2b;
+          color: #fff;
         }
       `}</style>
     </div>

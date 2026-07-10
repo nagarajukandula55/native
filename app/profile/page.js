@@ -179,14 +179,7 @@ export default function ProfilePage() {
           )}
           <button
             disabled={editSaving}
-            style={{
-              padding: "10px 20px",
-              background: "#c28b45",
-              color: "#fff",
-              border: "none",
-              borderRadius: 6,
-              cursor: "pointer",
-            }}
+            className="btn btn-accent"
           >
             {editSaving ? "Saving..." : "Save Changes"}
           </button>
@@ -222,14 +215,7 @@ export default function ProfilePage() {
           )}
           <button
             disabled={pwSaving}
-            style={{
-              padding: "10px 20px",
-              background: "#222",
-              color: "#fff",
-              border: "none",
-              borderRadius: 6,
-              cursor: "pointer",
-            }}
+            className="btn btn-primary"
           >
             {pwSaving ? "Saving..." : "Change Password"}
           </button>
@@ -295,13 +281,15 @@ export default function ProfilePage() {
                           qty: 1,
                         })
                       }
-                      style={{ flex: 1, padding: 8, border: "none", borderRadius: 6, background: "#222", color: "#fff", cursor: "pointer", fontSize: 12 }}
+                      className="btn btn-primary btn-sm"
+                      style={{ flex: 1 }}
                     >
                       Add to Cart
                     </button>
                     <button
                       onClick={() => removeFromWishlist?.(item.productId)}
-                      style={{ padding: 8, border: "1px solid #d33", borderRadius: 6, background: "transparent", color: "#d33", cursor: "pointer", fontSize: 12 }}
+                      className="btn btn-danger btn-sm"
+                      style={{ background: "transparent", color: "#d33", border: "1px solid #d33" }}
                     >
                       Remove
                     </button>

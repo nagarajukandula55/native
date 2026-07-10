@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useCart } from "@/context/CartContext";
 import { getProducts, getCategories } from "@/lib/an-sdk/products";
+import { getBanners } from "@/lib/an-sdk/banners";
 import WishlistButton from "@/components/WishlistButton";
 import RecentlyViewed from "@/components/RecentlyViewed";
 import HeroSlideshow from "@/components/HeroSlideshow";
@@ -40,6 +41,7 @@ export default function HomeClient() {
   const [loading, setLoading] = useState(true);
   const [categories, setCategories] = useState([]);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
+  const [dynamicSlides, setDynamicSlides] = useState(null);
 
   /* ================= FETCH PRODUCTS ================= */
   useEffect(() => {
@@ -74,6 +76,35 @@ export default function HomeClient() {
     loadCategories();
   }, []);
 
+  /* ================= FETCH BANNERS (admin-uploaded hero slides) =========
+     Preferred-first-source: if the banner API returns real, active banners
+     they replace the hardcoded slides below; any failure or an empty list
+     leaves dynamicSlides null so the static 3-slide fallback (unchanged)
+     keeps working — the homepage never breaks on this call. */
+  useEffect(() => {
+    async function loadBanners() {
+      try {
+        const { success, banners } = await getBanners();
+        if (success && Array.isArray(banners) && banners.length > 0) {
+          setDynamicSlides(
+            banners.map((b) => ({
+              img: b.imageUrl,
+              fallback: b.imageUrl,
+              eyebrow: b.subheading || "",
+              heading: b.heading || "",
+              sub: b.subheading || "",
+              ctaText: b.ctaText || "SHOP NOW",
+              ctaLink: b.ctaLink || "/products",
+            }))
+          );
+        }
+      } catch (err) {
+        console.error("Banner fetch error:", err);
+      }
+    }
+    loadBanners();
+  }, []);
+
   // Real product photos (from the live catalogue), used as slideshow
   // backgrounds when a dedicated hero asset isn't present at /hero/slide-N.jpg
   // — see HeroSlideshow below for the fallback chain.
@@ -84,7 +115,7 @@ export default function HomeClient() {
   // photography there (e.g. the product-lineup banner) to replace the
   // fallback, which reuses real catalogue product photos so the slideshow
   // never shows a broken image even before those assets exist.
-  const slides = [
+  const staticSlides = [
     {
       img: "/hero/slide-1.jpg",
       fallback: heroImages[0] || "/hero.png",
@@ -107,6 +138,10 @@ export default function HomeClient() {
       sub: "From our kitchens to yours — nutrition without compromise.",
     },
   ];
+
+  // Real admin-uploaded banners take priority; fall back to the static
+  // set (unchanged) whenever the banner API errors or returns nothing.
+  const slides = dynamicSlides && dynamicSlides.length > 0 ? dynamicSlides : staticSlides;
 
   return (
     <div className="home">

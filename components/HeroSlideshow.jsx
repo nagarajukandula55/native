@@ -78,8 +78,8 @@ export default function HeroSlideshow({ slides }) {
                 ))}
               </h1>
               <p className="slideSub">{slide.sub}</p>
-              <Link href="/products" className="shopNowBtn">
-                SHOP NOW
+              <Link href={slide.ctaLink || "/products"} className="shopNowBtn">
+                {slide.ctaText || "SHOP NOW"}
               </Link>
             </div>
           </div>
@@ -120,7 +120,7 @@ export default function HeroSlideshow({ slides }) {
         .heroSlideshow {
           position: relative;
           width: 100%;
-          height: clamp(420px, 62vw, 640px);
+          height: clamp(320px, 42vw, 460px);
           overflow: hidden;
           background: #1f3d2b;
         }
@@ -172,13 +172,13 @@ export default function HeroSlideshow({ slides }) {
           display: flex;
           flex-direction: column;
           justify-content: center;
-          gap: 14px;
+          gap: 10px;
           padding: 0 6vw;
           color: #fff;
         }
 
         .slideEyebrow {
-          font-size: 12px;
+          font-size: 11px;
           font-weight: 700;
           letter-spacing: 2px;
           color: #d9c9a3;
@@ -186,8 +186,8 @@ export default function HeroSlideshow({ slides }) {
 
         .slideContent h1 {
           font-family: var(--font-heading, serif);
-          font-size: clamp(30px, 5vw, 54px);
-          line-height: 1.12;
+          font-size: clamp(22px, 3.6vw, 40px);
+          line-height: 1.14;
           margin: 0;
         }
 
@@ -196,10 +196,10 @@ export default function HeroSlideshow({ slides }) {
         }
 
         .slideSub {
-          font-size: clamp(14px, 1.6vw, 18px);
+          font-size: clamp(13px, 1.3vw, 16px);
           color: #ece4d3;
-          margin: 0 0 6px;
-          max-width: 460px;
+          margin: 0 0 4px;
+          max-width: 440px;
         }
 
         .shopNowBtn {
@@ -207,10 +207,11 @@ export default function HeroSlideshow({ slides }) {
           width: fit-content;
           background: #c28b45;
           color: #1f1208;
-          padding: 13px 34px;
+          padding: 11px 28px;
           border-radius: 30px;
           text-decoration: none;
           font-weight: 700;
+          font-size: 14px;
           letter-spacing: 0.5px;
           transition: background 160ms ease, transform 160ms ease;
         }
@@ -224,8 +225,8 @@ export default function HeroSlideshow({ slides }) {
           position: absolute;
           top: 50%;
           transform: translateY(-50%);
-          width: 44px;
-          height: 44px;
+          width: 38px;
+          height: 38px;
           border-radius: 50%;
           border: none;
           background: rgba(255, 255, 255, 0.85);
@@ -280,7 +281,7 @@ export default function HeroSlideshow({ slides }) {
 
         @media (max-width: 640px) {
           .heroSlideshow {
-            height: 480px;
+            height: 360px;
           }
 
           .slideContent {
