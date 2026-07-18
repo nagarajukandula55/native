@@ -21,3 +21,4 @@ export * as wishlist from "./wishlist";
 export * as pincode from "./pincode";
 export * as vendors from "./vendors";
 export * as sso from "./sso";
+export * as anu from "./anu";
