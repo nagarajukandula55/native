@@ -1,62 +1,94 @@
 # Native ↔ ANgroup Integration Status
 
-This documents what it takes to point this frontend at the real ANgroup
-backend instead of the mock server. Read this before flipping
-`NEXT_PUBLIC_AN_API` to ANgroup's URL for real traffic.
+This documents what happened when this frontend was pointed at the real
+ANgroup backend (`D:\Development\ANgroup`) instead of the mock server,
+what got adapted on the frontend side, and what still doesn't work.
+Read this before flipping `NEXT_PUBLIC_AN_API` at production traffic.
+
+**Updated**: the routes this doc originally flagged as "genuine gaps —
+need a route added in ANgroup" have since been built there. Only vendor
+product CRUD and the businessId verification below remain open.
 
 ## The big picture
 
 ANgroup is a full multi-business ERP (finance, inventory, GST, employees,
 logistics, vendor procurement, AI content tools, etc.) — not a
 purpose-built storefront backend. "Native" is one business tenant inside
-it (`Business._id` = `6a4abddcf35feedb2392f556`, same id hardcoded as
-`NATIVE_BUSINESS_ID` in ANgroup's `services/order.service.ts` and
-`DEFAULT_BUSINESS_ID` in `api/contact/route.ts`).
+it. That's a solid, coherent model, but it means requests need a
+`businessId` and a few storefront-facing routes live under their own
+`/api/storefront/*` tree rather than the admin-authenticated `/api/*`
+tree used internally.
 
 ## What you need to set
 
 ```
-NEXT_PUBLIC_AN_API=<ANgroup's live deployment URL>
-NEXT_PUBLIC_AN_BUSINESS_ID=6a4abddcf35feedb2392f556
+NEXT_PUBLIC_AN_API=<ANgroup's URL>
+NEXT_PUBLIC_AN_BUSINESS_ID=<Native's business _id inside ANgroup>
 ```
 
-`lib/an-sdk/client.ts` attaches `NEXT_PUBLIC_AN_BUSINESS_ID` as both a
-query param and an `x-business-id` header automatically, and sends
-`credentials: "include"` on every request (ANgroup's auth is an httpOnly
-cookie, `an_token`, verified by its own `middleware.ts`).
+Every scoped ANgroup route (products, vendors, coupons, ...) needs to know
+which business a request is acting as. `lib/an-sdk/client.ts` attaches
+`NEXT_PUBLIC_AN_BUSINESS_ID` as both a `businessId` query param and an
+`x-business-id` header on every request automatically — but **that value
+has to actually exist as a `Business` record in ANgroup**. Confirmed
+(2026) as `6a53e91f13ec6a86d3ccee44` and set in local `.env.local` — two
+earlier, different values (`6a5123a8e42b06cdcdec0bcf`,
+`6a4abddcf35feedb2392f556`) had been recorded at different points and are
+now stale. Whatever hosts this in production needs its own
+`NEXT_PUBLIC_AN_BUSINESS_ID` env var set to this same confirmed value —
+`.env.local` only affects local dev/build on this machine.
 
-## CORS — already configured, nothing to do here
+`client.ts` also sends `credentials: "include"` on every request, because
+ANgroup's auth is an httpOnly cookie (`an_token`) verified by its own
+`middleware.ts` — not purely a bearer token. For that cookie to arrive on
+requests from a separately-hosted frontend, **ANgroup's CORS
+configuration needs to allow this frontend's origin with credentials
+enabled**. ANgroup's `src/middleware.ts` already allow-lists
+`https://shopnative.in` / `https://www.shopnative.in` (plus localhost in
+dev) — confirm that's still the real production domain before go-live.
 
-ANgroup's `middleware.ts` (`CORS_ALLOWED_ORIGINS`) already allow-lists
-`https://shopnative.in` / `https://www.shopnative.in` with
-`Access-Control-Allow-Credentials: true`, plus any `localhost:*` origin
-outside production. This was the real blocker documented in an earlier
-version of this file — it's resolved in code; verify only that the
-deployed origin actually matches one of these exactly (CORS origin
-matching is exact-string, not a pattern).
+## Fixed on the frontend side (no ANgroup changes needed)
 
-## Every route this frontend needs now exists in ANgroup
+- **`login()`** sends `{email, username, password}` instead of
+  `{identifier, password}` — matches ANgroup's real route.
+- **`signup()`** posts to `/api/auth/register` (not `/api/auth/signup`)
+  and doesn't assume a token comes back — ANgroup's register route
+  returns `{success, message, userId}` with no auto-login.
+- **`markOrderPaid(orderId, mode)`** sends `{orderId, mode}` where `mode`
+  is `"MANUAL" | "SYSTEM"`, matching ANgroup's real
+  `/api/orders/mark-paid`.
+- **`validateCoupon()`** also sends `orderValue` and `businessId`
+  alongside `code`/`subtotal`, matching ANgroup's actual body shape.
+- **Vendor self-service SDK** (`getVendorProfile`, `getVendorDashboardStats`,
+  `getVendorOrders`, etc.) points at ANgroup's real `/api/vendor/*`
+  (singular) paths.
+- **`applyAsVendor()`** maps this form's `businessName`/`contactName`
+  fields onto ANgroup's real `companyName`/`contactPerson` fields.
+- **SSO**: `completeSsoCallback()` uses `requestSsoToken()` /
+  `verifySsoToken()` wired to ANgroup's real `/api/sso/token` and
+  `/api/sso/verify` routes (no fictional code-exchange endpoint).
+- Added `switchBusiness()` / `exitBusiness()` to `auth.ts`, matching
+  ANgroup's real multi-business account model.
+- **Public catalog/content routes now match ANgroup's real paths**:
+  `getProductBySlug` → `/api/storefront/products/:slug`,
+  `getRelatedProducts` → `/api/storefront/products/:slug/related` (was
+  wrongly calling `/api/products/:slug/related`, which 404s — ANgroup
+  moved this under `/api/storefront/products` since Next.js doesn't allow
+  two sibling dynamic route segments named differently, `[id]` vs
+  `[slug]`, under the same parent), category list → `/api/categories`,
+  reviews → `/api/reviews`, wishlist → `/api/wishlist`, newsletter →
+  `/api/newsletter/subscribe`, password reset →
+  `/api/auth/reset-password/request` + `/api/auth/reset-password`.
+- **Vendor product CRUD fixed** — `getVendorProducts` /
+  `createVendorProduct` / `updateVendorProduct` / `deleteVendorProduct`
+  now call ANgroup's real `/api/vendor-products` (hyphenated, not nested
+  under `/api/vendor/`) instead of a path that never existed.
 
-An earlier version of this document listed public product/category
-browsing, reviews, wishlist, newsletter signup, and password reset as
-missing — **all of these now exist**:
+## Still a genuine gap
 
-| Frontend needs | ANgroup route |
+| Frontend needs | ANgroup status |
 |---|---|
-| Public storefront product list | `GET /api/storefront/products` |
-| Public single product | `GET /api/storefront/products/[slug]` |
-| Related products | `GET /api/storefront/products/[slug]/related` |
-| Public category list | `GET /api/categories`, `GET /api/storefront/categories` |
-| Reviews | `GET/POST /api/reviews`, `/api/reviews/[id]` |
-| Wishlist | `/api/wishlist` |
-| Newsletter signup | `POST /api/newsletter/subscribe` |
-| Password reset | `/api/auth/reset-password` |
-| Vendor-scoped self-service | `/api/vendor/{dashboard,orders,profile,staff,payout-account,statement,catalog,materials,team,invoices,settings,offline-sales,stock-adjustments}` |
-
-`lib/an-sdk/products.ts` already targets `/api/storefront/products*`
-(not the authenticated ERP inventory route at `/api/products`, which is
-correctly a separate, internal-only listing) — no frontend changes
-needed for any of the above.
+| AI content helpers (`generateAiContent`, `runAiCompliance`, `generateAiSeoMulti`) | ANgroup has its own, differently-shaped `ai/*` routes (`caption`, `generate-captions`, `generate-image`, `providers`) — not a drop-in match. Only relevant if Native's admin/vendor tooling actually uses these; the customer-facing storefront doesn't. |
 
 ## What's already a good match (works today, no changes needed)
 
@@ -64,18 +96,28 @@ needed for any of the above.
 - `GET /api/blog/list`
 - `POST /api/coupons/validate`
 - `POST /api/vendors/apply`
-- `POST /api/payment/verify` (verifies the Razorpay HMAC signature properly)
-- The multi-business JWT model (`businessIds`, `activeBusinessId`,
-  switch-business/exit-business)
-- `POST /api/anu` (ANu chat) and `POST /api/anu/issues` (ANu Issues &
-  Reports inbox, `/admin/anu-issues`) — wired from `app/anu/page.jsx` via
-  `lib/an-sdk/anu.ts`.
+- `POST /api/payment/verify` — verifies the Razorpay HMAC signature
+  properly.
+- `GET /api/categories`, `GET /api/storefront/products`,
+  `GET /api/storefront/products/:slug(/related)`, `POST /api/reviews`,
+  `GET /api/reviews`, `GET/POST/DELETE /api/wishlist`,
+  `POST /api/newsletter/subscribe`, `POST /api/auth/reset-password/request`,
+  `POST /api/auth/reset-password`.
+- The multi-business JWT model itself (`businessIds`, `activeBusinessId`,
+  switch-business/exit-business).
 
-## Practical read for today's go-live
+## Practical read for go-live
 
-The remaining step is a **deployment config value, not code**: set
-`NEXT_PUBLIC_AN_API` in Native's actual hosting environment (Vercel/
-wherever it's deployed) to ANgroup's live URL, and
-`NEXT_PUBLIC_AN_BUSINESS_ID` to the id above. Once that's set, every
-storefront-facing flow — browsing, cart, checkout, reviews, wishlist,
-newsletter, password reset, ANu — should work against the real backend.
+The backend-route gap that used to block public product/category
+browsing, reviews, wishlist, and newsletter is closed. Before flipping
+`NEXT_PUBLIC_AN_API` at production traffic:
+
+1. Confirm `NEXT_PUBLIC_AN_BUSINESS_ID` is Native's real, current
+   Business `_id` (see the note above — two different values have been
+   recorded at different times).
+2. Confirm ANgroup's CORS allow-list still has the real production
+   domain this frontend is served from.
+3. Smoke-test signup/login, product browsing, add-to-cart/checkout,
+   reviews, wishlist, and newsletter signup end-to-end against the real
+   backend, not just the mock server — this file records what *should*
+   work now, not a substitute for actually exercising it once.

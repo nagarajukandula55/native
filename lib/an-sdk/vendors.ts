@@ -95,25 +95,27 @@ export async function getVendorDashboardStats() {
 }
 
 /**
- * NOTE: no confirmed ANgroup route for vendor-scoped product CRUD
- * (nothing like /api/vendor/products found in its route tree during
- * audit — only dashboard/orders/profile/staff/payout-account/statement
- * were confirmed present). Will 404 against ANgroup until added there.
+ * ANgroup's real vendor-scoped product CRUD lives at /api/vendor-products
+ * (hyphenated, not nested under /api/vendor/) -- GET+POST on the
+ * collection, GET+PUT+DELETE on /api/vendor-products/:id (see
+ * src/app/api/vendor-products/route.ts and .../[id]/route.ts). This SDK
+ * was calling the nested /api/vendor/products/* path, which doesn't
+ * exist and 404'd every call.
  */
 export async function getVendorProducts(query: Record<string, any> = {}) {
-  return anGet(`/api/vendor/products${toQueryString(query)}`);
+  return anGet(`/api/vendor-products${toQueryString(query)}`);
 }
 
 export async function createVendorProduct(payload: any) {
-  return anPost("/api/vendor/products", payload);
+  return anPost("/api/vendor-products", payload);
 }
 
 export async function updateVendorProduct(id: string, payload: any) {
-  return anPut(`/api/vendor/products/${id}`, payload);
+  return anPut(`/api/vendor-products/${id}`, payload);
 }
 
 export async function deleteVendorProduct(id: string) {
-  return anDelete(`/api/vendor/products/${id}`);
+  return anDelete(`/api/vendor-products/${id}`);
 }
 
 export async function getVendorOrders(query: Record<string, any> = {}) {
