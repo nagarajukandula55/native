@@ -80,10 +80,16 @@ export async function getProductBySlug(slug: string) {
   return data?.product ? { ...data, product: normalizeProduct(data.product) } : normalizeProduct(data);
 }
 
-/** Same-category cross-sell rail — GET /api/products/:slug/related. */
+/**
+ * Same-category cross-sell rail — GET /api/storefront/products/:slug/related
+ * (moved there in ANgroup since Next.js won't allow sibling dynamic
+ * segments named differently under the same route -- [id] vs [slug] both
+ * under /api/products broke the whole app's build). This was still
+ * calling the old /api/products/:slug/related path, which 404s.
+ */
 export async function getRelatedProducts(slug: string, limit = 8) {
   const data = await anGet(
-    `/api/products/${encodeURIComponent(slug)}/related${toQueryString({ limit })}`
+    `/api/storefront/products/${encodeURIComponent(slug)}/related${toQueryString({ limit })}`
   );
   return normalizeProductList(data);
 }
