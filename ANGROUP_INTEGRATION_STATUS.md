@@ -30,14 +30,13 @@ Every scoped ANgroup route (products, vendors, coupons, ...) needs to know
 which business a request is acting as. `lib/an-sdk/client.ts` attaches
 `NEXT_PUBLIC_AN_BUSINESS_ID` as both a `businessId` query param and an
 `x-business-id` header on every request automatically — but **that value
-has to actually exist as a `Business` record in ANgroup**. `.env.local`
-currently has this set to `6a5123a8e42b06cdcdec0bcf`; an earlier working
-note recorded it as `6a4abddcf35feedb2392f556` instead. **Verify against
-ANgroup's own `/admin/business` list which one is Native's real, current
-record before going live** — this file can't confirm that without DB
-access, and pointing at a stale/wrong id will make every scoped call
-behave as if Native has no products, no reviews, etc. with no obvious
-error.
+has to actually exist as a `Business` record in ANgroup**. Confirmed
+(2026) as `6a53e91f13ec6a86d3ccee44` and set in local `.env.local` — two
+earlier, different values (`6a5123a8e42b06cdcdec0bcf`,
+`6a4abddcf35feedb2392f556`) had been recorded at different points and are
+now stale. Whatever hosts this in production needs its own
+`NEXT_PUBLIC_AN_BUSINESS_ID` env var set to this same confirmed value —
+`.env.local` only affects local dev/build on this machine.
 
 `client.ts` also sends `credentials: "include"` on every request, because
 ANgroup's auth is an httpOnly cookie (`an_token`) verified by its own
