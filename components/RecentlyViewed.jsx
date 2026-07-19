@@ -51,7 +51,13 @@ export default function RecentlyViewed({ excludeId, title = "Recently Viewed" })
           padding-bottom: 6px;
         }
 
-        .card {
+        /* :global() -- this is a next/link <Link>, which (same as
+           HomeClient.js's category tiles) doesn't reliably receive its
+           styled-jsx scoping hash on the outer element, so a scoped
+           ".card img" rule silently never matched and the image rendered
+           at its natural/unconstrained size instead of the intended
+           150x120 thumbnail. */
+        :global(.card) {
           flex: 0 0 150px;
           text-decoration: none;
           color: inherit;
@@ -61,10 +67,11 @@ export default function RecentlyViewed({ excludeId, title = "Recently Viewed" })
           background: #fff;
         }
 
-        .card img {
+        :global(.card img) {
           width: 100%;
           height: 120px;
           object-fit: cover;
+          display: block;
         }
 
         .name {

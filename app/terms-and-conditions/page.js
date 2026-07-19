@@ -55,7 +55,8 @@ export default function TermsPage() {
       <h2>Cancellations, returns & refunds</h2>
       <p>
         See our <a href="/refund-policy">Refund & Cancellation Policy</a>{" "}
-        for full details on how to cancel an order or request a return.
+        for full details on returns and refunds — orders cannot be cancelled
+        once placed.
       </p>
 
       <h2>Vendor marketplace</h2>

@@ -441,13 +441,25 @@ export default function HomeClient() {
           padding: 28px 20px 0;
         }
 
-        .catTiles {
+        /* :global() on every catTile* rule below -- the outer element is a
+           next/link <Link> (rendered as <a class="catTile ...">), which for
+           reasons specific to this styled-jsx/Next.js combination doesn't
+           receive its scoping hash class on that particular element (its
+           CHILDREN do get one). A scoped rule like ".catTile.jsx-xxxx"
+           therefore never matches the a element at all, so it silently fell back
+           to browser default <a> styling (display:block, no height,
+           position:static) -- confirmed live: the category tile collapsed
+           to ~67px of unstyled text with no image/overlay, reading as a
+           broken black bar of overlapping labels. :global() drops the hash
+           requirement so these rules apply by plain class name regardless.
+        */
+        :global(.catTiles) {
           display: grid;
           grid-template-columns: repeat(4, 1fr);
           gap: 18px;
         }
 
-        .catTile {
+        :global(.catTile) {
           position: relative;
           height: 220px;
           border-radius: 16px;
@@ -461,7 +473,7 @@ export default function HomeClient() {
           transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
 
-        .catTileImg {
+        :global(.catTileImg) {
           position: absolute;
           inset: 0;
           width: 100%;
@@ -471,7 +483,7 @@ export default function HomeClient() {
           display: block;
         }
 
-        .catTile:hover {
+        :global(.catTile:hover) {
           transform: translateY(-3px);
           box-shadow: 0 12px 24px rgba(0, 0, 0, 0.14);
         }
@@ -479,13 +491,13 @@ export default function HomeClient() {
         /* No product cover photo yet (or products still loading) — show an
            intentional brand-colored tile instead of a bare pale box with a
            floating icon and an overlay gradient hanging over nothing. */
-        .catTileNoCover {
+        :global(.catTileNoCover) {
           background: linear-gradient(160deg, #234a34, #1f3d2b 55%, #16301f);
           flex-direction: column;
           justify-content: flex-end;
         }
 
-        .catTileNoCover .catTileIcon {
+        :global(.catTileNoCover .catTileIcon) {
           position: absolute;
           top: 50%;
           left: 50%;
@@ -494,7 +506,7 @@ export default function HomeClient() {
           filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.25));
         }
 
-        .catTileNoCover .catTileOverlay {
+        :global(.catTileNoCover .catTileOverlay) {
           background: none;
           position: static;
           margin-top: auto;
@@ -503,11 +515,11 @@ export default function HomeClient() {
           padding-bottom: 22px;
         }
 
-        .catTileIcon {
+        :global(.catTileIcon) {
           font-size: 48px;
         }
 
-        .catTileOverlay {
+        :global(.catTileOverlay) {
           position: absolute;
           inset: auto 0 0 0;
           background: linear-gradient(to top, rgba(0, 0, 0, 0.75), transparent);
@@ -517,14 +529,14 @@ export default function HomeClient() {
           gap: 4px;
         }
 
-        .catTileName {
+        :global(.catTileName) {
           color: #fff;
           font-weight: 700;
           font-size: 16px;
           letter-spacing: 0.5px;
         }
 
-        .catTileCta {
+        :global(.catTileCta) {
           color: #f0e6c8;
           font-size: 12px;
           font-weight: 600;
@@ -706,7 +718,7 @@ export default function HomeClient() {
 
         /* ===== RESPONSIVE ===== */
         @media (max-width: 900px) {
-          .catTiles {
+          :global(.catTiles) {
             grid-template-columns: repeat(2, 1fr);
           }
 
@@ -722,7 +734,7 @@ export default function HomeClient() {
         }
 
         @media (max-width: 480px) {
-          .catTiles {
+          :global(.catTiles) {
             grid-template-columns: 1fr;
           }
 

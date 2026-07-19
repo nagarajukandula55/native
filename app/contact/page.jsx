@@ -96,7 +96,6 @@ export default function ContactPage() {
         </form>
 
         <div style={styles.info}>
-          <p>📍 Chennai, Tamil Nadu</p>
           <p>📞 +91 89852 29693</p>
           <p>📧 support@shopnative.in</p>
           <p>💬 WhatsApp: Click below</p>

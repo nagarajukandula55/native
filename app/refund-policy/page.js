@@ -15,20 +15,21 @@ export default function RefundPolicyPage() {
       </p>
 
       <h2>Cancelling an order</h2>
-      <ul>
-        <li>Orders can be cancelled free of charge any time before they&rsquo;re shipped, from your <a href="/orders">My Orders</a> page or by contacting support.</li>
-        <li>Once an order has shipped, it can no longer be cancelled — you can request a return instead once it&rsquo;s delivered.</li>
-      </ul>
+      <p>
+        Orders placed on shopnative.in cannot be cancelled once confirmed —
+        our food items are prepared/packed to order, so we&rsquo;re unable
+        to accept cancellation requests at any stage after checkout.
+      </p>
 
-      <h2>Returns</h2>
+      <h2>Returns &amp; refunds</h2>
       <p>
         Because most of our products are food items, returns are handled
         carefully to protect quality and safety:
       </p>
       <ul>
-        <li>Damaged, defective, or incorrect items: report within 48 hours of delivery with a photo, and we&rsquo;ll arrange a replacement or full refund at no cost to you.</li>
-        <li>Unopened, sealed, non-perishable items: eligible for return within 7 days of delivery in original packaging.</li>
-        <li>Opened food items, perishables, and made-to-order products are not eligible for return unless defective, for safety and hygiene reasons.</li>
+        <li>Damaged, defective, or incorrect items: report within 48 hours of delivery with a photo, and we&rsquo;ll arrange a replacement or a full refund at no cost to you.</li>
+        <li>For all other approved returns (e.g. unopened, sealed, non-perishable items in original packaging, reported within 7 days of delivery), a refund of <strong>up to 40% of the order&rsquo;s cart value</strong> is issued — not the full amount — to cover preparation, packaging, and handling already incurred.</li>
+        <li>Opened food items, perishables, and made-to-order products are not eligible for any return or refund unless defective, for safety and hygiene reasons.</li>
       </ul>
 
       <h2>How to request a return or refund</h2>
