@@ -10,6 +10,7 @@ import {
 import { useCart } from "../../context/CartContext";
 import { useRouter } from "next/navigation";
 import { verifyGst } from "@/lib/an-sdk/gst";
+import { validateCoupon } from "@/lib/an-sdk/coupons";
 import { createOrder } from "@/lib/an-sdk/orders";
 import { verifyPayment } from "@/lib/an-sdk/payments";
 import { getMe, isLoggedIn } from "@/lib/an-sdk/auth";
@@ -284,29 +285,28 @@ useEffect(() => {
     if (!coupon) return;
 
     try {
-      const res = await fetch(
-        "/api/coupons/validate",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            code: coupon,
-          
-            subtotal: cart.reduce(
-              (acc: number, item: any) =>
-                acc +
-                safeNumber(item.price) *
-                  safeNumber(item.qty),
-              0
-            ),
-          }),
-        }
+      // Was fetch("/api/coupons/validate", ...) -- a relative path with no
+      // local route behind it (this app has no app/api directory at all),
+      // so this always 404'd. The real route lives on the ANgroup backend;
+      // validateCoupon() routes there via the shared SDK client, which
+      // already attaches businessId the same way every other data call
+      // here does.
+      const subtotal = cart.reduce(
+        (acc: number, item: any) =>
+          acc +
+          safeNumber(item.price) *
+            safeNumber(item.qty),
+        0
       );
 
-      const data = await res.json();
+      const data: any = await validateCoupon(coupon, subtotal);
 
-      if (!data.success) {
-        alert(data.message);
+      // ANgroup's real route returns {valid, discount, finalAmount, coupon}
+      // on success or {valid: false, reason} on failure -- was checking
+      // data.success/data.message, fields that route never sends, so a
+      // valid coupon would still show "undefined" and fail here.
+      if (!data.valid) {
+        alert(data.reason || "Invalid coupon");
         setCouponData(null);
         return;
       }
@@ -314,6 +314,7 @@ useEffect(() => {
       setCouponData(data);
     } catch (err) {
       console.error(err);
+      alert("Failed to apply coupon");
     }
   };
 
@@ -363,8 +364,11 @@ useEffect(() => {
             const gst =
               taxable *
               (
+                // CartContext.tsx stores this as `gstPercent`, not
+                // `tax`/`gstRate` -- this always read undefined, so GST
+                // was silently always 0 and never showed on the summary.
                 safeNumber(
-                  item.tax || item.gstRate
+                  item.gstPercent
                 ) / 100
               );
       
@@ -649,8 +653,8 @@ useEffect(() => {
               <input name="pincode" value={form.pincode} onChange={handleChange} placeholder="Pincode" />
 
               <div className="doubleGrid">
-                <input value={form.city} disabled placeholder="City" />
-                <input value={form.state} disabled placeholder="State" />
+                <input name="city" value={form.city} onChange={handleChange} placeholder="City" />
+                <input name="state" value={form.state} onChange={handleChange} placeholder="State" />
               </div>
             </div>
 

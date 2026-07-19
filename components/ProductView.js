@@ -71,6 +71,10 @@ export default function ProductView({
       slug: product.slug,
       price: sellingPrice,
       mrp,
+      // Checkout's order summary computes GST per line item from this --
+      // was never set, so the GST row always computed to 0 and silently
+      // never rendered (checkout only showed Subtotal / Grand Total).
+      tax: product.taxRate ?? 0,
       image: selectedImage,
       variant:
         selectedVariant?.value
