@@ -153,7 +153,7 @@ export default function ReviewPage() {
 
                   <td>
                     <img
-                      src={p.images?.[0] || "/no-image.png"}
+                      src={p.images?.[0] || "/placeholder.png"}
                       width={60}
                       height={60}
                       style={{ objectFit: "cover", borderRadius: 6 }}

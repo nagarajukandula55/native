@@ -96,7 +96,7 @@ function ProductsPageInner() {
         slug: p.slug,
         price: Number(p.displayPrice || p.price || 0),
         mrp: Number(p.mrp || 0),
-        image: p.images?.[0] || "/no-image.png",
+        image: p.images?.[0] || "/placeholder.png",
         variant: "default",
         qty: 1,
       });
@@ -167,7 +167,7 @@ function ProductsPageInner() {
                 <div className="card" key={p._id}>
                   <Link href={`/products/${p.slug}`} className="link">
                     <div className="imgWrap">
-                      <img src={p.images?.[0] || "/no-image.png"} />
+                      <img src={p.images?.[0] || "/placeholder.png"} />
 
                       {discount > 0 && inStock && (
                         <span className="badge">{discount}% OFF</span>

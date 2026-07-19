@@ -90,7 +90,7 @@ export default function VendorStorefrontPage() {
             <div className="card" key={p._id || p.id}>
               <Link href={`/products/${p.slug}`} className="link">
                 <div className="imgWrap">
-                  <img src={p.images?.[0] || "/no-image.png"} alt={p.displayName || p.name} />
+                  <img src={p.images?.[0] || "/placeholder.png"} alt={p.displayName || p.name} />
                 </div>
                 <div className="content">
                   <h3>{p.displayName || p.name}</h3>
@@ -118,7 +118,7 @@ export default function VendorStorefrontPage() {
                     name: p.displayName || p.name,
                     slug: p.slug,
                     price: Number(p.displayPrice || p.price || 0),
-                    image: p.images?.[0] || "/no-image.png",
+                    image: p.images?.[0] || "/placeholder.png",
                     qty: 1,
                   })
                 }

@@ -441,11 +441,26 @@ useEffect(() => {
           alert(
             "Cart is not valid. Please refresh and add products again."
           );
-    
+
           setLoading(false);
           return;
         }
-    
+
+        // ANgroup's order-create rejects any item priced at ₹0 (a real
+        // safeguard, not a bug -- an unpriced product genuinely shouldn't
+        // be orderable), but previously that only surfaced as an opaque
+        // 500 + generic "Checkout failed" alert with no indication of
+        // which item caused it. Checking client-side first gives the
+        // customer something actionable instead of a dead end.
+        const unpriced = cart.filter((item: any) => !safeNumber(item.price));
+        if (unpriced.length) {
+          alert(
+            `${unpriced.map((i: any) => i.name).join(", ")} — this product isn't available for purchase yet. Please remove it from your cart to continue.`
+          );
+          setLoading(false);
+          return;
+        }
+
         // Guest checkout: no login required. ANgroup's Order model keeps a
         // `customer: {name, phone, email}` sub-object independent of any
         // userId/customerId, so an unauthenticated visitor's order still
@@ -603,14 +618,14 @@ useEffect(() => {
     
         rzp.open();
     
-      } catch (err) {
+      } catch (err: any) {
         console.error(
           "CHECKOUT ERROR:",
           err
         );
-    
-        alert("Checkout failed");
-    
+
+        alert(err?.data?.message || err?.message || "Checkout failed");
+
         setLoading(false);
       }
     };
