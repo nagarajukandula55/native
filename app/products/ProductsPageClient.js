@@ -202,11 +202,20 @@ function ProductsPageInner() {
                       )}
 
                       <p className="price">
-                        <b>₹{price}</b>
-                        {mrp > price && (
-                          <span className="mrp">₹{mrp}</span>
+                        {p.variantCount > 1 ? (
+                          <b>From ₹{price}</b>
+                        ) : (
+                          <>
+                            <b>₹{price}</b>
+                            {mrp > price && (
+                              <span className="mrp">₹{mrp}</span>
+                            )}
+                          </>
                         )}
                       </p>
+                      {p.variantCount > 1 && (
+                        <p style={{ fontSize: "11px", color: "#888" }}>{p.variantCount} sizes available</p>
+                      )}
                     </div>
                   </Link>
 

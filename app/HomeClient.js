@@ -297,7 +297,7 @@ export default function HomeClient() {
                     <Link href={`/products/${p.slug || p._id}`} className="productLink">
                       <h3>{p.name}</h3>
                     </Link>
-                    <p className="price">₹{price}</p>
+                    <p className="price">{p.variantCount > 1 ? `From ₹${price}` : `₹${price}`}</p>
 
                     <button
                       className="addToCartBtn"
