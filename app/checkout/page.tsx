@@ -7,7 +7,6 @@ import {
   useState,
 } from "react";
 
-import { getMe, isLoggedIn } from "@/lib/an-sdk/auth";
 import { pincode } from "@/lib/an-sdk";
 import { useCart } from "../../context/CartContext";
 import { useRouter } from "next/navigation";
