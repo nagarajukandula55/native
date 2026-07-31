@@ -7,6 +7,8 @@ import {
   useState,
 } from "react";
 
+import { getMe, isLoggedIn } from "@/lib/an-sdk/auth";
+import { pincode } from "@/lib/an-sdk";
 import { useCart } from "../../context/CartContext";
 import { useRouter } from "next/navigation";
 import { verifyGst } from "@/lib/an-sdk/gst";
@@ -180,15 +182,10 @@ useEffect(() => {
 
   let mounted = true;
 
-  const fetchLocation =
+    const fetchLocation =
     async () => {
       try {
-        const res = await fetch(
-          `/api/pincode/${form.pincode}`
-        );
-
-        const data =
-          await res.json();
+        const data = await pincode.lookupPincode(form.pincode);
 
         console.log(
           "PINCODE DATA:",
@@ -217,7 +214,6 @@ useEffect(() => {
         );
       }
     };
-
   fetchLocation();
 
   return () => {
