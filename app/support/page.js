@@ -45,8 +45,8 @@ function RaiseTicketForm() {
     e.preventDefault();
     setError(null);
 
-    if (!form.name || !form.subject || !form.message || (!form.email && !form.phone)) {
-      setError("Please fill your name, subject, message, and at least an email or phone.");
+    if (!form.name || !form.email || !form.subject || !form.message) {
+      setError("Please fill your name, email, subject, and message.");
       return;
     }
 
@@ -86,7 +86,7 @@ function RaiseTicketForm() {
     <form onSubmit={handleSubmit} style={styles.form}>
       {error && <p style={styles.error}>{error}</p>}
       <input name="name" placeholder="Your Name *" value={form.name} onChange={handleChange} style={styles.input} />
-      <input name="email" placeholder="Email" value={form.email} onChange={handleChange} style={styles.input} />
+      <input name="email" placeholder="Email *" value={form.email} onChange={handleChange} style={styles.input} />
       <input name="phone" placeholder="Phone" value={form.phone} onChange={handleChange} style={styles.input} />
       <input name="orderId" placeholder="Order ID (optional)" value={form.orderId} onChange={handleChange} style={styles.input} />
       <input name="subject" placeholder="Subject *" value={form.subject} onChange={handleChange} style={styles.input} />
@@ -106,6 +106,7 @@ function RaiseTicketForm() {
 
 function TrackTicket() {
   const [ticketNumber, setTicketNumber] = useState("");
+  const [email, setEmail] = useState("");
   const [ticket, setTicket] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -116,14 +117,14 @@ function TrackTicket() {
     e.preventDefault();
     setError(null);
     setTicket(null);
-    if (!ticketNumber.trim()) return;
+    if (!ticketNumber.trim() || !email.trim()) return;
     try {
       setLoading(true);
-      const data = await getTicket(ticketNumber.trim());
+      const data = await getTicket(ticketNumber.trim(), email.trim());
       if (data.success) setTicket(data.ticket);
       else setError(data.message || "Ticket not found");
     } catch (err) {
-      setError(err?.data?.message || "Ticket not found");
+      setError(err?.data?.error || "Ticket not found");
     } finally {
       setLoading(false);
     }
@@ -133,7 +134,7 @@ function TrackTicket() {
     if (!reply.trim()) return;
     try {
       setSending(true);
-      const data = await addTicketMessage(ticket.ticketNumber, reply.trim());
+      const data = await addTicketMessage(ticket.ticketNumber, email.trim(), reply.trim());
       if (data.success) {
         setTicket(data.ticket);
         setReply("");
@@ -147,9 +148,15 @@ function TrackTicket() {
     <div>
       <form onSubmit={lookup} style={styles.form}>
         <input
-          placeholder="Enter your Ticket ID (e.g. TKT-...)"
+          placeholder="Enter your Ticket ID (e.g. HD-...)"
           value={ticketNumber}
           onChange={(e) => setTicketNumber(e.target.value)}
+          style={styles.input}
+        />
+        <input
+          placeholder="Email you submitted with"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
           style={styles.input}
         />
         <button type="submit" style={styles.button} disabled={loading}>
