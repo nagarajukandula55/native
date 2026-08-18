@@ -3,6 +3,18 @@
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { anGet, anPost } from "@/lib/an-sdk/client";
+
+// Every other data call in this app routes through lib/an-sdk (which reads
+// NEXT_PUBLIC_AN_API, attaches businessId/auth, etc.) -- this page instead
+// had the ANgroup production hostname hardcoded directly into three
+// separate fetch() calls, bypassing that config entirely. That breaks any
+// non-production environment (staging/local dev against a different
+// ANgroup deployment) and drops the businessId/auth attachment the SDK
+// normally handles. NEXT_PUBLIC_AN_API is still needed here (not just
+// anGet/anPost) for the invoice download link, which has to be a real
+// clickable URL, not an API call.
+const AN_API = process.env.NEXT_PUBLIC_AN_API || "";
 
 export default function OrderSuccessClient() {
   const params = useSearchParams();
@@ -43,14 +55,9 @@ export default function OrderSuccessClient() {
     try {
       if (!silent) setRefreshing(true);
 
-      const res = await fetch(
-        `https://www.angroup.in/api/orders/get-by-id?orderId=${id}`,
-        { cache: "no-store" }
-      );
+      const data = await anGet(`/api/orders/get-by-id?orderId=${id}`);
 
-      const data = await res.json();
-
-      if (!res.ok || !data?.success) {
+      if (!data?.success) {
         setStatus("NOT_FOUND");
         return;
       }
@@ -88,16 +95,7 @@ export default function OrderSuccessClient() {
     try {
       setInvoiceLoading(true);
 
-      const res = await fetch(
-        "https://www.angroup.in/api/invoice/generate",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ orderId: id }),
-        }
-      );
-
-      const data = await res.json();
+      const data = await anPost("/api/invoice/generate", { orderId: id });
 
       if (data?.success) {
         setInvoice({
@@ -339,7 +337,7 @@ export default function OrderSuccessClient() {
             </div>
   
             <a
-              href={`https://www.angroup.in/invoice/${invoice.invoiceNumber}`}
+              href={`${AN_API}/invoice/${invoice.invoiceNumber}`}
               target="_blank"
               rel="noopener noreferrer"
               style={{

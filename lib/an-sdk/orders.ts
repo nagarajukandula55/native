@@ -20,33 +20,17 @@ export async function getOrderById(orderId: string) {
 }
 
 /**
- * ANgroup has NO customer-scoped "my orders" endpoint (no /api/orders/get,
- * /api/orders/mine, or anything auth-filtered) — the only listing route is
- * GET /api/orders/list, which returns EVERY order in the database with no
- * auth check or filtering at all (confirmed by reading
- * src/app/api/orders/list/route.ts: it's a bare Order.find({}), no
- * business/user scoping whatsoever). That's a real ANgroup-side gap —
- * both a missing customer-scoped route and, more importantly, an
- * unauthenticated endpoint leaking every business's full order data.
- *
- * Until ANgroup adds a properly scoped + authenticated route, we fetch the
- * full list and filter client-side to the logged-in user's own orders by
- * matching customerId/userId/customer.email against the current session.
- * This is a workaround, not a fix — flagging clearly for a follow-up pass
- * on the ANgroup side.
+ * GET /api/orders/list on the ANgroup backend now requires a session and
+ * scopes to the caller's own orders for a plain customer (see that route's
+ * own comment) -- it used to be a bare, unauthenticated Order.find({})
+ * returning every business's full order data, which this function worked
+ * around with a client-side re-filter against the logged-in user. That
+ * workaround is no longer necessary now that the backend fix has shipped.
  */
 export async function getMyOrders() {
-  const [data, me] = await Promise.all([getOrders(), getMe()]);
-  const all = data?.orders || [];
-  if (!me) return { success: data?.success, orders: [] };
-
-  const mine = all.filter((o: any) => {
-    if (me.id && (o.userId === me.id || o.customerId === me.id)) return true;
-    if (me.email && (o.customer?.email === me.email || o.email === me.email)) return true;
-    return false;
-  });
-
-  return { success: data?.success, orders: mine };
+  const me = await getMe();
+  if (!me) return { success: false, orders: [] };
+  return getOrders();
 }
 
 export async function getTimeline(orderId: string) {
