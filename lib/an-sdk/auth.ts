@@ -30,6 +30,9 @@ export async function signup(payload: {
   phone?: string;
   password: string;
   businessId?: string;
+  accountType?: "RETAIL" | "BUSINESS";
+  businessName?: string;
+  gstNumber?: string;
 }) {
   // ANgroup's /api/auth/register accepts an optional businessId in the
   // body so a storefront can register a customer directly against a

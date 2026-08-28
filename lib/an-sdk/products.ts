@@ -10,6 +10,10 @@ export type ProductQuery = {
   limit?: number;
   /** Multi-vendor filter — proposed, see backend-reference/MULTI_VENDOR_PROPOSAL.md */
   vendor?: string;
+  /** Which channel's products to fetch (see angroup's src/lib/productChannels.ts).
+   * Defaults to "native" in getProducts() below — override only for a
+   * deliberately different listing. */
+  channel?: string;
 };
 
 function toQueryString(params: Record<string, any> = {}) {
@@ -65,7 +69,14 @@ function normalizeProductList(payload: any) {
  * vendor aren't read server-side yet (harmless no-ops there).
  */
 export async function getProducts(query: ProductQuery = {}) {
-  const data = await anGet(`/api/storefront/products${toQueryString(query)}`);
+  // ANgroup can back several websites/marketplaces off one product catalog
+  // now (a product opts into one or more "channels" -- see
+  // angroup's src/lib/productChannels.ts). This SDK only ever serves the
+  // Native storefront, so it always asks for the "native" channel unless a
+  // caller deliberately overrides it.
+  const data = await anGet(
+    `/api/storefront/products${toQueryString({ channel: "native", ...query })}`
+  );
   return normalizeProductList(data);
 }
 
@@ -76,7 +87,9 @@ export async function getProducts(query: ProductQuery = {}) {
  * ANgroup's src/app/api/storefront/products/[slug]/route.ts.
  */
 export async function getProductBySlug(slug: string) {
-  const data = await anGet(`/api/storefront/products/${encodeURIComponent(slug)}`);
+  const data = await anGet(
+    `/api/storefront/products/${encodeURIComponent(slug)}${toQueryString({ channel: "native" })}`
+  );
   return data?.product ? { ...data, product: normalizeProduct(data.product) } : normalizeProduct(data);
 }
 
@@ -89,7 +102,7 @@ export async function getProductBySlug(slug: string) {
  */
 export async function getRelatedProducts(slug: string, limit = 8) {
   const data = await anGet(
-    `/api/storefront/products/${encodeURIComponent(slug)}/related${toQueryString({ limit })}`
+    `/api/storefront/products/${encodeURIComponent(slug)}/related${toQueryString({ limit, channel: "native" })}`
   );
   return normalizeProductList(data);
 }
@@ -163,7 +176,10 @@ export async function generateAiSeoMulti(payload: any) {
  * derives distinct NativeProduct.category values). No auth required.
  */
 export async function getCategories() {
-  return anGet("/api/categories");
+  // Now returns only categories with at least one live "native"-channel
+  // product (see api/categories/route.ts) -- auto-updates as products are
+  // added/approved/removed, no separate sync needed.
+  return anGet(`/api/categories${toQueryString({ channel: "native" })}`);
 }
 
 export async function adminCreateCategory(payload: { name: string }) {

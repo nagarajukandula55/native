@@ -70,9 +70,11 @@ export default function Footer() {
         <div className="col">
           <h3>Marketplace</h3>
           <Link href="/sell">Sell on Native</Link>
+          <Link href="/quote">Get a Quote</Link>
           <Link href="/orders">My Orders</Link>
           <Link href="/wishlist">Wishlist</Link>
           <Link href="/support">Support</Link>
+          <Link href="/suggestions">Suggestions</Link>
         </div>
 
         {/* LEGAL */}
@@ -89,8 +91,8 @@ export default function Footer() {
           <h3>Contact</h3>
           <p>
             Email:{" "}
-            <a href="mailto:care@shopnative.in">
-              care@shopnative.in
+            <a href="mailto:connectwitnative@gmail.com">
+              connectwitnative@gmail.com
             </a>
           </p>
           <p>

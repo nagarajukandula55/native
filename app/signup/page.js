@@ -24,7 +24,15 @@ export default function SignupPage() {
       .catch(() => setLogoUrl(null));
   }, []);
 
-  const [form, setForm] = useState({ name: "", email: "", phone: "", password: "" });
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    password: "",
+    accountType: "RETAIL",
+    businessName: "",
+    gstNumber: "",
+  });
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState("");
@@ -35,6 +43,10 @@ export default function SignupPage() {
 
     if (!form.name || !form.email || !form.password) {
       setMsg("Please fill all required fields");
+      return;
+    }
+    if (form.accountType === "BUSINESS" && !form.businessName) {
+      setMsg("Business name is required for a business account");
       return;
     }
 
@@ -101,6 +113,23 @@ export default function SignupPage() {
           </>
         ) : (
           <form onSubmit={handleSignup}>
+            <div className="accountTypeToggle">
+              <button
+                type="button"
+                className={form.accountType === "RETAIL" ? "typeBtn active" : "typeBtn"}
+                onClick={() => setForm({ ...form, accountType: "RETAIL" })}
+              >
+                Personal
+              </button>
+              <button
+                type="button"
+                className={form.accountType === "BUSINESS" ? "typeBtn active" : "typeBtn"}
+                onClick={() => setForm({ ...form, accountType: "BUSINESS" })}
+              >
+                Business (GST)
+              </button>
+            </div>
+
             <input
               placeholder="Full name"
               value={form.name}
@@ -120,6 +149,24 @@ export default function SignupPage() {
               onChange={(e) => setForm({ ...form, phone: e.target.value })}
               className="input"
             />
+
+            {form.accountType === "BUSINESS" && (
+              <>
+                <input
+                  placeholder="Business name *"
+                  value={form.businessName}
+                  onChange={(e) => setForm({ ...form, businessName: e.target.value })}
+                  className="input"
+                />
+                <input
+                  placeholder="GST number (optional)"
+                  value={form.gstNumber}
+                  onChange={(e) => setForm({ ...form, gstNumber: e.target.value.toUpperCase() })}
+                  className="input"
+                />
+              </>
+            )}
+
             <div className="passWrap">
               <input
                 type={showPass ? "text" : "password"}
@@ -189,6 +236,27 @@ export default function SignupPage() {
           color: #888;
           font-size: 13px;
           margin-bottom: 24px;
+        }
+        .accountTypeToggle {
+          display: flex;
+          gap: 8px;
+          margin-bottom: 16px;
+        }
+        .typeBtn {
+          flex: 1;
+          padding: 10px;
+          border-radius: 8px;
+          border: 1.5px solid #ddd;
+          background: #fff;
+          color: #555;
+          font-weight: 600;
+          font-size: 13px;
+          cursor: pointer;
+        }
+        .typeBtn.active {
+          border-color: #1f3d2b;
+          background: #1f3d2b;
+          color: #fff;
         }
         .input {
           width: 100%;

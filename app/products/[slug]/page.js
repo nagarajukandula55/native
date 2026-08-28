@@ -104,6 +104,29 @@ export default async function ProductPage({ params }) {
         ? "https://schema.org/InStock"
         : "https://schema.org/OutOfStock",
     },
+    // NutritionInformation + allergen/ingredient text -- real structured
+    // data for AI answer engines/Google to answer "how many calories in
+    // X" or "does X contain nuts" directly, not just link out. Only
+    // included when the vendor actually filled these in (see
+    // StepCompliance.tsx / api/storefront/products/[slug]/route.ts).
+    ...(product.nutrition
+      ? {
+          nutrition: {
+            "@type": "NutritionInformation",
+            servingSize: `${product.nutrition.servingSize}g`,
+            calories: `${product.nutrition.energy} kcal`,
+            proteinContent: `${product.nutrition.protein}g`,
+            carbohydrateContent: `${product.nutrition.carbs}g`,
+            sugarContent: `${product.nutrition.sugars}g`,
+            fatContent: `${product.nutrition.fat}g`,
+            sodiumContent: `${product.nutrition.sodium}mg`,
+          },
+        }
+      : {}),
+    ...(product.ingredients?.length ? { ingredients: product.ingredients.join(", ") } : {}),
+    ...(product.allergens?.length
+      ? { additionalProperty: { "@type": "PropertyValue", name: "Allergens", value: product.allergens.join(", ") } }
+      : {}),
   };
 
   return (

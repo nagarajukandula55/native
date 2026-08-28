@@ -59,7 +59,7 @@ export default function ShippingPolicyPage() {
       <p>
         If your order is delayed well beyond the estimate above, arrives
         damaged, or shows as delivered but didn&rsquo;t reach you, contact{" "}
-        <a href="mailto:care@shopnative.in">care@shopnative.in</a> with
+        <a href="mailto:connectwitnative@gmail.com">connectwitnative@gmail.com</a> with
         your order ID and we&rsquo;ll investigate with our courier partner.
       </p>
     </PolicyPage>

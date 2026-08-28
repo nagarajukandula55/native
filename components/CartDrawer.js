@@ -129,23 +129,30 @@ export default function CartDrawer() {
           backdrop-filter: blur(5px);
           display: flex;
           justify-content: flex-end;
+          align-items: center;
+          padding: 20px;
           z-index: 9999;
         }
 
+        /* Side-anchored, but dynamically sized to its own content (up to a
+           cap) instead of a rigid full-height panel -- a 1-item cart gets a
+           short panel, a full cart grows toward the height cap with its
+           own internal scroll. */
         .drawer {
-          width: 420px;
-          max-width: 100%;
-          height: 100%;
+          width: min(420px, 100%);
+          max-height: min(85vh, 720px);
           background: #fff;
+          border-radius: 18px;
+          box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
           display: flex;
           flex-direction: column;
-          animation: slide 0.25s ease;
+          overflow: hidden;
+          animation: slide 0.22s ease;
         }
 
         /* HEADER */
         .header {
-          position: sticky;
-          top: 0;
+          flex-shrink: 0;
           background: white;
           padding: 18px;
           border-bottom: 1px solid #eee;
@@ -316,8 +323,8 @@ export default function CartDrawer() {
         }
 
         @keyframes slide {
-          from { transform: translateX(100%); }
-          to { transform: translateX(0); }
+          from { transform: translateX(30px); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
         }
       `}</style>
     </div>
