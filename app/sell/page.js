@@ -134,20 +134,25 @@ export default function SellPage() {
         ) : vendorState === "pending" ? (
           <div className="card center">
             <p>
-              Your application is under review. We'll notify you once it's
-              approved.
+              Your application is on file. Native's vendor marketplace isn't
+              open yet — we'll reach out once onboarding begins.
             </p>
           </div>
         ) : submitted ? (
           <div className="card center">
             <p>
-              Thanks! Your application has been submitted. We'll be in touch
-              once it's reviewed.
+              Thanks! We've received your application. Native's vendor
+              marketplace isn't open yet — we're holding every application
+              on file and will reach out once onboarding begins.
             </p>
           </div>
         ) : (
           <form className="card" onSubmit={handleSubmit}>
             <h2>Apply to become a vendor</h2>
+            <p className="holdNotice">
+              Native's vendor marketplace isn't open yet — applications are
+              held for review, not activated immediately.
+            </p>
 
             <input
               placeholder="Business name *"
@@ -262,6 +267,14 @@ export default function SellPage() {
         .card h2 {
           margin: 0 0 6px;
           font-size: 20px;
+        }
+        .holdNotice {
+          margin: -8px 0 4px;
+          font-size: 13px;
+          color: #92400e;
+          background: #fef3c7;
+          padding: 8px 12px;
+          border-radius: 8px;
         }
         .input,
         .textarea {
