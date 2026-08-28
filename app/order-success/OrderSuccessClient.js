@@ -4,6 +4,7 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { anGet, anPost } from "@/lib/an-sdk/client";
+import { notifyAccounting } from "@/lib/accounting-sync";
 
 // Every other data call in this app routes through lib/an-sdk (which reads
 // NEXT_PUBLIC_AN_API, attaches businessId/auth, etc.) -- this page instead
@@ -27,6 +28,7 @@ export default function OrderSuccessClient() {
   const [invoice, setInvoice] = useState(null);
   const [invoiceLoading, setInvoiceLoading] = useState(false);
   const [invoiceRequested, setInvoiceRequested] = useState(false);
+  const [accountingSynced, setAccountingSynced] = useState(false);
 
   useEffect(() => {
     const id =
@@ -83,6 +85,16 @@ export default function OrderSuccessClient() {
         setInvoiceRequested(true);
         generateInvoice(id);
       }
+
+      if (
+        ["PAID", "PROCESSING", "PACKED", "DISPATCHED", "DELIVERED"].includes(
+          data.order?.status
+        ) &&
+        !accountingSynced
+      ) {
+        setAccountingSynced(true);
+        syncToAccounting(id, data.order);
+      }
     } catch (err) {
       setStatus("ERROR");
     } finally {
@@ -108,6 +120,58 @@ export default function OrderSuccessClient() {
     } finally {
       setInvoiceLoading(false);
     }
+  };
+
+  // Pushes this paid order into AN-Accounting (the owner's own bookkeeping
+  // app — a different system from the ANgroup backend everything else on
+  // this page talks to). Best-effort: notifyAccounting() never throws, so
+  // this never affects the order-success experience for the customer.
+  const syncToAccounting = async (id, orderData) => {
+    const address = orderData?.address || {};
+    if (!address.state) {
+      // No state means we can't determine CGST+SGST vs. IGST on the
+      // AN-Accounting side — skip rather than send an incomplete sale.
+      return;
+    }
+
+    const items = Array.isArray(orderData?.items) ? orderData.items : [];
+    const lines = items.length
+      ? items.map((item) => {
+          const qty = Math.max(1, Number(item.qty) || 1);
+          const taxable = Number(item.taxableValue) || 0;
+          return {
+            description: item.name || "Item",
+            quantity: qty,
+            rate: Number((taxable / qty).toFixed(2)),
+            gstRatePercent: Number(item.gstRate) || 0,
+          };
+        })
+      : [
+          // Fallback if the order fetch doesn't include line items: one
+          // line for the full amount, no GST breakdown (better than
+          // silently dropping the sale entirely).
+          {
+            description: `Order ${id}`,
+            quantity: 1,
+            rate: Number(orderData?.amount) || 0,
+            gstRatePercent: 0,
+          },
+        ];
+
+    await notifyAccounting({
+      orderId: id,
+      customer: {
+        name: address.name || "Customer",
+        email: address.email || undefined,
+        phone: address.phone || undefined,
+        state: address.state,
+      },
+      lines,
+      payment: {
+        amount: Number(orderData?.amount) || 0,
+        reference: id,
+      },
+    });
   };
 
   const copyOrderId = async () => {
