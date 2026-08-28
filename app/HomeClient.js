@@ -17,17 +17,22 @@ import HeroSlideshow from "@/components/HeroSlideshow";
 // are the graceful fallback rather than fabricating asset URLs.
 function iconForCategory(name = "") {
   const n = name.toLowerCase();
-  if (n.includes("oil")) return "🫒";
-  if (n.includes("flour") || n.includes("millet") || n.includes("atta")) return "🌾";
+  if (n.includes("oil") || n.includes("ghee")) return "🫒";
+  if (n.includes("flour") || n.includes("millet") || n.includes("atta") || n.includes("grain")) return "🌾";
+  if (n.includes("pulse") || n.includes("lentil") || n.includes("dal")) return "🫘";
   if (n.includes("spice") || n.includes("masala")) return "🌶️";
-  if (n.includes("pickle") || n.includes("chutney")) return "🥒";
+  if (n.includes("pickle") || n.includes("chutney") || n.includes("condiment") || n.includes("sauce")) return "🥫";
+  if (n.includes("dairy") || n.includes("milk") || n.includes("paneer") || n.includes("curd")) return "🥛";
   if (n.includes("snack") || n.includes("namkeen")) return "🥨";
-  if (n.includes("instant") || n.includes("ready to cook")) return "🍲";
-  if (n.includes("ready to eat")) return "🍱";
-  if (n.includes("sweet") || n.includes("mithai")) return "🍯";
+  if (n.includes("bakery") || n.includes("bread") || n.includes("bakes")) return "🥖";
+  if (n.includes("instant") || n.includes("ready to cook") || n.includes("ready-to-eat") || n.includes("ready to eat")) return "🍲";
+  if (n.includes("sweet") || n.includes("mithai") || n.includes("confection")) return "🍬";
+  if (n.includes("honey") || n.includes("jaggery") || n.includes("sweetener")) return "🍯";
   if (n.includes("tea") || n.includes("coffee")) return "☕";
-  if (n.includes("rice") || n.includes("grain")) return "🌾";
+  if (n.includes("beverage") || n.includes("juice") || n.includes("drink")) return "🥤";
+  if (n.includes("rice")) return "🍚";
   if (n.includes("dry fruit") || n.includes("nut")) return "🥜";
+  if (n.includes("frozen")) return "🧊";
   if (n.includes("electronic")) return "🔌";
   if (n.includes("fashion")) return "👕";
   if (n.includes("appliance")) return "🏠";
@@ -387,16 +392,6 @@ export default function HomeClient() {
         </div>
       </section>
 
-      {/* ================= PAYMENT METHODS ================= */}
-      <section className="paymentStrip">
-        <span className="paymentLabel">We Accept:</span>
-        <div className="paymentIcons">
-          {["💳 Credit Card", "💳 Debit Card", "📱 UPI", "🏦 Net Banking", "💰 Cash on Delivery"].map((m) => (
-            <span key={m} className="paymentChip">{m}</span>
-          ))}
-        </div>
-      </section>
-
       {/* ================= REVIEWS ================= */}
       {reviews.length > 0 && (
         <section className="reviewsSection">
@@ -474,38 +469,6 @@ export default function HomeClient() {
           .marqueeTrack {
             animation: none;
           }
-        }
-
-        /* ===== PAYMENT METHODS ===== */
-        .paymentStrip {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          flex-wrap: wrap;
-          gap: 10px;
-          padding: 20px;
-          background: #faf8f3;
-        }
-
-        .paymentLabel {
-          font-weight: 700;
-          color: #1f3d2b;
-          font-size: 13px;
-        }
-
-        .paymentIcons {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 8px;
-        }
-
-        .paymentChip {
-          background: #fff;
-          border: 1px solid #eee;
-          border-radius: 20px;
-          padding: 6px 14px;
-          font-size: 12px;
-          color: #444;
         }
 
         /* ===== REVIEWS ===== */
@@ -630,12 +593,19 @@ export default function HomeClient() {
         */
         :global(.catTiles) {
           display: grid;
-          grid-template-columns: repeat(6, 1fr);
+          /* Fixed-width columns + justify-content: center (rather than
+             repeat(N, 1fr), which always stretches to fill every column
+             regardless of item count) -- with fewer categories than a full
+             row, the tiles cluster centered instead of hugging the left
+             edge with empty space on the right. */
+          grid-template-columns: repeat(auto-fit, 150px);
+          justify-content: center;
           gap: 14px;
         }
 
         :global(.catTile) {
           position: relative;
+          width: 150px;
           height: 140px;
           border-radius: 14px;
           overflow: hidden;
