@@ -16,6 +16,12 @@ import { ShoppingCart, Menu, X, Heart, User, LogOut } from "lucide-react";
 const ADMIN_ROLES = ["admin", "super_admin", "super-admin", "superadmin", "owner"];
 const VENDOR_ROLES = ["vendor", ...ADMIN_ROLES];
 
+// Auth/onboarding pages get a bare logo-only header -- the full nav
+// (Products/Track/Sell, search, cart, wishlist, account menu) has nothing
+// useful to do on a login/signup/reset-password screen and was cluttering
+// it; every real ecommerce site strips chrome down on these pages.
+const MINIMAL_HEADER_PREFIXES = ["/login", "/signup", "/reset-password", "/verify", "/checkout"];
+
 export default function Navbar({ logoUrl } = {}) {
   const { cartCount, drawerOpen, openCart, closeCart } = useCart();
   const wishlistCtx = useWishlist();
@@ -24,10 +30,10 @@ export default function Navbar({ logoUrl } = {}) {
   const { user, loading: userLoading, logout } = useUser();
   const role = (user?.role || "").toLowerCase();
   const isVendor = VENDOR_ROLES.includes(role);
-  const isAdmin = ADMIN_ROLES.includes(role);
 
   const router = useRouter();
   const pathname = usePathname();
+  const minimalHeader = MINIMAL_HEADER_PREFIXES.some((p) => pathname?.startsWith(p));
 
   const [mobile, setMobile] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -52,6 +58,33 @@ export default function Navbar({ logoUrl } = {}) {
     setMenuOpen(false);
     router.push("/");
   };
+
+  if (minimalHeader) {
+    return (
+      <header className="header minimalHeaderBar">
+        <Link href="/" className="logoLink">
+          <img
+            src={logoUrl || "/logo-horizontal.svg"}
+            className="logo"
+            alt="Native"
+            onError={(e) => {
+              e.currentTarget.onerror = null;
+              e.currentTarget.src = "/logo-horizontal.svg";
+            }}
+          />
+        </Link>
+        <style jsx>{`
+          .minimalHeaderBar {
+            justify-content: center;
+            padding: 20px 24px;
+          }
+          .logo {
+            height: 40px;
+          }
+        `}</style>
+      </header>
+    );
+  }
 
   return (
     <>
@@ -84,8 +117,11 @@ export default function Navbar({ logoUrl } = {}) {
               <NavLink href="/" label="Home" pathname={pathname} />
               <NavLink href="/products" label="Products" pathname={pathname} />
               <NavLink href="/track" label="Track" pathname={pathname} />
-              <NavLink href="/blog" label="Blog" pathname={pathname} />
+              {/* Blog nav hidden per explicit direction -- to be
+                  implemented/re-enabled later. Page itself (app/blog)
+                  intentionally left in place, just not linked. */}
               <NavLink href="/sell" label="Sell on Native" pathname={pathname} />
+              <NavLink href="/quote" label="Get a Quote" pathname={pathname} />
             </>
           )}
 
@@ -122,11 +158,6 @@ export default function Navbar({ logoUrl } = {}) {
                       {isVendor && (
                         <Link href="/vendor/dashboard" onClick={() => setAccountOpen(false)}>
                           Vendor Dashboard
-                        </Link>
-                      )}
-                      {isAdmin && (
-                        <Link href="/admin" onClick={() => setAccountOpen(false)}>
-                          Admin Panel
                         </Link>
                       )}
                       <button onClick={handleLogout} className="logoutRow">
@@ -173,11 +204,11 @@ export default function Navbar({ logoUrl } = {}) {
           <Link href="/track" onClick={() => setMenuOpen(false)}>
             Track
           </Link>
-          <Link href="/blog" onClick={() => setMenuOpen(false)}>
-            Blog
-          </Link>
           <Link href="/sell" onClick={() => setMenuOpen(false)}>
             Sell on Native
+          </Link>
+          <Link href="/quote" onClick={() => setMenuOpen(false)}>
+            Get a Quote
           </Link>
 
           <hr />
@@ -193,11 +224,6 @@ export default function Navbar({ logoUrl } = {}) {
               {isVendor && (
                 <Link href="/vendor/dashboard" onClick={() => setMenuOpen(false)}>
                   Vendor Dashboard
-                </Link>
-              )}
-              {isAdmin && (
-                <Link href="/admin" onClick={() => setMenuOpen(false)}>
-                  Admin Panel
                 </Link>
               )}
               <button onClick={handleLogout} className="mobileLogout">

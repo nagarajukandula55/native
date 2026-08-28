@@ -5,6 +5,9 @@ import { CartProvider } from "@/context/CartContext";
 import { WishlistProvider } from "@/context/WishlistContext";
 import { UserProvider } from "@/context/UserContext";
 import CookieConsent from "@/components/CookieConsent";
+import WhatsAppButton from "@/components/WhatsAppButton";
+import ChatWidget from "@/components/ChatWidget";
+import InstallAppButton from "@/components/InstallAppButton";
 import { Toaster } from "react-hot-toast";
 import { Playfair_Display, DM_Sans } from "next/font/google";
 import Script from "next/script";
@@ -38,10 +41,20 @@ const dmSans = DM_Sans({
 
 /* ================= META (KEEPING YOUR TAGLINE UNCHANGED) ================= */
 
+export const viewport = {
+  themeColor: "#1f3d2b",
+};
+
 export const metadata: Metadata = {
   metadataBase: new URL("https://shopnative.in"),
   title: "Native | Eat Healthy Stay Healthy",
   description: "Authentic natural food products refined directly from the source",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    title: "Native",
+    statusBarStyle: "black-translucent",
+  },
   openGraph: {
     title: "Native | Eat Healthy Stay Healthy",
     description: "Authentic natural food products refined directly from the source",
@@ -49,11 +62,13 @@ export const metadata: Metadata = {
     url: "https://shopnative.in",
     type: "website",
     locale: "en_IN",
+    images: ["/brand/native_logo_1024.png"],
   },
   twitter: {
     card: "summary_large_image",
     title: "Native | Eat Healthy Stay Healthy",
     description: "Authentic natural food products refined directly from the source",
+    images: ["/brand/native_logo_1024.png"],
   },
   other: {
     // GEO / local-relevance tags — Native is an India-focused storefront
@@ -99,6 +114,7 @@ export default async function RootLayout({
       suppressHydrationWarning
     >
       <head>
+        <link rel="apple-touch-icon" href="/brand/native_logo_256.png" />
         {branding?.logo && (
           <link rel="icon" href={branding.logo} />
         )}
@@ -146,6 +162,9 @@ export default async function RootLayout({
               <main className="app-main">{children}</main>
 
               <Footer />
+              <WhatsAppButton />
+              <ChatWidget />
+              <InstallAppButton />
               <CookieConsent />
             </WishlistProvider>
           </CartProvider>

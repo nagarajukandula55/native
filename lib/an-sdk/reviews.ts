@@ -7,6 +7,7 @@ export type Review = {
   title?: string;
   body: string;
   authorName: string;
+  email?: string;
   verifiedPurchase?: boolean;
   createdAt?: string;
 };
@@ -34,6 +35,7 @@ export async function getReviews(productId: string, page = 1) {
       rating: r.rating,
       title: r.title,
       body: r.comment,
+      verifiedPurchase: !!r.verifiedPurchase,
       createdAt: r.createdAt,
     })),
     summary: {
@@ -68,6 +70,7 @@ export async function submitReview(review: Review) {
     businessId,
     rating: review.rating,
     reviewerName: review.authorName,
+    reviewerEmail: review.email || undefined,
     title: review.title,
     comment: review.body,
   });

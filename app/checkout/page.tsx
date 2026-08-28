@@ -68,6 +68,15 @@ export default function CheckoutPage() {
 
   const [loading, setLoading] = useState(false);
 
+  // Set once an order is actually created server-side (with a Razorpay
+  // order attached) and cleared only on success -- so a failed/cancelled
+  // Razorpay checkout retries against the SAME order instead of calling
+  // createOrder() again. Was re-running createOrder() from scratch on
+  // every retry (verify failure, thrown error, or the customer dismissing
+  // the Razorpay modal), creating a brand-new order each time; the
+  // previous attempt's order was left orphaned with no way back to it.
+  const [pendingOrder, setPendingOrder] = useState<{ orderId: string; razorpayOrder: any } | null>(null);
+
   const [coupon, setCoupon] = useState("");
 
   const [couponData, setCouponData] = useState<any>(null);
@@ -423,109 +432,126 @@ useEffect(() => {
     
       try {
         setLoading(true);
-    
-        const cleanedCart = cart
-          .filter((item: any) => item.productId || item._id)
-          .map((item: any) => ({
-            productKey: item.productKey,
-            qty: Math.max(1, Number(item.qty || 1)),
-            variant: item.variant || "default",
-          }));
-    
-        if (!cleanedCart.length) {
-          alert(
-            "Cart is not valid. Please refresh and add products again."
-          );
 
-          setLoading(false);
-          return;
+        let orderId: string;
+        let razorpayOrder: any;
+
+        if (pendingOrder) {
+          // Retrying after a failed/cancelled Razorpay checkout -- reuse
+          // the order already created server-side instead of creating a
+          // new one.
+          orderId = pendingOrder.orderId;
+          razorpayOrder = pendingOrder.razorpayOrder;
+        } else {
+          const cleanedCart = cart
+            .filter((item: any) => item.productId || item._id)
+            .map((item: any) => ({
+              productKey: item.productKey,
+              qty: Math.max(1, Number(item.qty || 1)),
+              variant: item.variant || "default",
+            }));
+
+          if (!cleanedCart.length) {
+            alert(
+              "Cart is not valid. Please refresh and add products again."
+            );
+
+            setLoading(false);
+            return;
+          }
+
+          // ANgroup's order-create rejects any item priced at ₹0 (a real
+          // safeguard, not a bug -- an unpriced product genuinely shouldn't
+          // be orderable), but previously that only surfaced as an opaque
+          // 500 + generic "Checkout failed" alert with no indication of
+          // which item caused it. Checking client-side first gives the
+          // customer something actionable instead of a dead end.
+          const unpriced = cart.filter((item: any) => !safeNumber(item.price));
+          if (unpriced.length) {
+            alert(
+              `${unpriced.map((i: any) => i.name).join(", ")} — this product isn't available for purchase yet. Please remove it from your cart to continue.`
+            );
+            setLoading(false);
+            return;
+          }
+
+          // Guest checkout: no login required. ANgroup's Order model keeps a
+          // `customer: {name, phone, email}` sub-object independent of any
+          // userId/customerId, so an unauthenticated visitor's order still
+          // carries their contact/address details straight through here.
+          // createOrder() routes through the shared SDK client, which attaches
+          // the businessId + bearer token (when one exists) automatically —
+          // a raw fetch() here would silently drop both.
+          const data: any = await createOrder({
+            cart: cleanedCart,
+            address: form,
+            customer: {
+              name: form.name,
+              phone: form.phone,
+              email: form.email,
+            },
+            coupon,
+            paymentMethod: "RAZORPAY",
+          });
+
+          console.log("CREATE ORDER RESPONSE:", data);
+
+          if (!data.success) {
+            alert(data.error || data.message || "Order failed");
+            setLoading(false);
+            return;
+          }
+
+          setOrderSummary({
+            items: data.items || [],
+          });
+
+          setSummary({
+            subtotal: safeNumber(data.subtotal),
+            discount: safeNumber(data.discount),
+            taxableAmount: safeNumber(data.taxableAmount),
+            gstTotal: safeNumber(data.gstTotal),
+            cgst: safeNumber(data.cgst),
+            sgst: safeNumber(data.sgst),
+            igst: safeNumber(data.igst),
+            grandTotal: safeNumber(data.amount),
+          });
+
+          orderId = data.orderId;
+          razorpayOrder = data.razorpayOrder;
+          // From here on, a failure means "retry against this same order",
+          // not "create another one".
+          setPendingOrder({ orderId, razorpayOrder });
         }
 
-        // ANgroup's order-create rejects any item priced at ₹0 (a real
-        // safeguard, not a bug -- an unpriced product genuinely shouldn't
-        // be orderable), but previously that only surfaced as an opaque
-        // 500 + generic "Checkout failed" alert with no indication of
-        // which item caused it. Checking client-side first gives the
-        // customer something actionable instead of a dead end.
-        const unpriced = cart.filter((item: any) => !safeNumber(item.price));
-        if (unpriced.length) {
-          alert(
-            `${unpriced.map((i: any) => i.name).join(", ")} — this product isn't available for purchase yet. Please remove it from your cart to continue.`
-          );
-          setLoading(false);
-          return;
-        }
-
-        // Guest checkout: no login required. ANgroup's Order model keeps a
-        // `customer: {name, phone, email}` sub-object independent of any
-        // userId/customerId, so an unauthenticated visitor's order still
-        // carries their contact/address details straight through here.
-        // createOrder() routes through the shared SDK client, which attaches
-        // the businessId + bearer token (when one exists) automatically —
-        // a raw fetch() here would silently drop both.
-        const data: any = await createOrder({
-          cart: cleanedCart,
-          address: form,
-          customer: {
-            name: form.name,
-            phone: form.phone,
-            email: form.email,
-          },
-          coupon,
-          paymentMethod: "RAZORPAY",
-        });
-
-        console.log("CREATE ORDER RESPONSE:", data);
-
-        if (!data.success) {
-          alert(data.error || data.message || "Order failed");
-          setLoading(false);
-          return;
-        }
-    
-        setOrderSummary({
-          items: data.items || [],
-        });
-    
-        setSummary({
-          subtotal: safeNumber(data.subtotal),
-          discount: safeNumber(data.discount),
-          taxableAmount: safeNumber(data.taxableAmount),
-          gstTotal: safeNumber(data.gstTotal),
-          cgst: safeNumber(data.cgst),
-          sgst: safeNumber(data.sgst),
-          igst: safeNumber(data.igst),
-          grandTotal: safeNumber(data.amount),
-        });
-    
         const options = {
           key:
             process.env
               .NEXT_PUBLIC_RAZORPAY_KEY_ID,
-    
+
           amount:
-            data.razorpayOrder.amount,
-    
+            razorpayOrder.amount,
+
           currency:
-            data.razorpayOrder.currency,
-    
+            razorpayOrder.currency,
+
           name: "AN Group",
-    
+
           description:
             "Secure Checkout",
-    
+
           order_id:
-            data.razorpayOrder.id,
-    
+            razorpayOrder.id,
+
           prefill: {
             name: form.name,
             contact: form.phone,
             email: form.email,
           },
-    
+
           notes: {
             internalOrderId:
-              data.orderId,
+              orderId,
           },
     
           handler: async function (
@@ -547,8 +573,7 @@ useEffect(() => {
                 razorpay_signature:
                   response.razorpay_signature,
 
-                orderId:
-                  data.orderId,
+                orderId,
               };
 
               console.log(
@@ -564,14 +589,15 @@ useEffect(() => {
                 "VERIFY RESPONSE:",
                 verifyData
               );
-    
+
               if (verifyData.success) {
+                setPendingOrder(null);
                 setCart([]);
-    
+
                 closeCart();
-    
+
                 router.push(
-                  `/order-success?orderId=${data.orderId}`
+                  `/order-success?orderId=${orderId}`
                 );
               } else {
                 alert(
@@ -750,9 +776,23 @@ useEffect(() => {
               
               </div>
 
+            {pendingOrder && (
+              <div className="retryBanner">
+                <p>
+                  Order {pendingOrder.orderId} was created but payment didn&apos;t complete.
+                  Retrying will resume payment on that same order.
+                </p>
+                <button className="retryBannerLink" onClick={() => setPendingOrder(null)}>
+                  Start over with a new order instead
+                </button>
+              </div>
+            )}
+
             <button className="payBtn" onClick={handlePay} disabled={loading}>
               {loading
                 ? "Processing..."
+                : pendingOrder
+                ? "Retry Payment"
                 : `Pay ₹${displaySummary.grandTotal.toFixed(2)}`}
             </button>
 
@@ -966,6 +1006,32 @@ useEffect(() => {
           text-align: center;
           color: #64748b;
           font-size: 14px;
+        }
+
+        .retryBanner {
+          background: #fef2f2;
+          border: 1px solid #fecaca;
+          border-radius: 14px;
+          padding: 14px;
+          margin-top: 20px;
+        }
+
+        .retryBanner p {
+          color: #991b1b;
+          font-size: 13px;
+          line-height: 1.5;
+          margin-bottom: 8px;
+        }
+
+        .retryBannerLink {
+          background: none;
+          border: none;
+          padding: 0;
+          color: #111827;
+          font-size: 13px;
+          font-weight: 600;
+          text-decoration: underline;
+          cursor: pointer;
         }
 
         @keyframes fadeUp {

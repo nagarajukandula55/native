@@ -34,7 +34,7 @@ export default function RefundPolicyPage() {
 
       <h2>How to request a return or refund</h2>
       <p>
-        Email <a href="mailto:care@shopnative.in">care@shopnative.in</a> or
+        Email <a href="mailto:connectwitnative@gmail.com">connectwitnative@gmail.com</a> or
         WhatsApp{" "}
         <a href="https://wa.me/918985229693" target="_blank" rel="noreferrer">
           +91 89852 29693
@@ -60,7 +60,7 @@ export default function RefundPolicyPage() {
       <h2>Contact us</h2>
       <p>
         Questions about a specific order? Reach us at{" "}
-        <a href="mailto:care@shopnative.in">care@shopnative.in</a> — please
+        <a href="mailto:connectwitnative@gmail.com">connectwitnative@gmail.com</a> — please
         include your order ID.
       </p>
     </PolicyPage>

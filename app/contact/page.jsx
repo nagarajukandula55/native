@@ -97,7 +97,7 @@ export default function ContactPage() {
 
         <div style={styles.info}>
           <p>📞 +91 89852 29693</p>
-          <p>📧 support@shopnative.in</p>
+          <p>📧 connectwitnative@gmail.com</p>
           <p>💬 WhatsApp: Click below</p>
 
           <a

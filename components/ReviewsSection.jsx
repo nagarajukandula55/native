@@ -40,6 +40,7 @@ export default function ReviewsSection({ productId }) {
     title: "",
     body: "",
     authorName: "",
+    email: "",
   });
 
   async function load() {
@@ -81,7 +82,7 @@ export default function ReviewsSection({ productId }) {
 
     try {
       await submitReview({ productId, ...form });
-      setForm({ rating: 5, title: "", body: "", authorName: "" });
+      setForm({ rating: 5, title: "", body: "", authorName: "", email: "" });
       setShowForm(false);
       await load();
     } catch (err) {
@@ -134,6 +135,13 @@ export default function ReviewsSection({ productId }) {
             onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
           />
 
+          <input
+            type="email"
+            placeholder="Email used for your order (optional — for Verified Purchase badge only, never shown publicly)"
+            value={form.email}
+            onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+          />
+
           <textarea
             placeholder="Share your experience with this product..."
             rows={4}
@@ -159,8 +167,10 @@ export default function ReviewsSection({ productId }) {
             <div className="item" key={r.id || r._id}>
               <div className="itemHead">
                 <strong>{r.authorName}</strong>
-                {r.verifiedPurchase && (
-                  <span className="verified">Verified Purchase</span>
+                {r.verifiedPurchase ? (
+                  <span className="verified">✓ Verified Purchase</span>
+                ) : (
+                  <span className="unverified">Not a verified purchase</span>
                 )}
               </div>
 
@@ -289,6 +299,15 @@ export default function ReviewsSection({ productId }) {
           font-size: 11px;
           color: green;
           background: #eaf7ea;
+          padding: 2px 6px;
+          border-radius: 4px;
+          font-weight: 600;
+        }
+
+        .unverified {
+          font-size: 11px;
+          color: #92400e;
+          background: #fef3c7;
           padding: 2px 6px;
           border-radius: 4px;
         }

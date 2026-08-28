@@ -357,33 +357,75 @@ export default function ProductView({
               }}
             />
 
-            {product?.ingredients?.length >
-              0 && (
+            {product?.ingredients?.length > 0 && (
               <>
                 <h3>Ingredients</h3>
+                <p>{product.ingredients.join(", ")}</p>
+              </>
+            )}
 
-                <ul>
-                  {product.ingredients.map(
-                    (item) => (
-                      <li key={item._id}>
-                        {item.name}
-                      </li>
-                    )
-                  )}
-                </ul>
+            {product?.allergens?.length > 0 && (
+              <div
+                style={{
+                  background: "#fff8e6",
+                  border: "1px solid #f0d78c",
+                  borderRadius: 8,
+                  padding: "10px 14px",
+                  margin: "12px 0",
+                }}
+              >
+                <strong>Allergens: </strong>
+                {product.allergens.join(", ")}
+              </div>
+            )}
+
+            {product?.warnings?.length > 0 && (
+              <ul style={{ color: "#b45309", fontSize: 14 }}>
+                {product.warnings.map((w) => (
+                  <li key={w}>{w}</li>
+                ))}
+              </ul>
+            )}
+
+            {product?.nutrition && (
+              <>
+                <h3>Nutrition Facts</h3>
+                <p style={{ fontSize: 13, color: "#666", marginTop: -6 }}>
+                  Per {product.nutrition.servingSize}g serving
+                </p>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+                  <tbody>
+                    {[
+                      ["Energy", `${product.nutrition.energy} kcal`],
+                      ["Protein", `${product.nutrition.protein} g`],
+                      ["Carbohydrates", `${product.nutrition.carbs} g`],
+                      ["  Sugars", `${product.nutrition.sugars} g`],
+                      ["Fat", `${product.nutrition.fat} g`],
+                      ["Sodium", `${product.nutrition.sodium} mg`],
+                    ].map(([label, value]) => (
+                      <tr key={label} style={{ borderBottom: "1px solid #eee" }}>
+                        <td style={{ padding: "6px 0", color: label.startsWith("  ") ? "#888" : "#333" }}>
+                          {label.trim()}
+                        </td>
+                        <td style={{ padding: "6px 0", textAlign: "right", fontWeight: 600 }}>{value}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </>
             )}
 
             {product?.usageInstructions && (
               <>
-                <h3>
-                  Usage Instructions
-                </h3>
-                <p>
-                  {
-                    product.usageInstructions
-                  }
-                </p>
+                <h3>Usage Instructions</h3>
+                <p>{product.usageInstructions}</p>
+              </>
+            )}
+
+            {product?.storageInstructions && (
+              <>
+                <h3>Storage Instructions</h3>
+                <p>{product.storageInstructions}</p>
               </>
             )}
           </div>

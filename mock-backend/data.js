@@ -162,7 +162,7 @@ let companySettings = {
   name: "Native",
   gstNumber: "29ABCDE1234F1Z5",
   address: "Bengaluru, Karnataka, India",
-  supportEmail: "care@shopnative.in",
+  supportEmail: "connectwitnative@gmail.com",
   supportPhone: "+918985229693",
 };
 

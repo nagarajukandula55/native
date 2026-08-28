@@ -1,16 +1,24 @@
 "use client";
 
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCart } from "@/context/CartContext";
 
 export default function CartPage() {
   const { cart, updateQty, removeFromCart, cartTotal } = useCart();
+  const router = useRouter();
 
   return (
     <div className="container">
       <h1>Your Cart</h1>
 
       {cart.length === 0 ? (
-        <p className="empty">Cart is empty</p>
+        <div className="empty">
+          <p>Your cart is empty</p>
+          <Link href="/products" className="continueBtn">
+            Continue Shopping
+          </Link>
+        </div>
       ) : (
         <>
           {cart.map((item) => (
@@ -58,6 +66,14 @@ export default function CartPage() {
 
           <div className="totalRow">
             <h2>Total: ₹{cartTotal}</h2>
+            <div className="actions">
+              <Link href="/products" className="continueLink">
+                Continue Shopping
+              </Link>
+              <button className="checkoutBtn" onClick={() => router.push("/checkout")}>
+                Proceed to Checkout →
+              </button>
+            </div>
           </div>
         </>
       )}
@@ -73,6 +89,20 @@ export default function CartPage() {
           color: #666;
           padding: 40px 0;
           text-align: center;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 16px;
+        }
+
+        .continueBtn {
+          display: inline-block;
+          background: #1f3d2b;
+          color: #fff;
+          padding: 12px 28px;
+          border-radius: 8px;
+          font-weight: 600;
+          text-decoration: none;
         }
 
         .row {
@@ -157,8 +187,42 @@ export default function CartPage() {
         }
 
         .totalRow h2 {
-          margin: 0;
+          margin: 0 0 16px;
           color: #1f3d2b;
+        }
+
+        .actions {
+          display: flex;
+          justify-content: flex-end;
+          align-items: center;
+          gap: 20px;
+          flex-wrap: wrap;
+        }
+
+        .continueLink {
+          color: #1f3d2b;
+          font-weight: 600;
+          text-decoration: none;
+          font-size: 14px;
+        }
+
+        .continueLink:hover {
+          text-decoration: underline;
+        }
+
+        .checkoutBtn {
+          background: #c28b45;
+          color: #fff;
+          border: none;
+          padding: 14px 32px;
+          border-radius: 8px;
+          font-weight: 700;
+          font-size: 15px;
+          cursor: pointer;
+        }
+
+        .checkoutBtn:hover {
+          background: #a9762f;
         }
       `}</style>
     </div>

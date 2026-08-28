@@ -58,7 +58,7 @@ export default function PrivacyPolicyPage() {
       <p>
         You can request access to, correction of, or deletion of your
         personal data by writing to us at{" "}
-        <a href="mailto:care@shopnative.in">care@shopnative.in</a>. You can
+        <a href="mailto:connectwitnative@gmail.com">connectwitnative@gmail.com</a>. You can
         also update most account details directly from your profile page.
       </p>
 
@@ -86,7 +86,7 @@ export default function PrivacyPolicyPage() {
       <h2>Contact us</h2>
       <p>
         Questions about this policy? Email{" "}
-        <a href="mailto:care@shopnative.in">care@shopnative.in</a> or
+        <a href="mailto:connectwitnative@gmail.com">connectwitnative@gmail.com</a> or
         WhatsApp us at{" "}
         <a href="https://wa.me/918985229693" target="_blank" rel="noreferrer">
           +91 89852 29693

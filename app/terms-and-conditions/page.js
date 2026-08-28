@@ -93,7 +93,7 @@ export default function TermsPage() {
       <h2>Contact us</h2>
       <p>
         Questions about these Terms? Email{" "}
-        <a href="mailto:care@shopnative.in">care@shopnative.in</a>.
+        <a href="mailto:connectwitnative@gmail.com">connectwitnative@gmail.com</a>.
       </p>
     </PolicyPage>
   );

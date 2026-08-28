@@ -67,18 +67,9 @@ export default async function sitemap() {
       priority: 0.9,
     },
 
-    {
-      url: "https://shopnative.in/cart",
-      lastModified: new Date(),
-      priority: 0.5,
-    },
-
-    {
-      url: "https://shopnative.in/checkout",
-      lastModified: new Date(),
-      priority: 0.5,
-    },
-
+    // /cart and /checkout deliberately excluded -- robots.js disallows
+    // crawling both (transactional, no SEO value), so listing them here
+    // would contradict robots.txt.
     {
       url: "https://shopnative.in/sell",
       lastModified: new Date(),
