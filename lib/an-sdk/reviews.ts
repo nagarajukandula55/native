@@ -63,6 +63,28 @@ export async function getReviewSummary(productId: string) {
  * comment? } — not { authorName, body }. Mapping the SDK's public Review
  * shape onto the backend's real field names here.
  */
+/**
+ * GET /api/reviews/recent — top-rated recent reviews across every
+ * product, for a homepage "What our customers say" section.
+ */
+export async function getRecentReviews(limit = 6) {
+  const businessId = process.env.NEXT_PUBLIC_AN_BUSINESS_ID || "";
+  const data = await anGet(`/api/reviews/recent?businessId=${encodeURIComponent(businessId)}&limit=${limit}`);
+  return {
+    reviews: (data?.reviews || []).map((r: any) => ({
+      id: r.id,
+      authorName: r.reviewerName,
+      rating: r.rating,
+      title: r.title,
+      body: r.comment,
+      verifiedPurchase: !!r.verifiedPurchase,
+      productName: r.productName,
+      productSlug: r.productSlug,
+      createdAt: r.createdAt,
+    })),
+  };
+}
+
 export async function submitReview(review: Review) {
   const businessId = process.env.NEXT_PUBLIC_AN_BUSINESS_ID || "";
   return anPost("/api/reviews", {

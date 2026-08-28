@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useCart } from "@/context/CartContext";
 import { getProducts, getCategories } from "@/lib/an-sdk/products";
 import { getBanners } from "@/lib/an-sdk/banners";
+import { getRecentReviews } from "@/lib/an-sdk/reviews";
 import WishlistButton from "@/components/WishlistButton";
 import RecentlyViewed from "@/components/RecentlyViewed";
 import HeroSlideshow from "@/components/HeroSlideshow";
@@ -44,6 +45,7 @@ export default function HomeClient() {
   const [failedCatImages, setFailedCatImages] = useState({});
   const [failedProductImages, setFailedProductImages] = useState({});
   const [dynamicSlides, setDynamicSlides] = useState(null);
+  const [reviews, setReviews] = useState([]);
 
   /* ================= FETCH PRODUCTS ================= */
   useEffect(() => {
@@ -60,6 +62,13 @@ export default function HomeClient() {
       }
     }
     loadProducts();
+  }, []);
+
+  /* ================= FETCH REVIEWS ================= */
+  useEffect(() => {
+    getRecentReviews(6)
+      .then((data) => setReviews(data?.reviews || []))
+      .catch(() => setReviews([]));
   }, []);
 
   /* ================= FETCH CATEGORIES ================= */
@@ -147,11 +156,23 @@ export default function HomeClient() {
 
   return (
     <div className="home">
-      {/* ================= PROMO STRIP ================= */}
+      {/* ================= PROMO MARQUEE ================= */}
       <div className="promoStrip">
-        <span>✓ 100% Natural &nbsp;|&nbsp; ✓ No Preservatives &nbsp;|&nbsp; ✓ Traditional &amp; Healthy</span>
-        <span className="promoCenter">🚚 Free Shipping on orders above ₹499</span>
-        <span>🕐 Fast Delivery in 24-48 Hrs</span>
+        <div className="marqueeTrack">
+          {/* Content duplicated back-to-back so the loop is seamless --
+              animating one copy -50% leaves the second copy exactly
+              where the first started. */}
+          {[0, 1].map((copy) => (
+            <div className="marqueeContent" key={copy} aria-hidden={copy === 1}>
+              <span>✓ 100% Natural</span>
+              <span>✓ No Preservatives</span>
+              <span>✓ Traditional &amp; Healthy</span>
+              <span>🚚 Free Shipping on orders above ₹499</span>
+              <span>🕐 Fast Delivery in 24-48 Hrs</span>
+              <span>💳 We Accept Credit/Debit Cards, UPI &amp; Net Banking</span>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* ================= HERO SLIDESHOW ================= */}
@@ -192,9 +213,12 @@ export default function HomeClient() {
               // a tile can end up rendering as an empty/collapsed box while
               // its absolutely-positioned label overlay still shows.
               const catId = cat.id || cat._id || i;
-              const rawCover = !loading
-                ? products.find((p) => p.category === cat.name)?.images?.[0]
-                : undefined;
+              // A real category photo (set in admin > Product Categories)
+              // always wins; falls back to a matching product's own photo,
+              // then finally the emoji map below.
+              const rawCover =
+                cat.imageUrl ||
+                (!loading ? products.find((p) => p.category === cat.name)?.images?.[0] : undefined);
               // Track failed image loads in real React state rather than
               // mutating the DOM directly from onError -- a direct DOM
               // mutation (classList.add/style.display) is invisible to
@@ -221,7 +245,7 @@ export default function HomeClient() {
                       }
                     />
                   ) : (
-                    <span className="catTileIcon">{iconForCategory(cat.name)}</span>
+                    <span className="catTileIcon">{cat.icon || iconForCategory(cat.name)}</span>
                   )}
                   <div className="catTileOverlay">
                     <span className="catTileName">{(cat.name || "").toUpperCase()}</span>
@@ -363,6 +387,43 @@ export default function HomeClient() {
         </div>
       </section>
 
+      {/* ================= PAYMENT METHODS ================= */}
+      <section className="paymentStrip">
+        <span className="paymentLabel">We Accept:</span>
+        <div className="paymentIcons">
+          {["💳 Credit Card", "💳 Debit Card", "📱 UPI", "🏦 Net Banking", "💰 Cash on Delivery"].map((m) => (
+            <span key={m} className="paymentChip">{m}</span>
+          ))}
+        </div>
+      </section>
+
+      {/* ================= REVIEWS ================= */}
+      {reviews.length > 0 && (
+        <section className="reviewsSection">
+          <h2 className="bsHeading">
+            <span className="leaf">🌿</span> WHAT OUR CUSTOMERS SAY <span className="leaf">🌿</span>
+          </h2>
+          <div className="reviewGrid">
+            {reviews.map((r) => (
+              <Link
+                href={r.productSlug ? `/products/${r.productSlug}` : "/products"}
+                key={r.id}
+                className="reviewCard"
+              >
+                <div className="reviewStars">{"★".repeat(r.rating)}{"☆".repeat(5 - r.rating)}</div>
+                {r.title && <p className="reviewTitle">{r.title}</p>}
+                <p className="reviewBody">&ldquo;{r.body}&rdquo;</p>
+                <p className="reviewMeta">
+                  — {r.authorName}
+                  {r.verifiedPurchase && <span className="verifiedTag"> · Verified Purchase</span>}
+                  {r.productName && <span className="reviewProduct"> · {r.productName}</span>}
+                </p>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* ================= RECENTLY VIEWED ================= */}
       <RecentlyViewed />
 
@@ -378,22 +439,136 @@ export default function HomeClient() {
           padding: 20px;
         }
 
-        /* ===== PROMO STRIP ===== */
+        /* ===== PROMO MARQUEE ===== */
         .promoStrip {
           background: #1f3d2b;
           color: #fff;
           font-size: 13px;
-          padding: 8px 20px;
-          display: flex;
-          flex-wrap: wrap;
-          justify-content: space-between;
-          gap: 8px;
-          text-align: center;
+          padding: 9px 0;
+          overflow: hidden;
+          white-space: nowrap;
         }
 
-        .promoCenter {
-          flex: 1;
-          text-align: center;
+        .marqueeTrack {
+          display: inline-flex;
+          animation: marquee 26s linear infinite;
+        }
+
+        .marqueeContent {
+          display: inline-flex;
+          align-items: center;
+          gap: 36px;
+          padding-right: 36px;
+        }
+
+        @keyframes marquee {
+          from {
+            transform: translateX(0);
+          }
+          to {
+            transform: translateX(-50%);
+          }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .marqueeTrack {
+            animation: none;
+          }
+        }
+
+        /* ===== PAYMENT METHODS ===== */
+        .paymentStrip {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-wrap: wrap;
+          gap: 10px;
+          padding: 20px;
+          background: #faf8f3;
+        }
+
+        .paymentLabel {
+          font-weight: 700;
+          color: #1f3d2b;
+          font-size: 13px;
+        }
+
+        .paymentIcons {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+        }
+
+        .paymentChip {
+          background: #fff;
+          border: 1px solid #eee;
+          border-radius: 20px;
+          padding: 6px 14px;
+          font-size: 12px;
+          color: #444;
+        }
+
+        /* ===== REVIEWS ===== */
+        .reviewsSection {
+          padding: 40px 20px;
+          max-width: 1200px;
+          margin: 0 auto;
+        }
+
+        .reviewGrid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+          gap: 18px;
+          margin-top: 24px;
+        }
+
+        .reviewCard {
+          background: #fff;
+          border-radius: 12px;
+          padding: 20px;
+          box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+          text-decoration: none;
+          color: inherit;
+          display: block;
+          transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .reviewCard:hover {
+          transform: translateY(-3px);
+          box-shadow: 0 10px 22px rgba(0, 0, 0, 0.1);
+        }
+
+        .reviewStars {
+          color: #f5a623;
+          font-size: 15px;
+          margin-bottom: 8px;
+        }
+
+        .reviewTitle {
+          font-weight: 700;
+          margin: 0 0 4px;
+        }
+
+        .reviewBody {
+          color: #444;
+          font-size: 14px;
+          margin: 0 0 10px;
+          line-height: 1.5;
+        }
+
+        .reviewMeta {
+          font-size: 12px;
+          color: #888;
+          margin: 0;
+        }
+
+        .verifiedTag {
+          color: #16a34a;
+          font-weight: 600;
+        }
+
+        .reviewProduct {
+          color: #c28b45;
         }
 
         /* ===== FEATURE STRIP (below the hero slideshow) ===== */
@@ -455,14 +630,14 @@ export default function HomeClient() {
         */
         :global(.catTiles) {
           display: grid;
-          grid-template-columns: repeat(4, 1fr);
-          gap: 18px;
+          grid-template-columns: repeat(6, 1fr);
+          gap: 14px;
         }
 
         :global(.catTile) {
           position: relative;
-          height: 220px;
-          border-radius: 16px;
+          height: 140px;
+          border-radius: 14px;
           overflow: hidden;
           background: #dfead9;
           display: flex;
@@ -502,7 +677,7 @@ export default function HomeClient() {
           top: 50%;
           left: 50%;
           transform: translate(-50%, -68%);
-          font-size: 44px;
+          font-size: 28px;
           filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.25));
         }
 
@@ -512,18 +687,18 @@ export default function HomeClient() {
           margin-top: auto;
           align-items: center;
           text-align: center;
-          padding-bottom: 22px;
+          padding-bottom: 12px;
         }
 
         :global(.catTileIcon) {
-          font-size: 48px;
+          font-size: 30px;
         }
 
         :global(.catTileOverlay) {
           position: absolute;
           inset: auto 0 0 0;
           background: linear-gradient(to top, rgba(0, 0, 0, 0.75), transparent);
-          padding: 16px;
+          padding: 10px;
           display: flex;
           flex-direction: column;
           gap: 4px;
@@ -719,7 +894,7 @@ export default function HomeClient() {
         /* ===== RESPONSIVE ===== */
         @media (max-width: 900px) {
           :global(.catTiles) {
-            grid-template-columns: repeat(2, 1fr);
+            grid-template-columns: repeat(3, 1fr);
           }
 
           .trustStrip {
@@ -735,7 +910,7 @@ export default function HomeClient() {
 
         @media (max-width: 480px) {
           :global(.catTiles) {
-            grid-template-columns: 1fr;
+            grid-template-columns: repeat(2, 1fr);
           }
 
           .trustStrip {

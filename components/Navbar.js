@@ -64,12 +64,12 @@ export default function Navbar({ logoUrl } = {}) {
       <header className="header minimalHeaderBar">
         <Link href="/" className="logoLink">
           <img
-            src={logoUrl || "/logo-horizontal.svg"}
+            src={logoUrl || "/brand/native_logo_512.png"}
             className="logo"
             alt="Native"
             onError={(e) => {
               e.currentTarget.onerror = null;
-              e.currentTarget.src = "/logo-horizontal.svg";
+              e.currentTarget.src = "/brand/native_logo_512.png";
             }}
           />
         </Link>
@@ -95,12 +95,12 @@ export default function Navbar({ logoUrl } = {}) {
               app/layout.tsx's getBusinessBranding()) with a graceful
               fallback to the static asset when none is configured. */}
           <img
-            src={logoUrl || "/logo-horizontal.svg"}
+            src={logoUrl || "/brand/native_logo_512.png"}
             className="logo"
             alt="Native"
             onError={(e) => {
               e.currentTarget.onerror = null;
-              e.currentTarget.src = "/logo-horizontal.svg";
+              e.currentTarget.src = "/brand/native_logo_512.png";
             }}
           />
         </Link>

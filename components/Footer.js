@@ -71,6 +71,7 @@ export default function Footer() {
           <h3>Marketplace</h3>
           <Link href="/sell">Sell on Native</Link>
           <Link href="/quote">Get a Quote</Link>
+          <Link href="/download">Download App</Link>
           <Link href="/orders">My Orders</Link>
           <Link href="/wishlist">Wishlist</Link>
           <Link href="/support">Support</Link>
