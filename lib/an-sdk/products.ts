@@ -1,4 +1,5 @@
 import { anGet, anPost, anPut, anDelete } from "./client";
+import { getStoredPincode } from "@/lib/pincode";
 
 export type ProductQuery = {
   search?: string;
@@ -175,11 +176,21 @@ export async function generateAiSeoMulti(payload: any) {
  * Public storefront category list — GET /api/categories (businessId-scoped,
  * derives distinct NativeProduct.category values). No auth required.
  */
-export async function getCategories() {
+export async function getCategories(pincode?: string) {
   // Now returns only categories with at least one live "native"-channel
   // product (see api/categories/route.ts) -- auto-updates as products are
   // added/approved/removed, no separate sync needed.
-  return anGet(`/api/categories${toQueryString({ channel: "native" })}`);
+  //
+  // ANgroup also filters out categories restricted to specific pincodes
+  // (used for the phased "Monthly Groceries" rollout) whenever a `pincode`
+  // query param is supplied. The caller can pass one explicitly, but by
+  // default we fall back to whatever the customer already told us via the
+  // pincode capture prompt (see lib/pincode.ts) so browsing is pincode-aware
+  // even before checkout.
+  const effectivePincode = pincode ?? getStoredPincode();
+  return anGet(
+    `/api/categories${toQueryString({ channel: "native", pincode: effectivePincode || undefined })}`
+  );
 }
 
 export async function adminCreateCategory(payload: { name: string }) {

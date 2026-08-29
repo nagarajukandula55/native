@@ -15,6 +15,7 @@ import { validateCoupon } from "@/lib/an-sdk/coupons";
 import { createOrder } from "@/lib/an-sdk/orders";
 import { verifyPayment } from "@/lib/an-sdk/payments";
 import { getMe, isLoggedIn } from "@/lib/an-sdk/auth";
+import { getStoredPincode, setStoredPincode } from "@/lib/pincode";
 
 declare global {
   interface Window {
@@ -106,7 +107,10 @@ export default function CheckoutPage() {
     email: "",
     address: "",
     landmark: "",
-    pincode: "",
+    // Prefill from whatever pincode the customer already gave us while
+    // browsing (see components/PincodeBar.jsx / lib/pincode.ts) -- avoids
+    // asking twice.
+    pincode: typeof window !== "undefined" ? getStoredPincode() : "",
     city: "",
     state: "",
     gstNumber: "",
@@ -214,6 +218,11 @@ useEffect(() => {
               data.state || "",
           }));
         }
+
+        // Keep the shared pincode store (used for pincode-aware browsing
+        // on the home page) in sync with whatever the customer enters here,
+        // regardless of whether the lookup itself succeeded.
+        setStoredPincode(form.pincode);
 
       } catch (err) {
         console.error(

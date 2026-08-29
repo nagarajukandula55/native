@@ -9,6 +9,7 @@ import { getRecentReviews } from "@/lib/an-sdk/reviews";
 import WishlistButton from "@/components/WishlistButton";
 import RecentlyViewed from "@/components/RecentlyViewed";
 import HeroSlideshow from "@/components/HeroSlideshow";
+import { PINCODE_CHANGED_EVENT } from "@/lib/pincode";
 
 // Simple keyword → emoji map so real category names (whatever the backend
 // returns) still get a sensible icon without needing per-category image
@@ -76,9 +77,15 @@ export default function HomeClient() {
       .catch(() => setReviews([]));
   }, []);
 
-  /* ================= FETCH CATEGORIES ================= */
+  /* ================= FETCH CATEGORIES =================
+     Re-runs whenever the customer sets/changes their delivery pincode (see
+     components/PincodeBar.jsx) -- some categories are only visible for
+     certain pincodes (the phased "Monthly Groceries" rollout), so the tiles
+     shown here need to update the moment the pincode changes, not just at
+     checkout. */
   useEffect(() => {
     async function loadCategories() {
+      setCategoriesLoading(true);
       try {
         const data = await getCategories();
         setCategories((data?.categories || []).slice(0, 4));
@@ -90,6 +97,9 @@ export default function HomeClient() {
       }
     }
     loadCategories();
+
+    window.addEventListener(PINCODE_CHANGED_EVENT, loadCategories);
+    return () => window.removeEventListener(PINCODE_CHANGED_EVENT, loadCategories);
   }, []);
 
   /* ================= FETCH BANNERS (admin-uploaded hero slides) =========

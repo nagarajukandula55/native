@@ -8,7 +8,9 @@ import { useWishlist } from "@/context/WishlistContext";
 import { useUser } from "@/context/UserContext";
 import CartDrawer from "./CartDrawer";
 import SearchBar from "./SearchBar";
+import PincodeBar from "./PincodeBar";
 import { ShoppingCart, Menu, X, Heart, User, LogOut } from "lucide-react";
+import { useServiceAvailability } from "@/lib/useServiceAvailability";
 
 // "super_admin" (underscore) is the role string used elsewhere in this
 // codebase (app/super-admin/users/page.js's role picker); kept alongside
@@ -30,6 +32,18 @@ export default function Navbar({ logoUrl } = {}) {
   const { user, loading: userLoading, logout } = useUser();
   const role = (user?.role || "").toLowerCase();
   const isVendor = VENDOR_ROLES.includes(role);
+
+  // Monthly Groceries / Santha nav links only make sense once the
+  // customer's stored pincode actually has coverage. While availability is
+  // unknown (still loading) the link stays enabled to avoid flicker; once
+  // we know for sure it's unavailable (no pincode set, or a pincode with
+  // zero shops/sessions) it's rendered disabled with a short note instead
+  // of sending the customer into an empty picker page.
+  const { pincode: availabilityPincode, groceriesAvailable, santhaAvailable } =
+    useServiceAvailability();
+  const groceriesDisabled = !availabilityPincode || groceriesAvailable === false;
+  const santhaDisabled = !availabilityPincode || santhaAvailable === false;
+  const NOT_AVAILABLE_NOTE = "Not available in your area yet";
 
   const router = useRouter();
   const pathname = usePathname();
@@ -112,10 +126,30 @@ export default function Navbar({ logoUrl } = {}) {
         )}
 
         <nav className="nav">
+          {!mobile && <PincodeBar />}
           {!mobile && (
             <>
               <NavLink href="/" label="Home" pathname={pathname} />
               <NavLink href="/products" label="Products" pathname={pathname} />
+              {/* Monthly Groceries / Santha are distinct pincode-scoped
+                  quote-request flows, not a normal product category, so
+                  they get their own nav entries (not a home category tile).
+                  Disabled (with a short note) when the stored pincode has
+                  no coverage, so customers aren't sent into an empty picker. */}
+              <NavLink
+                href="/groceries"
+                label="Groceries"
+                pathname={pathname}
+                disabled={groceriesDisabled}
+                disabledTitle={NOT_AVAILABLE_NOTE}
+              />
+              <NavLink
+                href="/santha"
+                label="Santha"
+                pathname={pathname}
+                disabled={santhaDisabled}
+                disabledTitle={NOT_AVAILABLE_NOTE}
+              />
               <NavLink href="/track" label="Track" pathname={pathname} />
               {/* Blog nav hidden per explicit direction -- to be
                   implemented/re-enabled later. Page itself (app/blog)
@@ -155,6 +189,12 @@ export default function Navbar({ logoUrl } = {}) {
                       <Link href="/orders" onClick={() => setAccountOpen(false)}>
                         My Orders
                       </Link>
+                      <Link href="/groceries/orders" onClick={() => setAccountOpen(false)}>
+                        My Grocery Orders
+                      </Link>
+                      <Link href="/santha/orders" onClick={() => setAccountOpen(false)}>
+                        My Santha Orders
+                      </Link>
                       {isVendor && (
                         <Link href="/vendor/dashboard" onClick={() => setAccountOpen(false)}>
                           Vendor Dashboard
@@ -191,6 +231,7 @@ export default function Navbar({ logoUrl } = {}) {
       {/* MOBILE MENU */}
       {mobile && menuOpen && (
         <div className="mobileMenu">
+          <PincodeBar />
           <SearchBar />
           <Link href="/" onClick={() => setMenuOpen(false)}>
             Home
@@ -198,6 +239,24 @@ export default function Navbar({ logoUrl } = {}) {
           <Link href="/products" onClick={() => setMenuOpen(false)}>
             Products
           </Link>
+          {groceriesDisabled ? (
+            <span className="mobileNavDisabled" title={NOT_AVAILABLE_NOTE}>
+              Groceries <em>({NOT_AVAILABLE_NOTE})</em>
+            </span>
+          ) : (
+            <Link href="/groceries" onClick={() => setMenuOpen(false)}>
+              Groceries
+            </Link>
+          )}
+          {santhaDisabled ? (
+            <span className="mobileNavDisabled" title={NOT_AVAILABLE_NOTE}>
+              Santha <em>({NOT_AVAILABLE_NOTE})</em>
+            </span>
+          ) : (
+            <Link href="/santha" onClick={() => setMenuOpen(false)}>
+              Santha
+            </Link>
+          )}
           <Link href="/wishlist" onClick={() => setMenuOpen(false)}>
             Wishlist ({wishlistCount})
           </Link>
@@ -220,6 +279,12 @@ export default function Navbar({ logoUrl } = {}) {
               </Link>
               <Link href="/orders" onClick={() => setMenuOpen(false)}>
                 My Orders
+              </Link>
+              <Link href="/groceries/orders" onClick={() => setMenuOpen(false)}>
+                My Grocery Orders
+              </Link>
+              <Link href="/santha/orders" onClick={() => setMenuOpen(false)}>
+                My Santha Orders
               </Link>
               {isVendor && (
                 <Link href="/vendor/dashboard" onClick={() => setMenuOpen(false)}>
@@ -392,6 +457,14 @@ export default function Navbar({ logoUrl } = {}) {
           color: #333;
           text-decoration: none;
         }
+        .mobileNavDisabled {
+          color: #bbb;
+          cursor: not-allowed;
+        }
+        .mobileNavDisabled em {
+          font-style: normal;
+          font-size: 11px;
+        }
         .mobileSignup {
           background: #c28b45;
           color: #fff !important;
@@ -415,8 +488,29 @@ export default function Navbar({ logoUrl } = {}) {
 }
 
 /* ================= NAV LINK ================= */
-function NavLink({ href, label, pathname }) {
+function NavLink({ href, label, pathname, disabled, disabledTitle }) {
   const active = pathname === href;
+
+  if (disabled) {
+    return (
+      <span
+        title={disabledTitle}
+        style={{
+          marginRight: 4,
+          padding: "8px 10px",
+          borderRadius: 8,
+          color: "#bbb",
+          fontWeight: 600,
+          fontSize: 13,
+          textTransform: "uppercase",
+          letterSpacing: "0.4px",
+          cursor: "not-allowed",
+        }}
+      >
+        {label}
+      </span>
+    );
+  }
 
   return (
     <Link
