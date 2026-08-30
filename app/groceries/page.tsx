@@ -7,6 +7,7 @@ import { useUser } from "@/context/UserContext";
 import { getStoredPincode, PINCODE_CHANGED_EVENT } from "@/lib/pincode";
 import { getShops, createGroceryOrder, GroceryOrderItemInput } from "@/lib/an-sdk/groceries";
 import { ApiError } from "@/lib/an-sdk/client";
+import GroceryCatalogPicker from "@/components/GroceryCatalogPicker";
 
 type Row = GroceryOrderItemInput;
 
@@ -61,6 +62,22 @@ export default function MonthlyGroceriesPage() {
   const addRow = () => setRows((prev) => [...prev, emptyRow()]);
   const removeRow = (idx: number) => setRows((prev) => prev.filter((_, i) => i !== idx));
 
+  // Catalog picks land in the same `rows` list — a picked item just fills
+  // in the next blank row (or appends a new one) rather than requiring a
+  // separate list, so the existing free-text rows below double as both
+  // "custom item" entry and the review list for catalog picks.
+  const addCatalogPick = (picked: Row) => {
+    setRows((prev) => {
+      const blankIdx = prev.findIndex((r) => !r.name);
+      if (blankIdx !== -1) {
+        const next = [...prev];
+        next[blankIdx] = picked;
+        return next;
+      }
+      return [...prev, picked];
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitError("");
@@ -102,6 +119,8 @@ export default function MonthlyGroceriesPage() {
     }
   };
 
+  const notAvailable = !shopsLoading && !shopsError && (!pincode || !shops.length);
+
   return (
     <div className="container">
       <div className="headRow">
@@ -111,42 +130,63 @@ export default function MonthlyGroceriesPage() {
         </Link>
       </div>
       <p className="sub">
-        List what you need — a nearby shop will send back a quote before anything is charged.
+        Order your monthly groceries from local shops — list what you need, get a real quote back,
+        pay, and we deliver.
       </p>
 
-      {!pincode && (
-        <p className="warn">Set your delivery pincode (top bar) to see shops serving your area.</p>
-      )}
+      {notAvailable ? (
+        <div className="comingSoon">
+          <span className="comingSoonBadge">Coming soon to your area</span>
+          <h2>How Monthly Groceries works</h2>
+          <p>
+            Tell us what's on your list, and a shop near you sends back a real quote — no
+            guesswork on price. Approve it, pay, and we bring it straight to your door.
+          </p>
+          <p className="comingSoonNote">
+            We'll be in your city soon! {pincode ? (
+              <>We don't have a shop live in <strong>{pincode}</strong> just yet, but we're
+              growing fast — check back soon or try another pincode.</>
+            ) : (
+              <>Set your delivery pincode (top bar) and we'll let you know the moment Monthly
+              Groceries is live near you.</>
+            )}
+          </p>
+        </div>
+      ) : (
+        <>
+          <div className="section">
+            <h2>1. Choose a shop</h2>
+            {shopsLoading && <p>Loading shops…</p>}
+            {shopsError && <p className="error">{shopsError}</p>}
+            {!!shops.length && (
+              <div className="shopGrid">
+                {shops.map((shop) => (
+                  <button
+                    type="button"
+                    key={shop._id}
+                    className={`shopCard ${selectedShopId === shop._id ? "selected" : ""}`}
+                    onClick={() => setSelectedShopId(shop._id)}
+                  >
+                    <p className="shopName">{shop.name}</p>
+                    {shop.address && <p className="shopAddr">{shop.address}</p>}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
 
       <div className="section">
-        <h2>1. Choose a shop</h2>
-        {shopsLoading && <p>Loading shops…</p>}
-        {shopsError && <p className="error">{shopsError}</p>}
-        {!shopsLoading && !shopsError && pincode && !shops.length && (
-          <p className="warn">
-            Monthly Groceries isn't available in pincode {pincode} yet — no shops currently serve
-            this area. Try a different pincode, or check back soon.
-          </p>
-        )}
-        {!!shops.length && (
-          <div className="shopGrid">
-            {shops.map((shop) => (
-              <button
-                type="button"
-                key={shop._id}
-                className={`shopCard ${selectedShopId === shop._id ? "selected" : ""}`}
-                onClick={() => setSelectedShopId(shop._id)}
-              >
-                <p className="shopName">{shop.name}</p>
-                {shop.address && <p className="shopAddr">{shop.address}</p>}
-              </button>
-            ))}
-          </div>
-        )}
+        <h2>2. Pick items from the catalogue</h2>
+        <p className="catalogHint">
+          Prices aren't shown — the shop visited by our executive will send back a real quote for
+          exactly what you pick.
+        </p>
+        <GroceryCatalogPicker type="GROCERY" onAdd={addCatalogPick} />
       </div>
 
       <form className="section" onSubmit={handleSubmit}>
-        <h2>2. List your items</h2>
+        <h2>3. Review your list</h2>
+        <p className="catalogHint">Not in the catalogue? Add it here.</p>
         <div className="items">
           {rows.map((row, idx) => (
             <div className="itemRow" key={idx}>
@@ -199,6 +239,8 @@ export default function MonthlyGroceriesPage() {
           {submitting ? "Submitting…" : "Request Quote"}
         </button>
       </form>
+        </>
+      )}
 
       <style jsx>{`
         .container {
@@ -229,6 +271,41 @@ export default function MonthlyGroceriesPage() {
           border-radius: 8px;
           margin-bottom: 20px;
         }
+        .comingSoon {
+          background: #fffdf8;
+          border: 1px solid #f0e2c6;
+          border-radius: 16px;
+          padding: 36px 32px;
+          text-align: center;
+          box-shadow: 0 5px 15px rgba(0, 0, 0, 0.04);
+        }
+        .comingSoonBadge {
+          display: inline-block;
+          background: #eef6ec;
+          color: #1f3d2b;
+          font-size: 12px;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          padding: 6px 14px;
+          border-radius: 999px;
+          margin-bottom: 14px;
+        }
+        .comingSoon h2 {
+          margin: 0 0 12px;
+          font-size: 20px;
+          color: #1f3d2b;
+        }
+        .comingSoon p {
+          max-width: 520px;
+          margin: 0 auto 12px;
+          color: #555;
+          line-height: 1.6;
+        }
+        .comingSoonNote {
+          font-weight: 600;
+          color: #7c5a1e;
+        }
         .section {
           background: #fff;
           border-radius: 12px;
@@ -239,6 +316,11 @@ export default function MonthlyGroceriesPage() {
         h2 {
           margin: 0 0 14px;
           font-size: 16px;
+        }
+        .catalogHint {
+          margin: -8px 0 14px;
+          font-size: 12px;
+          color: #999;
         }
         .shopGrid {
           display: grid;

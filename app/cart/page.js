@@ -3,10 +3,14 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/context/CartContext";
+import { MIN_ORDER_VALUE } from "@/lib/constants";
 
 export default function CartPage() {
   const { cart, updateQty, removeFromCart, cartTotal } = useCart();
   const router = useRouter();
+
+  const belowMinimum = cart.length > 0 && cartTotal < MIN_ORDER_VALUE;
+  const amountToMinimum = Math.max(0, MIN_ORDER_VALUE - cartTotal);
 
   return (
     <div className="container">
@@ -66,11 +70,22 @@ export default function CartPage() {
 
           <div className="totalRow">
             <h2>Total: ₹{cartTotal}</h2>
+
+            {belowMinimum && (
+              <p className="warn">
+                Add ₹{amountToMinimum} more to reach the ₹{MIN_ORDER_VALUE} minimum order value
+              </p>
+            )}
+
             <div className="actions">
               <Link href="/products" className="continueLink">
                 Continue Shopping
               </Link>
-              <button className="checkoutBtn" onClick={() => router.push("/checkout")}>
+              <button
+                className="checkoutBtn"
+                disabled={belowMinimum}
+                onClick={() => router.push("/checkout")}
+              >
                 Proceed to Checkout →
               </button>
             </div>
@@ -223,6 +238,23 @@ export default function CartPage() {
 
         .checkoutBtn:hover {
           background: #a9762f;
+        }
+
+        .checkoutBtn:disabled {
+          background: #d1c7b8;
+          cursor: not-allowed;
+        }
+
+        .warn {
+          color: #b45309;
+          background: #fffbeb;
+          border: 1px solid #fde68a;
+          padding: 10px 14px;
+          border-radius: 8px;
+          font-size: 13px;
+          font-weight: 600;
+          margin: 0 0 16px;
+          text-align: right;
         }
       `}</style>
     </div>

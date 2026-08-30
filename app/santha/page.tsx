@@ -8,6 +8,7 @@ import { getStoredPincode, PINCODE_CHANGED_EVENT } from "@/lib/pincode";
 import { getMarketSessions, createGroceryOrder, GroceryOrderItemInput } from "@/lib/an-sdk/groceries";
 import { ApiError } from "@/lib/an-sdk/client";
 import { previewNextSanthaDate } from "@/lib/santhaDate";
+import GroceryCatalogPicker from "@/components/GroceryCatalogPicker";
 
 type Row = GroceryOrderItemInput;
 
@@ -61,12 +62,26 @@ export default function SanthaPage() {
   }, [pincode]);
 
   const selectedSession = sessions.find((s) => s._id === selectedSessionId);
+  const notAvailable = !sessionsLoading && !sessionsError && (!pincode || !sessions.length);
 
   const updateRow = (idx: number, patch: Partial<Row>) => {
     setRows((prev) => prev.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
   };
   const addRow = () => setRows((prev) => [...prev, emptyRow()]);
   const removeRow = (idx: number) => setRows((prev) => prev.filter((_, i) => i !== idx));
+
+  // See groceries/page.tsx for why a catalog pick lands in `rows` directly.
+  const addCatalogPick = (picked: Row) => {
+    setRows((prev) => {
+      const blankIdx = prev.findIndex((r) => !r.name);
+      if (blankIdx !== -1) {
+        const next = [...prev];
+        next[blankIdx] = picked;
+        return next;
+      }
+      return [...prev, picked];
+    });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -118,72 +133,91 @@ export default function SanthaPage() {
         </Link>
       </div>
       <p className="sub">
-        List what you need for this week's santha — items are picked up and delivered the same day
-        the market runs.
+        Order fresh produce from your local weekly market, delivered the same day it runs.
       </p>
 
-      {!pincode && (
-        <p className="warn">Set your delivery pincode (top bar) to see santha sessions serving your area.</p>
-      )}
+      {notAvailable ? (
+        <div className="comingSoon">
+          <span className="comingSoonBadge">Coming soon to your area</span>
+          <h2>How Santha works</h2>
+          <p>
+            List what you need for the week, and it's sourced fresh from your local santha (weekly
+            market) — then picked up and delivered to you the very same day the market runs.
+          </p>
+          <p className="comingSoonNote">
+            We'll be in your city soon! {pincode ? (
+              <>There's no santha session live in <strong>{pincode}</strong> just yet, but we're
+              adding markets fast — check back soon or try another pincode.</>
+            ) : (
+              <>Set your delivery pincode (top bar) and we'll let you know the moment Santha is
+              live near you.</>
+            )}
+          </p>
+        </div>
+      ) : (
+        <>
+          <div className="section">
+            <h2>1. Choose a santha session</h2>
+            {sessionsLoading && <p>Loading sessions…</p>}
+            {sessionsError && <p className="error">{sessionsError}</p>}
+            {!!sessions.length && (
+              <div className="sessionGrid">
+                {sessions.map((session) => (
+                  <button
+                    type="button"
+                    key={session._id}
+                    className={`sessionCard ${selectedSessionId === session._id ? "selected" : ""}`}
+                    onClick={() => setSelectedSessionId(session._id)}
+                  >
+                    <p className="sessionName">{session.name}</p>
+                    <p className="sessionMeta">
+                      Every {WEEKDAY_NAMES[session.weekday] || "—"} · cutoff {session.cutoffTime}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            )}
+            {selectedSession && (() => {
+              const { plannedFor, cutoffPassed } = previewNextSanthaDate(
+                selectedSession.weekday,
+                selectedSession.cutoffTime,
+                new Date()
+              );
+              const plannedForLabel = plannedFor.toLocaleDateString(undefined, {
+                weekday: "long",
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+              });
+              return (
+                <>
+                  {cutoffPassed && (
+                    <p className="cutoffNote">
+                      Today's cutoff ({selectedSession.cutoffTime}) for this santha has already
+                      passed — your order will be planned for next week instead.
+                    </p>
+                  )}
+                  <p className="hint">
+                    Your order will be picked up on <strong>{plannedForLabel}</strong>{" "}
+                    (every {WEEKDAY_NAMES[selectedSession.weekday]}, cutoff {selectedSession.cutoffTime}).
+                  </p>
+                </>
+              );
+            })()}
+          </div>
 
       <div className="section">
-        <h2>1. Choose a santha session</h2>
-        {sessionsLoading && <p>Loading sessions…</p>}
-        {sessionsError && <p className="error">{sessionsError}</p>}
-        {!sessionsLoading && !sessionsError && pincode && !sessions.length && (
-          <p className="warn">
-            Santha isn't available in pincode {pincode} yet — no sessions currently serve this
-            area. Try a different pincode, or check back soon.
-          </p>
-        )}
-        {!!sessions.length && (
-          <div className="sessionGrid">
-            {sessions.map((session) => (
-              <button
-                type="button"
-                key={session._id}
-                className={`sessionCard ${selectedSessionId === session._id ? "selected" : ""}`}
-                onClick={() => setSelectedSessionId(session._id)}
-              >
-                <p className="sessionName">{session.name}</p>
-                <p className="sessionMeta">
-                  Every {WEEKDAY_NAMES[session.weekday] || "—"} · cutoff {session.cutoffTime}
-                </p>
-              </button>
-            ))}
-          </div>
-        )}
-        {selectedSession && (() => {
-          const { plannedFor, cutoffPassed } = previewNextSanthaDate(
-            selectedSession.weekday,
-            selectedSession.cutoffTime,
-            new Date()
-          );
-          const plannedForLabel = plannedFor.toLocaleDateString(undefined, {
-            weekday: "long",
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-          });
-          return (
-            <>
-              {cutoffPassed && (
-                <p className="cutoffNote">
-                  Today's cutoff ({selectedSession.cutoffTime}) for this santha has already
-                  passed — your order will be planned for next week instead.
-                </p>
-              )}
-              <p className="hint">
-                Your order will be picked up on <strong>{plannedForLabel}</strong>{" "}
-                (every {WEEKDAY_NAMES[selectedSession.weekday]}, cutoff {selectedSession.cutoffTime}).
-              </p>
-            </>
-          );
-        })()}
+        <h2>2. Pick items from the catalogue</h2>
+        <p className="catalogHint">
+          Prices aren't shown — the market stall visited by our executive will send back a real
+          quote for exactly what you pick.
+        </p>
+        <GroceryCatalogPicker type="SANTHA" onAdd={addCatalogPick} />
       </div>
 
       <form className="section" onSubmit={handleSubmit}>
-        <h2>2. List your items</h2>
+        <h2>3. Review your list</h2>
+        <p className="catalogHint">Not in the catalogue? Add it here.</p>
         <div className="items">
           {rows.map((row, idx) => (
             <div className="itemRow" key={idx}>
@@ -236,6 +270,8 @@ export default function SanthaPage() {
           {submitting ? "Submitting…" : "Request Quote"}
         </button>
       </form>
+        </>
+      )}
 
       <style jsx>{`
         .container {
@@ -266,6 +302,41 @@ export default function SanthaPage() {
           border-radius: 8px;
           margin-bottom: 20px;
         }
+        .comingSoon {
+          background: #fffdf8;
+          border: 1px solid #f0e2c6;
+          border-radius: 16px;
+          padding: 36px 32px;
+          text-align: center;
+          box-shadow: 0 5px 15px rgba(0, 0, 0, 0.04);
+        }
+        .comingSoonBadge {
+          display: inline-block;
+          background: #eef6ec;
+          color: #1f3d2b;
+          font-size: 12px;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          padding: 6px 14px;
+          border-radius: 999px;
+          margin-bottom: 14px;
+        }
+        .comingSoon h2 {
+          margin: 0 0 12px;
+          font-size: 20px;
+          color: #1f3d2b;
+        }
+        .comingSoon p {
+          max-width: 520px;
+          margin: 0 auto 12px;
+          color: #555;
+          line-height: 1.6;
+        }
+        .comingSoonNote {
+          font-weight: 600;
+          color: #7c5a1e;
+        }
         .section {
           background: #fff;
           border-radius: 12px;
@@ -276,6 +347,11 @@ export default function SanthaPage() {
         h2 {
           margin: 0 0 14px;
           font-size: 16px;
+        }
+        .catalogHint {
+          margin: -8px 0 14px;
+          font-size: 12px;
+          color: #999;
         }
         .sessionGrid {
           display: grid;

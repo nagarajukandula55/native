@@ -16,6 +16,7 @@ import { createOrder } from "@/lib/an-sdk/orders";
 import { verifyPayment } from "@/lib/an-sdk/payments";
 import { getMe, isLoggedIn } from "@/lib/an-sdk/auth";
 import { getStoredPincode, setStoredPincode } from "@/lib/pincode";
+import { MIN_ORDER_VALUE } from "@/lib/constants";
 
 declare global {
   interface Window {
@@ -433,7 +434,18 @@ useEffect(() => {
     
     const handlePay = async () => {
       if (!validateForm()) return;
-    
+
+      // Defense-in-depth: the cart page already blocks "Proceed to Checkout"
+      // below the minimum, but a stale cart state or direct navigation to
+      // /checkout could still land here under the threshold, so re-check
+      // before placing the order.
+      if (displaySummary.subtotal < MIN_ORDER_VALUE) {
+        alert(
+          `Add ₹${(MIN_ORDER_VALUE - displaySummary.subtotal).toFixed(2)} more to reach the ₹${MIN_ORDER_VALUE} minimum order value`
+        );
+        return;
+      }
+
       if (!razorpayLoaded.current) {
         alert("Payment gateway loading...");
         return;
@@ -797,7 +809,17 @@ useEffect(() => {
               </div>
             )}
 
-            <button className="payBtn" onClick={handlePay} disabled={loading}>
+            {displaySummary.subtotal < MIN_ORDER_VALUE && (
+              <p className="warn">
+                Add ₹{(MIN_ORDER_VALUE - displaySummary.subtotal).toFixed(2)} more to reach the ₹{MIN_ORDER_VALUE} minimum order value
+              </p>
+            )}
+
+            <button
+              className="payBtn"
+              onClick={handlePay}
+              disabled={loading || displaySummary.subtotal < MIN_ORDER_VALUE}
+            >
               {loading
                 ? "Processing..."
                 : pendingOrder
@@ -1041,6 +1063,24 @@ useEffect(() => {
           font-weight: 600;
           text-decoration: underline;
           cursor: pointer;
+        }
+
+        .warn {
+          color: #b45309;
+          background: #fffbeb;
+          border: 1px solid #fde68a;
+          padding: 12px 14px;
+          border-radius: 14px;
+          font-size: 13px;
+          font-weight: 600;
+          margin-top: 20px;
+          text-align: center;
+        }
+
+        .payBtn:disabled {
+          opacity: .5;
+          cursor: not-allowed;
+          transform: none;
         }
 
         @keyframes fadeUp {

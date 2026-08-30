@@ -10,7 +10,6 @@ import CartDrawer from "./CartDrawer";
 import SearchBar from "./SearchBar";
 import PincodeBar from "./PincodeBar";
 import { ShoppingCart, Menu, X, Heart, User, LogOut } from "lucide-react";
-import { useServiceAvailability } from "@/lib/useServiceAvailability";
 
 // "super_admin" (underscore) is the role string used elsewhere in this
 // codebase (app/super-admin/users/page.js's role picker); kept alongside
@@ -32,18 +31,6 @@ export default function Navbar({ logoUrl } = {}) {
   const { user, loading: userLoading, logout } = useUser();
   const role = (user?.role || "").toLowerCase();
   const isVendor = VENDOR_ROLES.includes(role);
-
-  // Monthly Groceries / Santha nav links only make sense once the
-  // customer's stored pincode actually has coverage. While availability is
-  // unknown (still loading) the link stays enabled to avoid flicker; once
-  // we know for sure it's unavailable (no pincode set, or a pincode with
-  // zero shops/sessions) it's rendered disabled with a short note instead
-  // of sending the customer into an empty picker page.
-  const { pincode: availabilityPincode, groceriesAvailable, santhaAvailable } =
-    useServiceAvailability();
-  const groceriesDisabled = !availabilityPincode || groceriesAvailable === false;
-  const santhaDisabled = !availabilityPincode || santhaAvailable === false;
-  const NOT_AVAILABLE_NOTE = "Not available in your area yet";
 
   const router = useRouter();
   const pathname = usePathname();
@@ -134,22 +121,12 @@ export default function Navbar({ logoUrl } = {}) {
               {/* Monthly Groceries / Santha are distinct pincode-scoped
                   quote-request flows, not a normal product category, so
                   they get their own nav entries (not a home category tile).
-                  Disabled (with a short note) when the stored pincode has
-                  no coverage, so customers aren't sent into an empty picker. */}
-              <NavLink
-                href="/groceries"
-                label="Groceries"
-                pathname={pathname}
-                disabled={groceriesDisabled}
-                disabledTitle={NOT_AVAILABLE_NOTE}
-              />
-              <NavLink
-                href="/santha"
-                label="Santha"
-                pathname={pathname}
-                disabled={santhaDisabled}
-                disabledTitle={NOT_AVAILABLE_NOTE}
-              />
+                  Always clickable -- if the customer's pincode isn't
+                  covered yet, the page itself explains the service and
+                  says we'll be in their city soon, rather than the nav
+                  greying the link out. */}
+              <NavLink href="/groceries" label="Groceries" pathname={pathname} />
+              <NavLink href="/santha" label="Santha" pathname={pathname} />
               <NavLink href="/track" label="Track" pathname={pathname} />
               {/* Blog nav hidden per explicit direction -- to be
                   implemented/re-enabled later. Page itself (app/blog)

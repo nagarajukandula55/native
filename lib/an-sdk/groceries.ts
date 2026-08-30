@@ -48,6 +48,32 @@ export async function getShops(pincode?: string) {
   return data?.data || [];
 }
 
+export type GroceryItem = {
+  _id: string;
+  type: "GROCERY" | "SANTHA";
+  name: string;
+  description?: string;
+  imageUrl?: string;
+  category: string;
+  unit: string;
+  isActive: boolean;
+};
+
+/**
+ * GET /api/grocery-items?type=&businessId= — browsable catalogue items for
+ * Monthly Groceries ("GROCERY") or Santha ("SANTHA"). No price field on
+ * these -- catalog items are for visual/reference picking only, the real
+ * amount always comes from the field executive's on-site quote. Picked
+ * items get converted client-side into the usual
+ * {name, quantity, unit, notes} shape createGroceryOrder already expects.
+ */
+export async function getGroceryItems(type: "GROCERY" | "SANTHA", businessId?: string) {
+  const data = await anGet(
+    `/api/grocery-items${toQueryString({ type, businessId: businessId || undefined, isActive: true })}`
+  );
+  return (data?.data || []) as GroceryItem[];
+}
+
 /** GET /api/market-sessions?pincode=&isActive= — weekly Santha sessions serving a pincode. */
 export async function getMarketSessions(pincode?: string) {
   const data = await anGet(
