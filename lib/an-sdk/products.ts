@@ -11,6 +11,10 @@ export type ProductQuery = {
   limit?: number;
   /** Multi-vendor filter — proposed, see backend-reference/MULTI_VENDOR_PROPOSAL.md */
   vendor?: string;
+  /** Only products the admin has marked Featured (NativeProduct.isFeatured),
+   * for the homepage's Featured section — see angroup's
+   * api/storefront/products/route.ts `?featured=true` handling. */
+  featured?: boolean;
   /** Which channel's products to fetch (see angroup's src/lib/productChannels.ts).
    * Defaults to "native" in getProducts() below — override only for a
    * deliberately different listing. */

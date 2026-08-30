@@ -47,6 +47,8 @@ export default function HomeClient() {
 
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [featuredProducts, setFeaturedProducts] = useState([]);
+  const [featuredLoading, setFeaturedLoading] = useState(true);
   const [categories, setCategories] = useState([]);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [failedCatImages, setFailedCatImages] = useState({});
@@ -69,6 +71,26 @@ export default function HomeClient() {
       }
     }
     loadProducts();
+  }, []);
+
+  /* ================= FETCH FEATURED PRODUCTS =================
+     Admin-toggled highlight (NativeProduct.isFeatured, flipped from
+     native-admin's Products > Live tab) -- independent of "newest" above,
+     so a vendor's best/seasonal picks can be pinned to the homepage without
+     needing to be the most recently approved products. */
+  useEffect(() => {
+    async function loadFeatured() {
+      try {
+        const data = await getProducts({ featured: true, limit: 8 });
+        setFeaturedProducts(data?.products || []);
+      } catch (err) {
+        console.error("Featured product fetch error:", err);
+        setFeaturedProducts([]);
+      } finally {
+        setFeaturedLoading(false);
+      }
+    }
+    loadFeatured();
   }, []);
 
   /* ================= FETCH REVIEWS ================= */
@@ -167,6 +189,74 @@ export default function HomeClient() {
   // Real admin-uploaded banners take priority; fall back to the static
   // set (unchanged) whenever the banner API errors or returns nothing.
   const slides = dynamicSlides && dynamicSlides.length > 0 ? dynamicSlides : staticSlides;
+
+  // Shared product-card markup — reused by both the Featured section and
+  // Best Sellers below, so there's exactly one card component on this page
+  // rather than a near-duplicate copy per section.
+  function renderProductCard(p) {
+    const price = p.displayPrice || p.minPrice || p.price || 0;
+    const stockLevel = p.stock ?? null;
+    const inStock = stockLevel === null ? true : stockLevel > 0;
+
+    const pid = p.id || p._id;
+    const displayName = getProductDisplayName(p);
+    const imgSrc =
+      failedProductImages[pid] || !p.images?.[0] ? "/placeholder.png" : p.images[0];
+
+    return (
+      <div key={pid} className="productCard">
+        <Link href={`/products/${p.slug || p._id}`} className="imgWrap">
+          <img
+            src={imgSrc}
+            alt={displayName}
+            onError={() => {
+              if (!failedProductImages[pid]) {
+                setFailedProductImages((prev) => ({ ...prev, [pid]: true }));
+              }
+            }}
+          />
+          {!inStock && <span className="outOfStockBadge">Out of Stock</span>}
+          <div className="wishlistWrap" onClick={(e) => e.preventDefault()}>
+            <WishlistButton
+              product={{
+                productId: p._id,
+                slug: p.slug,
+                name: displayName,
+                price: Number(price),
+                image: p.images?.[0] || "",
+              }}
+            />
+          </div>
+        </Link>
+
+        <div className="productBody">
+          <Link href={`/products/${p.slug || p._id}`} className="productLink">
+            <h3>{displayName}</h3>
+          </Link>
+          <p className="price">{p.variantCount > 1 ? `From ₹${price}` : `₹${price}`}</p>
+
+          <button
+            className="addToCartBtn"
+            disabled={!inStock}
+            onClick={() => {
+              if (!inStock) return;
+              addToCart({
+                productId: p._id,
+                productKey: p.productKey,
+                name: displayName,
+                slug: p.slug,
+                price: Number(price),
+                image: p.images?.[0] || "",
+                qty: 1,
+              });
+            }}
+          >
+            {inStock ? "ADD TO CART" : "OUT OF STOCK"}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="home">
@@ -277,6 +367,18 @@ export default function HomeClient() {
         )}
       </section>
 
+      {/* ================= FEATURED ================= */}
+      {!featuredLoading && featuredProducts.length > 0 && (
+        <section id="featured" className="bestSellers">
+          <h2 className="bsHeading">
+            <span className="leaf">🌿</span> FEATURED <span className="leaf">🌿</span>
+          </h2>
+          <div className="productGrid">
+            {featuredProducts.map((p) => renderProductCard(p))}
+          </div>
+        </section>
+      )}
+
       {/* ================= BEST SELLERS ================= */}
       <section id="products" className="bestSellers">
         <h2 className="bsHeading">
@@ -289,82 +391,7 @@ export default function HomeClient() {
           <p className="center">No products found</p>
         ) : (
           <div className="productGrid">
-            {products.map((p) => {
-              const price = p.displayPrice || p.minPrice || p.price || 0;
-              const mrp = p.mrp || 0;
-              const stockLevel = p.stock ?? null;
-              const inStock = stockLevel === null ? true : stockLevel > 0;
-
-              const pid = p.id || p._id;
-              const displayName = getProductDisplayName(p);
-              const imgSrc =
-                failedProductImages[pid] || !p.images?.[0]
-                  ? "/placeholder.png"
-                  : p.images[0];
-
-              return (
-                <div key={pid} className="productCard">
-                  <Link href={`/products/${p.slug || p._id}`} className="imgWrap">
-                    <img
-                      src={imgSrc}
-                      alt={displayName}
-                      onError={() => {
-                        // Was reassigning e.currentTarget.src directly --
-                        // invisible to React, so any unrelated re-render
-                        // resets the <img>'s src back to the still-broken
-                        // original URL from JSX, causing a fail/retry/fail
-                        // flicker (a failed image otherwise also falls back
-                        // to rendering its alt text as large, unstyled
-                        // inline text — a giant broken watermark instead of
-                        // a missing photo). Track failures in state instead
-                        // so the fallback src sticks across re-renders.
-                        if (!failedProductImages[pid]) {
-                          setFailedProductImages((prev) => ({ ...prev, [pid]: true }));
-                        }
-                      }}
-                    />
-                    {!inStock && <span className="outOfStockBadge">Out of Stock</span>}
-                    <div className="wishlistWrap" onClick={(e) => e.preventDefault()}>
-                      <WishlistButton
-                        product={{
-                          productId: p._id,
-                          slug: p.slug,
-                          name: displayName,
-                          price: Number(price),
-                          image: p.images?.[0] || "",
-                        }}
-                      />
-                    </div>
-                  </Link>
-
-                  <div className="productBody">
-                    <Link href={`/products/${p.slug || p._id}`} className="productLink">
-                      <h3>{displayName}</h3>
-                    </Link>
-                    <p className="price">{p.variantCount > 1 ? `From ₹${price}` : `₹${price}`}</p>
-
-                    <button
-                      className="addToCartBtn"
-                      disabled={!inStock}
-                      onClick={() => {
-                        if (!inStock) return;
-                        addToCart({
-                          productId: p._id,
-                          productKey: p.productKey,
-                          name: displayName,
-                          slug: p.slug,
-                          price: Number(price),
-                          image: p.images?.[0] || "",
-                          qty: 1,
-                        });
-                      }}
-                    >
-                      {inStock ? "ADD TO CART" : "OUT OF STOCK"}
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
+            {products.map((p) => renderProductCard(p))}
           </div>
         )}
 
