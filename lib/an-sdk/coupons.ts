@@ -1,4 +1,4 @@
-import { anGet, anPost, anPatch, anDelete } from "./client";
+import { anPost } from "./client";
 
 /**
  * ANgroup's real /api/coupons/validate route (path matches exactly) reads
@@ -19,18 +19,44 @@ export async function validateCoupon(code: string, subtotal: number) {
   });
 }
 
+/**
+ * Admin coupon management. ANgroup's real coupon routes
+ * (GET/POST /api/coupons, PUT/DELETE /api/coupons/:id) require either a
+ * real ANgroup session or a server-side service-key header — this app has
+ * neither available in the browser, so these go through this app's own
+ * /api/admin/coupons proxy (same pattern as adminListOrders in orders.ts).
+ *
+ * Also note ANgroup's actual Coupon schema uses discountType ("PERCENTAGE"
+ * | "FIXED") / discountValue / minOrderValue / maxDiscountAmount /
+ * usageLimit / usageCount / status ("ACTIVE" | "PAUSED" | ...) / validFrom
+ * / validUntil — not the type/value/active/expiry/usedCount shape this
+ * page previously assumed (a fictional contract that never matched any
+ * real backend).
+ */
 export async function adminListCoupons() {
-  return anGet("/api/coupons");
+  const res = await fetch("/api/admin/coupons", { cache: "no-store" });
+  return res.json();
 }
 
 export async function adminCreateCoupon(payload: any) {
-  return anPost("/api/coupons/create", payload);
+  const res = await fetch("/api/admin/coupons", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return res.json();
 }
 
-export async function adminToggleCoupon(id: string, active: boolean) {
-  return anPatch("/api/coupons/toggle", { id, active });
+export async function adminUpdateCoupon(id: string, payload: any) {
+  const res = await fetch(`/api/admin/coupons/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return res.json();
 }
 
 export async function adminDeleteCoupon(id: string) {
-  return anDelete("/api/coupons/delete", { id });
+  const res = await fetch(`/api/admin/coupons/${id}`, { method: "DELETE" });
+  return res.json();
 }

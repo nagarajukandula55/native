@@ -4,309 +4,161 @@ import { useEffect, useState } from "react";
 import {
   adminListCoupons,
   adminCreateCoupon,
-  adminToggleCoupon,
+  adminUpdateCoupon,
   adminDeleteCoupon,
 } from "@/lib/an-sdk/coupons";
-import { anPatch } from "@/lib/an-sdk/client";
 
+// Matches ANgroup's real Coupon schema (src/models/Coupon.ts) -- the
+// previous version of this page assumed a fictional shape
+// (type/value/active/expiry/usedCount) that never matched any real backend.
 type CouponType = {
   _id: string;
   code: string;
-  type: string;
-  value: number;
+  discountType: "PERCENTAGE" | "FIXED";
+  discountValue: number;
 
-  minCartValue?: number;
-  maxDiscount?: number;
+  minOrderValue?: number;
+  maxDiscountAmount?: number;
 
   usageLimit?: number;
+  usageCount?: number;
 
-  usedCount?: number;   // ← ADD THIS
+  status: "ACTIVE" | "PAUSED" | "EXPIRED" | string;
 
-  usedBy?: string[];
-
-  active: boolean;
-
-  expiry?: string;
+  validFrom?: string;
+  validUntil?: string;
 
   createdAt?: string;
   updatedAt?: string;
 };
 
 export default function CouponDashboard() {
-  const [coupons, setCoupons] =
-    useState<CouponType[]>([]);
-
-  const [loading, setLoading] =
-    useState(false);
-
-  const [creating, setCreating] =
-    useState(false);
+  const [coupons, setCoupons] = useState<CouponType[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [creating, setCreating] = useState(false);
 
   const [form, setForm] = useState({
     code: "",
-    type: "flat",
-    value: "",
-    minCartValue: "",
-    maxDiscount: "",
+    discountType: "PERCENTAGE",
+    discountValue: "",
+    minOrderValue: "",
+    maxDiscountAmount: "",
     usageLimit: "",
-    expiry: "",
+    validUntil: "",
   });
 
-  /* =========================================================
-     FETCH COUPONS
-  ========================================================= */
-
-  const fetchCoupons =
-    async () => {
-      try {
-        setLoading(true);
-
-        const data: any =
-          await adminListCoupons();
-
-        if (
-          data.success
-        ) {
-          setCoupons(
-            data.coupons || []
-          );
-        } else {
-          setCoupons([]);
-        }
-
-      } catch (err) {
-        console.error(
-          "FETCH COUPONS ERROR:",
-          err
-        );
-        setCoupons([]);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const fetchCoupons = async () => {
+    try {
+      setLoading(true);
+      const data: any = await adminListCoupons();
+      setCoupons(data.success ? data.coupons || [] : []);
+    } catch (err) {
+      console.error("FETCH COUPONS ERROR:", err);
+      setCoupons([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     fetchCoupons();
   }, []);
 
-  /* =========================================================
-     CREATE COUPON
-  ========================================================= */
-
-  const handleCreate =
-    async () => {
-      try {
-        if (!form.code) {
-          alert(
-            "Coupon code required"
-          );
-          return;
-        }
-
-        setCreating(true);
-
-        const data: any =
-          await adminCreateCoupon({
-            ...form,
-
-            code:
-              form.code.toUpperCase(),
-
-            value: Number(
-              form.value || 0
-            ),
-
-            minCartValue:
-              Number(
-                form.minCartValue ||
-                  0
-              ),
-
-            maxDiscount:
-              Number(
-                form.maxDiscount ||
-                  0
-              ),
-
-            usageLimit:
-              Number(
-                form.usageLimit ||
-                  0
-              ),
-          });
-
-        if (
-          !data.success
-        ) {
-          alert(
-            data.message ||
-              "Failed to create coupon"
-          );
-          return;
-        }
-
-        setForm({
-          code: "",
-          type: "flat",
-          value: "",
-          minCartValue: "",
-          maxDiscount: "",
-          usageLimit: "",
-          expiry: "",
-        });
-
-        await fetchCoupons();
-
-      } catch (err: any) {
-        console.error(err);
-
-        alert(
-          err?.message ||
-          "Error creating coupon"
-        );
-      } finally {
-        setCreating(false);
-      }
-    };
-
-  /* =========================================================
-     TOGGLE STATUS
-  ========================================================= */
-
-  const toggleStatus =
-    async (
-      id: string,
-      active: boolean
-    ) => {
-      try {
-        const data: any =
-          await adminToggleCoupon(
-            id,
-            active
-          );
-
-        if (
-          !data.success
-        ) {
-          alert(
-            data.message ||
-              "Update failed"
-          );
-
-          return;
-        }
-
-        await fetchCoupons();
-
-      } catch (err: any) {
-        console.error(err);
-        alert(err?.message || "Update failed");
-      }
-    };
-
-  /* =========================================================
-     EXTEND EXPIRY
-  ========================================================= */
-
-  const extendExpiry =
-    async (id: string) => {
-      const newDate =
-        prompt(
-          "Enter expiry date (YYYY-MM-DD)"
-        );
-
-      if (!newDate) return;
-
-      try {
-        // No dedicated sdk helper exists for extending expiry (it shares
-        // the same /api/coupons/toggle route as adminToggleCoupon but with
-        // a different payload shape), so we call the shared PATCH client.
-        const data: any =
-          await anPatch(
-            "/api/coupons/toggle",
-            {
-              id,
-              expiry: newDate,
-            }
-          );
-
-        if (
-          !data.success
-        ) {
-          alert(
-            data.message ||
-              "Failed"
-          );
-
-          return;
-        }
-
-        await fetchCoupons();
-
-      } catch (err: any) {
-        console.error(err);
-        alert(err?.message || "Failed");
-      }
-    };
-
-  /* =========================================================
-     DELETE
-  ========================================================= */
-
-  const deleteCoupon =
-    async (id: string) => {
-      const confirmDelete =
-        confirm(
-          "Delete this coupon permanently?"
-        );
-
-      if (!confirmDelete)
+  const handleCreate = async () => {
+    try {
+      if (!form.code) {
+        alert("Coupon code required");
         return;
-
-      try {
-        const data: any =
-          await adminDeleteCoupon(
-            id
-          );
-
-        if (
-          !data.success
-        ) {
-          alert(
-            data.message ||
-              "Delete failed"
-          );
-
-          return;
-        }
-
-        await fetchCoupons();
-
-      } catch (err: any) {
-        console.error(err);
-        alert(err?.message || "Delete failed");
       }
-    };
+
+      setCreating(true);
+
+      const data: any = await adminCreateCoupon({
+        code: form.code.toUpperCase(),
+        discountType: form.discountType,
+        discountValue: Number(form.discountValue || 0),
+        minOrderValue: Number(form.minOrderValue || 0),
+        maxDiscountAmount: form.maxDiscountAmount ? Number(form.maxDiscountAmount) : undefined,
+        usageLimit: form.usageLimit ? Number(form.usageLimit) : undefined,
+        validUntil: form.validUntil || undefined,
+      });
+
+      if (!data.success) {
+        alert(data.error || data.message || "Failed to create coupon");
+        return;
+      }
+
+      setForm({
+        code: "",
+        discountType: "PERCENTAGE",
+        discountValue: "",
+        minOrderValue: "",
+        maxDiscountAmount: "",
+        usageLimit: "",
+        validUntil: "",
+      });
+
+      await fetchCoupons();
+    } catch (err: any) {
+      console.error(err);
+      alert(err?.message || "Error creating coupon");
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const toggleStatus = async (id: string, currentStatus: string) => {
+    try {
+      const nextStatus = currentStatus === "ACTIVE" ? "PAUSED" : "ACTIVE";
+      const data: any = await adminUpdateCoupon(id, { status: nextStatus });
+      if (!data.success) {
+        alert(data.error || data.message || "Update failed");
+        return;
+      }
+      await fetchCoupons();
+    } catch (err: any) {
+      console.error(err);
+      alert(err?.message || "Update failed");
+    }
+  };
+
+  const extendExpiry = async (id: string) => {
+    const newDate = prompt("Enter new expiry date (YYYY-MM-DD)");
+    if (!newDate) return;
+
+    try {
+      const data: any = await adminUpdateCoupon(id, { validUntil: newDate });
+      if (!data.success) {
+        alert(data.error || data.message || "Failed");
+        return;
+      }
+      await fetchCoupons();
+    } catch (err: any) {
+      console.error(err);
+      alert(err?.message || "Failed");
+    }
+  };
+
+  const deleteCoupon = async (id: string) => {
+    const confirmDelete = confirm("Delete this coupon permanently?");
+    if (!confirmDelete) return;
+
+    try {
+      const data: any = await adminDeleteCoupon(id);
+      if (!data.success) {
+        alert(data.error || data.message || "Delete failed");
+        return;
+      }
+      await fetchCoupons();
+    } catch (err: any) {
+      console.error(err);
+      alert(err?.message || "Delete failed");
+    }
+  };
 
   return (
-    <div
-      style={{
-        padding: 24,
-        fontFamily:
-          "Arial, sans-serif",
-      }}
-    >
-      <h2
-        style={{
-          marginBottom: 20,
-        }}
-      >
-        🎟️ Coupon Dashboard
-      </h2>
-
-      {/* =====================================================
-          CREATE
-      ===================================================== */}
+    <div style={{ padding: 24, fontFamily: "Arial, sans-serif" }}>
+      <h2 style={{ marginBottom: 20 }}>🎟️ Coupon Dashboard</h2>
 
       <div style={cardStyle}>
         <h3>Create Coupon</h3>
@@ -315,248 +167,102 @@ export default function CouponDashboard() {
           <input
             placeholder="Code"
             value={form.code}
-            onChange={(e) =>
-              setForm({
-                ...form,
-                code:
-                  e.target.value,
-              })
-            }
+            onChange={(e) => setForm({ ...form, code: e.target.value })}
           />
 
           <select
-            value={form.type}
-            onChange={(e) =>
-              setForm({
-                ...form,
-                type:
-                  e.target.value,
-              })
-            }
+            value={form.discountType}
+            onChange={(e) => setForm({ ...form, discountType: e.target.value })}
           >
-            <option value="flat">
-              Flat
-            </option>
-
-            <option value="percent">
-              Percent
-            </option>
+            <option value="PERCENTAGE">Percentage</option>
+            <option value="FIXED">Fixed</option>
           </select>
 
           <input
-            placeholder="Value"
-            value={form.value}
-            onChange={(e) =>
-              setForm({
-                ...form,
-                value:
-                  e.target.value,
-              })
-            }
+            placeholder="Discount Value"
+            value={form.discountValue}
+            onChange={(e) => setForm({ ...form, discountValue: e.target.value })}
           />
 
           <input
-            placeholder="Min Cart"
-            value={
-              form.minCartValue
-            }
-            onChange={(e) =>
-              setForm({
-                ...form,
-                minCartValue:
-                  e.target.value,
-              })
-            }
+            placeholder="Min Order Value"
+            value={form.minOrderValue}
+            onChange={(e) => setForm({ ...form, minOrderValue: e.target.value })}
           />
 
           <input
-            placeholder="Max Discount"
-            value={
-              form.maxDiscount
-            }
-            onChange={(e) =>
-              setForm({
-                ...form,
-                maxDiscount:
-                  e.target.value,
-              })
-            }
+            placeholder="Max Discount Amount"
+            value={form.maxDiscountAmount}
+            onChange={(e) => setForm({ ...form, maxDiscountAmount: e.target.value })}
           />
 
           <input
             placeholder="Usage Limit"
-            value={
-              form.usageLimit
-            }
-            onChange={(e) =>
-              setForm({
-                ...form,
-                usageLimit:
-                  e.target.value,
-              })
-            }
+            value={form.usageLimit}
+            onChange={(e) => setForm({ ...form, usageLimit: e.target.value })}
           />
 
           <input
             type="date"
-            value={form.expiry}
-            onChange={(e) =>
-              setForm({
-                ...form,
-                expiry:
-                  e.target.value,
-              })
-            }
+            value={form.validUntil}
+            onChange={(e) => setForm({ ...form, validUntil: e.target.value })}
           />
         </div>
 
-        <button
-          style={btnPrimary}
-          onClick={
-            handleCreate
-          }
-          disabled={
-            creating
-          }
-        >
-          {creating
-            ? "Creating..."
-            : "Create Coupon"}
+        <button style={btnPrimary} onClick={handleCreate} disabled={creating}>
+          {creating ? "Creating..." : "Create Coupon"}
         </button>
       </div>
 
-      {/* =====================================================
-          LIST
-      ===================================================== */}
+      <h3 style={{ marginTop: 30 }}>All Coupons</h3>
 
-      <h3
-        style={{
-          marginTop: 30,
-        }}
-      >
-        All Coupons
-      </h3>
-
-      {loading && (
-        <p>Loading...</p>
-      )}
-
-      {!loading &&
-        coupons.length ===
-          0 && (
-          <p>
-            No coupons found
-          </p>
-        )}
+      {loading && <p>Loading...</p>}
+      {!loading && coupons.length === 0 && <p>No coupons found</p>}
 
       {coupons.map((c) => (
-        <div
-          key={c._id}
-          style={couponCard}
-        >
+        <div key={c._id} style={couponCard}>
           <div>
-            <h4
-              style={{
-                margin: 0,
-              }}
-            >
-              {c.code}
-            </h4>
+            <h4 style={{ margin: 0 }}>{c.code}</h4>
 
             <p style={{ margin: 4 }}>
-              {c.type.toUpperCase()} |
-              Value: {c.value}
+              {c.discountType} | Value: {c.discountValue}
+            </p>
+
+            <p style={{ margin: 4 }}>Used: {c.usageCount || 0}</p>
+
+            <p style={{ margin: 4 }}>
+              Remaining: {c.usageLimit ? c.usageLimit - (c.usageCount || 0) : "Unlimited"}
             </p>
 
             <p style={{ margin: 4 }}>
-              Used:
-              {c.usedCount || 0}
-            </p>
-            
-            <p style={{ margin: 4 }}>
-              Remaining:
-              {c.usageLimit > 0
-                ? c.usageLimit -
-                  (c.usedCount || 0)
-                : "Unlimited"}
-            </p>
-
-            <p style={{ margin: 4 }}>
-              Expiry:{" "}
-              {c.expiry
-                ? new Date(
-                    c.expiry
-                  ).toDateString()
-                : "N/A"}
+              Expiry: {c.validUntil ? new Date(c.validUntil).toDateString() : "N/A"}
             </p>
 
             <span
               style={{
-                padding:
-                  "4px 8px",
-
-                background:
-                  c.active
-                    ? "green"
-                    : "red",
-
+                padding: "4px 8px",
+                background: c.status === "ACTIVE" ? "green" : "red",
                 color: "white",
-
                 borderRadius: 6,
-
                 fontSize: 12,
               }}
             >
-              {c.active
-                ? "ACTIVE"
-                : "DISABLED"}
+              {c.status}
             </span>
           </div>
 
-          <div
-            style={{
-              display: "flex",
-              gap: 10,
-              flexWrap: "wrap",
-            }}
-          >
-            <button
-              style={btn}
-              onClick={() =>
-                toggleStatus(
-                  c._id,
-                  !c.active
-                )
-              }
-            >
-              {c.active
-                ? "Disable"
-                : "Enable"}
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <button style={btn} onClick={() => toggleStatus(c._id, c.status)}>
+              {c.status === "ACTIVE" ? "Disable" : "Enable"}
             </button>
 
-            <button
-              style={btn}
-              onClick={() =>
-                extendExpiry(
-                  c._id
-                )
-              }
-            >
+            <button style={btn} onClick={() => extendExpiry(c._id)}>
               Extend
             </button>
 
             <button
-              style={{
-                ...btn,
-                background:
-                  "crimson",
-                color: "white",
-              }}
-              onClick={() =>
-                deleteCoupon(
-                  c._id
-                )
-              }
+              style={{ ...btn, background: "crimson", color: "white" }}
+              onClick={() => deleteCoupon(c._id)}
             >
               Delete
             </button>
@@ -567,10 +273,6 @@ export default function CouponDashboard() {
   );
 }
 
-/* =========================================================
-   STYLES
-========================================================= */
-
 const cardStyle = {
   padding: 16,
   border: "1px solid #ddd",
@@ -580,8 +282,7 @@ const cardStyle = {
 
 const grid = {
   display: "grid",
-  gridTemplateColumns:
-    "repeat(auto-fit,minmax(220px,1fr))",
+  gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))",
   gap: 10,
   marginBottom: 14,
 };
@@ -601,8 +302,7 @@ const couponCard = {
   borderRadius: 12,
   marginBottom: 12,
   display: "flex",
-  justifyContent:
-    "space-between",
+  justifyContent: "space-between",
   alignItems: "center",
   gap: 16,
   flexWrap: "wrap" as const,

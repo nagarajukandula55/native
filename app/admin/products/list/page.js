@@ -2,59 +2,71 @@
 
 import { useState } from "react";
 import useSWR from "swr";
-import { adminListProducts, adminUpdateProduct, adminDeleteProduct } from "@/lib/an-sdk/products";
+import { adminListNativeProducts, adminSetNativeProductFlags } from "@/lib/an-sdk/products";
 
-const fetcher = () => adminListProducts();
+const fetcher = () => adminListNativeProducts();
 
+/**
+ * Manages already-approved storefront products (ANgroup's NativeProduct
+ * collection via /api/admin/native-products) -- isActive is the field that
+ * actually controls storefront visibility, so "Live" here means
+ * isActive:true. Pre-approval vendor submissions are a separate flow, see
+ * app/admin/products/review/page.js. This page previously called a
+ * nonexistent /api/admin/products endpoint and filtered on a fictional
+ * `isListed` field that never existed on any real product, so the "Live"
+ * (then "listed") tab always showed nothing even for genuinely live
+ * products.
+ */
 export default function AdminProductsList() {
   const [filter, setFilter] = useState("all");
 
   const { data, isLoading, mutate } = useSWR(
-    "admin-products-list",
+    "admin-native-products-list",
     fetcher,
     {
       refreshInterval: 5000,
     }
   );
 
-  const products = data?.products || [];
+  const products = data?.data || [];
 
-  /* ================= ACTION ================= */
-
-  async function updateProduct(id, action) {
+  async function toggleLive(id, isActive) {
     try {
-      await adminUpdateProduct(id, { action });
-
+      await adminSetNativeProductFlags(id, { isActive: !isActive });
       mutate();
     } catch (err) {
-      console.error("Update error:", err);
+      console.error("Toggle live error:", err);
+    }
+  }
+
+  async function toggleFeatured(id, isFeatured) {
+    try {
+      await adminSetNativeProductFlags(id, { isFeatured: !isFeatured });
+      mutate();
+    } catch (err) {
+      console.error("Toggle featured error:", err);
     }
   }
 
   async function deleteProduct(id) {
-    if (!confirm("Delete product?")) return;
+    if (!confirm("Remove this product from the storefront?")) return;
 
     try {
-      await adminDeleteProduct(id);
-
+      await adminSetNativeProductFlags(id, { isDeleted: true });
       mutate();
     } catch (err) {
       console.error("Delete error:", err);
     }
   }
 
-  /* ================= FILTER ================= */
-
   const filteredProducts = products.filter((p) => {
     switch (filter) {
-      case "review":
-        return p.status === "review";
-      case "approved":
-        return p.status === "approved";
-      case "listed":
-        return p.isListed === true;
-      case "delisted":
-        return p.isListed === false;
+      case "live":
+        return p.isActive === true;
+      case "hidden":
+        return p.isActive === false;
+      case "featured":
+        return p.isFeatured === true;
       default:
         return true;
     }
@@ -66,7 +78,7 @@ export default function AdminProductsList() {
 
       {/* FILTERS */}
       <div className="filters">
-        {["all", "review", "approved", "listed", "delisted"].map((f) => (
+        {["all", "live", "hidden", "featured"].map((f) => (
           <button
             key={f}
             onClick={() => setFilter(f)}
@@ -85,8 +97,8 @@ export default function AdminProductsList() {
               <th>Product</th>
               <th>SKU</th>
               <th>Price</th>
-              <th>Status</th>
-              <th>Listed</th>
+              <th>Live</th>
+              <th>Featured</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -103,74 +115,34 @@ export default function AdminProductsList() {
             ) : (
               filteredProducts.map((p) => (
                 <tr key={p._id}>
-
-                  {/* PRODUCT */}
                   <td>
                     <b>{p.name}</b>
-                    <br />
-                    <small>{p.category}</small>
                   </td>
 
-                  {/* SKU */}
-                  <td>{p.primaryVariant?.sku || "—"}</td>
+                  <td>{p.sku || "—"}</td>
 
-                  {/* PRICE */}
-                  <td>₹ {p.primaryVariant?.sellingPrice || 0}</td>
+                  <td>₹ {p.basePrice || 0}</td>
 
-                  {/* STATUS */}
                   <td>
-                    <span className={`status ${p.status}`}>
-                      {p.status}
+                    <span className={`status ${p.isActive ? "live" : "hidden"}`}>
+                      {p.isActive ? "Live" : "Hidden"}
                     </span>
                   </td>
 
-                  {/* LISTED */}
-                  <td>{p.isListed ? "✅" : "❌"}</td>
+                  <td>{p.isFeatured ? "⭐" : "—"}</td>
 
-                  {/* ACTIONS */}
                   <td className="actions">
-
-                    {/* REVIEW */}
-                    {p.status === "review" && (
-                      <>
-                        <button
-                          className="approve"
-                          onClick={() => updateProduct(p._id, "approve")}
-                        >
-                          Approve
-                        </button>
-
-                        <button
-                          className="reject"
-                          onClick={() => updateProduct(p._id, "reject")}
-                        >
-                          Reject
-                        </button>
-                      </>
-                    )}
-
-                    {/* APPROVED → LIST */}
-                    {p.status === "approved" && !p.isListed && (
-                      <button onClick={() => updateProduct(p._id, "list")}>
-                        List
-                      </button>
-                    )}
-
-                    {/* LISTED → DELIST */}
-                    {p.isListed && (
-                      <button onClick={() => updateProduct(p._id, "delist")}>
-                        Delist
-                      </button>
-                    )}
-
-                    {/* DELETE */}
-                    <button
-                      className="delete"
-                      onClick={() => deleteProduct(p._id)}
-                    >
-                      Delete
+                    <button onClick={() => toggleLive(p._id, p.isActive)}>
+                      {p.isActive ? "Hide" : "Make Live"}
                     </button>
 
+                    <button onClick={() => toggleFeatured(p._id, p.isFeatured)}>
+                      {p.isFeatured ? "Unfeature" : "Feature"}
+                    </button>
+
+                    <button className="delete" onClick={() => deleteProduct(p._id)}>
+                      Remove
+                    </button>
                   </td>
                 </tr>
               ))
@@ -223,16 +195,7 @@ export default function AdminProductsList() {
           border: none;
           border-radius: 4px;
           cursor: pointer;
-        }
-
-        .approve {
-          background: #28a745;
-          color: #fff;
-        }
-
-        .reject {
-          background: #dc3545;
-          color: #fff;
+          background: #eee;
         }
 
         .delete {
@@ -246,15 +209,11 @@ export default function AdminProductsList() {
           font-size: 12px;
         }
 
-        .status.review {
-          background: #fff3cd;
-        }
-
-        .status.approved {
+        .status.live {
           background: #d4edda;
         }
 
-        .status.rejected {
+        .status.hidden {
           background: #f8d7da;
         }
       `}</style>

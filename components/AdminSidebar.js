@@ -38,7 +38,10 @@ const SECTIONS = [
   },
   {
     label: "Company",
-    links: [{ href: "/admin/company", label: "Company Info" }],
+    links: [
+      { href: "/admin/company", label: "Company Info" },
+      { href: "/admin/company/an-group", label: "AN Group Settings" },
+    ],
   },
 ];
 

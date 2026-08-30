@@ -2,29 +2,26 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import QRCode from "react-qr-code";
 import { getOrder } from "@/lib/an-sdk/orders";
-import { getCompany } from "@/lib/an-sdk/company";
 import { anPost } from "@/lib/an-sdk/client";
+
+const AN_API = process.env.NEXT_PUBLIC_AN_API || "";
 
 export default function InvoicePage() {
   const { id } = useParams();
 
   const [order, setOrder] = useState(null);
-  const [company, setCompany] = useState(null);
+  const [loadError, setLoadError] = useState("");
 
   useEffect(() => {
     const load = async () => {
       try {
         const o = await getOrder(id);
-
-        const c = await getCompany();
-
         if (o.success) setOrder(o.order);
-
-        if (c.success) setCompany(c.data);
+        else setLoadError(o.message || "Order not found");
       } catch (err) {
         console.error("INVOICE LOAD ERROR:", err);
+        setLoadError(err?.message || "Could not load this order");
       }
     };
 
@@ -33,58 +30,13 @@ export default function InvoicePage() {
 
   /* ================= LOADING ================= */
 
-  if (!order || !company) {
-    return <div>Loading...</div>;
+  if (loadError) {
+    return <div style={{ padding: 20 }}>{loadError}</div>;
   }
 
-  /* ================= BILLING ================= */
-
-  const billing = {
-    itemCount:
-      order.billing?.itemCount ||
-      order.items?.length ||
-      0,
-
-    subtotal:
-      order.billing?.subtotal ||
-      order.items?.reduce(
-        (a, b) => a + b.price * b.qty,
-        0
-      ) ||
-      0,
-
-    discount:
-      order.billing?.discount || 0,
-
-    taxableAmount:
-      order.billing?.taxableAmount || 0,
-
-    cgst:
-      order.billing?.cgst || 0,
-
-    sgst:
-      order.billing?.sgst || 0,
-
-    igst:
-      order.billing?.igst || 0,
-
-    total:
-      order.billing?.grandTotal ||
-      order.amount ||
-      0,
-  };
-
-  /* ================= GST MODE ================= */
-
-  const isInterState =
-    Number(billing.igst || 0) > 0;
-
-  /* ================= VERIFY URL ================= */
-
-  const verifyUrl =
-    typeof window !== "undefined"
-      ? `${window.location.origin}/verify/${order.orderId}`
-      : "";
+  if (!order) {
+    return <div>Loading...</div>;
+  }
 
   /* ================= FUNCTIONS ================= */
 
@@ -147,315 +99,26 @@ export default function InvoicePage() {
 
       </div>
 
-      {/* ================= INVOICE ================= */}
+      {/* ================= INVOICE =================
+          ANgroup already owns a full, maintained invoice layout (QR code,
+          HSN summary, B2B/B2C handling, per-business template selection —
+          see src/app/invoice/[invoiceNumber]/page.tsx) at
+          {AN_API}/invoice/{invoiceNumber}. This used to be reimplemented
+          here from scratch with a fraction of that layout's fields and no
+          way to pick up template changes made in ANgroup's admin — now it
+          just embeds the real thing so both always match. */}
 
-      <div className="invoice">
-
-        {/* WATERMARK */}
-
-        <div className="watermark">
-          {company.companyName}
+      {order.invoice?.invoiceNumber ? (
+        <iframe
+          src={`${AN_API}/invoice/${order.invoice.invoiceNumber}`}
+          className="invoiceFrame"
+          title={`Invoice ${order.invoice.invoiceNumber}`}
+        />
+      ) : (
+        <div style={{ padding: 20, textAlign: "center" }}>
+          No invoice has been generated for this order yet.
         </div>
-
-        {/* HEADER */}
-
-        <div className="header">
-
-          <div>
-            <h2>{company.companyName}</h2>
-
-            <p>
-              {company.brandTagline}
-            </p>
-
-            <p>
-              {company.addressLine1}
-            </p>
-
-            <p>
-              {company.city} -{" "}
-              {company.pincode}
-            </p>
-
-            <p>
-              GSTIN: {company.gstin}
-            </p>
-          </div>
-
-          <div className="right">
-
-            <h1>TAX INVOICE</h1>
-
-            <p>
-              Invoice:
-              {" "}
-              {order.invoice
-                ?.invoiceNumber ||
-                "NA"}
-            </p>
-
-            <p>
-              Date:
-              {" "}
-              {new Date(
-                order.createdAt
-              ).toLocaleString()}
-            </p>
-
-            <p>
-              Payment:
-              {" "}
-              {order.payment?.method}
-            </p>
-
-            <p>
-              Status:
-              {" "}
-              {order.payment?.status}
-            </p>
-
-            {order.payment
-              ?.razorpay_payment_id && (
-              <p>
-                Txn ID:
-                {" "}
-                {
-                  order.payment
-                    .razorpay_payment_id
-                }
-              </p>
-            )}
-
-          </div>
-
-        </div>
-
-        {/* ADDRESS */}
-
-        <div className="addr">
-
-          <div>
-
-            <h4>Bill To</h4>
-
-            <p>
-              {order.address?.name}
-            </p>
-
-            <p>
-              {order.address?.address}
-            </p>
-
-            <p>
-              {order.address?.city}
-              {" - "}
-              {order.address?.pincode}
-            </p>
-
-            {order.address
-              ?.gstNumber && (
-              <p>
-                GST:
-                {" "}
-                {
-                  order.address
-                    .gstNumber
-                }
-              </p>
-            )}
-
-          </div>
-
-          <div>
-
-            <h4>Ship To</h4>
-
-            <p>
-              {order.address?.name}
-            </p>
-
-            <p>
-              {order.address?.address}
-            </p>
-
-            <p>
-              {order.address?.city}
-              {" - "}
-              {order.address?.pincode}
-            </p>
-
-          </div>
-
-        </div>
-
-        {/* ITEMS */}
-
-        <table>
-
-          <thead>
-
-            <tr>
-              <th>#</th>
-              <th>Item</th>
-              <th>HSN</th>
-              <th>Qty</th>
-              <th>Price</th>
-              <th>Taxable</th>
-              <th>GST%</th>
-              <th>Total</th>
-            </tr>
-
-          </thead>
-
-          <tbody>
-
-            {order.items?.map(
-              (i, idx) => (
-
-                <tr key={idx}>
-
-                  <td>{idx + 1}</td>
-
-                  <td>{i.name}</td>
-
-                  <td>
-                    {i.snapshot?.hsn ||
-                      "-"}
-                  </td>
-
-                  <td>{i.qty}</td>
-
-                  <td>
-                    ₹{i.price}
-                  </td>
-
-                  <td>
-                    ₹
-                    {i.taxableAmount ||
-                      0}
-                  </td>
-
-                  <td>
-                    {i.gstPercent}%
-                  </td>
-
-                  <td>
-                    ₹{i.total}
-                  </td>
-
-                </tr>
-              )
-            )}
-
-          </tbody>
-
-        </table>
-
-        {/* SUMMARY */}
-
-        <div className="summary">
-
-          <div>
-
-            <p>
-              Total Items:
-              {" "}
-              {billing.itemCount}
-            </p>
-
-          </div>
-
-          <div>
-
-            <p>
-              Subtotal:
-              {" "}
-              ₹{billing.subtotal}
-            </p>
-
-            <p>
-              Discount:
-              {" "}
-              ₹{billing.discount}
-            </p>
-
-            <p>
-              Taxable:
-              {" "}
-              ₹
-              {billing.taxableAmount}
-            </p>
-
-            {!isInterState ? (
-              <>
-                <p>
-                  CGST:
-                  {" "}
-                  ₹{billing.cgst}
-                </p>
-
-                <p>
-                  SGST:
-                  {" "}
-                  ₹{billing.sgst}
-                </p>
-              </>
-            ) : (
-              <p>
-                IGST:
-                {" "}
-                ₹{billing.igst}
-              </p>
-            )}
-
-            <h2>
-              Total:
-              {" "}
-              ₹{billing.total}
-            </h2>
-
-          </div>
-
-        </div>
-
-        {/* FOOTER */}
-
-        <div className="footer">
-
-          <div>
-
-            <QRCode
-              value={verifyUrl}
-              size={90}
-            />
-
-            <p>
-              Scan to Verify
-            </p>
-
-          </div>
-
-          <div>
-
-            {company.signatureUrl && (
-              <img
-                src={
-                  company.signatureUrl
-                }
-                className="sign"
-                alt="signature"
-              />
-            )}
-
-            <p>
-              Authorised Signatory
-            </p>
-
-          </div>
-
-        </div>
-
-      </div>
+      )}
 
       {/* ================= STYLES ================= */}
 
@@ -484,78 +147,13 @@ export default function InvoicePage() {
           cursor: pointer;
         }
 
-        .invoice {
-          background: white;
-          padding: 25px;
-          max-width: 900px;
-          margin: auto;
-          position: relative;
-          border-radius: 12px;
-        }
-
-        .watermark {
-          position: absolute;
-          top: 40%;
-          left: 50%;
-          transform: translate(-50%, -50%);
-          font-size: 80px;
-          opacity: 0.05;
-          font-weight: bold;
-          pointer-events: none;
-        }
-
-        .header {
-          display: flex;
-          justify-content: space-between;
-          border-bottom: 2px solid #000;
-          padding-bottom: 15px;
-        }
-
-        .right {
-          text-align: right;
-        }
-
-        .addr {
-          display: flex;
-          justify-content: space-between;
-          margin-top: 20px;
-          gap: 20px;
-        }
-
-        table {
+        .invoiceFrame {
+          display: block;
           width: 100%;
-          border-collapse: collapse;
-          margin-top: 20px;
-        }
-
-        th,
-        td {
-          border: 1px solid #ddd;
-          padding: 8px;
-          font-size: 13px;
-        }
-
-        th {
-          background: black;
-          color: white;
-        }
-
-        .summary {
-          display: flex;
-          justify-content: space-between;
-          margin-top: 20px;
-        }
-
-        .footer {
-          display: flex;
-          justify-content: space-between;
-          margin-top: 40px;
-          align-items: center;
-        }
-
-        .sign {
-          height: 60px;
-          object-fit: contain;
+          max-width: 950px;
+          margin: 0 auto;
+          height: 100vh;
+          border: none;
         }
 
         @media print {
@@ -568,38 +166,8 @@ export default function InvoicePage() {
             display: none;
           }
 
-          .invoice {
-            box-shadow: none;
-            border-radius: 0;
+          .invoiceFrame {
             max-width: 100%;
-            padding: 0;
-          }
-        }
-
-        @media (max-width: 768px) {
-
-          .header,
-          .addr,
-          .summary,
-          .footer {
-            flex-direction: column;
-            gap: 20px;
-          }
-
-          .right {
-            text-align: left;
-          }
-
-          table {
-            font-size: 11px;
-          }
-
-          .invoice {
-            padding: 12px;
-          }
-
-          .watermark {
-            font-size: 40px;
           }
         }
 

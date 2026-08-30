@@ -152,6 +152,34 @@ export async function getReviewQueue() {
   return anGet("/api/admin/products/review");
 }
 
+/**
+ * The real, working storefront-product admin surface (ANgroup's
+ * /api/admin/native-products, isActive/isFeatured/isDeleted on
+ * NativeProduct) — a completely different model/route from the
+ * adminListProducts/adminUpdateProduct functions above, which call
+ * /api/admin/products, a route that doesn't exist on ANgroup at all.
+ * Goes through this app's own /api/admin/native-products proxy (service-key
+ * auth, same pattern as adminListOrders in orders.ts) since these routes
+ * need either a real ANgroup session or that server-only key.
+ */
+export async function adminListNativeProducts(search?: string) {
+  const qs = search ? `?search=${encodeURIComponent(search)}` : "";
+  const res = await fetch(`/api/admin/native-products${qs}`, { cache: "no-store" });
+  return res.json();
+}
+
+export async function adminSetNativeProductFlags(
+  id: string,
+  flags: { isActive?: boolean; isFeatured?: boolean; isDeleted?: boolean }
+) {
+  const res = await fetch(`/api/admin/native-products/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(flags),
+  });
+  return res.json();
+}
+
 export async function submitProductAction(payload: {
   id: string;
   action: "approve" | "reject" | string;

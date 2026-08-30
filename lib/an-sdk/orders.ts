@@ -55,6 +55,23 @@ export async function getOrders() {
   return anGet("/api/orders/list");
 }
 
+/**
+ * Admin order listing. GET /api/orders/list on ANgroup requires either a
+ * real ANgroup session cookie (which this frontend never has — its bearer
+ * token isn't that cookie) or a service-key header, which must stay
+ * server-side. Goes through this app's own /api/admin/orders proxy route
+ * instead of anGet(), so the request carries that server-only key.
+ */
+export async function adminListOrders(params: Record<string, string | number | undefined> = {}) {
+  const search = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== "") search.set(key, String(value));
+  }
+  const qs = search.toString();
+  const res = await fetch(`/api/admin/orders${qs ? `?${qs}` : ""}`, { cache: "no-store" });
+  return res.json();
+}
+
 export async function adminGetOrders() {
   return anGet("/api/admin/orders");
 }

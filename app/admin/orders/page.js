@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import {
-  getOrders,
+  adminListOrders,
   updateOrderStatus,
   markOrderPaid,
 } from "@/lib/an-sdk/orders";
@@ -153,7 +153,7 @@ export default function AdminOrdersPage() {
     try {
       setLoading(true);
 
-      const data = await getOrders();
+      const data = await adminListOrders({ limit: 200 });
 
       setOrders(data.orders || []);
 
