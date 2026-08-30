@@ -2,8 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
 import { getOrder } from "@/lib/an-sdk/orders";
 
 export default function ReceiptPage() {
@@ -27,45 +25,12 @@ export default function ReceiptPage() {
     if (id) load();
   }, [id]);
 
-  /* ================= PRINT ================= */
+  /* ================= PRINT / DOWNLOAD ================= */
+  // No server-side PDF pipeline exists for the customer-facing receipt, so
+  // "download" uses the browser's native print-to-PDF (window.print()),
+  // matching the @media print rules below that already hide .actions.
   const handlePrint = () => {
     window.print();
-  };
-
-  /* ================= PDF GENERATE (FIXED) ================= */
-  const handlePDF = async () => {
-    const element = document.getElementById("invoice");
-
-    const canvas = await html2canvas(element, {
-      scale: 2,
-      useCORS: true, // 🔥 IMPORTANT for logo
-    });
-
-    const imgData = canvas.toDataURL("image/png");
-
-    const pdf = new jsPDF("p", "mm", "a4");
-
-    const imgWidth = 210;
-    const pageHeight = 295;
-
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
-    let heightLeft = imgHeight;
-
-    let position = 0;
-
-    pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
-
-    heightLeft -= pageHeight;
-
-    while (heightLeft > 0) {
-      position = heightLeft - imgHeight;
-      pdf.addPage();
-      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
-    }
-
-    pdf.save(`Receipt-${data.orderId}.pdf`);
   };
 
   if (loading) return <div className="loader">Loading...</div>;
@@ -83,7 +48,7 @@ export default function ReceiptPage() {
 
       <div className="actions">
         <button onClick={handlePrint}>🖨 Print</button>
-        <button onClick={handlePDF}>📄 Download PDF</button>
+        <button onClick={handlePrint}>📄 Download PDF</button>
       </div>
 
       <div id="invoice" className="invoice">

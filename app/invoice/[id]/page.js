@@ -5,7 +5,6 @@ import { useParams } from "next/navigation";
 import QRCode from "react-qr-code";
 import { getOrder } from "@/lib/an-sdk/orders";
 import { getCompany } from "@/lib/an-sdk/company";
-import { getInvoice } from "@/lib/an-sdk/invoices";
 import { anPost } from "@/lib/an-sdk/client";
 
 export default function InvoicePage() {
@@ -126,14 +125,8 @@ export default function InvoicePage() {
 
       <div className="topbar">
 
-        <button
-          onClick={() =>
-            window.open(
-              `/api/invoice/${id}?download=1`
-            )
-          }
-        >
-          ⬇ Download PDF
+        <button onClick={() => window.print()}>
+          ⬇ Download / Print PDF
         </button>
 
         <button
@@ -563,6 +556,24 @@ export default function InvoicePage() {
         .sign {
           height: 60px;
           object-fit: contain;
+        }
+
+        @media print {
+          .page {
+            background: white;
+            padding: 0;
+          }
+
+          .topbar {
+            display: none;
+          }
+
+          .invoice {
+            box-shadow: none;
+            border-radius: 0;
+            max-width: 100%;
+            padding: 0;
+          }
         }
 
         @media (max-width: 768px) {
