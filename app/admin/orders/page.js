@@ -13,6 +13,7 @@ import {
   loadShippingRates,
   requestPickup,
 } from "@/lib/an-sdk/shipping";
+import LogisticsTab from "@/components/admin/LogisticsTab";
 
 const ORDER_STATUSES = [
   "CREATED",
@@ -32,6 +33,7 @@ const ORDER_STATUSES = [
 ];
 
 export default function AdminOrdersPage() {
+  const [activeTab, setActiveTab] = useState("orders");
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] =
     useState(false);
@@ -475,6 +477,42 @@ const fetchLiveCouriers = async () => {
           Refresh Orders
         </button>
       </div>
+
+      {/* TABS */}
+
+      <div
+        style={{
+          display: "flex",
+          gap: 8,
+          marginBottom: 24,
+        }}
+      >
+        {[
+          { key: "orders", label: "Orders" },
+          { key: "logistics", label: "Logistics" },
+        ].map((t) => (
+          <button
+            key={t.key}
+            onClick={() => setActiveTab(t.key)}
+            style={{
+              padding: "10px 20px",
+              borderRadius: 10,
+              border: "1px solid #ddd",
+              background: activeTab === t.key ? "#111827" : "#fff",
+              color: activeTab === t.key ? "#fff" : "#111827",
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === "logistics" && <LogisticsTab />}
+
+      {activeTab === "orders" && (
+      <>
 
       {/* KPI */}
 
@@ -1486,6 +1524,8 @@ const fetchLiveCouriers = async () => {
             </div>
           </div>
         </div>
+      )}
+      </>
       )}
     </div>
   );

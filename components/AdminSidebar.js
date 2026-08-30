@@ -41,6 +41,7 @@ const SECTIONS = [
     links: [
       { href: "/admin/company", label: "Company Info" },
       { href: "/admin/company/an-group", label: "AN Group Settings" },
+      { href: "/admin/email-templates", label: "Email Templates" },
     ],
   },
 ];

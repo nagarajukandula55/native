@@ -122,3 +122,16 @@ export async function createShipment(
 
   return res.json();
 }
+
+/* =========================================
+   LOGISTICS OVERVIEW (admin Orders "Logistics" tab)
+   Goes through this app's own /api/admin/logistics proxy (service-key
+   auth) rather than calling ANgroup's /api/logistics/overview directly --
+   that route requires either a real ANgroup session or the server-only
+   ADMIN_SERVICE_KEY header, same as adminListOrders in orders.ts.
+========================================= */
+
+export async function adminLogisticsOverview() {
+  const res = await fetch("/api/admin/logistics", { cache: "no-store" });
+  return res.json();
+}
