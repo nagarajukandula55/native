@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useCart } from "@/context/CartContext";
+import { getProductDisplayName } from "@/lib/product";
 import { getProducts, getCategories } from "@/lib/an-sdk/products";
 import { getBanners } from "@/lib/an-sdk/banners";
 import { getRecentReviews } from "@/lib/an-sdk/reviews";
@@ -292,6 +293,7 @@ export default function HomeClient() {
               const inStock = stockLevel === null ? true : stockLevel > 0;
 
               const pid = p.id || p._id;
+              const displayName = getProductDisplayName(p);
               const imgSrc =
                 failedProductImages[pid] || !p.images?.[0]
                   ? "/placeholder.png"
@@ -302,7 +304,7 @@ export default function HomeClient() {
                   <Link href={`/products/${p.slug || p._id}`} className="imgWrap">
                     <img
                       src={imgSrc}
-                      alt={p.name}
+                      alt={displayName}
                       onError={() => {
                         // Was reassigning e.currentTarget.src directly --
                         // invisible to React, so any unrelated re-render
@@ -324,7 +326,7 @@ export default function HomeClient() {
                         product={{
                           productId: p._id,
                           slug: p.slug,
-                          name: p.name,
+                          name: displayName,
                           price: Number(price),
                           image: p.images?.[0] || "",
                         }}
@@ -334,7 +336,7 @@ export default function HomeClient() {
 
                   <div className="productBody">
                     <Link href={`/products/${p.slug || p._id}`} className="productLink">
-                      <h3>{p.name}</h3>
+                      <h3>{displayName}</h3>
                     </Link>
                     <p className="price">{p.variantCount > 1 ? `From ₹${price}` : `₹${price}`}</p>
 
@@ -346,7 +348,7 @@ export default function HomeClient() {
                         addToCart({
                           productId: p._id,
                           productKey: p.productKey,
-                          name: p.name,
+                          name: displayName,
                           slug: p.slug,
                           price: Number(price),
                           image: p.images?.[0] || "",

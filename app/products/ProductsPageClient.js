@@ -125,7 +125,7 @@ function ProductsPageInner() {
         _id: id,
         productId: id,
         productKey: p.productKey || id,
-        name: p.displayName || p.name || "Product",
+        name: getProductDisplayName(p) || "Product",
         slug: p.slug,
         price: Number(p.displayPrice || p.price || 0),
         mrp: Number(p.mrp || 0),
@@ -146,7 +146,7 @@ function ProductsPageInner() {
 
     if (navigator.share) {
       navigator.share({
-        title: p.displayName,
+        title: getProductDisplayName(p),
         text,
         url,
       });
@@ -195,12 +195,13 @@ function ProductsPageInner() {
 
               const stockLevel = p.stock ?? null;
               const inStock = stockLevel === null ? true : stockLevel > 0;
+              const displayName = getProductDisplayName(p);
 
               return (
                 <div className="card" key={p._id}>
                   <Link href={`/products/${p.slug}`} className="link">
                     <div className="imgWrap">
-                      <img src={p.images?.[0] || "/placeholder.png"} />
+                      <img src={p.images?.[0] || "/placeholder.png"} alt={displayName} />
 
                       {discount > 0 && inStock && (
                         <span className="badge">{discount}% OFF</span>
@@ -211,7 +212,7 @@ function ProductsPageInner() {
                     </div>
 
                     <div className="content">
-                      <h3>{p.displayName}</h3>
+                      <h3>{displayName}</h3>
 
                       {/* SOLD BY (multi-vendor) */}
                       {p.vendor && (
@@ -258,7 +259,7 @@ function ProductsPageInner() {
                       product={{
                         productId: p._id,
                         slug: p.slug,
-                        name: p.displayName || p.name,
+                        name: displayName,
                         price,
                         image: p.images?.[0] || "",
                       }}
@@ -320,7 +321,7 @@ function ProductsPageInner() {
               itemListElement: products.slice(0, 10).map((p, index) => ({
                 "@type": "ListItem",
                 position: index + 1,
-                name: p.displayName,
+                name: getProductDisplayName(p),
                 url: `https://shopnative.in/products/${p.slug}`,
               })),
             }),

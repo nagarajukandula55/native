@@ -15,8 +15,18 @@ import { validateCoupon } from "@/lib/an-sdk/coupons";
 import { createOrder } from "@/lib/an-sdk/orders";
 import { verifyPayment } from "@/lib/an-sdk/payments";
 import { getMe, isLoggedIn } from "@/lib/an-sdk/auth";
+import {
+  getSavedAddresses,
+  addSavedAddress,
+  type SavedAddress,
+} from "@/lib/an-sdk/addresses";
 import { getStoredPincode, setStoredPincode } from "@/lib/pincode";
-import { MIN_ORDER_VALUE } from "@/lib/constants";
+import {
+  MIN_ORDER_VALUE,
+  FREE_SHIPPING_THRESHOLD,
+  SMALL_CART_FEE,
+  DELIVERY_CHARGE,
+} from "@/lib/constants";
 
 declare global {
   interface Window {
@@ -85,6 +95,17 @@ export default function CheckoutPage() {
 
   const [gstData, setGstData] = useState<any>(null);
 
+  // Saved address book (logged-in customers only -- see lib/an-sdk/addresses.ts).
+  // savedAddresses stays empty for guests, who just type a fresh address as
+  // before; nothing here blocks or requires login.
+  const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
+  const [selectedAddressId, setSelectedAddressId] = useState<string>("");
+  // "picker" once a saved address is chosen/available, "new" while typing a
+  // fresh one (default for guests, and for a logged-in customer with no
+  // saved addresses yet).
+  const [addressMode, setAddressMode] = useState<"picker" | "new">("new");
+  const [saveThisAddress, setSaveThisAddress] = useState(false);
+
   const [errors, setErrors] = useState<any>({});
 
   const [orderSummary, setOrderSummary] = useState<any>({
@@ -93,12 +114,15 @@ export default function CheckoutPage() {
 
   const [summary, setSummary] = useState({
     subtotal: 0,
+    subtotalBeforeTax: 0,
     discount: 0,
     taxableAmount: 0,
     gstTotal: 0,
     cgst: 0,
     sgst: 0,
     igst: 0,
+    smallCartFee: 0,
+    deliveryCharge: 0,
     grandTotal: 0,
   });
 
@@ -142,6 +166,66 @@ export default function CheckoutPage() {
       cancelled = true;
     };
   }, []);
+
+  /* =========================================================
+     SAVED ADDRESSES (logged-in only)
+  ========================================================= */
+
+  useEffect(() => {
+    if (!isLoggedIn()) return;
+
+    let cancelled = false;
+
+    getSavedAddresses()
+      .then((addresses) => {
+        if (cancelled) return;
+
+        setSavedAddresses(addresses);
+
+        if (addresses.length > 0) {
+          setAddressMode("picker");
+
+          const preferred =
+            addresses.find((a) => a.isDefault) || addresses[0];
+
+          setSelectedAddressId(preferred._id);
+
+          setForm((prev) => ({
+            ...prev,
+            address: [preferred.line1, preferred.line2].filter(Boolean).join(", "),
+            city: preferred.city || prev.city,
+            state: preferred.state || prev.state,
+            pincode: preferred.pincode || prev.pincode,
+            phone: prev.phone || preferred.phone || "",
+          }));
+        }
+      })
+      .catch((err) => {
+        // Non-blocking -- same reasoning as the profile-autofill effect
+        // above: a failed lookup just leaves the customer typing a fresh
+        // address, never blocks checkout.
+        console.error("SAVED ADDRESSES FETCH ERROR:", err);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const applySavedAddress = (id: string) => {
+    setSelectedAddressId(id);
+    const addr = savedAddresses.find((a) => a._id === id);
+    if (!addr) return;
+
+    setForm((prev) => ({
+      ...prev,
+      address: [addr.line1, addr.line2].filter(Boolean).join(", "),
+      city: addr.city || "",
+      state: addr.state || "",
+      pincode: addr.pincode || "",
+      phone: prev.phone || addr.phone || "",
+    }));
+  };
 
   /* =========================================================
      LOAD RAZORPAY
@@ -193,12 +277,34 @@ useEffect(() => {
     return;
   }
 
-  let mounted = true;
+  // Snapshot the pincode this effect instance is resolving. Previously the
+  // async callback re-read `form.pincode` from the enclosing closure, which
+  // is fine for guarding against an UNMOUNTED effect (the `mounted` flag)
+  // but did nothing to guard against a STALE-but-still-mounted one: on
+  // re-entry (clear pincode A, type pincode B) both effect instances stay
+  // mounted the whole time -- nothing ever unmounts the component -- so
+  // `mounted` was always true and a slow response for A could still land
+  // and overwrite city/state AFTER B had already been typed, if A's request
+  // happened to resolve after B's. Comparing against this captured
+  // `requestedPincode` (instead of the live, possibly-already-changed
+  // `form.pincode`) ensures a response only ever applies when it's still
+  // the answer to the most recent request.
+  const requestedPincode = form.pincode;
+  let cancelled = false;
+
+  // Clear any city/state left over from a previous pincode immediately, so
+  // re-entering a new pincode never shows stale data while the new lookup
+  // is in flight (or if it fails / comes back not-found).
+  setForm((prev) =>
+    prev.city || prev.state
+      ? { ...prev, city: "", state: "" }
+      : prev
+  );
 
     const fetchLocation =
     async () => {
       try {
-        const data = await pincode.lookupPincode(form.pincode);
+        const data = await pincode.lookupPincode(requestedPincode);
 
         console.log(
           "PINCODE DATA:",
@@ -206,7 +312,7 @@ useEffect(() => {
         );
 
         if (
-          mounted &&
+          !cancelled &&
           data?.success
         ) {
           setForm((prev) => ({
@@ -223,7 +329,7 @@ useEffect(() => {
         // Keep the shared pincode store (used for pincode-aware browsing
         // on the home page) in sync with whatever the customer enters here,
         // regardless of whether the lookup itself succeeded.
-        setStoredPincode(form.pincode);
+        setStoredPincode(requestedPincode);
 
       } catch (err) {
         console.error(
@@ -235,7 +341,7 @@ useEffect(() => {
   fetchLocation();
 
   return () => {
-    mounted = false;
+    cancelled = true;
   };
 
 }, [form.pincode]);
@@ -340,7 +446,14 @@ useEffect(() => {
         if (summary.grandTotal > 0) {
           return summary;
         }
-      
+
+        // `item.price` is GST-INCLUSIVE (see CartContext.tsx) -- the base/
+        // taxable value is derived by backing the tax out: base =
+        // price / (1 + gstPercent/100). Summed across the cart this gives a
+        // true subtotal-before-tax instead of just re-summing the
+        // tax-inclusive line prices.
+        let subtotalBeforeTax = 0;
+        let gstTotal = 0;
         const subtotal = cart.reduce(
           (acc: number, item: any) =>
             acc +
@@ -348,55 +461,51 @@ useEffect(() => {
               safeNumber(item.qty),
           0
         );
-      
+
+        cart.forEach((item: any) => {
+          const lineTotal =
+            safeNumber(item.price) * safeNumber(item.qty);
+          const gstPercent = safeNumber(item.gstPercent);
+          const lineBase = lineTotal / (1 + gstPercent / 100);
+          const lineGst = lineTotal - lineBase;
+
+          subtotalBeforeTax += lineBase;
+          gstTotal += lineGst;
+        });
+
         const discount = safeNumber(
           couponData?.discount
         );
-      
+
         const discountedTotal = Math.max(
           0,
           subtotal - discount
         );
-      
-        const gstTotal = cart.reduce(
-          (acc: number, item: any) => {
-            const itemTotal =
-              safeNumber(item.price) *
-              safeNumber(item.qty);
-      
-            const ratio =
-              subtotal > 0
-                ? itemTotal / subtotal
-                : 0;
-      
-            const itemDiscount =
-              discount * ratio;
-      
-            const taxable =
-              itemTotal - itemDiscount;
-      
-            const gst =
-              taxable *
-              (
-                // CartContext.tsx stores this as `gstPercent`, not
-                // `tax`/`gstRate` -- this always read undefined, so GST
-                // was silently always 0 and never showed on the summary.
-                safeNumber(
-                  item.gstPercent
-                ) / 100
-              );
-      
-            return acc + gst;
-          },
-          0
-        );
-      
+
+        // Small-cart fee + delivery charge apply based on the (pre-tax-
+        // adjustment) cart subtotal, waived once it reaches the free-
+        // shipping threshold. See lib/constants.ts -- both are tunable and
+        // meant to eventually move to an admin-configurable setting.
+        const belowFreeShippingThreshold =
+          subtotal < FREE_SHIPPING_THRESHOLD;
+        const smallCartFee = belowFreeShippingThreshold
+          ? SMALL_CART_FEE
+          : 0;
+        const deliveryCharge = belowFreeShippingThreshold
+          ? DELIVERY_CHARGE
+          : 0;
+
         return {
           subtotal,
+          subtotalBeforeTax,
           discount,
           gstTotal,
+          smallCartFee,
+          deliveryCharge,
           grandTotal:
-            discountedTotal + gstTotal,
+            discountedTotal +
+            smallCartFee +
+            deliveryCharge,
         };
       }, [summary, cart, couponData]);
 
@@ -527,14 +636,25 @@ useEffect(() => {
             items: data.items || [],
           });
 
+          // ANgroup's order-create now computes the small-cart fee /
+          // delivery charge itself (services/order.service.ts, mirroring
+          // these same constants -- see lib/orderPricing.ts there) and
+          // includes them in both `data.amount` (the actual Razorpay
+          // charge) and the dedicated `data.smallCartFee`/
+          // `data.deliveryCharge` fields, so the amount actually charged is
+          // guaranteed to match what's shown here -- no need to
+          // independently re-derive them client-side any more.
           setSummary({
             subtotal: safeNumber(data.subtotal),
+            subtotalBeforeTax: safeNumber(data.taxableAmount),
             discount: safeNumber(data.discount),
             taxableAmount: safeNumber(data.taxableAmount),
             gstTotal: safeNumber(data.gstTotal),
             cgst: safeNumber(data.cgst),
             sgst: safeNumber(data.sgst),
             igst: safeNumber(data.igst),
+            smallCartFee: safeNumber(data.smallCartFee),
+            deliveryCharge: safeNumber(data.deliveryCharge),
             grandTotal: safeNumber(data.amount),
           });
 
@@ -612,6 +732,23 @@ useEffect(() => {
               );
 
               if (verifyData.success) {
+                // Best-effort: only when the customer is logged in, chose to
+                // save a freshly-typed address, and is actually still on
+                // "new" mode (not one already picked from the saved list,
+                // which needs no re-saving). Never blocks navigating to the
+                // success page on failure.
+                if (isLoggedIn() && saveThisAddress && addressMode === "new") {
+                  addSavedAddress({
+                    line1: form.address,
+                    city: form.city,
+                    state: form.state,
+                    pincode: form.pincode,
+                    phone: form.phone,
+                  }).catch((err) =>
+                    console.error("SAVE ADDRESS ERROR:", err)
+                  );
+                }
+
                 setPendingOrder(null);
                 setCart([]);
 
@@ -705,14 +842,83 @@ useEffect(() => {
             <div className="section">
               <h3>Delivery Address</h3>
 
-              <textarea name="address" value={form.address} onChange={handleChange} placeholder="Complete Address" />
+              {addressMode === "picker" && savedAddresses.length > 0 && (
+                <div className="addressPicker">
+                  {savedAddresses.map((addr) => (
+                    <label className="addressOption" key={addr._id}>
+                      <input
+                        type="radio"
+                        name="savedAddress"
+                        checked={selectedAddressId === addr._id}
+                        onChange={() => applySavedAddress(addr._id)}
+                      />
+                      <span>
+                        <strong>{addr.label || "Address"}</strong>
+                        {addr.isDefault && <em className="defaultTag"> (default)</em>}
+                        <br />
+                        {[addr.line1, addr.line2, addr.city, addr.state, addr.pincode]
+                          .filter(Boolean)
+                          .join(", ")}
+                      </span>
+                    </label>
+                  ))}
 
-              <input name="pincode" value={form.pincode} onChange={handleChange} placeholder="Pincode" />
+                  <button
+                    type="button"
+                    className="addNewAddressBtn"
+                    onClick={() => {
+                      setAddressMode("new");
+                      setSelectedAddressId("");
+                      setForm((prev) => ({
+                        ...prev,
+                        address: "",
+                        city: "",
+                        state: "",
+                        pincode: "",
+                      }));
+                    }}
+                  >
+                    + Use a new address
+                  </button>
+                </div>
+              )}
 
-              <div className="doubleGrid">
-                <input name="city" value={form.city} onChange={handleChange} placeholder="City" />
-                <input name="state" value={form.state} onChange={handleChange} placeholder="State" />
-              </div>
+              {addressMode === "new" && (
+                <>
+                  {savedAddresses.length > 0 && (
+                    <button
+                      type="button"
+                      className="backToSavedBtn"
+                      onClick={() => {
+                        setAddressMode("picker");
+                        if (savedAddresses[0]) applySavedAddress(savedAddresses[0]._id);
+                      }}
+                    >
+                      ← Choose a saved address instead
+                    </button>
+                  )}
+
+                  <textarea name="address" value={form.address} onChange={handleChange} placeholder="Complete Address" />
+
+                  <input name="pincode" value={form.pincode} onChange={handleChange} placeholder="Pincode" />
+
+                  <div className="doubleGrid">
+                    <input name="city" value={form.city} onChange={handleChange} placeholder="City" />
+                    <input name="state" value={form.state} onChange={handleChange} placeholder="State" />
+                  </div>
+
+                  {isLoggedIn() && (
+                    <label className="saveAddressCheck">
+                      <input
+                        type="checkbox"
+                        checked={saveThisAddress}
+                        onChange={(e) => setSaveThisAddress(e.target.checked)}
+                      />
+                      Save this address for next time
+                    </label>
+                  )}
+                </>
+              )}
             </div>
 
             <div className="section">
@@ -744,31 +950,74 @@ useEffect(() => {
             <h2>Order Summary</h2>
 
             <div className="items">
-              {orderSummary.items.map((item: any, i: number) => (
-                <div className="item" key={i}>
-                  <div>
-                    <h4>{item.name}</h4>
-                    <p>Qty: {item.qty}</p>
-                    <p>GST: {item.gstRate}%</p>
-                    <p>Taxable: ₹{safeNumber(item.taxableValue).toFixed(2)}</p>
-                  </div>
+              {orderSummary.items.length > 0
+                ? orderSummary.items.map((item: any, i: number) => (
+                    <div className="item" key={i}>
+                      <div>
+                        <h4>{item.name}</h4>
+                        <p>Qty: {item.qty}</p>
+                        <p>GST: {item.gstRate}%</p>
+                        <p>Taxable: ₹{safeNumber(item.taxableValue).toFixed(2)}</p>
+                      </div>
 
-                  <div className="price">
-                    ₹{safeNumber(item.lineTotal).toFixed(2)}
-                  </div>
-                </div>
-              ))}
+                      <div className="price">
+                        ₹{safeNumber(item.lineTotal).toFixed(2)}
+                      </div>
+                    </div>
+                  ))
+                : // Before the order is actually created server-side, show a
+                  // local preview built straight from the cart so the
+                  // customer sees a base-price/GST breakdown up front, not
+                  // only after paying. item.price is GST-inclusive; back the
+                  // base price out the same way displaySummary does.
+                  cart.map((item: any, i: number) => {
+                    const gstPercent = safeNumber(item.gstPercent);
+                    const lineTotal =
+                      safeNumber(item.price) * safeNumber(item.qty);
+                    const lineBase = lineTotal / (1 + gstPercent / 100);
+                    const lineGst = lineTotal - lineBase;
+
+                    return (
+                      <div className="item" key={item.productId || i}>
+                        <div>
+                          <h4>{item.name}</h4>
+                          <p>Qty: {item.qty}</p>
+                          <p>
+                            Base: ₹{lineBase.toFixed(2)} + GST ({gstPercent}%): ₹{lineGst.toFixed(2)}
+                          </p>
+                        </div>
+
+                        <div className="price">
+                          ₹{lineTotal.toFixed(2)}
+                        </div>
+                      </div>
+                    );
+                  })}
             </div>
 
               <div className="summary">
               
                 <div className="summaryRow">
-                  <span>Subtotal</span>
+                  <span>Subtotal (before tax)</span>
+                  <span>
+                    ₹{safeNumber(displaySummary.subtotalBeforeTax).toFixed(2)}
+                  </span>
+                </div>
+
+                <div className="summaryRow">
+                  <span>GST (tax total)</span>
+                  <span>
+                    ₹{displaySummary.gstTotal.toFixed(2)}
+                  </span>
+                </div>
+
+                <div className="summaryRow subtotalRow">
+                  <span>Subtotal (incl. tax)</span>
                   <span>
                     ₹{displaySummary.subtotal.toFixed(2)}
                   </span>
                 </div>
-              
+
                 {displaySummary.discount > 0 && (
                   <div className="summaryRow success">
                     <span>Discount</span>
@@ -777,17 +1026,33 @@ useEffect(() => {
                     </span>
                   </div>
                 )}
-              
-                {/* GST ROW */}
-                {displaySummary.gstTotal > 0 && (
+
+                {/* Small-cart fee + delivery charge -- see lib/constants.ts.
+                    Both waived once the cart subtotal reaches
+                    FREE_SHIPPING_THRESHOLD. */}
+                {safeNumber(displaySummary.smallCartFee) > 0 && (
                   <div className="summaryRow">
-                    <span>GST</span>
+                    <span>Small Cart Fee</span>
                     <span>
-                      ₹{displaySummary.gstTotal.toFixed(2)}
+                      ₹{safeNumber(displaySummary.smallCartFee).toFixed(2)}
                     </span>
                   </div>
                 )}
-              
+
+                {safeNumber(displaySummary.deliveryCharge) > 0 ? (
+                  <div className="summaryRow">
+                    <span>Delivery Charge</span>
+                    <span>
+                      ₹{safeNumber(displaySummary.deliveryCharge).toFixed(2)}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="summaryRow success">
+                    <span>Delivery Charge</span>
+                    <span>FREE</span>
+                  </div>
+                )}
+
                 <div className="grandTotal">
                   <span>Grand Total</span>
                   <span>
@@ -931,6 +1196,66 @@ useEffect(() => {
           display: grid;
           grid-template-columns: 1fr 1fr;
           gap: 12px;
+        }
+
+        .addressPicker {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          margin-bottom: 12px;
+        }
+
+        .addressOption {
+          display: flex;
+          gap: 10px;
+          align-items: flex-start;
+          border: 1px solid #dbe2ea;
+          border-radius: 14px;
+          padding: 12px 14px;
+          cursor: pointer;
+          font-size: 14px;
+          color: #334155;
+          background: white;
+        }
+
+        .addressOption input {
+          width: auto;
+          margin: 3px 0 0;
+        }
+
+        .defaultTag {
+          color: #16a34a;
+          font-style: normal;
+          font-size: 12px;
+        }
+
+        .addNewAddressBtn,
+        .backToSavedBtn {
+          background: none;
+          border: none;
+          padding: 0;
+          color: #111827;
+          font-size: 13px;
+          font-weight: 600;
+          text-decoration: underline;
+          cursor: pointer;
+          text-align: left;
+          margin-bottom: 12px;
+        }
+
+        .saveAddressCheck {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 13px;
+          color: #475569;
+          margin-top: -4px;
+          margin-bottom: 12px;
+        }
+
+        .saveAddressCheck input {
+          width: auto;
+          margin: 0;
         }
 
         .couponRow {

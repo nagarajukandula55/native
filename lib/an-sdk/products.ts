@@ -37,6 +37,18 @@ function toQueryString(params: Record<string, any> = {}) {
  * for every real product (the id resolved to undefined and the handler
  * no-op'd). Rather than hunt down and patch every call site individually,
  * normalize once here so the rest of the app keeps working unmodified.
+ *
+ * `productKey` MUST resolve to a real, queryable product identifier —
+ * angroup's order-creation path (services/product.service.ts on the
+ * backend) looks it up as a NativeProduct `_id`/`slug`. It previously
+ * preferred `p.sku` over the real id here, so any product whose SKU was
+ * set (e.g. the vendor-approval-generated "VND-0000-PRD-0001-V1" format)
+ * sent that human-readable business code as productKey instead of an
+ * actual identifier — angroup has no product queryable by that code, so
+ * checkout 404'd on every such product with "Product not found: ..."
+ * even though the product displayed fine on the storefront (which reads
+ * the same NativeProduct by _id/slug). `id` now wins; `sku` is kept only
+ * as the last-resort fallback for a payload with neither.
  */
 function normalizeProduct(p: any) {
   if (!p || typeof p !== "object") return p;
@@ -46,7 +58,7 @@ function normalizeProduct(p: any) {
     id,
     _id: id,
     mongoId: id,
-    productKey: p.productKey || p.sku || id,
+    productKey: p.productKey || id || p.sku,
   };
 }
 

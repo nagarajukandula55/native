@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useCart } from "@/context/CartContext";
+import { getProductDisplayName } from "@/lib/product";
 import WishlistButton from "./WishlistButton";
 import RelatedProducts from "./RelatedProducts";
 import RecentlyViewed from "./RecentlyViewed";
@@ -62,12 +63,14 @@ export default function ProductView({
       img.replace(/\[|\]/g, "").split(")(")[0]
     ) || [];
 
+  const displayName = getProductDisplayName(product);
+
   const handleAddToCart = () => {
     addToCart({
       _id: product._id,
       productId: product._id,
       productKey: product.productKey,
-      name: product.name,
+      name: displayName,
       slug: product.slug,
       price: sellingPrice,
       mrp,
@@ -89,14 +92,14 @@ export default function ProductView({
 
     if (navigator.share) {
       navigator.share({
-        title: product.name,
-        text: product.name,
+        title: displayName,
+        text: displayName,
         url,
       });
     } else {
       window.open(
         `https://wa.me/?text=${encodeURIComponent(
-          `${product.name}\n${url}`
+          `${displayName}\n${url}`
         )}`,
         "_blank"
       );
@@ -106,7 +109,7 @@ export default function ProductView({
   const structuredData = {
     "@context": "https://schema.org",
     "@type": "Product",
-    name: product?.name,
+    name: displayName,
     image: images,
     description: product?.description,
     brand: {
@@ -154,7 +157,7 @@ export default function ProductView({
             {selectedImage && (
               <img
                 src={selectedImage}
-                alt={product.name}
+                alt={displayName}
                 style={{
                   width: "100%",
                   borderRadius: "12px",
@@ -196,7 +199,7 @@ export default function ProductView({
 
           {/* RIGHT */}
           <div>
-            <h1>{product.name}</h1>
+            <h1>{displayName}</h1>
 
             {product?.vendor && (
               <Link
@@ -344,7 +347,7 @@ export default function ProductView({
                 product={{
                   productId: product._id,
                   slug: product.slug,
-                  name: product.name,
+                  name: displayName,
                   price: sellingPrice,
                   image: selectedImage,
                 }}

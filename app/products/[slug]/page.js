@@ -1,6 +1,7 @@
 import ProductView from "@/components/ProductView";
 import { notFound } from "next/navigation";
 import { getProductBySlug } from "@/lib/an-sdk/products";
+import { getProductDisplayName } from "@/lib/product";
 
 /* ================= METADATA ================= */
 export async function generateMetadata({ params }) {
@@ -18,7 +19,7 @@ export async function generateMetadata({ params }) {
     // falls back metaTitle -> name and metaDescription -> description
     // server-side, so `p.metaTitle`/`p.metaDescription` are effectively
     // always populated; the `||` chains here are just extra safety.
-    const title = p?.metaTitle || p?.name || "Product | Native";
+    const title = p?.metaTitle || getProductDisplayName(p) || "Product | Native";
     const description =
       p?.metaDescription || p?.description || "Authentic natural food product from Native.";
     const url = `https://shopnative.in/products/${p?.slug || params.slug}`;
@@ -91,7 +92,7 @@ export default async function ProductPage({ params }) {
   const productJsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",
-    name: product.name,
+    name: getProductDisplayName(product),
     description: product.metaDescription || product.description || undefined,
     image: product.images?.length ? product.images : undefined,
     sku: product.sku || undefined,

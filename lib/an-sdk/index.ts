@@ -22,3 +22,4 @@ export * as pincode from "./pincode";
 export * as vendors from "./vendors";
 export * as sso from "./sso";
 export * as anu from "./anu";
+export * as addresses from "./addresses";

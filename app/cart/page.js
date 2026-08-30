@@ -3,7 +3,12 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/context/CartContext";
-import { MIN_ORDER_VALUE } from "@/lib/constants";
+import {
+  MIN_ORDER_VALUE,
+  FREE_SHIPPING_THRESHOLD,
+  SMALL_CART_FEE,
+  DELIVERY_CHARGE,
+} from "@/lib/constants";
 
 export default function CartPage() {
   const { cart, updateQty, removeFromCart, cartTotal } = useCart();
@@ -11,6 +16,16 @@ export default function CartPage() {
 
   const belowMinimum = cart.length > 0 && cartTotal < MIN_ORDER_VALUE;
   const amountToMinimum = Math.max(0, MIN_ORDER_VALUE - cartTotal);
+
+  // Small-cart fee + delivery charge -- see lib/constants.ts. Both are
+  // tunable/eventually admin-configurable, and waived once cartTotal
+  // reaches FREE_SHIPPING_THRESHOLD. Shown here as a preview only; the
+  // authoritative breakdown (and the one actually charged) is computed
+  // again on the checkout page.
+  const belowFreeShippingThreshold = cartTotal < FREE_SHIPPING_THRESHOLD;
+  const smallCartFee = belowFreeShippingThreshold ? SMALL_CART_FEE : 0;
+  const deliveryCharge = belowFreeShippingThreshold ? DELIVERY_CHARGE : 0;
+  const estimatedTotal = cartTotal + smallCartFee + deliveryCharge;
 
   return (
     <div className="container">
@@ -69,7 +84,19 @@ export default function CartPage() {
           ))}
 
           <div className="totalRow">
-            <h2>Total: ₹{cartTotal}</h2>
+            <p className="feeLine">
+              <span>Subtotal</span>
+              <span>₹{cartTotal}</span>
+            </p>
+            <p className="feeLine">
+              <span>Small Cart Fee</span>
+              <span>{smallCartFee > 0 ? `₹${smallCartFee}` : "—"}</span>
+            </p>
+            <p className="feeLine">
+              <span>Delivery Charge</span>
+              <span>{deliveryCharge > 0 ? `₹${deliveryCharge}` : "FREE"}</span>
+            </p>
+            <h2>Total: ₹{estimatedTotal}</h2>
 
             {belowMinimum && (
               <p className="warn">
@@ -204,6 +231,15 @@ export default function CartPage() {
         .totalRow h2 {
           margin: 0 0 16px;
           color: #1f3d2b;
+        }
+
+        .feeLine {
+          display: flex;
+          justify-content: flex-end;
+          gap: 16px;
+          margin: 0 0 6px;
+          font-size: 14px;
+          color: #555;
         }
 
         .actions {
