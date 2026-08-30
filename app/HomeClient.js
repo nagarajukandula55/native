@@ -132,37 +132,25 @@ export default function HomeClient() {
     loadBanners();
   }, []);
 
-  // Real product photos (from the live catalogue), used as slideshow
-  // backgrounds when a dedicated hero asset isn't present at /hero/slide-N.jpg
-  // — see HeroSlideshow below for the fallback chain.
-  const heroImages = products.slice(0, 3).map((p) => p.images?.[0]).filter(Boolean);
-
-  // Slide content — each slide expects a full-bleed banner image at
-  // /public/hero/slide-1.jpg, slide-2.jpg, slide-3.jpg. Drop real
-  // photography there (e.g. the product-lineup banner) to replace the
-  // fallback, which reuses real catalogue product photos so the slideshow
-  // never shows a broken image even before those assets exist.
+  // Static fallback slide — used only when the admin hasn't configured any
+  // banners yet (see dynamicSlides below). Previously this pulled real
+  // catalogue product photos (products.slice(0,3).map(p => p.images?.[0])),
+  // which read as a mistake -- a hero banner showing an arbitrary product
+  // shot instead of a real brand/hero image. /public/hero.png is an
+  // existing dedicated hero-style brand asset (not a product photo), so it
+  // -- not any product image -- is the fallback here. Each slide still
+  // tries a dedicated per-slide asset first (/hero/slide-N.jpg, if one is
+  // ever dropped in), falling back to /hero.png, then finally to the flat
+  // brand-color panel in HeroSlideshow if even that fails to load.
   const staticSlides = [
     {
       img: "/hero/slide-1.jpg",
-      fallback: heroImages[0] || "/hero.png",
+      fallback: "/hero.png",
       eyebrow: "REFINED FROM THE SOURCE",
-      heading: "Eat Healthy,\nStay Healthy",
+      heading: "Fresh Groceries,\nDelivered.",
       sub: "100% Natural | No Preservatives | Traditional & Healthy",
-    },
-    {
-      img: "/hero/slide-2.jpg",
-      fallback: heroImages[1] || heroImages[0] || "/hero.png",
-      eyebrow: "STONE-GROUND · SUN-DRIED",
-      heading: "Traditional Recipes,\nModern Convenience",
-      sub: "Sourced directly from farmers across India — no shortcuts, no additives.",
-    },
-    {
-      img: "/hero/slide-3.jpg",
-      fallback: heroImages[2] || heroImages[0] || "/hero.png",
-      eyebrow: "FSSAI CERTIFIED",
-      heading: "Every Pack,\nNaturally Made",
-      sub: "From our kitchens to yours — nutrition without compromise.",
+      ctaText: "SHOP NOW",
+      ctaLink: "/products",
     },
   ];
 

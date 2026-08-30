@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/context/CartContext";
@@ -9,22 +10,49 @@ import {
   SMALL_CART_FEE,
   DELIVERY_CHARGE,
 } from "@/lib/constants";
+import { getStoreSettings } from "@/lib/an-sdk/storeSettings";
 
 export default function CartPage() {
   const { cart, updateQty, removeFromCart, cartTotal } = useCart();
   const router = useRouter();
 
-  const belowMinimum = cart.length > 0 && cartTotal < MIN_ORDER_VALUE;
-  const amountToMinimum = Math.max(0, MIN_ORDER_VALUE - cartTotal);
+  // Pricing settings -- default to the current lib/constants.ts values so
+  // there's no flash of $0/unset pricing while getStoreSettings() resolves,
+  // then swap in the admin-configured values once fetched (see
+  // lib/an-sdk/storeSettings.ts; falls back to these same constants on
+  // error, so this is safe either way).
+  const [settings, setSettings] = useState({
+    minOrderValue: MIN_ORDER_VALUE,
+    freeShippingThreshold: FREE_SHIPPING_THRESHOLD,
+    smallCartFee: SMALL_CART_FEE,
+    deliveryCharge: DELIVERY_CHARGE,
+  });
+
+  useEffect(() => {
+    let cancelled = false;
+
+    getStoreSettings().then((res) => {
+      if (!cancelled && res.success) {
+        setSettings(res.settings);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const belowMinimum = cart.length > 0 && cartTotal < settings.minOrderValue;
+  const amountToMinimum = Math.max(0, settings.minOrderValue - cartTotal);
 
   // Small-cart fee + delivery charge -- see lib/constants.ts. Both are
   // tunable/eventually admin-configurable, and waived once cartTotal
   // reaches FREE_SHIPPING_THRESHOLD. Shown here as a preview only; the
   // authoritative breakdown (and the one actually charged) is computed
   // again on the checkout page.
-  const belowFreeShippingThreshold = cartTotal < FREE_SHIPPING_THRESHOLD;
-  const smallCartFee = belowFreeShippingThreshold ? SMALL_CART_FEE : 0;
-  const deliveryCharge = belowFreeShippingThreshold ? DELIVERY_CHARGE : 0;
+  const belowFreeShippingThreshold = cartTotal < settings.freeShippingThreshold;
+  const smallCartFee = belowFreeShippingThreshold ? settings.smallCartFee : 0;
+  const deliveryCharge = belowFreeShippingThreshold ? settings.deliveryCharge : 0;
   const estimatedTotal = cartTotal + smallCartFee + deliveryCharge;
 
   return (
@@ -100,7 +128,7 @@ export default function CartPage() {
 
             {belowMinimum && (
               <p className="warn">
-                Add ₹{amountToMinimum} more to reach the ₹{MIN_ORDER_VALUE} minimum order value
+                Add ₹{amountToMinimum} more to reach the ₹{settings.minOrderValue} minimum order value
               </p>
             )}
 

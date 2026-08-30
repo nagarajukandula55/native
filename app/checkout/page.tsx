@@ -27,6 +27,7 @@ import {
   SMALL_CART_FEE,
   DELIVERY_CHARGE,
 } from "@/lib/constants";
+import { getStoreSettings } from "@/lib/an-sdk/storeSettings";
 
 declare global {
   interface Window {
@@ -79,6 +80,32 @@ export default function CheckoutPage() {
   ========================================================= */
 
   const [loading, setLoading] = useState(false);
+
+  // Pricing settings -- default to the current lib/constants.ts values so
+  // there's no flash of $0/unset pricing while getStoreSettings() resolves,
+  // then swap in the admin-configured values once fetched (see
+  // lib/an-sdk/storeSettings.ts; falls back to these same constants on
+  // error, so this is safe either way).
+  const [storeSettings, setStoreSettings] = useState({
+    minOrderValue: MIN_ORDER_VALUE,
+    freeShippingThreshold: FREE_SHIPPING_THRESHOLD,
+    smallCartFee: SMALL_CART_FEE,
+    deliveryCharge: DELIVERY_CHARGE,
+  });
+
+  useEffect(() => {
+    let cancelled = false;
+
+    getStoreSettings().then((res) => {
+      if (!cancelled && res.success) {
+        setStoreSettings(res.settings);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Set once an order is actually created server-side (with a Razorpay
   // order attached) and cleared only on success -- so a failed/cancelled
@@ -487,12 +514,12 @@ useEffect(() => {
         // shipping threshold. See lib/constants.ts -- both are tunable and
         // meant to eventually move to an admin-configurable setting.
         const belowFreeShippingThreshold =
-          subtotal < FREE_SHIPPING_THRESHOLD;
+          subtotal < storeSettings.freeShippingThreshold;
         const smallCartFee = belowFreeShippingThreshold
-          ? SMALL_CART_FEE
+          ? storeSettings.smallCartFee
           : 0;
         const deliveryCharge = belowFreeShippingThreshold
-          ? DELIVERY_CHARGE
+          ? storeSettings.deliveryCharge
           : 0;
 
         return {
@@ -507,7 +534,7 @@ useEffect(() => {
             smallCartFee +
             deliveryCharge,
         };
-      }, [summary, cart, couponData]);
+      }, [summary, cart, couponData, storeSettings]);
 
   /* =========================================================
      VALIDATION
@@ -548,9 +575,9 @@ useEffect(() => {
       // below the minimum, but a stale cart state or direct navigation to
       // /checkout could still land here under the threshold, so re-check
       // before placing the order.
-      if (displaySummary.subtotal < MIN_ORDER_VALUE) {
+      if (displaySummary.subtotal < storeSettings.minOrderValue) {
         alert(
-          `Add ₹${(MIN_ORDER_VALUE - displaySummary.subtotal).toFixed(2)} more to reach the ₹${MIN_ORDER_VALUE} minimum order value`
+          `Add ₹${(storeSettings.minOrderValue - displaySummary.subtotal).toFixed(2)} more to reach the ₹${storeSettings.minOrderValue} minimum order value`
         );
         return;
       }
@@ -1074,16 +1101,16 @@ useEffect(() => {
               </div>
             )}
 
-            {displaySummary.subtotal < MIN_ORDER_VALUE && (
+            {displaySummary.subtotal < storeSettings.minOrderValue && (
               <p className="warn">
-                Add ₹{(MIN_ORDER_VALUE - displaySummary.subtotal).toFixed(2)} more to reach the ₹{MIN_ORDER_VALUE} minimum order value
+                Add ₹{(storeSettings.minOrderValue - displaySummary.subtotal).toFixed(2)} more to reach the ₹{storeSettings.minOrderValue} minimum order value
               </p>
             )}
 
             <button
               className="payBtn"
               onClick={handlePay}
-              disabled={loading || displaySummary.subtotal < MIN_ORDER_VALUE}
+              disabled={loading || displaySummary.subtotal < storeSettings.minOrderValue}
             >
               {loading
                 ? "Processing..."
