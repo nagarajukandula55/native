@@ -34,11 +34,13 @@ export default function ProductView({
   const mrp =
     selectedVariant?.mrp ??
     product?.mrp ??
+    product?.price ??
     0;
 
   const sellingPrice =
     selectedVariant?.sellingPrice ??
     product?.sellingPrice ??
+    product?.price ??
     0;
 
   // Stock is tracked per-variant when variants exist, else on the product

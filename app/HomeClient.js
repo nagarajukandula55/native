@@ -89,7 +89,17 @@ export default function HomeClient() {
       setCategoriesLoading(true);
       try {
         const data = await getCategories();
-        setCategories((data?.categories || []).slice(0, 4));
+        // /api/categories now returns every active admin category, including
+        // ones with zero live products (previously filtered out server-side).
+        // The homepage only has room for 4 tiles, so prefer categories that
+        // actually have something to sell; ties (and the all-zero case)
+        // fall back to name order, matching the API's own sort.
+        const sorted = [...(data?.categories || [])].sort((a, b) => {
+          const byCount = (b.productCount || 0) - (a.productCount || 0);
+          if (byCount !== 0) return byCount;
+          return (a.name || "").localeCompare(b.name || "");
+        });
+        setCategories(sorted.slice(0, 4));
       } catch (err) {
         console.error("Category fetch error:", err);
         setCategories([]);
@@ -252,8 +262,13 @@ export default function HomeClient() {
                     <span className="catTileIcon">{cat.icon || iconForCategory(cat.name)}</span>
                   )}
                   <div className="catTileOverlay">
-                    <span className="catTileName">{(cat.name || "").toUpperCase()}</span>
-                    <span className="catTileCta">SHOP NOW</span>
+                    <span className="catTileName">
+                      {(cat.name || "").toUpperCase()}
+                      {typeof cat.productCount === "number" ? ` (${cat.productCount})` : ""}
+                    </span>
+                    <span className="catTileCta">
+                      {cat.productCount === 0 ? "COMING SOON" : "SHOP NOW"}
+                    </span>
                   </div>
                 </Link>
               );

@@ -6,7 +6,8 @@ import { useRouter } from "next/navigation";
 import { useCart } from "@/context/CartContext";
 import {
   MIN_ORDER_VALUE,
-  FREE_SHIPPING_THRESHOLD,
+  SMALL_CART_FEE_THRESHOLD,
+  DELIVERY_CHARGE_THRESHOLD,
   SMALL_CART_FEE,
   DELIVERY_CHARGE,
 } from "@/lib/constants";
@@ -23,7 +24,8 @@ export default function CartPage() {
   // error, so this is safe either way).
   const [settings, setSettings] = useState({
     minOrderValue: MIN_ORDER_VALUE,
-    freeShippingThreshold: FREE_SHIPPING_THRESHOLD,
+    smallCartFeeThreshold: SMALL_CART_FEE_THRESHOLD,
+    deliveryChargeThreshold: DELIVERY_CHARGE_THRESHOLD,
     smallCartFee: SMALL_CART_FEE,
     deliveryCharge: DELIVERY_CHARGE,
   });
@@ -46,13 +48,16 @@ export default function CartPage() {
   const amountToMinimum = Math.max(0, settings.minOrderValue - cartTotal);
 
   // Small-cart fee + delivery charge -- see lib/constants.ts. Both are
-  // tunable/eventually admin-configurable, and waived once cartTotal
-  // reaches FREE_SHIPPING_THRESHOLD. Shown here as a preview only; the
+  // tunable/eventually admin-configurable, and gated independently: the
+  // small cart fee is waived once cartTotal reaches
+  // SMALL_CART_FEE_THRESHOLD, and delivery charge is waived once cartTotal
+  // reaches DELIVERY_CHARGE_THRESHOLD. Shown here as a preview only; the
   // authoritative breakdown (and the one actually charged) is computed
   // again on the checkout page.
-  const belowFreeShippingThreshold = cartTotal < settings.freeShippingThreshold;
-  const smallCartFee = belowFreeShippingThreshold ? settings.smallCartFee : 0;
-  const deliveryCharge = belowFreeShippingThreshold ? settings.deliveryCharge : 0;
+  const belowSmallCartFeeThreshold = cartTotal < settings.smallCartFeeThreshold;
+  const belowDeliveryChargeThreshold = cartTotal < settings.deliveryChargeThreshold;
+  const smallCartFee = belowSmallCartFeeThreshold ? settings.smallCartFee : 0;
+  const deliveryCharge = belowDeliveryChargeThreshold ? settings.deliveryCharge : 0;
   const estimatedTotal = cartTotal + smallCartFee + deliveryCharge;
 
   return (

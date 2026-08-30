@@ -9,18 +9,24 @@
 // configured independently (see lib/an-sdk/groceries.ts).
 export const MIN_ORDER_VALUE = 499;
 
-// Cart subtotal (in ₹) below which the small-cart fee and delivery charge
-// below kick in. Once the subtotal reaches this threshold, both are waived.
-// Tunable/eventually admin-configurable (same caveat as MIN_ORDER_VALUE
-// above) -- move into a business-settings API call when that exists.
-export const FREE_SHIPPING_THRESHOLD = 999;
+// Cart subtotal (in ₹) at/above which the small-cart fee is waived.
+// Independent from DELIVERY_CHARGE_THRESHOLD below -- these are two
+// separate gates, not a shared one. Tunable/eventually admin-configurable
+// (same caveat as MIN_ORDER_VALUE above) -- move into a business-settings
+// API call when that exists.
+export const SMALL_CART_FEE_THRESHOLD = 499;
 
-// Flat fee (in ₹) applied to carts below FREE_SHIPPING_THRESHOLD to offset
+// Cart subtotal (in ₹) at/above which the delivery charge is waived.
+// Independent from SMALL_CART_FEE_THRESHOLD above. Tunable/eventually
+// admin-configurable.
+export const DELIVERY_CHARGE_THRESHOLD = 999;
+
+// Flat fee (in ₹) applied to carts below SMALL_CART_FEE_THRESHOLD to offset
 // the fixed cost of handling a small order. Tunable/eventually
 // admin-configurable.
 export const SMALL_CART_FEE = 25;
 
-// Flat delivery charge (in ₹) applied to carts below FREE_SHIPPING_THRESHOLD.
-// Free at/above FREE_SHIPPING_THRESHOLD. Tunable/eventually
+// Flat delivery charge (in ₹) applied to carts below
+// DELIVERY_CHARGE_THRESHOLD. Free at/above that threshold. Tunable/eventually
 // admin-configurable.
 export const DELIVERY_CHARGE = 49;

@@ -23,7 +23,8 @@ import {
 import { getStoredPincode, setStoredPincode } from "@/lib/pincode";
 import {
   MIN_ORDER_VALUE,
-  FREE_SHIPPING_THRESHOLD,
+  SMALL_CART_FEE_THRESHOLD,
+  DELIVERY_CHARGE_THRESHOLD,
   SMALL_CART_FEE,
   DELIVERY_CHARGE,
 } from "@/lib/constants";
@@ -88,7 +89,8 @@ export default function CheckoutPage() {
   // error, so this is safe either way).
   const [storeSettings, setStoreSettings] = useState({
     minOrderValue: MIN_ORDER_VALUE,
-    freeShippingThreshold: FREE_SHIPPING_THRESHOLD,
+    smallCartFeeThreshold: SMALL_CART_FEE_THRESHOLD,
+    deliveryChargeThreshold: DELIVERY_CHARGE_THRESHOLD,
     smallCartFee: SMALL_CART_FEE,
     deliveryCharge: DELIVERY_CHARGE,
   });
@@ -513,12 +515,15 @@ useEffect(() => {
         // adjustment) cart subtotal, waived once it reaches the free-
         // shipping threshold. See lib/constants.ts -- both are tunable and
         // meant to eventually move to an admin-configurable setting.
-        const belowFreeShippingThreshold =
-          subtotal < storeSettings.freeShippingThreshold;
-        const smallCartFee = belowFreeShippingThreshold
+        // Small cart fee and delivery charge are gated independently.
+        const belowSmallCartFeeThreshold =
+          subtotal < storeSettings.smallCartFeeThreshold;
+        const belowDeliveryChargeThreshold =
+          subtotal < storeSettings.deliveryChargeThreshold;
+        const smallCartFee = belowSmallCartFeeThreshold
           ? storeSettings.smallCartFee
           : 0;
-        const deliveryCharge = belowFreeShippingThreshold
+        const deliveryCharge = belowDeliveryChargeThreshold
           ? storeSettings.deliveryCharge
           : 0;
 
@@ -1055,8 +1060,9 @@ useEffect(() => {
                 )}
 
                 {/* Small-cart fee + delivery charge -- see lib/constants.ts.
-                    Both waived once the cart subtotal reaches
-                    FREE_SHIPPING_THRESHOLD. */}
+                    Small cart fee waived once the cart subtotal reaches
+                    SMALL_CART_FEE_THRESHOLD; delivery charge waived once it
+                    reaches DELIVERY_CHARGE_THRESHOLD. */}
                 {safeNumber(displaySummary.smallCartFee) > 0 && (
                   <div className="summaryRow">
                     <span>Small Cart Fee</span>

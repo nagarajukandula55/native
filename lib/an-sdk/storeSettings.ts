@@ -1,21 +1,24 @@
 import { anGet } from "./client";
 import {
   MIN_ORDER_VALUE,
-  FREE_SHIPPING_THRESHOLD,
+  SMALL_CART_FEE_THRESHOLD,
+  DELIVERY_CHARGE_THRESHOLD,
   SMALL_CART_FEE,
   DELIVERY_CHARGE,
 } from "../constants";
 
 export type StoreSettings = {
   minOrderValue: number;
-  freeShippingThreshold: number;
+  smallCartFeeThreshold: number;
+  deliveryChargeThreshold: number;
   smallCartFee: number;
   deliveryCharge: number;
 };
 
 const FALLBACK_SETTINGS: StoreSettings = {
   minOrderValue: MIN_ORDER_VALUE,
-  freeShippingThreshold: FREE_SHIPPING_THRESHOLD,
+  smallCartFeeThreshold: SMALL_CART_FEE_THRESHOLD,
+  deliveryChargeThreshold: DELIVERY_CHARGE_THRESHOLD,
   smallCartFee: SMALL_CART_FEE,
   deliveryCharge: DELIVERY_CHARGE,
 };
@@ -26,7 +29,8 @@ const FALLBACK_SETTINGS: StoreSettings = {
  * no auth required, safe to call from the cart/checkout pages.
  *
  * Expected shape: { success: true, settings: { minOrderValue,
- * freeShippingThreshold, smallCartFee, deliveryCharge } }. Any failure
+ * smallCartFeeThreshold, deliveryChargeThreshold, smallCartFee,
+ * deliveryCharge } }. Any failure
  * falls back to the current lib/constants.ts values so cart/checkout
  * pricing never breaks or flashes $0 if this call fails.
  */
@@ -44,10 +48,14 @@ export async function getStoreSettings(): Promise<{
           typeof settings.minOrderValue === "number"
             ? settings.minOrderValue
             : FALLBACK_SETTINGS.minOrderValue,
-        freeShippingThreshold:
-          typeof settings.freeShippingThreshold === "number"
-            ? settings.freeShippingThreshold
-            : FALLBACK_SETTINGS.freeShippingThreshold,
+        smallCartFeeThreshold:
+          typeof settings.smallCartFeeThreshold === "number"
+            ? settings.smallCartFeeThreshold
+            : FALLBACK_SETTINGS.smallCartFeeThreshold,
+        deliveryChargeThreshold:
+          typeof settings.deliveryChargeThreshold === "number"
+            ? settings.deliveryChargeThreshold
+            : FALLBACK_SETTINGS.deliveryChargeThreshold,
         smallCartFee:
           typeof settings.smallCartFee === "number"
             ? settings.smallCartFee
