@@ -53,7 +53,7 @@ const validatePhone = (phone: string) => {
 };
 
 const validateEmail = (email: string) => {
-  if (!email) return true;
+  if (!email) return false;
 
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
     email
@@ -555,7 +555,7 @@ useEffect(() => {
     }
 
     if (!validateEmail(form.email)) {
-      newErrors.email = "Invalid email";
+      newErrors.email = form.email ? "Invalid email" : "Email required";
     }
 
     if (!form.address) newErrors.address = "Address required";
@@ -862,13 +862,14 @@ useEffect(() => {
             <div className="section">
               <h3>Customer Details</h3>
 
-              <input name="name" value={form.name} onChange={handleChange} placeholder="Full Name" />
+              <input name="name" value={form.name} onChange={handleChange} placeholder="Full Name" required />
               {errors.name && <p className="error">{errors.name}</p>}
 
-              <input name="phone" value={form.phone} onChange={handleChange} placeholder="Phone Number" />
+              <input name="phone" value={form.phone} onChange={handleChange} placeholder="Phone Number" required />
               {errors.phone && <p className="error">{errors.phone}</p>}
 
-              <input name="email" value={form.email} onChange={handleChange} placeholder="Email Address" />
+              <input name="email" type="email" value={form.email} onChange={handleChange} placeholder="Email Address *" required />
+              {errors.email && <p className="error">{errors.email}</p>}
             </div>
 
             <div className="section">
