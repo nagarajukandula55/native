@@ -30,13 +30,23 @@ Every scoped ANgroup route (products, vendors, coupons, ...) needs to know
 which business a request is acting as. `lib/an-sdk/client.ts` attaches
 `NEXT_PUBLIC_AN_BUSINESS_ID` as both a `businessId` query param and an
 `x-business-id` header on every request automatically — but **that value
-has to actually exist as a `Business` record in ANgroup**. Confirmed
-(2026) as `6a53e91f13ec6a86d3ccee44` and set in local `.env.local` — two
-earlier, different values (`6a5123a8e42b06cdcdec0bcf`,
-`6a4abddcf35feedb2392f556`) had been recorded at different points and are
-now stale. Whatever hosts this in production needs its own
-`NEXT_PUBLIC_AN_BUSINESS_ID` env var set to this same confirmed value —
-`.env.local` only affects local dev/build on this machine.
+has to actually exist as a `Business` record in ANgroup**.
+
+The real, canonical ID is `6a6ee535ade462a305633936` — this is
+`NATIVE_BUSINESS_ID` as hardcoded in ANgroup's own
+`src/lib/nativeBusiness.ts` ("the one AN Group business record that the
+Native storefront ... is scoped to") and copied verbatim into
+native-admin's `lib/nativeBusiness.ts`. A previous version of this doc
+claimed `6a53e91f13ec6a86d3ccee44` was the "confirmed (2026)" value —
+that was wrong: ANgroup's own `scripts/seedSampleData.ts` labels that ID
+`ECOM_BIZ // "E Commerce"`, a generic sample business, not Native. Local
+`.env.local` and this doc are now corrected to
+`6a6ee535ade462a305633936`. Two other earlier, different values
+(`6a5123a8e42b06cdcdec0bcf`, `6a4abddcf35feedb2392f556`) had also been
+recorded at different points and are stale too. Whatever hosts this in
+production needs its own `NEXT_PUBLIC_AN_BUSINESS_ID` env var set to
+`6a6ee535ade462a305633936` — `.env.local` only affects local dev/build on
+this machine.
 
 `client.ts` also sends `credentials: "include"` on every request, because
 ANgroup's auth is an httpOnly cookie (`an_token`) verified by its own
