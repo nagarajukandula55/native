@@ -3,7 +3,7 @@
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { anGet, anPost } from "@/lib/an-sdk/client";
+import { anGet } from "@/lib/an-sdk/client";
 import { notifyAccounting } from "@/lib/accounting-sync";
 
 // Every other data call in this app routes through lib/an-sdk (which reads
@@ -107,7 +107,16 @@ export default function OrderSuccessClient() {
     try {
       setInvoiceLoading(true);
 
-      const data = await anPost("/api/invoice/generate", { orderId: id });
+      // Goes through this app's own /api/invoice/generate proxy (holds the
+      // service key server-side) rather than anPost() straight to ANgroup
+      // -- a customer here has no ANgroup staff session, which is what
+      // that route required until the service-key path was added.
+      const res = await fetch("/api/invoice/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId: id }),
+      });
+      const data = await res.json();
 
       if (data?.success) {
         setInvoice({
