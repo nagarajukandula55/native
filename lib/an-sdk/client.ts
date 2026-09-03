@@ -12,7 +12,18 @@
  * compliant backend is a pure config change.
  */
 
-const AN_API = process.env.NEXT_PUBLIC_AN_API || "";
+// The bare "angroup.in" domain 307-redirects to "www.angroup.in", but that
+// redirect response itself carries no CORS headers — a credentialed
+// cross-origin fetch() (this file always sends credentials: "include")
+// fails right at the redirect hop and never reaches the www host at all,
+// even though www.angroup.in's own CORS config is correct. Normalizing
+// here means every API call works regardless of which host
+// NEXT_PUBLIC_AN_API happens to be set to in a given deployment.
+function normalizeApiBase(url: string): string {
+  return url.replace(/^https?:\/\/angroup\.in/i, "https://www.angroup.in");
+}
+
+const AN_API = normalizeApiBase(process.env.NEXT_PUBLIC_AN_API || "");
 
 // ANgroup is a multi-business backend: every scoped route (products,
 // vendors, coupons, ...) needs to know which business the request is
