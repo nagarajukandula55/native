@@ -78,6 +78,36 @@ export default function DownloadPage() {
         </div>
       </div>
 
+      <h2 className="teamHeading">For our team</h2>
+      <p className="sub">
+        These install the same way — straight from the browser, no app store. Each opens its own app&apos;s site to
+        install, since a browser can only install the app it&apos;s currently on.
+      </p>
+
+      <div className="grid">
+        <div className="card">
+          <div className="badge live">Available now</div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/brand/AN_Group_Favicon_256px.png" alt="AN Group Vendor Portal" className="appIcon" />
+          <h2>Vendor Portal</h2>
+          <p>For vendors managing their own products, orders, inventory, and payouts on the AN Group platform.</p>
+          <a className="btn primary" href="https://www.angroup.in/vendor/download">
+            Open Install Page →
+          </a>
+        </div>
+
+        <div className="card">
+          <div className="badge live">Available now</div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/brand/native_logo_256.png" alt="Native Executive" className="appIcon" />
+          <h2>Native Executive</h2>
+          <p>For field executives managing deliveries and order updates on the go.</p>
+          <a className="btn primary" href="https://admin.shopnative.in/executive/download">
+            Open Install Page →
+          </a>
+        </div>
+      </div>
+
       {showIosHelp && (
         <div className="iosHelp" onClick={() => setShowIosHelp(false)}>
           <div className="iosCard" onClick={(e) => e.stopPropagation()}>
@@ -90,6 +120,7 @@ export default function DownloadPage() {
       <style jsx>{`
         .container { max-width: 900px; margin: 40px auto; padding: 0 20px 60px; text-align: center; }
         h1 { margin: 0 0 8px; }
+        .teamHeading { margin: 56px 0 8px; font-size: 22px; }
         .sub { color: #666; max-width: 560px; margin: 0 auto 32px; }
         .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; }
         .card {
@@ -110,6 +141,7 @@ export default function DownloadPage() {
         .btn {
           margin-top: 8px; padding: 11px 22px; border-radius: 30px; border: none;
           font-weight: 700; font-size: 14px; cursor: pointer; width: 100%;
+          display: inline-block; text-decoration: none; box-sizing: border-box;
         }
         .btn.primary { background: #1f3d2b; color: #fff; }
         .btn.primary:hover { background: #16301f; }
