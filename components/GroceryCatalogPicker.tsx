@@ -4,32 +4,36 @@ import { useEffect, useMemo, useState } from "react";
 import { getGroceryItems, GroceryItem, GroceryOrderItemInput } from "@/lib/an-sdk/groceries";
 
 /**
- * Browsable catalogue grid for Monthly Groceries / Santha item picking.
- * Fetches GroceryItem catalog entries (image, name, description, unit --
- * deliberately NO price, see models/GroceryItem.ts) and lets the customer
- * pick a quantity per item. On "Add" it converts the pick into the same
- * {name, quantity, unit, notes} shape the order-creation API already
- * expects, via onAdd — no backend contract change.
+ * Browsable catalogue grid for Monthly Groceries / Santha item picking --
+ * Zepto/Blinkit-style tap-to-add cards with a quantity stepper, not a
+ * separate "type a number then click Add" step. Fetches GroceryItem
+ * catalog entries (image, name, description, unit -- deliberately NO
+ * price, see models/GroceryItem.ts) for the given shop (GROCERY only --
+ * master list + that shop's own items, see getGroceryItems's doc comment)
+ * or the flat Santha catalog. `onAdd` is called with the item's new
+ * ABSOLUTE quantity (0 = removed) so the parent can upsert-by-name into
+ * its own item list rather than appending a duplicate row per click.
  */
 export default function GroceryCatalogPicker({
   type,
+  shopId,
   onAdd,
 }: {
   type: "GROCERY" | "SANTHA";
+  shopId?: string;
   onAdd: (item: GroceryOrderItemInput) => void;
 }) {
   const [items, setItems] = useState<GroceryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [qty, setQty] = useState<Record<string, number>>({});
-  const [added, setAdded] = useState<Record<string, boolean>>({});
+  const [cartQty, setCartQty] = useState<Record<string, number>>({});
   const [activeCategory, setActiveCategory] = useState<string>("All");
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError("");
-    getGroceryItems(type)
+    getGroceryItems(type, undefined, shopId)
       .then((list) => {
         if (cancelled) return;
         setItems(list);
@@ -44,7 +48,7 @@ export default function GroceryCatalogPicker({
     return () => {
       cancelled = true;
     };
-  }, [type]);
+  }, [type, shopId]);
 
   const categories = useMemo(() => {
     const set = new Set(items.map((i) => i.category).filter(Boolean));
@@ -53,11 +57,9 @@ export default function GroceryCatalogPicker({
 
   const visible = activeCategory === "All" ? items : items.filter((i) => i.category === activeCategory);
 
-  function handleAdd(item: GroceryItem) {
-    const quantity = qty[item._id] || 1;
+  function setQuantity(item: GroceryItem, quantity: number) {
+    setCartQty((prev) => ({ ...prev, [item._id]: quantity }));
     onAdd({ name: item.name, quantity, unit: item.unit, notes: "" });
-    setAdded((prev) => ({ ...prev, [item._id]: true }));
-    window.setTimeout(() => setAdded((prev) => ({ ...prev, [item._id]: false })), 1500);
   }
 
   if (loading) return <p>Loading catalogue…</p>;
@@ -98,17 +100,21 @@ export default function GroceryCatalogPicker({
               <p className="unit">Unit: {item.unit}</p>
             </div>
             <div className="pickRow">
-              <input
-                type="number"
-                min={0.5}
-                step="any"
-                value={qty[item._id] ?? 1}
-                onChange={(e) => setQty((prev) => ({ ...prev, [item._id]: Number(e.target.value) }))}
-                className="qtyInput"
-              />
-              <button type="button" className="addBtn" onClick={() => handleAdd(item)}>
-                {added[item._id] ? "Added ✓" : "+ Add"}
-              </button>
+              {cartQty[item._id] > 0 ? (
+                <div className="stepper">
+                  <button type="button" className="stepBtn" onClick={() => setQuantity(item, Math.max(0, (cartQty[item._id] || 0) - 1))}>
+                    −
+                  </button>
+                  <span className="stepQty">{cartQty[item._id]}</span>
+                  <button type="button" className="stepBtn" onClick={() => setQuantity(item, (cartQty[item._id] || 0) + 1)}>
+                    +
+                  </button>
+                </div>
+              ) : (
+                <button type="button" className="addBtn" onClick={() => setQuantity(item, 1)}>
+                  + Add
+                </button>
+              )}
             </div>
           </div>
         ))}
@@ -207,23 +213,44 @@ export default function GroceryCatalogPicker({
           gap: 6px;
           padding: 8px 10px 10px;
         }
-        .qtyInput {
-          width: 100%;
-          padding: 6px 8px;
-          border: 1px solid #ddd;
-          border-radius: 6px;
-          font-size: 13px;
-        }
         .addBtn {
+          width: 100%;
           white-space: nowrap;
-          border: none;
-          background: #c28b45;
-          color: #fff;
-          padding: 6px 10px;
-          border-radius: 6px;
+          border: 1px solid #c28b45;
+          background: #fff;
+          color: #c28b45;
+          padding: 7px 10px;
+          border-radius: 8px;
           font-size: 12px;
-          font-weight: 600;
+          font-weight: 700;
           cursor: pointer;
+        }
+        .stepper {
+          width: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          background: #c28b45;
+          border-radius: 8px;
+          overflow: hidden;
+        }
+        .stepBtn {
+          border: none;
+          background: transparent;
+          color: #fff;
+          font-size: 16px;
+          font-weight: 700;
+          width: 30px;
+          height: 30px;
+          cursor: pointer;
+          line-height: 1;
+        }
+        .stepQty {
+          color: #fff;
+          font-size: 13px;
+          font-weight: 700;
+          min-width: 20px;
+          text-align: center;
         }
       `}</style>
     </div>

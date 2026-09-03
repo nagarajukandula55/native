@@ -60,16 +60,21 @@ export type GroceryItem = {
 };
 
 /**
- * GET /api/grocery-items?type=&businessId= — browsable catalogue items for
- * Monthly Groceries ("GROCERY") or Santha ("SANTHA"). No price field on
- * these -- catalog items are for visual/reference picking only, the real
- * amount always comes from the field executive's on-site quote. Picked
- * items get converted client-side into the usual
+ * GET /api/grocery-items?type=&businessId=&shopId= — browsable catalogue
+ * items for Monthly Groceries ("GROCERY") or Santha ("SANTHA"). No price
+ * field on these -- catalog items are for visual/reference picking only,
+ * the real amount always comes from the field executive's on-site quote.
+ * Picked items get converted client-side into the usual
  * {name, quantity, unit, notes} shape createGroceryOrder already expects.
+ *
+ * shopId (GROCERY only): once a shop is picked, angroup returns the
+ * master/global catalog PLUS that shop's own extra items -- see the
+ * shopId doc comment on angroup's GroceryItem model. Omit for Santha
+ * (flat catalog, no shop concept) or before a shop is chosen.
  */
-export async function getGroceryItems(type: "GROCERY" | "SANTHA", businessId?: string) {
+export async function getGroceryItems(type: "GROCERY" | "SANTHA", businessId?: string, shopId?: string) {
   const data = await anGet(
-    `/api/grocery-items${toQueryString({ type, businessId: businessId || undefined, isActive: true })}`
+    `/api/grocery-items${toQueryString({ type, businessId: businessId || undefined, shopId: shopId || undefined, isActive: true })}`
   );
   return (data?.data || []) as GroceryItem[];
 }

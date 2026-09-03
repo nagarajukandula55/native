@@ -62,12 +62,24 @@ export default function MonthlyGroceriesPage() {
   const addRow = () => setRows((prev) => [...prev, emptyRow()]);
   const removeRow = (idx: number) => setRows((prev) => prev.filter((_, i) => i !== idx));
 
-  // Catalog picks land in the same `rows` list — a picked item just fills
-  // in the next blank row (or appends a new one) rather than requiring a
-  // separate list, so the existing free-text rows below double as both
-  // "custom item" entry and the review list for catalog picks.
+  // Catalog picks land in the same `rows` list, upserted by name (like a
+  // real cart) — the picker now sends the item's new ABSOLUTE quantity on
+  // every stepper +/- tap (not "add one more row per click"), including 0
+  // to remove it. The existing free-text rows still double as the review
+  // list for catalog picks, so nothing about order submission changes.
   const addCatalogPick = (picked: Row) => {
     setRows((prev) => {
+      const idx = prev.findIndex((r) => r.name.trim().toLowerCase() === picked.name.trim().toLowerCase());
+      if (picked.quantity <= 0) {
+        if (idx === -1) return prev;
+        const next = prev.filter((_, i) => i !== idx);
+        return next.length ? next : [emptyRow()];
+      }
+      if (idx !== -1) {
+        const next = [...prev];
+        next[idx] = { ...next[idx], quantity: picked.quantity, unit: picked.unit };
+        return next;
+      }
       const blankIdx = prev.findIndex((r) => !r.name);
       if (blankIdx !== -1) {
         const next = [...prev];
@@ -181,7 +193,11 @@ export default function MonthlyGroceriesPage() {
           Prices aren't shown — the shop visited by our executive will send back a real quote for
           exactly what you pick.
         </p>
-        <GroceryCatalogPicker type="GROCERY" onAdd={addCatalogPick} />
+        {selectedShopId ? (
+          <GroceryCatalogPicker key={selectedShopId} type="GROCERY" shopId={selectedShopId} onAdd={addCatalogPick} />
+        ) : (
+          <p className="catalogHint">Choose a shop above to see its item catalogue.</p>
+        )}
       </div>
 
       <form className="section" onSubmit={handleSubmit}>
