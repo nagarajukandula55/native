@@ -127,6 +127,7 @@ export default function Navbar({ logoUrl } = {}) {
                   greying the link out. */}
               <NavLink href="/groceries" label="Groceries" pathname={pathname} />
               <NavLink href="/santha" label="Santha" pathname={pathname} />
+              <NavLink href="/live-market" label="Live Market" pathname={pathname} />
               <NavLink href="/track" label="Track" pathname={pathname} />
               {/* Blog nav hidden per explicit direction -- to be
                   implemented/re-enabled later. Page itself (app/blog)
@@ -172,6 +173,9 @@ export default function Navbar({ logoUrl } = {}) {
                       <Link href="/santha/orders" onClick={() => setAccountOpen(false)}>
                         My Santha Orders
                       </Link>
+                      <Link href="/live-market/orders" onClick={() => setAccountOpen(false)}>
+                        My Live Market Orders
+                      </Link>
                       {isVendor && (
                         <Link href="/vendor/dashboard" onClick={() => setAccountOpen(false)}>
                           Vendor Dashboard
@@ -216,24 +220,22 @@ export default function Navbar({ logoUrl } = {}) {
           <Link href="/products" onClick={() => setMenuOpen(false)}>
             Products
           </Link>
-          {groceriesDisabled ? (
-            <span className="mobileNavDisabled" title={NOT_AVAILABLE_NOTE}>
-              Groceries <em>({NOT_AVAILABLE_NOTE})</em>
-            </span>
-          ) : (
-            <Link href="/groceries" onClick={() => setMenuOpen(false)}>
-              Groceries
-            </Link>
-          )}
-          {santhaDisabled ? (
-            <span className="mobileNavDisabled" title={NOT_AVAILABLE_NOTE}>
-              Santha <em>({NOT_AVAILABLE_NOTE})</em>
-            </span>
-          ) : (
-            <Link href="/santha" onClick={() => setMenuOpen(false)}>
-              Santha
-            </Link>
-          )}
+          {/* groceriesDisabled/santhaDisabled/NOT_AVAILABLE_NOTE were
+              referenced here but never declared anywhere in this file --
+              a ReferenceError the instant a user opened the mobile menu.
+              Matches the desktop nav's own comment/choice just above: link
+              is always shown, the destination page itself explains
+              unavailability for a given pincode rather than the nav
+              greying it out. */}
+          <Link href="/groceries" onClick={() => setMenuOpen(false)}>
+            Groceries
+          </Link>
+          <Link href="/santha" onClick={() => setMenuOpen(false)}>
+            Santha
+          </Link>
+          <Link href="/live-market" onClick={() => setMenuOpen(false)}>
+            Live Market
+          </Link>
           <Link href="/wishlist" onClick={() => setMenuOpen(false)}>
             Wishlist ({wishlistCount})
           </Link>
@@ -262,6 +264,9 @@ export default function Navbar({ logoUrl } = {}) {
               </Link>
               <Link href="/santha/orders" onClick={() => setMenuOpen(false)}>
                 My Santha Orders
+              </Link>
+              <Link href="/live-market/orders" onClick={() => setMenuOpen(false)}>
+                My Live Market Orders
               </Link>
               {isVendor && (
                 <Link href="/vendor/dashboard" onClick={() => setMenuOpen(false)}>
