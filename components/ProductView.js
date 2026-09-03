@@ -68,12 +68,23 @@ export default function ProductView({
   const displayName = getProductDisplayName(product);
 
   const handleAddToCart = () => {
+    // A picked pack-size is a genuinely different NativeProduct document
+    // (see variants[] in angroup's storefront API) -- selectedVariant._id/
+    // slug were computed above for the price/stock display, but this call
+    // kept sending the ORIGINAL page's product._id/slug/productKey
+    // regardless of which size was clicked. Price/stock shown on-screen
+    // would update, but Add to Cart (and checkout, which re-derives price
+    // server-side from whatever productKey it receives) silently added
+    // the page's original size at its price -- e.g. click "1kg", see the
+    // 1kg price, actually check out with 500g at the 500g price. Use the
+    // selected variant's own id/slug now that one is actually selected.
+    const variantId = selectedVariant?._id;
     addToCart({
-      _id: product._id,
-      productId: product._id,
-      productKey: product.productKey,
+      _id: variantId || product._id,
+      productId: variantId || product._id,
+      productKey: variantId || product.productKey,
       name: displayName,
-      slug: product.slug,
+      slug: selectedVariant?.slug || product.slug,
       price: sellingPrice,
       mrp,
       // Checkout's order summary computes GST per line item from this --

@@ -150,6 +150,12 @@ export function CartProvider({ children }: any) {
             product.tax ||
             product.gstPercent ||
             0,
+
+          // Which pack-size/variant this line is -- was computed by
+          // ProductView's handleAddToCart but silently dropped here, so
+          // the cart/checkout could never show which size was picked.
+          variant:
+            product.variant || "",
         },
       ];
     });
