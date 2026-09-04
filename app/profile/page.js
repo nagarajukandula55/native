@@ -227,7 +227,16 @@ export default function ProfilePage() {
       {/* ORDER HISTORY TAB */}
       {tab === "orders" && (
       <section style={{ marginTop: 30 }}>
-        <h3>Your Orders</h3>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <h3>Your Orders</h3>
+          <Link href="/orders" style={{ fontWeight: 600, color: "#c28b45", textDecoration: "none" }}>
+            View all orders &amp; invoices &rarr;
+          </Link>
+        </div>
+        <p style={{ fontSize: 12, color: "#888", marginTop: -6 }}>
+          Product orders only. Groceries, Santha and Live Market orders, plus receipt/invoice downloads for every
+          order type, are on the full My Orders page.
+        </p>
         {orders.length === 0 ? <p>No orders yet</p> : (
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
