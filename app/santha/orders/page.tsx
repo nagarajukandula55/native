@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useUser } from "@/context/UserContext";
-import { getMyGroceryOrders } from "@/lib/an-sdk/groceries";
+import { getMySanthaOrders } from "@/lib/an-sdk/santha";
 import { ApiError } from "@/lib/an-sdk/client";
 
 const STATUS_COLORS: Record<string, string> = {
@@ -34,7 +34,7 @@ export default function SanthaOrdersPage() {
     }
     let cancelled = false;
     setLoading(true);
-    getMyGroceryOrders(user.id, "SANTHA")
+    getMySanthaOrders(user.id)
       .then((list) => {
         if (!cancelled) setOrders(list);
       })

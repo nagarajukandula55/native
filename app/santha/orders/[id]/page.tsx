@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useUser } from "@/context/UserContext";
-import { getGroceryOrder } from "@/lib/an-sdk/groceries";
+import { getSanthaOrder } from "@/lib/an-sdk/santha";
 import { ApiError } from "@/lib/an-sdk/client";
 
 export default function SanthaOrderDetailPage() {
@@ -31,7 +31,7 @@ export default function SanthaOrderDetailPage() {
     if (!id) return;
     let cancelled = false;
     setLoading(true);
-    getGroceryOrder(id)
+    getSanthaOrder(id)
       .then((data) => {
         if (!cancelled) setOrder(data);
       })

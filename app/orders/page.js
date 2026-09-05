@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useUser } from "@/context/UserContext";
 import { getMyOrders } from "@/lib/an-sdk/orders";
 import { getMyGroceryOrders } from "@/lib/an-sdk/groceries";
+import { getMySanthaOrders } from "@/lib/an-sdk/santha";
 import { getMyLiveMarketOrders } from "@/lib/an-sdk/liveMarket";
 import { getMyFreshOrders } from "@/lib/an-sdk/fresh";
 import { ApiError } from "@/lib/an-sdk/client";
@@ -81,7 +82,8 @@ function isPaidOrLater(order) {
  * public-route allowlist, src/middleware.ts). */
 function receiptUrl(order) {
   if (order.type === "PRODUCT") return `${AN_API}/receipt/${order.orderId || order._id}`;
-  if (order.type === "MONTHLY_GROCERY" || order.type === "SANTHA") return `${AN_API}/receipt/grocery/${order._id}`;
+  if (order.type === "MONTHLY_GROCERY") return `${AN_API}/receipt/grocery/${order._id}`;
+  if (order.type === "SANTHA") return `${AN_API}/receipt/santha/${order._id}`;
   if (order.type === "LIVE_MARKET") return `${AN_API}/receipt/live-market/${order._id}`;
   if (order.type === "FRESH") return `${AN_API}/receipt/fresh/${order._id}`;
   return null;
@@ -110,7 +112,7 @@ export default function MyOrdersPage() {
     Promise.allSettled([
       getMyOrders(),
       getMyGroceryOrders(user.id, "MONTHLY_GROCERY"),
-      getMyGroceryOrders(user.id, "SANTHA"),
+      getMySanthaOrders(user.id),
       getMyLiveMarketOrders(user.id),
       getMyFreshOrders(user.id),
     ])

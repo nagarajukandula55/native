@@ -18,10 +18,20 @@ export default function GroceryCatalogPicker({
   type,
   shopId,
   onAdd,
+  fetchItems,
 }: {
   type: "GROCERY" | "SANTHA";
   shopId?: string;
   onAdd: (item: GroceryOrderItemInput) => void;
+  /**
+   * Optional override for how the catalogue is fetched. Santha's catalog
+   * now lives on its own independent SanthaItem model/route
+   * (/api/santha-items, see lib/an-sdk/santha.ts's getSanthaItems) rather
+   * than the shared GroceryItem model this component defaults to -- pass
+   * `() => getSanthaItems()` from app/santha/page.tsx instead of relying
+   * on `type: "SANTHA"` hitting the old shared /api/grocery-items route.
+   */
+  fetchItems?: () => Promise<any[]>;
 }) {
   const [items, setItems] = useState<GroceryItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,7 +43,7 @@ export default function GroceryCatalogPicker({
     let cancelled = false;
     setLoading(true);
     setError("");
-    getGroceryItems(type, undefined, shopId)
+    (fetchItems ? fetchItems() : getGroceryItems(type, undefined, shopId))
       .then((list) => {
         if (cancelled) return;
         setItems(list);
@@ -48,7 +58,7 @@ export default function GroceryCatalogPicker({
     return () => {
       cancelled = true;
     };
-  }, [type, shopId]);
+  }, [type, shopId, fetchItems]);
 
   const categories = useMemo(() => {
     const set = new Set(items.map((i) => i.category).filter(Boolean));

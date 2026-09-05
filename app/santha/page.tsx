@@ -5,12 +5,12 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useUser } from "@/context/UserContext";
 import { getStoredPincode, PINCODE_CHANGED_EVENT } from "@/lib/pincode";
-import { getMarketSessions, createGroceryOrder, GroceryOrderItemInput } from "@/lib/an-sdk/groceries";
+import { getMarketSessions, createSanthaOrder, getSanthaItems, SanthaOrderItemInput } from "@/lib/an-sdk/santha";
 import { ApiError } from "@/lib/an-sdk/client";
 import { previewNextSanthaDate } from "@/lib/santhaDate";
 import GroceryCatalogPicker from "@/components/GroceryCatalogPicker";
 
-type Row = GroceryOrderItemInput;
+type Row = SanthaOrderItemInput;
 
 const emptyRow = (): Row => ({ name: "", quantity: 1, unit: "", notes: "" });
 
@@ -109,8 +109,7 @@ export default function SanthaPage() {
 
     setSubmitting(true);
     try {
-      const order = await createGroceryOrder({
-        type: "SANTHA",
+      const order = await createSanthaOrder({
         customerId: user.id,
         pincode,
         marketSessionId: selectedSessionId,
@@ -212,7 +211,7 @@ export default function SanthaPage() {
           Prices aren't shown — the market stall visited by our executive will send back a real
           quote for exactly what you pick.
         </p>
-        <GroceryCatalogPicker type="SANTHA" onAdd={addCatalogPick} />
+        <GroceryCatalogPicker type="SANTHA" onAdd={addCatalogPick} fetchItems={() => getSanthaItems()} />
       </div>
 
       <form className="section" onSubmit={handleSubmit}>
