@@ -9,7 +9,24 @@ import { useUser } from "@/context/UserContext";
 import CartDrawer from "./CartDrawer";
 import SearchBar from "./SearchBar";
 import PincodeBar from "./PincodeBar";
-import { ShoppingCart, Menu, X, Heart, User, LogOut } from "lucide-react";
+import {
+  ShoppingCart,
+  Menu,
+  X,
+  Heart,
+  User,
+  LogOut,
+  Home,
+  Package,
+  Carrot,
+  Store,
+  Fish,
+  Truck,
+  Handshake,
+  MessageSquareQuote,
+  ClipboardList,
+  LayoutDashboard,
+} from "lucide-react";
 
 // "super_admin" (underscore) is the role string used elsewhere in this
 // codebase (app/super-admin/users/page.js's role picker); kept alongside
@@ -116,8 +133,8 @@ export default function Navbar({ logoUrl } = {}) {
           {!mobile && <PincodeBar />}
           {!mobile && (
             <>
-              <NavLink href="/" label="Home" pathname={pathname} />
-              <NavLink href="/products" label="Products" pathname={pathname} />
+              <NavLink href="/" label="Home" pathname={pathname} icon={Home} />
+              <NavLink href="/products" label="Products" pathname={pathname} icon={Package} />
               {/* Monthly Groceries / Santha are distinct pincode-scoped
                   quote-request flows, not a normal product category, so
                   they get their own nav entries (not a home category tile).
@@ -125,15 +142,15 @@ export default function Navbar({ logoUrl } = {}) {
                   covered yet, the page itself explains the service and
                   says we'll be in their city soon, rather than the nav
                   greying the link out. */}
-              <NavLink href="/groceries" label="Groceries" pathname={pathname} />
-              <NavLink href="/santha" label="Santha" pathname={pathname} />
-              <NavLink href="/live-market" label="Live Market" pathname={pathname} />
-              <NavLink href="/track" label="Track" pathname={pathname} />
+              <NavLink href="/groceries" label="Groceries" pathname={pathname} icon={Carrot} />
+              <NavLink href="/santha" label="Santha" pathname={pathname} icon={Store} />
+              <NavLink href="/live-market" label="Live Market" pathname={pathname} icon={Fish} />
+              <NavLink href="/track" label="Track" pathname={pathname} icon={Truck} />
               {/* Blog nav hidden per explicit direction -- to be
                   implemented/re-enabled later. Page itself (app/blog)
                   intentionally left in place, just not linked. */}
-              <NavLink href="/sell" label="Sell on Native" pathname={pathname} />
-              <NavLink href="/quote" label="Get a Quote" pathname={pathname} />
+              <NavLink href="/sell" label="Sell on Native" pathname={pathname} icon={Handshake} />
+              <NavLink href="/quote" label="Get a Quote" pathname={pathname} icon={MessageSquareQuote} />
             </>
           )}
 
@@ -162,23 +179,23 @@ export default function Navbar({ logoUrl } = {}) {
                   {accountOpen && (
                     <div className="dropdown" onMouseLeave={() => setAccountOpen(false)}>
                       <Link href="/profile" onClick={() => setAccountOpen(false)}>
-                        Profile
+                        <User size={14} /> Profile
                       </Link>
                       <Link href="/orders" onClick={() => setAccountOpen(false)}>
-                        My Orders
+                        <ClipboardList size={14} /> My Orders
                       </Link>
                       <Link href="/groceries/orders" onClick={() => setAccountOpen(false)}>
-                        My Grocery Orders
+                        <Carrot size={14} /> My Grocery Orders
                       </Link>
                       <Link href="/santha/orders" onClick={() => setAccountOpen(false)}>
-                        My Santha Orders
+                        <Store size={14} /> My Santha Orders
                       </Link>
                       <Link href="/live-market/orders" onClick={() => setAccountOpen(false)}>
-                        My Live Market Orders
+                        <Fish size={14} /> My Live Market Orders
                       </Link>
                       {isVendor && (
                         <Link href="/vendor/dashboard" onClick={() => setAccountOpen(false)}>
-                          Vendor Dashboard
+                          <LayoutDashboard size={14} /> Vendor Dashboard
                         </Link>
                       )}
                       <button onClick={handleLogout} className="logoutRow">
@@ -215,10 +232,10 @@ export default function Navbar({ logoUrl } = {}) {
           <PincodeBar />
           <SearchBar />
           <Link href="/" onClick={() => setMenuOpen(false)}>
-            Home
+            <Home size={16} /> Home
           </Link>
           <Link href="/products" onClick={() => setMenuOpen(false)}>
-            Products
+            <Package size={16} /> Products
           </Link>
           {/* groceriesDisabled/santhaDisabled/NOT_AVAILABLE_NOTE were
               referenced here but never declared anywhere in this file --
@@ -228,25 +245,25 @@ export default function Navbar({ logoUrl } = {}) {
               unavailability for a given pincode rather than the nav
               greying it out. */}
           <Link href="/groceries" onClick={() => setMenuOpen(false)}>
-            Groceries
+            <Carrot size={16} /> Groceries
           </Link>
           <Link href="/santha" onClick={() => setMenuOpen(false)}>
-            Santha
+            <Store size={16} /> Santha
           </Link>
           <Link href="/live-market" onClick={() => setMenuOpen(false)}>
-            Live Market
+            <Fish size={16} /> Live Market
           </Link>
           <Link href="/wishlist" onClick={() => setMenuOpen(false)}>
-            Wishlist ({wishlistCount})
+            <Heart size={16} /> Wishlist ({wishlistCount})
           </Link>
           <Link href="/track" onClick={() => setMenuOpen(false)}>
-            Track
+            <Truck size={16} /> Track
           </Link>
           <Link href="/sell" onClick={() => setMenuOpen(false)}>
-            Sell on Native
+            <Handshake size={16} /> Sell on Native
           </Link>
           <Link href="/quote" onClick={() => setMenuOpen(false)}>
-            Get a Quote
+            <MessageSquareQuote size={16} /> Get a Quote
           </Link>
 
           <hr />
@@ -254,23 +271,23 @@ export default function Navbar({ logoUrl } = {}) {
           {user ? (
             <>
               <Link href="/profile" onClick={() => setMenuOpen(false)}>
-                Profile
+                <User size={16} /> Profile
               </Link>
               <Link href="/orders" onClick={() => setMenuOpen(false)}>
-                My Orders
+                <ClipboardList size={16} /> My Orders
               </Link>
               <Link href="/groceries/orders" onClick={() => setMenuOpen(false)}>
-                My Grocery Orders
+                <Carrot size={16} /> My Grocery Orders
               </Link>
               <Link href="/santha/orders" onClick={() => setMenuOpen(false)}>
-                My Santha Orders
+                <Store size={16} /> My Santha Orders
               </Link>
               <Link href="/live-market/orders" onClick={() => setMenuOpen(false)}>
-                My Live Market Orders
+                <Fish size={16} /> My Live Market Orders
               </Link>
               {isVendor && (
                 <Link href="/vendor/dashboard" onClick={() => setMenuOpen(false)}>
-                  Vendor Dashboard
+                  <LayoutDashboard size={16} /> Vendor Dashboard
                 </Link>
               )}
               <button onClick={handleLogout} className="mobileLogout">
@@ -438,6 +455,9 @@ export default function Navbar({ logoUrl } = {}) {
         .mobileMenu :global(a) {
           color: #333;
           text-decoration: none;
+          display: flex;
+          align-items: center;
+          gap: 8px;
         }
         .mobileNavDisabled {
           color: #bbb;
@@ -470,7 +490,7 @@ export default function Navbar({ logoUrl } = {}) {
 }
 
 /* ================= NAV LINK ================= */
-function NavLink({ href, label, pathname, disabled, disabledTitle }) {
+function NavLink({ href, label, pathname, disabled, disabledTitle, icon: Icon }) {
   const active = pathname === href;
 
   if (disabled) {
@@ -487,8 +507,12 @@ function NavLink({ href, label, pathname, disabled, disabledTitle }) {
           textTransform: "uppercase",
           letterSpacing: "0.4px",
           cursor: "not-allowed",
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 6,
         }}
       >
+        {Icon && <Icon size={14} />}
         {label}
       </span>
     );
@@ -507,8 +531,12 @@ function NavLink({ href, label, pathname, disabled, disabledTitle }) {
         fontSize: 13,
         textTransform: "uppercase",
         letterSpacing: "0.4px",
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
       }}
     >
+      {Icon && <Icon size={14} />}
       {label}
     </Link>
   );
