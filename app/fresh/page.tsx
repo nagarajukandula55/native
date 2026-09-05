@@ -5,11 +5,11 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useUser } from "@/context/UserContext";
 import { getStoredPincode, PINCODE_CHANGED_EVENT } from "@/lib/pincode";
-import { getShops, createLiveMarketOrder, LiveMarketOrderItemInput } from "@/lib/an-sdk/liveMarket";
+import { getShops, createFreshOrder, FreshOrderItemInput } from "@/lib/an-sdk/fresh";
 import { ApiError } from "@/lib/an-sdk/client";
-import LiveMarketCatalogPicker from "@/components/LiveMarketCatalogPicker";
+import FreshCatalogPicker from "@/components/FreshCatalogPicker";
 
-export default function LiveMarketPage() {
+export default function FreshPage() {
   const router = useRouter();
   const { user, loading: userLoading } = useUser();
 
@@ -19,7 +19,7 @@ export default function LiveMarketPage() {
   const [shopsError, setShopsError] = useState("");
   const [selectedShopId, setSelectedShopId] = useState("");
 
-  const [cartItems, setCartItems] = useState<LiveMarketOrderItemInput[]>([]);
+  const [cartItems, setCartItems] = useState<FreshOrderItemInput[]>([]);
   const [cartTotal, setCartTotal] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
@@ -57,7 +57,7 @@ export default function LiveMarketPage() {
     setSubmitError("");
 
     if (!user) {
-      router.push("/login?next=/live-market");
+      router.push("/login?next=/fresh");
       return;
     }
     if (!pincode) {
@@ -75,13 +75,13 @@ export default function LiveMarketPage() {
 
     setSubmitting(true);
     try {
-      const order = await createLiveMarketOrder({
+      const order = await createFreshOrder({
         customerId: user.id,
         pincode,
         shopId: selectedShopId,
         items: cartItems,
       });
-      router.push(`/live-market/orders/${order._id}`);
+      router.push(`/fresh/orders/${order._id}`);
     } catch (err) {
       setSubmitError(err instanceof ApiError ? err.message : "Could not place order");
     } finally {
@@ -94,19 +94,19 @@ export default function LiveMarketPage() {
   return (
     <div className="container">
       <div className="headRow">
-        <h1>Live</h1>
-        <Link href="/live-market/orders" className="link">
-          My Live Orders
+        <h1>Fresh</h1>
+        <Link href="/fresh/orders" className="link">
+          My Fresh Orders
         </Link>
       </div>
       <p className="sub">
-        Fresh Fish, Chicken, Mutton and more — today&apos;s real price, straight to your door.
+        Fresh vegetables, fruits and leafy greens — today&apos;s real price, straight to your door.
       </p>
 
       {notAvailable ? (
         <div className="comingSoon">
           <span className="comingSoonBadge">Coming soon to your area</span>
-          <h2>How Live works</h2>
+          <h2>How Fresh works</h2>
           <p>
             Pick items at today&apos;s real price — no waiting for a quote — pay, and we deliver fresh from a
             shop near you.
@@ -115,7 +115,7 @@ export default function LiveMarketPage() {
             We&apos;ll be in your city soon! {pincode ? (
               <>We don&apos;t have a shop live in <strong>{pincode}</strong> just yet.</>
             ) : (
-              <>Set your delivery pincode (top bar) and we&apos;ll let you know the moment Live is live near you.</>
+              <>Set your delivery pincode (top bar) and we&apos;ll let you know the moment Fresh is live near you.</>
             )}
           </p>
         </div>
@@ -145,7 +145,7 @@ export default function LiveMarketPage() {
           {selectedShopId && (
             <div className="section">
               <h2>2. Pick items — today&apos;s price</h2>
-              <LiveMarketCatalogPicker
+              <FreshCatalogPicker
                 key={selectedShopId}
                 shopId={selectedShopId}
                 onCartChange={(items, total) => {

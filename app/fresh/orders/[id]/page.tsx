@@ -4,10 +4,10 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useUser } from "@/context/UserContext";
-import { getLiveMarketOrder } from "@/lib/an-sdk/liveMarket";
+import { getFreshOrder } from "@/lib/an-sdk/fresh";
 import { ApiError } from "@/lib/an-sdk/client";
 
-export default function LiveMarketOrderDetailPage() {
+export default function FreshOrderDetailPage() {
   const params = useParams();
   const id = params?.id as string;
   const router = useRouter();
@@ -27,13 +27,13 @@ export default function LiveMarketOrderDetailPage() {
   useEffect(() => {
     if (userLoading) return;
     if (!user) {
-      router.push(`/login?next=/live-market/orders/${id}`);
+      router.push(`/login?next=/fresh/orders/${id}`);
       return;
     }
     if (!id) return;
     let cancelled = false;
     setLoading(true);
-    getLiveMarketOrder(id)
+    getFreshOrder(id)
       .then((data) => {
         if (!cancelled) setOrder(data);
       })
@@ -63,8 +63,8 @@ export default function LiveMarketOrderDetailPage() {
     return (
       <div className="container">
         <p className="error">{error || "Order not found"}</p>
-        <Link href="/live-market/orders" className="link">
-          Back to my Live orders
+        <Link href="/fresh/orders" className="link">
+          Back to my Fresh orders
         </Link>
         <style jsx>{`
           .container { max-width: 700px; margin: 0 auto; padding: 40px 20px; }
@@ -79,8 +79,8 @@ export default function LiveMarketOrderDetailPage() {
 
   return (
     <div className="container">
-      <Link href="/live-market/orders" className="back">
-        ← My Live Orders
+      <Link href="/fresh/orders" className="back">
+        ← My Fresh Orders
       </Link>
       <h1>Order #{String(order._id).slice(-6).toUpperCase()}</h1>
       <p className="status">{(order.status || "").replace(/_/g, " ")}</p>

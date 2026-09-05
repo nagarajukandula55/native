@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useUser } from "@/context/UserContext";
-import { getMyLiveMarketOrders } from "@/lib/an-sdk/liveMarket";
+import { getMyFreshOrders } from "@/lib/an-sdk/fresh";
 import { ApiError } from "@/lib/an-sdk/client";
 
 const STATUS_COLORS: Record<string, string> = {
@@ -16,7 +16,7 @@ const STATUS_COLORS: Record<string, string> = {
   FAILED: "#e11d48",
 };
 
-export default function LiveMarketOrdersPage() {
+export default function FreshOrdersPage() {
   const router = useRouter();
   const { user, loading: userLoading } = useUser();
 
@@ -27,12 +27,12 @@ export default function LiveMarketOrdersPage() {
   useEffect(() => {
     if (userLoading) return;
     if (!user) {
-      router.push("/login?next=/live-market/orders");
+      router.push("/login?next=/fresh/orders");
       return;
     }
     let cancelled = false;
     setLoading(true);
-    getMyLiveMarketOrders(user.id)
+    getMyFreshOrders(user.id)
       .then((list) => {
         if (!cancelled) setOrders(list);
       })
@@ -50,8 +50,8 @@ export default function LiveMarketOrdersPage() {
   return (
     <div className="container">
       <div className="headRow">
-        <h1>My Live Orders</h1>
-        <Link href="/live-market" className="link">
+        <h1>My Fresh Orders</h1>
+        <Link href="/fresh" className="link">
           + New Order
         </Link>
       </div>
@@ -61,8 +61,8 @@ export default function LiveMarketOrdersPage() {
 
       {!loading && !error && !orders.length && (
         <div className="empty">
-          <p>No Live orders yet.</p>
-          <Link href="/live-market" className="shopLink">
+          <p>No Fresh orders yet.</p>
+          <Link href="/fresh" className="shopLink">
             Place your first order
           </Link>
         </div>
@@ -72,7 +72,7 @@ export default function LiveMarketOrdersPage() {
         {orders.map((order) => {
           const color = STATUS_COLORS[order.status] || "#6b7280";
           return (
-            <Link key={order._id} href={`/live-market/orders/${order._id}`} className="row">
+            <Link key={order._id} href={`/fresh/orders/${order._id}`} className="row">
               <div className="rowMain">
                 <p className="orderId">Order #{String(order._id).slice(-6).toUpperCase()}</p>
                 <p className="meta">

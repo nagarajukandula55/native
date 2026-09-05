@@ -21,6 +21,7 @@ import {
   Carrot,
   Store,
   Fish,
+  Apple,
   Truck,
   Handshake,
   MessageSquareQuote,
@@ -144,7 +145,8 @@ export default function Navbar({ logoUrl } = {}) {
                   greying the link out. */}
               <NavLink href="/groceries" label="Groceries" pathname={pathname} icon={Carrot} />
               <NavLink href="/santha" label="Santha" pathname={pathname} icon={Store} />
-              <NavLink href="/live-market" label="Live Market" pathname={pathname} icon={Fish} />
+              <NavLink href="/live-market" label="Live" pathname={pathname} icon={Fish} />
+              <NavLink href="/fresh" label="Fresh" pathname={pathname} icon={Apple} />
               <NavLink href="/track" label="Track" pathname={pathname} icon={Truck} />
               {/* Blog nav hidden per explicit direction -- to be
                   implemented/re-enabled later. Page itself (app/blog)
@@ -191,7 +193,10 @@ export default function Navbar({ logoUrl } = {}) {
                         <Store size={14} /> My Santha Orders
                       </Link>
                       <Link href="/live-market/orders" onClick={() => setAccountOpen(false)}>
-                        <Fish size={14} /> My Live Market Orders
+                        <Fish size={14} /> My Live Orders
+                      </Link>
+                      <Link href="/fresh/orders" onClick={() => setAccountOpen(false)}>
+                        <Apple size={14} /> My Fresh Orders
                       </Link>
                       {isVendor && (
                         <Link href="/vendor/dashboard" onClick={() => setAccountOpen(false)}>
@@ -251,7 +256,10 @@ export default function Navbar({ logoUrl } = {}) {
             <Store size={16} /> Santha
           </Link>
           <Link href="/live-market" onClick={() => setMenuOpen(false)}>
-            <Fish size={16} /> Live Market
+            <Fish size={16} /> Live
+          </Link>
+          <Link href="/fresh" onClick={() => setMenuOpen(false)}>
+            <Apple size={16} /> Fresh
           </Link>
           <Link href="/wishlist" onClick={() => setMenuOpen(false)}>
             <Heart size={16} /> Wishlist ({wishlistCount})
@@ -283,7 +291,10 @@ export default function Navbar({ logoUrl } = {}) {
                 <Store size={16} /> My Santha Orders
               </Link>
               <Link href="/live-market/orders" onClick={() => setMenuOpen(false)}>
-                <Fish size={16} /> My Live Market Orders
+                <Fish size={16} /> My Live Orders
+              </Link>
+              <Link href="/fresh/orders" onClick={() => setMenuOpen(false)}>
+                <Apple size={16} /> My Fresh Orders
               </Link>
               {isVendor && (
                 <Link href="/vendor/dashboard" onClick={() => setMenuOpen(false)}>

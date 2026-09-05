@@ -7,6 +7,7 @@ import { useUser } from "@/context/UserContext";
 import { getMyOrders } from "@/lib/an-sdk/orders";
 import { getMyGroceryOrders } from "@/lib/an-sdk/groceries";
 import { getMyLiveMarketOrders } from "@/lib/an-sdk/liveMarket";
+import { getMyFreshOrders } from "@/lib/an-sdk/fresh";
 import { ApiError } from "@/lib/an-sdk/client";
 
 const AN_API = (process.env.NEXT_PUBLIC_AN_API || "").replace(/^https?:\/\/angroup\.in/i, "https://www.angroup.in");
@@ -42,7 +43,8 @@ const TYPE_LABELS = {
   PRODUCT: "Product Order",
   MONTHLY_GROCERY: "Monthly Groceries",
   SANTHA: "Santha",
-  LIVE_MARKET: "Live Market",
+  LIVE_MARKET: "Live",
+  FRESH: "Fresh",
 };
 
 /**
@@ -53,7 +55,7 @@ const TYPE_LABELS = {
  * separate paymentStatus field (see src/models/LiveMarketOrder.ts).
  */
 function isPaidOrLater(order) {
-  if (order.type === "LIVE_MARKET") {
+  if (order.type === "LIVE_MARKET" || order.type === "FRESH") {
     return order.paymentStatus === "PAID" || ["CONFIRMED", "OUT_FOR_DELIVERY", "DELIVERED"].includes(order.status);
   }
   if (order.type === "MONTHLY_GROCERY" || order.type === "SANTHA") {
@@ -81,6 +83,7 @@ function receiptUrl(order) {
   if (order.type === "PRODUCT") return `${AN_API}/receipt/${order.orderId || order._id}`;
   if (order.type === "MONTHLY_GROCERY" || order.type === "SANTHA") return `${AN_API}/receipt/grocery/${order._id}`;
   if (order.type === "LIVE_MARKET") return `${AN_API}/receipt/live-market/${order._id}`;
+  if (order.type === "FRESH") return `${AN_API}/receipt/fresh/${order._id}`;
   return null;
 }
 
@@ -109,11 +112,12 @@ export default function MyOrdersPage() {
       getMyGroceryOrders(user.id, "MONTHLY_GROCERY"),
       getMyGroceryOrders(user.id, "SANTHA"),
       getMyLiveMarketOrders(user.id),
+      getMyFreshOrders(user.id),
     ])
       .then(async (results) => {
         if (cancelled) return;
 
-        const [productRes, groceryRes, santhaRes, liveMarketRes] = results;
+        const [productRes, groceryRes, santhaRes, liveMarketRes, freshRes] = results;
 
         const productOrders =
           productRes.status === "fulfilled"
@@ -130,8 +134,10 @@ export default function MyOrdersPage() {
           liveMarketRes.status === "fulfilled"
             ? liveMarketRes.value.map((o) => ({ ...o, type: "LIVE_MARKET" }))
             : [];
+        const freshOrders =
+          freshRes.status === "fulfilled" ? freshRes.value.map((o) => ({ ...o, type: "FRESH" })) : [];
 
-        const merged = [...productOrders, ...groceryOrders, ...santhaOrders, ...liveMarketOrders].sort(
+        const merged = [...productOrders, ...groceryOrders, ...santhaOrders, ...liveMarketOrders, ...freshOrders].sort(
           (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
         );
 
@@ -223,6 +229,8 @@ export default function MyOrdersPage() {
               ? `/order-success?orderId=${encodeURIComponent(order.orderId || id)}`
               : order.type === "LIVE_MARKET"
               ? `/live-market/orders/${id}`
+              : order.type === "FRESH"
+              ? `/fresh/orders/${id}`
               : `/${order.type === "SANTHA" ? "santha" : "groceries"}/orders/${id}`;
 
           return (
