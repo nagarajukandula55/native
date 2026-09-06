@@ -33,3 +33,4 @@ next-env.d.ts
 
 # Delivery zips (large binaries, regenerate on demand rather than commit)
 /_delivery/
+.env*
