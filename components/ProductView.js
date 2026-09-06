@@ -65,7 +65,13 @@ export default function ProductView({
       img.replace(/\[|\]/g, "").split(")(")[0]
     ) || [];
 
-  const displayName = getProductDisplayName(product);
+  // A picked pack-size is a genuinely different NativeProduct with its own
+  // name -- previously this always showed the originally-loaded product's
+  // name regardless of which size button was active, since it never read
+  // from selectedVariant at all (only price/stock did).
+  const displayName = getProductDisplayName(
+    selectedVariant?.displayName || selectedVariant?.name ? selectedVariant : product
+  );
 
   const handleAddToCart = () => {
     // A picked pack-size is a genuinely different NativeProduct document
