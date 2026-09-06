@@ -200,8 +200,28 @@ function ProductsPageInner() {
               return (
                 <div className="card" key={p._id}>
                   <Link href={`/products/${p.slug}`} className="link">
-                    <div className="imgWrap">
-                      <img src={p.images?.[0] || "/placeholder.png"} alt={displayName} />
+                    {/* Inline styles, not the styled-jsx .imgWrap/img rules
+                        below -- see HomeClient.js's identical card for why
+                        (the scoped CSS wasn't reliably applying in
+                        production for reasons that didn't reproduce from
+                        the deployed bundle). */}
+                    <div
+                      className="imgWrap"
+                      style={{ position: "relative", width: "100%", paddingTop: "100%", overflow: "hidden" }}
+                    >
+                      <img
+                        src={p.images?.[0] || "/placeholder.png"}
+                        alt={displayName}
+                        style={{
+                          position: "absolute",
+                          inset: 0,
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "cover",
+                          objectPosition: "top",
+                          display: "block",
+                        }}
+                      />
 
                       {discount > 0 && inStock && (
                         <span className="badge">{discount}% OFF</span>

@@ -210,10 +210,30 @@ export default function HomeClient() {
 
     return (
       <div key={pid} className="productCard">
-        <Link href={`/products/${p.slug || p._id}`} className="imgWrap">
+        {/* Inline styles here, not the styled-jsx classes below -- the
+            scoped .imgWrap/.productCard img rules were verified present
+            and correct in the deployed bundle but still weren't visibly
+            applying in production for reasons that didn't reproduce from
+            the bundle alone (see git history). Inline styles can't be
+            shadowed by any external rule short of !important, so this
+            sidesteps the mystery entirely instead of chasing it further. */}
+        <Link
+          href={`/products/${p.slug || p._id}`}
+          className="imgWrap"
+          style={{ position: "relative", display: "block", width: "100%", paddingTop: "100%", overflow: "hidden" }}
+        >
           <img
             src={imgSrc}
             alt={displayName}
+            style={{
+              position: "absolute",
+              inset: 0,
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+              objectPosition: "top",
+              display: "block",
+            }}
             onError={() => {
               if (!failedProductImages[pid]) {
                 setFailedProductImages((prev) => ({ ...prev, [pid]: true }));
