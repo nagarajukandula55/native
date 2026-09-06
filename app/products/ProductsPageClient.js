@@ -389,8 +389,9 @@ function ProductsPageInner() {
 
         .imgWrap img {
           width: 100%;
-          height: 200px;
+          aspect-ratio: 1 / 1;
           object-fit: cover;
+          display: block;
         }
 
         .badge {
