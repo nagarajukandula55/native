@@ -37,6 +37,7 @@ export default function ChatWidget() {
   const [email, setEmail] = useState("");
   const [draft, setDraft] = useState("");
   const [starting, setStarting] = useState(false);
+  const [error, setError] = useState("");
   const bodyRef = useRef(null);
 
   useEffect(() => {
@@ -81,6 +82,7 @@ export default function ChatWidget() {
     e.preventDefault();
     if (!name.trim() || !draft.trim()) return;
     setStarting(true);
+    setError("");
     try {
       const data = await startChat({
         name: name.trim(),
@@ -97,7 +99,14 @@ export default function ChatWidget() {
         }
         setMessages([{ id: "local-0", sender: "VISITOR", text: draft.trim(), createdAt: new Date().toISOString() }]);
         setDraft("");
+      } else {
+        setError("Couldn't start the chat — please try again.");
       }
+    } catch (err) {
+      // Previously swallowed entirely -- a failed request (e.g. the
+      // middleware 401 this widget's routes used to hit) just left the
+      // form sitting there with no feedback, looking like a dead button.
+      setError(err?.message || "Couldn't start the chat — please try again.");
     } finally {
       setStarting(false);
     }
@@ -111,8 +120,8 @@ export default function ChatWidget() {
     setMessages((prev) => [...prev, { id: `local-${Date.now()}`, sender: "VISITOR", text, createdAt: new Date().toISOString() }]);
     try {
       await sendChatMessage(conversationId, text);
-    } catch {
-      /* the next poll will resync either way */
+    } catch (err) {
+      setError(err?.message || "Message failed to send — please try again.");
     }
   }
 
@@ -128,6 +137,8 @@ export default function ChatWidget() {
             <strong>Chat with Native</strong>
             <span className="sub">We usually reply within a few hours</span>
           </div>
+
+          {error && <div className="errorBanner">{error}</div>}
 
           {!conversationId ? (
             <form className="startForm" onSubmit={handleStart}>
@@ -215,6 +226,15 @@ export default function ChatWidget() {
         .sub {
           font-size: 11px;
           color: #d9c9a3;
+        }
+
+        .errorBanner {
+          margin: 10px 14px 0;
+          padding: 8px 10px;
+          border-radius: 8px;
+          background: #fdecea;
+          color: #b3261e;
+          font-size: 12px;
         }
 
         .startForm {

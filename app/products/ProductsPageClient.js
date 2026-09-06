@@ -391,6 +391,7 @@ function ProductsPageInner() {
           width: 100%;
           aspect-ratio: 1 / 1;
           object-fit: cover;
+          object-position: top;
           display: block;
         }
 
