@@ -56,11 +56,16 @@ export default function HomeClient() {
   const [dynamicSlides, setDynamicSlides] = useState(null);
   const [reviews, setReviews] = useState([]);
 
-  /* ================= FETCH PRODUCTS ================= */
+  /* ================= FETCH BEST SELLERS =================
+     Manually-pinned products (NativeProduct.isBestSeller, flipped from
+     native-admin's Products > Live tab) first, then ranked by real sales
+     volume from angroup's periodic /api/cron/recompute-best-sellers job
+     -- this used to just fetch "newest" and label it "Best Sellers",
+     which wasn't actually sales-ranked at all. */
   useEffect(() => {
     async function loadProducts() {
       try {
-        const data = await getProducts({ sort: "newest", limit: 6 });
+        const data = await getProducts({ bestSeller: true, limit: 6 });
         const list = data?.products || [];
         setProducts(list);
       } catch (err) {

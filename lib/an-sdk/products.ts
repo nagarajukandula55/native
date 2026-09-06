@@ -15,6 +15,11 @@ export type ProductQuery = {
    * for the homepage's Featured section — see angroup's
    * api/storefront/products/route.ts `?featured=true` handling. */
   featured?: boolean;
+  /** Homepage "Best Sellers" section -- manually-pinned products first,
+   * then ranked by real sales volume (see angroup's
+   * api/storefront/products/route.ts ?bestSeller=true handling and its
+   * /api/cron/recompute-best-sellers job). */
+  bestSeller?: boolean;
   /** Which channel's products to fetch (see angroup's src/lib/productChannels.ts).
    * Defaults to "native" in getProducts() below — override only for a
    * deliberately different listing. */
