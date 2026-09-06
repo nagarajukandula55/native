@@ -774,14 +774,27 @@ export default function HomeClient() {
           flex-direction: column;
         }
 
+        /* padding-top:100% intrinsic-ratio box instead of aspect-ratio on
+           the img itself -- aspect-ratio wasn't taking effect in
+           production for reasons that didn't reproduce from the deployed
+           bundle alone, so falling back to the older, more bulletproof
+           technique: a square box established by the WRAPPER's own
+           padding (percentage padding is always relative to the parent's
+           WIDTH, which is what makes this square regardless of content),
+           with the image absolutely positioned to fill it. */
         .imgWrap {
           position: relative;
           display: block;
+          width: 100%;
+          padding-top: 100%;
+          overflow: hidden;
         }
 
         .productCard img {
+          position: absolute;
+          inset: 0;
           width: 100%;
-          aspect-ratio: 1 / 1;
+          height: 100%;
           object-fit: cover;
           object-position: top;
           display: block;

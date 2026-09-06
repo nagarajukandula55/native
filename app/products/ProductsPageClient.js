@@ -383,13 +383,20 @@ function ProductsPageInner() {
           flex-direction: column;
         }
 
+        /* padding-top:100% intrinsic-ratio box instead of aspect-ratio on
+           the img itself -- see HomeClient.js's identical fix for why. */
         .imgWrap {
           position: relative;
+          width: 100%;
+          padding-top: 100%;
+          overflow: hidden;
         }
 
         .imgWrap img {
+          position: absolute;
+          inset: 0;
           width: 100%;
-          aspect-ratio: 1 / 1;
+          height: 100%;
           object-fit: cover;
           object-position: top;
           display: block;
