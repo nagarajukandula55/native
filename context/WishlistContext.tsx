@@ -121,6 +121,7 @@ export function WishlistProvider({ children }: any) {
             product.price || product.displayPrice || product.minPrice || 0
           ),
           image: product.image || product.images?.[0] || "/placeholder.png",
+          variantCount: Number(product.variantCount) || 0,
           addedAt: Date.now(),
         },
       ];

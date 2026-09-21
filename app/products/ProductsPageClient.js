@@ -119,6 +119,16 @@ function ProductsPageInner() {
       const id = p.mongoId || p._id || p.productKey;
       if (!id) return;
 
+      // A product with more than one variant (size/flavor/etc.) can't be
+      // added directly from this listing -- there's no way here to know
+      // WHICH variant the customer wants, and silently picking one (e.g.
+      // the cheapest) would add the wrong item. Send them to the product
+      // page instead, where the real variant picker lives.
+      if (p.variantCount > 1) {
+        router.push(`/products/${p.slug || id}`);
+        return;
+      }
+
       setAddingId(id);
 
       addToCart({
@@ -282,6 +292,7 @@ function ProductsPageInner() {
                         name: displayName,
                         price,
                         image: p.images?.[0] || "",
+                        variantCount: p.variantCount,
                       }}
                     />
                   </div>
@@ -296,6 +307,8 @@ function ProductsPageInner() {
                         ? "Out of Stock"
                         : addingId === p._id
                         ? "Adding..."
+                        : p.variantCount > 1
+                        ? "Select Options"
                         : "Add to Cart"}
                     </button>
 

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCart } from "@/context/CartContext";
 import { getProductDisplayName } from "@/lib/product";
 import { getProducts, getCategories } from "@/lib/an-sdk/products";
@@ -44,6 +45,7 @@ function iconForCategory(name = "") {
 
 export default function HomeClient() {
   const { addToCart } = useCart();
+  const router = useRouter();
 
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -249,6 +251,7 @@ export default function HomeClient() {
                 name: displayName,
                 price: Number(price),
                 image: p.images?.[0] || "",
+                variantCount: p.variantCount,
               }}
             />
           </div>
@@ -265,6 +268,15 @@ export default function HomeClient() {
             disabled={!inStock}
             onClick={() => {
               if (!inStock) return;
+              // Can't add a multi-variant product directly from the
+              // homepage -- there's no way here to know which variant
+              // (size/flavor/etc.) the customer wants. Send them to the
+              // product page, where the real variant picker lives, instead
+              // of silently adding a possibly-wrong default variant.
+              if (p.variantCount > 1) {
+                router.push(`/products/${p.slug || p._id}`);
+                return;
+              }
               addToCart({
                 productId: p._id,
                 productKey: p.productKey,
@@ -276,7 +288,7 @@ export default function HomeClient() {
               });
             }}
           >
-            {inStock ? "ADD TO CART" : "OUT OF STOCK"}
+            {inStock ? (p.variantCount > 1 ? "SELECT OPTIONS" : "ADD TO CART") : "OUT OF STOCK"}
           </button>
         </div>
       </div>

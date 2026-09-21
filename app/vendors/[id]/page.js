@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useCart } from "@/context/CartContext";
 import { getPublicVendor, getPublicVendorProducts } from "@/lib/an-sdk/vendors";
 import WishlistButton from "@/components/WishlistButton";
 
 export default function VendorStorefrontPage() {
   const params = useParams();
+  const router = useRouter();
   const id = params?.id;
   const { addToCart } = useCart();
 
@@ -105,12 +106,20 @@ export default function VendorStorefrontPage() {
                     name: p.displayName || p.name,
                     price: p.displayPrice || p.price || 0,
                     image: p.images?.[0] || "",
+                    variantCount: p.variantCount,
                   }}
                 />
               </div>
               <button
                 className="addBtn"
-                onClick={() =>
+                onClick={() => {
+                  // Same reasoning as the homepage/products listing: a
+                  // multi-variant product can't be added directly here --
+                  // send the customer to pick a variant first.
+                  if (p.variantCount > 1) {
+                    router.push(`/products/${p.slug || p._id}`);
+                    return;
+                  }
                   addToCart({
                     _id: p._id,
                     productId: p._id,
@@ -120,8 +129,8 @@ export default function VendorStorefrontPage() {
                     price: Number(p.displayPrice || p.price || 0),
                     image: p.images?.[0] || "/placeholder.png",
                     qty: 1,
-                  })
-                }
+                  });
+                }}
               >
                 Add to Cart
               </button>

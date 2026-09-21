@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useWishlist } from "@/context/WishlistContext";
 import { useCart } from "@/context/CartContext";
 
 export default function WishlistPage() {
   const { wishlist, removeFromWishlist } = useWishlist() || {};
   const { addToCart } = useCart() || {};
+  const router = useRouter();
 
   const items = wishlist || [];
 
@@ -35,7 +37,11 @@ export default function WishlistPage() {
 
                 <div className="actions">
                   <button
-                    onClick={() =>
+                    onClick={() => {
+                      if (item.variantCount > 1) {
+                        router.push(`/products/${item.slug || item.productId}`);
+                        return;
+                      }
                       addToCart?.({
                         productId: item.productId,
                         productKey: item.productId,
@@ -43,10 +49,10 @@ export default function WishlistPage() {
                         price: item.price,
                         image: item.image,
                         qty: 1,
-                      })
-                    }
+                      });
+                    }}
                   >
-                    Add to Cart
+                    {item.variantCount > 1 ? "Select Options" : "Add to Cart"}
                   </button>
 
                   <button
