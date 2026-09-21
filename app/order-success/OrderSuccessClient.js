@@ -4,7 +4,6 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { anGet } from "@/lib/an-sdk/client";
-import { notifyAccounting } from "@/lib/accounting-sync";
 
 // Every other data call in this app routes through lib/an-sdk (which reads
 // NEXT_PUBLIC_AN_API, attaches businessId/auth, etc.) -- this page instead
@@ -31,7 +30,6 @@ export default function OrderSuccessClient() {
   // Immediately after payment, the customer sees a payment receipt instead
   // (see the RECEIPT block below).
   const [invoice, setInvoice] = useState(null);
-  const [accountingSynced, setAccountingSynced] = useState(false);
 
   useEffect(() => {
     const id =
@@ -79,84 +77,12 @@ export default function OrderSuccessClient() {
         setInvoice(inv);
       }
 
-      if (
-        ["PAID", "PROCESSING", "PACKED", "DISPATCHED", "DELIVERED"].includes(
-          data.order?.status
-        ) &&
-        !accountingSynced
-      ) {
-        setAccountingSynced(true);
-        syncToAccounting(id, data.order);
-      }
     } catch (err) {
       setStatus("ERROR");
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  };
-
-  // Pushes this paid order into AN-Accounting (the owner's own bookkeeping
-  // app — a different system from the ANgroup backend everything else on
-  // this page talks to). Best-effort: notifyAccounting() never throws, so
-  // this never affects the order-success experience for the customer.
-  const syncToAccounting = async (id, orderData) => {
-    const address = orderData?.address || {};
-    if (!address.state) {
-      // No state means we can't determine CGST+SGST vs. IGST on the
-      // AN-Accounting side — skip rather than send an incomplete sale.
-      return;
-    }
-
-    const items = Array.isArray(orderData?.items) ? orderData.items : [];
-    const lines = items.length
-      ? items.map((item) => {
-          const qty = Math.max(1, Number(item.qty) || 1);
-          const taxable = Number(item.taxableValue) || 0;
-          return {
-            description: item.name || "Item",
-            quantity: qty,
-            rate: Number((taxable / qty).toFixed(2)),
-            gstRatePercent: Number(item.gstRate) || 0,
-          };
-        })
-      : [
-          // Fallback if the order fetch doesn't include line items: one
-          // line for the full amount, no GST breakdown (better than
-          // silently dropping the sale entirely).
-          {
-            description: `Order ${id}`,
-            quantity: 1,
-            rate: Number(orderData?.amount) || 0,
-            gstRatePercent: 0,
-          },
-        ];
-
-    // GSTIN is collected + verified at checkout (app/checkout/page.tsx's
-    // form.gstNumber) and persisted on the order as address.gstNumber (see
-    // ANgroup's AddressSchema + get-by-id route). AN-Accounting's schema
-    // rejects the ENTIRE push if customer.gstin doesn't match its regex, so
-    // sanitize and only include it when it's actually a well-formed GSTIN --
-    // omit rather than risk dropping the whole sale over a bad value.
-    const GSTIN_RE = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z][Z][0-9A-Z]$/;
-    const rawGstin = String(address.gstNumber || "").trim().toUpperCase();
-    const gstin = GSTIN_RE.test(rawGstin) ? rawGstin : undefined;
-
-    await notifyAccounting({
-      orderId: id,
-      customer: {
-        name: address.name || "Customer",
-        email: address.email || undefined,
-        phone: address.phone || undefined,
-        state: address.state,
-        gstin,
-      },
-      lines,
-      payment: {
-        amount: Number(orderData?.amount) || 0,
-        reference: id,
-      },
-    });
   };
 
   const copyOrderId = async () => {
