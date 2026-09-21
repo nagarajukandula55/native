@@ -24,23 +24,25 @@ const FALLBACK_SETTINGS: StoreSettings = {
 };
 
 /**
- * Public, unauthenticated storefront settings — mirrors the convention
- * used by getBanners() (see lib/an-sdk/banners.ts): businessId-scoped,
- * no auth required, safe to call from the cart/checkout pages.
+ * Public, unauthenticated storefront settings. ANgroup has no dedicated
+ * /api/store-settings route -- these values live on the admin-editable
+ * `storefront` field of MobileAppConfig (see ANgroup's
+ * src/models/MobileAppConfig.ts and the "Storefront Settings" section of
+ * /admin/native/mobile-settings), read via the same public
+ * GET /api/mobile-app/config endpoint the app itself already calls at
+ * launch. That route was already public/unauthenticated (see ANgroup's
+ * middleware.ts), so no new backend route or middleware entry was needed.
  *
- * Expected shape: { success: true, settings: { minOrderValue,
- * smallCartFeeThreshold, deliveryChargeThreshold, smallCartFee,
- * deliveryCharge } }. Any failure
- * falls back to the current lib/constants.ts values so cart/checkout
- * pricing never breaks or flashes $0 if this call fails.
+ * Any failure falls back to the current lib/constants.ts values so
+ * cart/checkout pricing never breaks or flashes $0 if this call fails.
  */
 export async function getStoreSettings(): Promise<{
   success: boolean;
   settings: StoreSettings;
 }> {
   try {
-    const data = await anGet(`/api/store-settings`);
-    const settings = data?.settings || {};
+    const data = await anGet(`/api/mobile-app/config`);
+    const settings = data?.config?.storefront || {};
     return {
       success: true,
       settings: {
