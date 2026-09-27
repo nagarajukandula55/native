@@ -19,10 +19,30 @@ const CartContext = createContext<any>(null);
 ========================================================= */
 
 export function CartProvider({ children }: any) {
-  const [cart, setCart] = useState<any[]>([]);
+  // Lazy initializer reads localStorage synchronously on first render,
+  // instead of loading it in a separate effect -- that two-step (empty
+  // initial state, then a LOAD effect setting the real value a tick later)
+  // raced against the SAVE effect below under React 18 Strict Mode's
+  // double-invoke-on-mount behavior (next.config's reactStrictMode: true):
+  // the SAVE effect could fire with the still-empty initial `cart` and
+  // overwrite a real, already-persisted cart with `[]` before the LOAD
+  // effect's setCart landed. Reproduced consistently: add to cart, then
+  // navigate (full page load) to /checkout -- the cart was gone. With the
+  // initial state already correct, there's no empty-array window to leak
+  // into a write.
+  const [cart, setCart] = useState<any[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const saved = localStorage.getItem("cart");
+      return saved ? JSON.parse(saved) || [] : [];
+    } catch (err) {
+      console.error("Cart load failed:", err);
+      return [];
+    }
+  });
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  const hydrated = useRef(false);
+  const hydrated = useRef(true);
 
   /* =========================================================
      UI ACTIONS
@@ -31,25 +51,6 @@ export function CartProvider({ children }: any) {
   const openCart = () => setDrawerOpen(true);
 
   const closeCart = () => setDrawerOpen(false);
-
-  /* =========================================================
-     LOAD CART
-  ========================================================= */
-
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("cart");
-
-      if (saved) {
-        setCart(JSON.parse(saved) || []);
-      }
-    } catch (err) {
-      console.error("Cart load failed:", err);
-      setCart([]);
-    }
-
-    hydrated.current = true;
-  }, []);
 
   /* =========================================================
      SAVE CART

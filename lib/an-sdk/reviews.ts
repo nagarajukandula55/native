@@ -68,8 +68,10 @@ export async function getReviewSummary(productId: string) {
  * product, for a homepage "What our customers say" section.
  */
 export async function getRecentReviews(limit = 6) {
-  const businessId = process.env.NEXT_PUBLIC_AN_BUSINESS_ID || "";
-  const data = await anGet(`/api/reviews/recent?businessId=${encodeURIComponent(businessId)}&limit=${limit}`);
+  // anGet() already appends businessId to every request (see client.ts) --
+  // adding it again here just duplicated the query param, harmlessly on
+  // most routes but worth not doing.
+  const data = await anGet(`/api/reviews/recent?limit=${limit}`);
   return {
     reviews: (data?.reviews || []).map((r: any) => ({
       id: r.id,
