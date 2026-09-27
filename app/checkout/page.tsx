@@ -109,6 +109,17 @@ export default function CheckoutPage() {
     };
   }, []);
 
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem("native_checkout_pendingOrder");
+      if (saved) setPendingOrderState(JSON.parse(saved));
+    } catch {
+      // Corrupt/unavailable storage -- fall through to no pending order,
+      // same as a first-time visit.
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Set once an order is actually created server-side (with a Razorpay
   // order attached) and cleared only on success -- so a failed/cancelled
   // Razorpay checkout retries against the SAME order instead of calling
@@ -116,7 +127,25 @@ export default function CheckoutPage() {
   // every retry (verify failure, thrown error, or the customer dismissing
   // the Razorpay modal), creating a brand-new order each time; the
   // previous attempt's order was left orphaned with no way back to it.
-  const [pendingOrder, setPendingOrder] = useState<{ orderId: string; razorpayOrder: any } | null>(null);
+  //
+  // Mirrored into sessionStorage (not just component state) -- a plain
+  // page refresh between order-create succeeding and Razorpay verify
+  // completing used to lose this state entirely, so the next "Pay" click
+  // would call createOrder() again and orphan the first order. Restored on
+  // mount below.
+  const PENDING_ORDER_KEY = "native_checkout_pendingOrder";
+  const [pendingOrder, setPendingOrderState] = useState<{ orderId: string; razorpayOrder: any } | null>(null);
+  const setPendingOrder = (order: { orderId: string; razorpayOrder: any } | null) => {
+    setPendingOrderState(order);
+    try {
+      if (order) sessionStorage.setItem(PENDING_ORDER_KEY, JSON.stringify(order));
+      else sessionStorage.removeItem(PENDING_ORDER_KEY);
+    } catch {
+      // sessionStorage unavailable (private browsing, etc.) -- component
+      // state still works for the current page load, just not across a
+      // refresh.
+    }
+  };
 
   const [coupon, setCoupon] = useState("");
 
