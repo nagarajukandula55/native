@@ -37,55 +37,8 @@ export async function getTimeline(orderId: string) {
   return anGet(`/api/orders/timeline/${orderId}`);
 }
 
-/**
- * NOTE (admin-side gap, out of this pass's scope): ANgroup has no
- * /api/orders/add-note, /api/orders/status, /api/orders/update-status,
- * or /api/admin/orders route today — only create, get-by-id, list,
- * mark-paid, and timeline/[id] exist under src/app/api/orders. These
- * admin-only helpers (addOrderNote, setOrderStatus, updateOrderStatus,
- * adminGetOrders below) will 404 against the real backend until ANgroup
- * adds matching routes. Left as-is since fixing admin tooling wasn't in
- * scope for this pass — flagging here for a follow-up.
- */
-export async function addOrderNote(orderId: string, note: string) {
-  return anPost("/api/orders/add-note", { orderId, note });
-}
-
 export async function getOrders() {
   return anGet("/api/orders/list");
-}
-
-/**
- * Admin order listing. GET /api/orders/list on ANgroup requires either a
- * real ANgroup session cookie (which this frontend never has — its bearer
- * token isn't that cookie) or a service-key header, which must stay
- * server-side. Goes through this app's own /api/admin/orders proxy route
- * instead of anGet(), so the request carries that server-only key.
- */
-export async function adminListOrders(params: Record<string, string | number | undefined> = {}) {
-  const search = new URLSearchParams();
-  for (const [key, value] of Object.entries(params)) {
-    if (value !== undefined && value !== "") search.set(key, String(value));
-  }
-  const qs = search.toString();
-  const res = await fetch(`/api/admin/orders${qs ? `?${qs}` : ""}`, { cache: "no-store" });
-  return res.json();
-}
-
-export async function adminGetOrders() {
-  return anGet("/api/admin/orders");
-}
-
-export async function setOrderStatus(orderId: string, status: string) {
-  return anPost("/api/orders/status", { orderId, status });
-}
-
-export async function updateOrderStatus(orderId: string, status: string) {
-  return anPost("/api/orders/update-status", { orderId, status });
-}
-
-export async function adminUpdateOrderStatus(orderId: string, status: string) {
-  return anPost("/api/admin/orders/update-status", { orderId, status });
 }
 
 /**

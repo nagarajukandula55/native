@@ -1,15 +1,17 @@
 import { NextResponse } from "next/server";
 
 /**
- * Server-side proxy to ANgroup's POST /api/invoice/generate. That route
- * used to require a real ANgroup staff session with finance:create
- * permission -- a customer landing on order-success after payment has
- * neither, so OrderSuccessClient.js's direct anPost() call 401'd on every
- * single order and invoices were never actually generated. ANgroup's route
- * now also accepts a service-key request (see its own route.ts comment),
- * scoped to Native's own orders only -- this route holds that key
- * server-side (ADMIN_SERVICE_KEY must never reach the browser) and is what
- * OrderSuccessClient.js calls instead.
+ * Server-side proxy to ANgroup's POST /api/invoice/generate, holding
+ * ADMIN_SERVICE_KEY server-side (must never reach the browser).
+ *
+ * Not currently called from anywhere in this app: ANgroup generates the
+ * real SalesInvoice itself, automatically, on payment success
+ * (src/app/api/payment/verify/route.ts and .../webhook/route.ts calling
+ * createInvoiceForOrder) -- OrderSuccessClient.js only reads back
+ * order.invoice once that's happened, it never triggers generation (see
+ * that file's own comment). This proxy exists for a future manual
+ * "regenerate/resend invoice" action; nothing 404s or breaks by its absence
+ * of callers today.
  */
 export async function POST(request: Request) {
   const apiBase = process.env.NEXT_PUBLIC_AN_API;
