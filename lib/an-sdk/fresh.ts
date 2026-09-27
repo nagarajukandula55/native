@@ -57,13 +57,20 @@ export type FreshOrderItemInput = {
  * snapshotted server-side from each item's current ratePerUnit -- the
  * client never sends a price.
  */
+// businessId is required by the route's body contract -- see the identical
+// fix/comment on createGroceryOrder (lib/an-sdk/groceries.ts). Without it
+// every Fresh order submission 400'd with "businessId ... required" against
+// the real backend, live-tested and confirmed.
 export async function createFreshOrder(payload: {
   customerId: string;
   shopId: string;
   pincode: string;
   items: FreshOrderItemInput[];
 }) {
-  const data = await anPost("/api/fresh-orders", payload);
+  const data = await anPost("/api/fresh-orders", {
+    ...payload,
+    businessId: process.env.NEXT_PUBLIC_AN_BUSINESS_ID || "",
+  });
   return data?.data;
 }
 

@@ -93,6 +93,12 @@ export async function getMarketSessions(pincode?: string) {
  * customerId is required by the backend contract — callers must pass the
  * logged-in user's id (from useUser()/getMe()).
  */
+// businessId is required by the route's body contract (unlike GET, which
+// also accepts it as a query param) -- same gap createSanthaOrder already
+// closed for its own route (see that function's comment); this one and
+// createFreshOrder/createLiveMarketOrder never did, so every Grocery/Fresh/
+// Live Market order submission 400'd with "businessId ... required"
+// against the real backend, live-tested and confirmed.
 export async function createGroceryOrder(payload: {
   type: "MONTHLY_GROCERY" | "SANTHA";
   customerId: string;
@@ -101,7 +107,10 @@ export async function createGroceryOrder(payload: {
   marketSessionId?: string;
   items: GroceryOrderItemInput[];
 }) {
-  const data = await anPost("/api/grocery-orders", payload);
+  const data = await anPost("/api/grocery-orders", {
+    ...payload,
+    businessId: process.env.NEXT_PUBLIC_AN_BUSINESS_ID || "",
+  });
   return data?.data;
 }
 

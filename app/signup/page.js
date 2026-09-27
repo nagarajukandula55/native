@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { signup } from "@/lib/an-sdk/auth";
+import { signup, login } from "@/lib/an-sdk/auth";
 import { ApiError } from "@/lib/an-sdk/client";
 import { isSsoMode, isSsoConfigured, startSsoLogin } from "@/lib/an-sdk/sso";
 import { useUser } from "@/context/UserContext";
@@ -50,8 +50,11 @@ export default function SignupPage() {
       return;
     }
 
-    if (form.password.length < 6) {
-      setMsg("Password must be at least 6 characters");
+    // ANgroup's POST /api/auth/register actually requires >= 8 chars (see
+    // its own route.ts) -- this said 6, so a 6-7 char password passed this
+    // check and then failed with a confusing 400 from the server instead.
+    if (form.password.length < 8) {
+      setMsg("Password must be at least 8 characters");
       return;
     }
 
@@ -59,6 +62,18 @@ export default function SignupPage() {
 
     try {
       await signup(form);
+      // ANgroup's POST /api/auth/register never sets a session (see
+      // lib/an-sdk/auth.ts's signup() comment: "does NOT return a
+      // token/auto-login on success") -- this page called refreshUser()
+      // straight after signup() as if it had, so a brand-new account
+      // showed "Account created — redirecting..." and landed on the
+      // homepage still logged OUT. The header kept showing Login/Sign Up,
+      // and the very next login-gated action (placing a Groceries/Santha/
+      // Live/Fresh order) silently bounced them to /login with no
+      // explanation why an account that "worked" a second ago suddenly
+      // needed logging into. Following up with the real login() call closes
+      // that gap.
+      await login(form.email, form.password);
       await refreshUser();
       setMsg("success:Account created — redirecting...");
       setTimeout(() => router.push("/"), 1200);

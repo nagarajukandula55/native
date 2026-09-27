@@ -40,8 +40,12 @@ export default function ResetPasswordPage() {
       return;
     }
 
-    if (password.length < 6) {
-      setMsg("Password must be at least 6 characters");
+    // ANgroup's POST /api/auth/reset-password requires >= 8 chars (MIN_LENGTH
+    // in that route.ts) -- this said 6, same mismatch as signup's password
+    // check, letting a 6-7 char password pass here and fail with a
+    // confusing 400 from the server instead.
+    if (password.length < 8) {
+      setMsg("Password must be at least 8 characters");
       return;
     }
 
