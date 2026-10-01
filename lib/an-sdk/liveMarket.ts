@@ -11,6 +11,8 @@
  */
 import { anGet, anPost } from "./client";
 export { getShops } from "./groceries";
+import type { OrderAddressInput } from "./orderAddress";
+export type { OrderAddressInput } from "./orderAddress";
 
 function toQueryString(params: Record<string, any> = {}) {
   const qs = new URLSearchParams();
@@ -65,6 +67,7 @@ export async function createLiveMarketOrder(payload: {
   customerId: string;
   shopId: string;
   pincode: string;
+  address: OrderAddressInput;
   items: LiveMarketOrderItemInput[];
 }) {
   const data = await anPost("/api/live-market-orders", {

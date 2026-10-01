@@ -21,6 +21,8 @@
  * task, flagged here for whoever owns angroup next).
  */
 import { anGet, anPost } from "./client";
+import type { OrderAddressInput } from "./orderAddress";
+export type { OrderAddressInput } from "./orderAddress";
 
 function toQueryString(params: Record<string, any> = {}) {
   const qs = new URLSearchParams();
@@ -105,6 +107,7 @@ export async function createGroceryOrder(payload: {
   pincode: string;
   shopId?: string;
   marketSessionId?: string;
+  address: OrderAddressInput;
   items: GroceryOrderItemInput[];
 }) {
   const data = await anPost("/api/grocery-orders", {

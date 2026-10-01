@@ -5,9 +5,10 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useUser } from "@/context/UserContext";
 import { getStoredPincode, PINCODE_CHANGED_EVENT } from "@/lib/pincode";
-import { getShops, createLiveMarketOrder, LiveMarketOrderItemInput } from "@/lib/an-sdk/liveMarket";
+import { getShops, createLiveMarketOrder, LiveMarketOrderItemInput, OrderAddressInput } from "@/lib/an-sdk/liveMarket";
 import { ApiError } from "@/lib/an-sdk/client";
 import LiveMarketCatalogPicker from "@/components/LiveMarketCatalogPicker";
+import DeliveryAddressPicker from "@/components/DeliveryAddressPicker";
 
 export default function LiveMarketPage() {
   const router = useRouter();
@@ -21,6 +22,7 @@ export default function LiveMarketPage() {
 
   const [cartItems, setCartItems] = useState<LiveMarketOrderItemInput[]>([]);
   const [cartTotal, setCartTotal] = useState(0);
+  const [address, setAddress] = useState<OrderAddressInput | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
 
@@ -72,6 +74,10 @@ export default function LiveMarketPage() {
       setSubmitError("Add at least one item to your cart.");
       return;
     }
+    if (!address) {
+      setSubmitError("Please add a delivery address.");
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -79,6 +85,7 @@ export default function LiveMarketPage() {
         customerId: user.id,
         pincode,
         shopId: selectedShopId,
+        address,
         items: cartItems,
       });
       router.push(`/live-market/orders/${order._id}`);
@@ -156,6 +163,13 @@ export default function LiveMarketPage() {
             </div>
           )}
 
+          {selectedShopId && (
+            <div className="section">
+              <h2>3. Delivery address</h2>
+              <DeliveryAddressPicker onChange={setAddress} />
+            </div>
+          )}
+
           <div className="section">
             <div className="checkoutRow">
               <div>
@@ -167,7 +181,7 @@ export default function LiveMarketPage() {
                 type="button"
                 className="submitBtn"
                 onClick={handlePlaceOrder}
-                disabled={submitting || userLoading || !cartItems.length}
+                disabled={submitting || userLoading || !cartItems.length || !address}
               >
                 {submitting ? "Placing order…" : "Place Order"}
               </button>

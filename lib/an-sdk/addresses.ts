@@ -17,6 +17,10 @@ export interface SavedAddress {
   pincode?: string;
   phone?: string;
   isDefault?: boolean;
+  // GPS fix captured via "Use my current location" when this address was
+  // saved -- optional, lets order alerts offer a one-tap navigation link.
+  lat?: number;
+  lng?: number;
 }
 
 export async function getSavedAddresses(): Promise<SavedAddress[]> {

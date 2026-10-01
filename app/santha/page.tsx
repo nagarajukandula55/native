@@ -5,10 +5,11 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useUser } from "@/context/UserContext";
 import { getStoredPincode, PINCODE_CHANGED_EVENT } from "@/lib/pincode";
-import { getMarketSessions, createSanthaOrder, getSanthaItems, SanthaOrderItemInput } from "@/lib/an-sdk/santha";
+import { getMarketSessions, createSanthaOrder, getSanthaItems, SanthaOrderItemInput, OrderAddressInput } from "@/lib/an-sdk/santha";
 import { ApiError } from "@/lib/an-sdk/client";
 import { previewNextSanthaDate } from "@/lib/santhaDate";
 import GroceryCatalogPicker from "@/components/GroceryCatalogPicker";
+import DeliveryAddressPicker from "@/components/DeliveryAddressPicker";
 
 type Row = SanthaOrderItemInput;
 
@@ -27,6 +28,7 @@ export default function SanthaPage() {
   const [selectedSessionId, setSelectedSessionId] = useState("");
 
   const [rows, setRows] = useState<Row[]>([emptyRow()]);
+  const [address, setAddress] = useState<OrderAddressInput | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
 
@@ -106,6 +108,10 @@ export default function SanthaPage() {
       setSubmitError("Add at least one item.");
       return;
     }
+    if (!address) {
+      setSubmitError("Please add a delivery address.");
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -113,6 +119,7 @@ export default function SanthaPage() {
         customerId: user.id,
         pincode,
         marketSessionId: selectedSessionId,
+        address,
         items,
       });
       router.push(`/santha/orders/${order._id}`);
@@ -214,8 +221,13 @@ export default function SanthaPage() {
         <GroceryCatalogPicker type="SANTHA" onAdd={addCatalogPick} fetchItems={() => getSanthaItems()} />
       </div>
 
+      <div className="section">
+        <h2>3. Delivery address</h2>
+        <DeliveryAddressPicker onChange={setAddress} />
+      </div>
+
       <form className="section" onSubmit={handleSubmit}>
-        <h2>3. Review your list</h2>
+        <h2>4. Review your list</h2>
         <p className="catalogHint">Not in the catalogue? Add it here.</p>
         <div className="items">
           {rows.map((row, idx) => (
@@ -265,7 +277,7 @@ export default function SanthaPage() {
 
         {submitError && <p className="error">{submitError}</p>}
 
-        <button type="submit" className="submitBtn" disabled={submitting || userLoading}>
+        <button type="submit" className="submitBtn" disabled={submitting || userLoading || !address}>
           {submitting ? "Submitting…" : "Request Quote"}
         </button>
       </form>

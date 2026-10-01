@@ -25,6 +25,8 @@
  */
 import { anGet, anPost } from "./client";
 export { getShops } from "./groceries";
+import type { OrderAddressInput } from "./orderAddress";
+export type { OrderAddressInput } from "./orderAddress";
 
 function toQueryString(params: Record<string, any> = {}) {
   const qs = new URLSearchParams();
@@ -84,6 +86,7 @@ export async function createSanthaOrder(payload: {
   pincode: string;
   shopId?: string;
   marketSessionId: string;
+  address: OrderAddressInput;
   items: SanthaOrderItemInput[];
 }) {
   const data = await anPost("/api/santha-orders", {
