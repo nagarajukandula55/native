@@ -15,4 +15,9 @@ export type OrderAddressInput = {
   phone?: string;
   lat?: number;
   lng?: number;
+  // Explicit "this is a business purchase" opt-in toggle -- when true,
+  // gstNumber is required and the order's outward invoice is classified
+  // B2B instead of B2C (see angroup's core/invoicing/dualInvoiceService.ts).
+  gstNumber?: string;
+  isBusinessPurchase?: boolean;
 };

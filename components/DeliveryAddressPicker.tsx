@@ -38,6 +38,8 @@ export default function DeliveryAddressPicker({
     state: "",
     pincode: "",
     phone: "",
+    isBusinessPurchase: false,
+    gstNumber: "",
   });
   const [gps, setGps] = useState<{ lat: number; lng: number } | null>(null);
   const [gpsStatus, setGpsStatus] = useState<"idle" | "locating" | "done" | "error">("idle");
@@ -78,6 +80,8 @@ export default function DeliveryAddressPicker({
       phone: a.phone,
       lat: a.lat,
       lng: a.lng,
+      gstNumber: a.gstNumber,
+      isBusinessPurchase: a.isBusinessPurchase,
     });
   }
 
@@ -110,6 +114,10 @@ export default function DeliveryAddressPicker({
       setError("Address line is required.");
       return;
     }
+    if (form.isBusinessPurchase && !form.gstNumber.trim()) {
+      setError("GST number is required for a business purchase.");
+      return;
+    }
     setSaving(true);
     try {
       const updated = await addSavedAddress({
@@ -122,6 +130,8 @@ export default function DeliveryAddressPicker({
         phone: form.phone.trim() || undefined,
         lat: gps?.lat,
         lng: gps?.lng,
+        gstNumber: form.isBusinessPurchase ? form.gstNumber.trim() : undefined,
+        isBusinessPurchase: form.isBusinessPurchase,
       } as any);
       setAddresses(updated);
       const saved = updated.find(
@@ -158,6 +168,7 @@ export default function DeliveryAddressPicker({
               </p>
               {a.phone && <p className="addrPhone">{a.phone}</p>}
               {typeof a.lat === "number" && <p className="addrGps">📍 Exact location saved</p>}
+              {a.isBusinessPurchase && <p className="addrGps">🧾 Business purchase (GST: {a.gstNumber})</p>}
             </button>
           ))}
         </div>
@@ -208,6 +219,22 @@ export default function DeliveryAddressPicker({
               onChange={(e) => setForm({ ...form, pincode: e.target.value })}
             />
           </div>
+
+          <label className="bizToggle">
+            <input
+              type="checkbox"
+              checked={form.isBusinessPurchase}
+              onChange={(e) => setForm({ ...form, isBusinessPurchase: e.target.checked })}
+            />
+            This is a business purchase (I have a GSTIN)
+          </label>
+          {form.isBusinessPurchase && (
+            <input
+              placeholder="GSTIN *"
+              value={form.gstNumber}
+              onChange={(e) => setForm({ ...form, gstNumber: e.target.value })}
+            />
+          )}
 
           <button type="button" className="gpsBtn" onClick={useCurrentLocation} disabled={gpsStatus === "locating"}>
             {gpsStatus === "done"
@@ -311,6 +338,14 @@ export default function DeliveryAddressPicker({
           border: 1px solid #ddd;
           border-radius: 8px;
           font-size: 14px;
+        }
+        .bizToggle {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 13px;
+          color: #333;
+          cursor: pointer;
         }
         .gpsBtn {
           align-self: flex-start;

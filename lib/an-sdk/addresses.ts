@@ -21,6 +21,10 @@ export interface SavedAddress {
   // saved -- optional, lets order alerts offer a one-tap navigation link.
   lat?: number;
   lng?: number;
+  // "This is a business purchase (I have a GSTIN)" toggle -- see
+  // lib/an-sdk/orderAddress.ts's OrderAddressInput for the full rationale.
+  gstNumber?: string;
+  isBusinessPurchase?: boolean;
 }
 
 export async function getSavedAddresses(): Promise<SavedAddress[]> {

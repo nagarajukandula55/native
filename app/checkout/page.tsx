@@ -197,6 +197,8 @@ export default function CheckoutPage() {
     city: "",
     state: "",
     gstNumber: "",
+    companyName: "",
+    isBusinessPurchase: false,
   });
 
   /* =========================================================
@@ -593,6 +595,10 @@ useEffect(() => {
       newErrors.pincode = "Invalid pincode";
     }
 
+    if (form.isBusinessPurchase && !form.gstNumber.trim()) {
+      newErrors.gstNumber = "GST number is required for a business purchase";
+    }
+
     setErrors(newErrors);
 
     return Object.keys(newErrors).length === 0;
@@ -986,7 +992,36 @@ useEffect(() => {
             <div className="section">
               <h3>GST Details</h3>
 
-              <input name="gstNumber" value={form.gstNumber} onChange={handleChange} onBlur={verifyGST} placeholder="GST (Optional)" />
+              <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                <input
+                  type="checkbox"
+                  checked={form.isBusinessPurchase}
+                  onChange={(e) =>
+                    setForm((prev) => ({ ...prev, isBusinessPurchase: e.target.checked }))
+                  }
+                />
+                This is a business purchase (I have a GSTIN)
+              </label>
+
+              {form.isBusinessPurchase && (
+                <>
+                  <input
+                    name="companyName"
+                    value={form.companyName}
+                    onChange={handleChange}
+                    placeholder="Business / Company Name *"
+                    style={{ marginBottom: 8 }}
+                  />
+                  <input
+                    name="gstNumber"
+                    value={form.gstNumber}
+                    onChange={handleChange}
+                    onBlur={verifyGST}
+                    placeholder="GSTIN *"
+                  />
+                  {errors.gstNumber && <p className="error">{errors.gstNumber}</p>}
+                </>
+              )}
 
               {gstData && (
                 <div className="successBox">GST Verified</div>
