@@ -8,6 +8,7 @@ import { ApiError } from "@/lib/an-sdk/client";
 import { isSsoMode, isSsoConfigured, startSsoLogin } from "@/lib/an-sdk/sso";
 import { useUser } from "@/context/UserContext";
 import { getBusinessBranding } from "@/lib/an-sdk/company";
+import { logEvent } from "@/lib/eventLogger";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -45,6 +46,7 @@ export default function LoginPage() {
       setLoading(true);
       await login(form.email, form.password);
       await refreshUser();
+      logEvent("login", `Logged in as ${form.email}`, { email: form.email });
       router.push("/");
     } catch (err) {
       console.error(err);

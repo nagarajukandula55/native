@@ -233,6 +233,11 @@ export default function ProfilePage() {
             View all orders &amp; invoices &rarr;
           </Link>
         </div>
+        <div style={{ marginTop: 10 }}>
+          <Link href="/activity" style={{ fontSize: 13, color: "#888", textDecoration: "none" }}>
+            View activity log &rarr;
+          </Link>
+        </div>
         <p style={{ fontSize: 12, color: "#888", marginTop: -6 }}>
           Product orders only. Groceries, Santha and Live Market orders, plus receipt/invoice downloads for every
           order type, are on the full My Orders page.

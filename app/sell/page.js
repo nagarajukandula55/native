@@ -5,7 +5,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useUser } from "@/context/UserContext";
 import { applyAsVendor, getMyVendorStatus } from "@/lib/an-sdk/vendors";
+import { getCategories } from "@/lib/an-sdk/products";
 import { ApiError } from "@/lib/an-sdk/client";
+import { logEvent } from "@/lib/eventLogger";
 
 const PERKS = [
   {
@@ -41,6 +43,16 @@ export default function SellPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [categories, setCategories] = useState([]);
+
+  useEffect(() => {
+    getCategories()
+      .then((data) => {
+        const list = data?.categories || (Array.isArray(data) ? data : []);
+        setCategories(list);
+      })
+      .catch(() => setCategories([]));
+  }, []);
 
   useEffect(() => {
     if (userLoading) return;
@@ -74,6 +86,11 @@ export default function SellPage() {
     setSubmitting(true);
     try {
       await applyAsVendor(form);
+      logEvent("vendor_application_submitted", `Vendor application submitted for ${form.businessName}`, {
+        businessName: form.businessName,
+        email: form.email,
+        category: form.category,
+      });
       setSubmitted(true);
     } catch (err) {
       console.error(err);
@@ -185,12 +202,35 @@ export default function SellPage() {
               onChange={(e) => setForm({ ...form, gstNumber: e.target.value })}
               className="input"
             />
-            <input
-              placeholder="Product category"
-              value={form.category}
-              onChange={(e) => setForm({ ...form, category: e.target.value })}
+            <select
+              value={categories.some((c) => (c.name || c) === form.category) ? form.category : (form.category ? "__other" : "")}
+              onChange={(e) =>
+                setForm({ ...form, category: e.target.value === "__other" ? "" : e.target.value })
+              }
               className="input"
-            />
+            >
+              <option value="" disabled>
+                Select a product category
+              </option>
+              {categories.map((c) => {
+                const name = c.name || c;
+                return (
+                  <option key={c._id || name} value={name}>
+                    {name}
+                  </option>
+                );
+              })}
+              <option value="__other">Other (specify below)</option>
+            </select>
+
+            {(form.category === "" || !categories.some((c) => (c.name || c) === form.category)) && (
+              <input
+                placeholder="Category name"
+                value={form.category}
+                onChange={(e) => setForm({ ...form, category: e.target.value })}
+                className="input"
+              />
+            )}
             <textarea
               placeholder="Tell us about what you'd like to sell"
               value={form.message}

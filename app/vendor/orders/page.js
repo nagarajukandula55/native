@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { getVendorOrders, updateVendorOrderStatus } from "@/lib/an-sdk/vendors";
 import { ApiError } from "@/lib/an-sdk/client";
+import { logEvent } from "@/lib/eventLogger";
 
 const STATUSES = ["pending", "processing", "shipped", "delivered", "cancelled"];
 
@@ -32,6 +33,7 @@ export default function VendorOrdersPage() {
     setUpdatingId(orderId);
     try {
       await updateVendorOrderStatus(orderId, status);
+      logEvent("order_status_updated", `Order ${orderId} status set to ${status}`, { orderId, status });
       setOrders((prev) =>
         prev.map((o) => ((o._id || o.orderId) === orderId ? { ...o, status } : o))
       );

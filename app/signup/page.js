@@ -8,6 +8,7 @@ import { ApiError } from "@/lib/an-sdk/client";
 import { isSsoMode, isSsoConfigured, startSsoLogin } from "@/lib/an-sdk/sso";
 import { useUser } from "@/context/UserContext";
 import { getBusinessBranding } from "@/lib/an-sdk/company";
+import { logEvent } from "@/lib/eventLogger";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -29,10 +30,12 @@ export default function SignupPage() {
     email: "",
     phone: "",
     password: "",
+    confirmPassword: "",
     accountType: "RETAIL",
     businessName: "",
     gstNumber: "",
   });
+  const [agreed, setAgreed] = useState(false);
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState("");
@@ -57,6 +60,14 @@ export default function SignupPage() {
       setMsg("Password must be at least 8 characters");
       return;
     }
+    if (form.password !== form.confirmPassword) {
+      setMsg("Passwords don't match");
+      return;
+    }
+    if (!agreed) {
+      setMsg("Please agree to the Terms & Conditions to continue");
+      return;
+    }
 
     setLoading(true);
 
@@ -75,6 +86,10 @@ export default function SignupPage() {
       // that gap.
       await login(form.email, form.password);
       await refreshUser();
+      logEvent("account_created", `Account created for ${form.email}`, {
+        email: form.email,
+        accountType: form.accountType,
+      });
       setMsg("success:Account created — redirecting...");
       setTimeout(() => router.push("/"), 1200);
     } catch (err) {
@@ -195,6 +210,32 @@ export default function SignupPage() {
               </span>
             </div>
 
+            <input
+              type={showPass ? "text" : "password"}
+              placeholder="Confirm password"
+              value={form.confirmPassword}
+              onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
+              className="input"
+            />
+
+            <label className="terms">
+              <input
+                type="checkbox"
+                checked={agreed}
+                onChange={(e) => setAgreed(e.target.checked)}
+              />
+              <span>
+                I agree to the{" "}
+                <Link href="/terms-and-conditions" className="link">
+                  Terms & Conditions
+                </Link>{" "}
+                and{" "}
+                <Link href="/privacy-policy" className="link">
+                  Privacy Policy
+                </Link>
+              </span>
+            </label>
+
             {msg && (
               <p className={isSuccess ? "success" : "error"}>{displayMsg}</p>
             )}
@@ -297,6 +338,20 @@ export default function SignupPage() {
           color: #c28b45;
           cursor: pointer;
           font-weight: 600;
+        }
+        .terms {
+          display: flex;
+          align-items: flex-start;
+          gap: 8px;
+          text-align: left;
+          font-size: 12px;
+          color: #555;
+          margin-bottom: 14px;
+          cursor: pointer;
+        }
+        .terms input {
+          margin-top: 2px;
+          flex-shrink: 0;
         }
         .error {
           color: #e11d48;
