@@ -7,6 +7,7 @@ import { useUser } from "@/context/UserContext";
 import { getGroceryOrder } from "@/lib/an-sdk/groceries";
 import { ApiError } from "@/lib/an-sdk/client";
 import VerticalOrderPayment from "@/components/VerticalOrderPayment";
+import RiderInfoCard from "@/components/RiderInfoCard";
 
 export default function GroceryOrderDetailPage() {
   const params = useParams();
@@ -93,6 +94,8 @@ export default function GroceryOrderDetailPage() {
       </Link>
       <h1>Order #{String(order._id).slice(-6).toUpperCase()}</h1>
       <p className="status">{(order.status || "").replace(/_/g, " ")}</p>
+
+      <RiderInfoCard order={order} />
 
       <div className="section">
         <h2>Shop</h2>
