@@ -8,6 +8,7 @@ import { getFreshOrder } from "@/lib/an-sdk/fresh";
 import { ApiError } from "@/lib/an-sdk/client";
 import VerticalOrderPayment from "@/components/VerticalOrderPayment";
 import RiderInfoCard from "@/components/RiderInfoCard";
+import EnablePushButton from "@/components/EnablePushButton";
 
 export default function FreshOrderDetailPage() {
   const params = useParams();
@@ -80,6 +81,7 @@ export default function FreshOrderDetailPage() {
       <h1>Order #{String(order._id).slice(-6).toUpperCase()}</h1>
       <p className="status">{(order.status || "").replace(/_/g, " ")}</p>
 
+      <EnablePushButton />
       <RiderInfoCard order={order} />
 
       <div className="section">

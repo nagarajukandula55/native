@@ -35,3 +35,35 @@ self.addEventListener("fetch", (event) => {
       .catch(() => caches.match(request))
   );
 });
+
+// Web Push -- displays a real OS/browser notification for whatever angroup
+// sent via lib/push/sendPushNotification.ts (order picked up, rider on the
+// way, etc.). Payload is plain JSON: { title, body, url? }.
+self.addEventListener("push", (event) => {
+  let data = { title: "Native", body: "You have an update." };
+  try {
+    if (event.data) data = { ...data, ...event.data.json() };
+  } catch {
+    // ignore malformed payloads
+  }
+
+  event.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: "/favicon.ico",
+      data: { url: data.url || "/" },
+    })
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = event.notification.data?.url || "/";
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientsArr) => {
+      const existing = clientsArr.find((c) => c.url.includes(url));
+      if (existing) return existing.focus();
+      return self.clients.openWindow(url);
+    })
+  );
+});
