@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getPushPermissionState, isSubscribedToPush, subscribeToPush } from "@/lib/push";
+import { getPushPermissionState, isSubscribedToPush, subscribeToPush, sendTestPush } from "@/lib/push";
 
 /**
  * "Enable order updates" prompt -- shown on order-detail pages so the
@@ -11,9 +11,12 @@ import { getPushPermissionState, isSubscribedToPush, subscribeToPush } from "@/l
  * permanently denied (nothing useful to do in that last case but note it).
  */
 export default function EnablePushButton() {
-  const [state, setState] = useState<"checking" | "offer" | "subscribed" | "denied" | "unsupported">("checking");
+  const [state, setState] = useState<"checking" | "offer" | "subscribed" | "justSubscribed" | "denied" | "unsupported">(
+    "checking"
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [testResult, setTestResult] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -34,10 +37,18 @@ export default function EnablePushButton() {
     setError("");
     const result = await subscribeToPush();
     if (result.success) {
-      setState("subscribed");
+      setState("justSubscribed");
     } else {
       setError(result.message || "Could not enable notifications.");
     }
+    setBusy(false);
+  }
+
+  async function handleSendTest() {
+    setBusy(true);
+    setTestResult("");
+    const result = await sendTestPush();
+    setTestResult(result.success ? "Sent! Check your notifications." : result.message || "Could not send test.");
     setBusy(false);
   }
 
@@ -50,6 +61,14 @@ export default function EnablePushButton() {
           🔕 Notifications are blocked for this site — enable them in your browser settings to get a heads-up when
           your rider is on the way.
         </p>
+      ) : state === "justSubscribed" ? (
+        <>
+          <p>✅ Order updates enabled. Want to confirm it works?</p>
+          <button type="button" onClick={handleSendTest} disabled={busy}>
+            {busy ? "Sending…" : "Send test notification"}
+          </button>
+          {testResult && <p className="testResult">{testResult}</p>}
+        </>
       ) : (
         <>
           <p>🔔 Get notified the moment your rider picks up your order.</p>
@@ -93,6 +112,11 @@ export default function EnablePushButton() {
         .error {
           color: #e11d48;
           margin-top: 6px;
+        }
+        .testResult {
+          margin: 6px 0 0;
+          color: #1f3d2b;
+          font-size: 12px;
         }
       `}</style>
     </div>

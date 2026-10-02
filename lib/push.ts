@@ -59,6 +59,12 @@ export async function subscribeToPush(): Promise<{ success: boolean; message?: s
   return { success: true };
 }
 
+/** Sends a real push to every device this customer is subscribed from. */
+export async function sendTestPush(): Promise<{ success: boolean; message?: string }> {
+  const result: any = await anPost("/api/push/send-test");
+  return { success: !!result?.success, message: result?.message };
+}
+
 export async function unsubscribeFromPush(): Promise<void> {
   if (!isPushSupported()) return;
   const reg = await navigator.serviceWorker.ready;
