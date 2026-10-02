@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useUser } from "@/context/UserContext";
 import { getSanthaOrder } from "@/lib/an-sdk/santha";
 import { ApiError } from "@/lib/an-sdk/client";
+import VerticalOrderPayment from "@/components/VerticalOrderPayment";
 
 export default function SanthaOrderDetailPage() {
   const params = useParams();
@@ -17,10 +18,6 @@ export default function SanthaOrderDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // TEMPORARY, DEV-ONLY: see the same note in app/groceries/orders/[id]/page.tsx —
-  // no payment gateway or customer-callable "mark paid" endpoint exists yet
-  // on the ANgroup side, so this stays a disabled/placeholder button.
-  const [payNotice, setPayNotice] = useState(false);
 
   useEffect(() => {
     if (userLoading) return;
@@ -159,22 +156,12 @@ export default function SanthaOrderDetailPage() {
         {isPaid ? (
           <p className="paid">Paid ✓</p>
         ) : hasQuote ? (
-          <>
-            <button
-              type="button"
-              className="payBtn"
-              title="Payment gateway integration is not built yet — this is a placeholder."
-              onClick={() => setPayNotice(true)}
-            >
-              Pay Now
-            </button>
-            {payNotice && (
-              <p className="notice">
-                Online payment isn't wired up yet — this button is a temporary placeholder.
-                A real "Pay Now" flow will replace it once payment gateway integration lands.
-              </p>
-            )}
-          </>
+          <VerticalOrderPayment
+            type="SANTHA"
+            order={order}
+            categoryKey="santha"
+            onPaid={() => setOrder((prev: any) => ({ ...prev, paymentStatus: "PAID", status: "PAID" }))}
+          />
         ) : (
           <button type="button" className="payBtn" disabled>
             Awaiting quote

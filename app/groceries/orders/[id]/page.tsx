@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useUser } from "@/context/UserContext";
 import { getGroceryOrder } from "@/lib/an-sdk/groceries";
 import { ApiError } from "@/lib/an-sdk/client";
+import VerticalOrderPayment from "@/components/VerticalOrderPayment";
 
 export default function GroceryOrderDetailPage() {
   const params = useParams();
@@ -17,16 +18,6 @@ export default function GroceryOrderDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // TEMPORARY, DEV-ONLY: no payment gateway is wired up yet. Real payment
-  // for a grocery order flows: customer sees the uploaded quote -> pays via
-  // gateway -> gateway webhook/callback flips GroceryOrder.paymentStatus to
-  // "PAID" and status to "PAID" server-side. ANgroup does not yet expose a
-  // customer-callable endpoint for this (the only status-changing route,
-  // PUT /api/grocery-orders/:id/status, is gated to the assigned executive/
-  // admin via assertCanActOnOrder and would 403 for a plain customer
-  // session). So there is nothing this button can correctly call today --
-  // it's disabled and clearly labeled until that gateway + endpoint exist.
-  const [payNotice, setPayNotice] = useState(false);
 
   useEffect(() => {
     if (userLoading) return;
@@ -152,22 +143,12 @@ export default function GroceryOrderDetailPage() {
         {isPaid ? (
           <p className="paid">Paid ✓</p>
         ) : hasQuote ? (
-          <>
-            <button
-              type="button"
-              className="payBtn"
-              title="Payment gateway integration is not built yet — this is a placeholder."
-              onClick={() => setPayNotice(true)}
-            >
-              Pay Now
-            </button>
-            {payNotice && (
-              <p className="notice">
-                Online payment isn't wired up yet — this button is a temporary placeholder.
-                A real "Pay Now" flow will replace it once payment gateway integration lands.
-              </p>
-            )}
-          </>
+          <VerticalOrderPayment
+            type="GROCERY"
+            order={order}
+            categoryKey="grocery"
+            onPaid={() => setOrder((prev: any) => ({ ...prev, paymentStatus: "PAID", status: "PAID" }))}
+          />
         ) : (
           <button type="button" className="payBtn" disabled>
             Awaiting quote

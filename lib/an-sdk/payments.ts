@@ -28,3 +28,43 @@ export async function getPaymentSettings() {
 export async function updatePaymentSettings(payload: any) {
   return anPost("/api/admin/payment-settings", payload);
 }
+
+export type PaymentCategorySettings = {
+  method: "UPI" | "RAZORPAY";
+  upiId?: string;
+  upiPayeeName?: string;
+};
+
+/**
+ * GET /api/payment-settings?businessId= -- PUBLIC, no auth (see angroup's
+ * middleware.ts PUBLIC_PREFIXES). Tells the storefront which payment
+ * method + UPI ID to show per category at checkout/order-detail. Distinct
+ * from getPaymentSettings() above, which hits the ADMIN route (session/
+ * service-key gated, wrong shape for a customer-facing call).
+ */
+export async function getPublicPaymentSettings(): Promise<{
+  product: PaymentCategorySettings;
+  fresh: PaymentCategorySettings;
+  liveMarket: PaymentCategorySettings;
+  grocery: PaymentCategorySettings;
+  santha: PaymentCategorySettings;
+}> {
+  const data = await anGet("/api/payment-settings");
+  return data?.data;
+}
+
+/**
+ * POST /api/payment/verify-vertical -- the Fresh/Live Market/Grocery/
+ * Santha counterpart to verifyPayment() above (which is the generic
+ * Product Order's verify route). type identifies which order model to
+ * verify against.
+ */
+export async function verifyVerticalPayment(payload: {
+  type: "FRESH" | "LIVE_MARKET" | "GROCERY" | "SANTHA";
+  orderId: string;
+  razorpay_order_id: string;
+  razorpay_payment_id: string;
+  razorpay_signature: string;
+}) {
+  return anPost("/api/payment/verify-vertical", payload);
+}

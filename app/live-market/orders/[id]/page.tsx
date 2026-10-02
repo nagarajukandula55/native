@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useUser } from "@/context/UserContext";
 import { getLiveMarketOrder } from "@/lib/an-sdk/liveMarket";
 import { ApiError } from "@/lib/an-sdk/client";
+import VerticalOrderPayment from "@/components/VerticalOrderPayment";
 
 export default function LiveMarketOrderDetailPage() {
   const params = useParams();
@@ -16,13 +17,6 @@ export default function LiveMarketOrderDetailPage() {
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-
-  // TEMPORARY, DEV-ONLY: no payment gateway is wired up yet -- same gap as
-  // Groceries/Santha's order detail page (see its own comment). Price is
-  // already known here (no quote step), but there's still nothing this
-  // button can correctly call until a gateway + customer-callable payment
-  // endpoint exist.
-  const [payNotice, setPayNotice] = useState(false);
 
   useEffect(() => {
     if (userLoading) return;
@@ -114,22 +108,12 @@ export default function LiveMarketOrderDetailPage() {
         {isPaid ? (
           <p className="paid">Paid ✓</p>
         ) : (
-          <>
-            <button
-              type="button"
-              className="payBtn"
-              title="Payment gateway integration is not built yet — this is a placeholder."
-              onClick={() => setPayNotice(true)}
-            >
-              Pay Now
-            </button>
-            {payNotice && (
-              <p className="notice">
-                Online payment isn&apos;t wired up yet — this button is a temporary placeholder.
-                A real &quot;Pay Now&quot; flow will replace it once payment gateway integration lands.
-              </p>
-            )}
-          </>
+          <VerticalOrderPayment
+            type="LIVE_MARKET"
+            order={order}
+            categoryKey="liveMarket"
+            onPaid={() => setOrder((prev: any) => ({ ...prev, paymentStatus: "PAID", status: "REQUESTED" }))}
+          />
         )}
       </div>
 
