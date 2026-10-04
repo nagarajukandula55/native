@@ -128,30 +128,12 @@ export default function FreshPage() {
         </div>
       ) : (
         <>
-          <div className="section">
-            <h2>1. Choose a shop</h2>
-            {shopsLoading && <p>Loading shops…</p>}
-            {shopsError && <p className="error">{shopsError}</p>}
-            {!!shops.length && (
-              <div className="shopGrid">
-                {shops.map((shop) => (
-                  <button
-                    type="button"
-                    key={shop._id}
-                    className={`shopCard ${selectedShopId === shop._id ? "selected" : ""}`}
-                    onClick={() => setSelectedShopId(shop._id)}
-                  >
-                    <p className="shopName">{shop.name}</p>
-                    {shop.address && <p className="shopAddr">{shop.address}</p>}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          {shopsLoading && <p>Loading…</p>}
+          {shopsError && <p className="error">{shopsError}</p>}
 
           {selectedShopId && (
             <div className="section">
-              <h2>2. Pick items — today&apos;s price</h2>
+              <h2>1. Pick items — today&apos;s price</h2>
               <FreshCatalogPicker
                 key={selectedShopId}
                 shopId={selectedShopId}
@@ -165,7 +147,7 @@ export default function FreshPage() {
 
           {selectedShopId && (
             <div className="section">
-              <h2>3. Delivery address</h2>
+              <h2>2. Delivery address</h2>
               <DeliveryAddressPicker onChange={setAddress} />
             </div>
           )}
