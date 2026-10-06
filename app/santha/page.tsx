@@ -29,6 +29,7 @@ export default function SanthaPage() {
 
   const [rows, setRows] = useState<Row[]>([emptyRow()]);
   const [address, setAddress] = useState<OrderAddressInput | null>(null);
+  const [couponCode, setCouponCode] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
 
@@ -121,6 +122,7 @@ export default function SanthaPage() {
         marketSessionId: selectedSessionId,
         address,
         items,
+        couponCode: couponCode.trim() || undefined,
       });
       router.push(`/santha/orders/${order._id}`);
     } catch (err) {
@@ -274,6 +276,14 @@ export default function SanthaPage() {
         <button type="button" className="addBtn" onClick={addRow}>
           + Add item
         </button>
+
+        <div className="couponRow">
+          <input
+            value={couponCode}
+            onChange={(e) => setCouponCode(e.target.value)}
+            placeholder="Promo code (optional, applied once your quote is ready)"
+          />
+        </div>
 
         {submitError && <p className="error">{submitError}</p>}
 
@@ -435,6 +445,16 @@ export default function SanthaPage() {
           border-radius: 8px;
           cursor: pointer;
           font-weight: 600;
+        }
+        .couponRow {
+          margin-top: 16px;
+        }
+        .couponRow input {
+          width: 100%;
+          padding: 10px 12px;
+          border: 1px solid #ddd;
+          border-radius: 8px;
+          font-size: 14px;
         }
         .error {
           color: #e11d48;

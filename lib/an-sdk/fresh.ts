@@ -69,6 +69,7 @@ export async function createFreshOrder(payload: {
   pincode: string;
   address: OrderAddressInput;
   items: FreshOrderItemInput[];
+  couponCode?: string;
 }) {
   const data = await anPost("/api/fresh-orders", {
     ...payload,

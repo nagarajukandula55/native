@@ -184,7 +184,7 @@ export default function HomeClient() {
   const staticSlides = [
     {
       img: "/hero/slide-1.jpg",
-      fallback: "/hero.png",
+      fallback: "/hero_optimized.jpg",
       eyebrow: "REFINED FROM THE SOURCE",
       heading: "Fresh Groceries,\nDelivered.",
       sub: "100% Natural | No Preservatives | Traditional & Healthy",

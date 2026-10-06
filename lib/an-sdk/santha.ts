@@ -88,6 +88,7 @@ export async function createSanthaOrder(payload: {
   marketSessionId: string;
   address: OrderAddressInput;
   items: SanthaOrderItemInput[];
+  couponCode?: string;
 }) {
   const data = await anPost("/api/santha-orders", {
     ...payload,

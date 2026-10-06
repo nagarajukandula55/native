@@ -109,6 +109,10 @@ export async function createGroceryOrder(payload: {
   marketSessionId?: string;
   address: OrderAddressInput;
   items: GroceryOrderItemInput[];
+  // Validated against the real total once the shop uploads a quote (see
+  // ANgroup's grocery-orders/[id]/quote route) -- there's no price yet at
+  // request time, so this is just stored for now.
+  couponCode?: string;
 }) {
   const data = await anPost("/api/grocery-orders", {
     ...payload,

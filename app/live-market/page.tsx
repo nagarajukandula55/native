@@ -23,6 +23,7 @@ export default function LiveMarketPage() {
   const [cartItems, setCartItems] = useState<LiveMarketOrderItemInput[]>([]);
   const [cartTotal, setCartTotal] = useState(0);
   const [address, setAddress] = useState<OrderAddressInput | null>(null);
+  const [couponCode, setCouponCode] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
 
@@ -87,6 +88,7 @@ export default function LiveMarketPage() {
         shopId: selectedShopId,
         address,
         items: cartItems,
+        couponCode: couponCode.trim() || undefined,
       });
       router.push(`/live-market/orders/${order._id}`);
     } catch (err) {
@@ -153,6 +155,13 @@ export default function LiveMarketPage() {
           )}
 
           <div className="section">
+            <div className="couponRow">
+              <input
+                value={couponCode}
+                onChange={(e) => setCouponCode(e.target.value)}
+                placeholder="Promo code (optional)"
+              />
+            </div>
             <div className="checkoutRow">
               <div>
                 <p className="totalLabel">Total</p>
@@ -265,6 +274,16 @@ export default function LiveMarketPage() {
           margin: 0;
           font-size: 12px;
           color: #777;
+        }
+        .couponRow {
+          margin-bottom: 12px;
+        }
+        .couponRow input {
+          width: 100%;
+          padding: 10px 12px;
+          border: 1px solid #ddd;
+          border-radius: 8px;
+          font-size: 14px;
         }
         .checkoutRow {
           display: flex;

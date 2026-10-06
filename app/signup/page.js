@@ -112,11 +112,11 @@ export default function SignupPage() {
       <div className="card">
         <div className="logo">
           <img
-            src={logoUrl || "/logo.svg"}
+            src={logoUrl || "/brand/native_logo_circle_optimized.png"}
             alt="Native"
             onError={(e) => {
               e.currentTarget.onerror = null;
-              e.currentTarget.src = "/logo.svg";
+              e.currentTarget.src = "/brand/native_logo_circle_optimized.png";
             }}
           />
         </div>

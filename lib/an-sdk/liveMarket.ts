@@ -69,6 +69,7 @@ export async function createLiveMarketOrder(payload: {
   pincode: string;
   address: OrderAddressInput;
   items: LiveMarketOrderItemInput[];
+  couponCode?: string;
 }) {
   const data = await anPost("/api/live-market-orders", {
     ...payload,
