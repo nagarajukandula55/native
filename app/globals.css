@@ -4,6 +4,15 @@
 }
 
 /* GLOBAL RESET */
+html, body {
+  /* Defensive safety net -- the real bug (viewport meta tag missing
+     width=device-width entirely, see app/layout.tsx's `viewport` export)
+     is fixed separately, but this stays as cheap insurance against any
+     individual page having a stray fixed-width element push the page wider
+     than the screen on mobile. */
+  overflow-x: hidden;
+  max-width: 100vw;
+}
 body {
   margin: 0;
   font-family: var(--font-body);

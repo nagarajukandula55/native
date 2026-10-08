@@ -42,6 +42,13 @@ const dmSans = DM_Sans({
 /* ================= META (KEEPING YOUR TAGLINE UNCHANGED) ================= */
 
 export const viewport = {
+  // A custom `viewport` export REPLACES Next's defaults rather than merging
+  // with them -- themeColor alone (the previous state here) meant no
+  // `width=device-width` meta tag was ever emitted at all, so mobile
+  // browsers rendered every page at a desktop-width viewport and scaled it
+  // down, i.e. exactly "pages going outside of the page" on a phone.
+  width: "device-width",
+  initialScale: 1,
   themeColor: "#1f3d2b",
 };
 
