@@ -54,17 +54,30 @@ export type LiveMarketItem = {
   isActive: boolean;
 };
 
+export type OperatingHoursStatus = {
+  enabled: boolean;
+  openTime: string;
+  closeTime: string;
+  isOpen: boolean;
+};
+
 /**
  * GET /api/live-market-items?shopId=&businessId= — a shop's priced
  * catalogue. Requests isActive=all deliberately -- a disabled item must
  * still show up here (marked Out of Stock in the UI via its own isActive
- * flag, not addable to cart), not disappear entirely.
+ * flag, not addable to cart), not disappear entirely. Also returns
+ * operatingHours so the UI can show a Closed banner and block ordering
+ * outside the configured window, mirroring what the order-creation route
+ * itself enforces server-side.
  */
 export async function getLiveMarketItems(shopId: string, businessId?: string) {
   const data = await anGet(
     `/api/live-market-items${toQueryString({ shopId, businessId: businessId || undefined, isActive: "all" })}`
   );
-  return (data?.data || []) as LiveMarketItem[];
+  return {
+    items: (data?.data || []) as LiveMarketItem[],
+    operatingHours: (data?.operatingHours || { enabled: false, openTime: "06:00", closeTime: "22:00", isOpen: true }) as OperatingHoursStatus,
+  };
 }
 
 export type LiveMarketOrderItemInput = {

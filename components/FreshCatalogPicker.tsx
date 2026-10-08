@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { getFreshItems, FreshItem, FreshOrderItemInput } from "@/lib/an-sdk/fresh";
+import { getFreshItems, FreshItem, FreshOrderItemInput, OperatingHoursStatus } from "@/lib/an-sdk/fresh";
 
 /**
  * Priced catalogue grid for Fresh -- unlike GroceryCatalogPicker,
  * this shows a REAL price per item (displayRatePerUnit) and a running cart
- * total, since Live Market is not a blind-quote flow (see
- * lib/an-sdk/liveMarket.ts's doc comment). Same tap-to-add stepper
+ * total, since Fresh is not a blind-quote flow (see
+ * lib/an-sdk/fresh.ts's doc comment). Same tap-to-add stepper
  * interaction as GroceryCatalogPicker, extended with price display,
  * Out of Stock handling, an optional cleaning/cutting add-on, and a
  * tap-to-view detail popup (full image + description).
@@ -26,6 +26,7 @@ export default function FreshCatalogPicker({
   const [wantsCleaning, setWantsCleaning] = useState<Record<string, boolean>>({});
   const [activeCategory, setActiveCategory] = useState<string>("All");
   const [detailItem, setDetailItem] = useState<FreshItem | null>(null);
+  const [operatingHours, setOperatingHours] = useState<OperatingHoursStatus | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -34,9 +35,10 @@ export default function FreshCatalogPicker({
     setCartQty({});
     setWantsCleaning({});
     getFreshItems(shopId)
-      .then((list) => {
+      .then(({ items: list, operatingHours: hours }) => {
         if (cancelled) return;
         setItems(list);
+        setOperatingHours(hours);
       })
       .catch(() => {
         if (cancelled) return;
@@ -86,7 +88,7 @@ export default function FreshCatalogPicker({
   }, [cartQty, wantsCleaning, items]);
 
   function setQuantity(item: FreshItem, quantity: number) {
-    if (!item.isActive) return;
+    if (!item.isActive || (operatingHours && !operatingHours.isOpen)) return;
     setCartQty((prev) => ({ ...prev, [item._id]: quantity }));
   }
 
@@ -96,6 +98,12 @@ export default function FreshCatalogPicker({
 
   return (
     <div className="catalog">
+      {operatingHours && !operatingHours.isOpen && (
+        <p className="closedBanner">
+          🕒 Closed right now — open daily {operatingHours.openTime} to {operatingHours.closeTime}. You can browse, but ordering is disabled until we reopen.
+        </p>
+      )}
+
       {categories.length > 1 && (
         <div className="catTabs">
           {categories.map((c) => (
@@ -136,6 +144,10 @@ export default function FreshCatalogPicker({
               {!item.isActive ? (
                 <button type="button" className="addBtn" disabled>
                   Out of Stock
+                </button>
+              ) : operatingHours && !operatingHours.isOpen ? (
+                <button type="button" className="addBtn" disabled>
+                  Closed
                 </button>
               ) : cartQty[item._id] > 0 ? (
                 <div className="stepper">
@@ -268,6 +280,16 @@ export default function FreshCatalogPicker({
           height: 100%;
           object-fit: cover;
           display: block;
+        }
+        .closedBanner {
+          background: #fff3e0;
+          border: 1px solid #ffcc80;
+          color: #8a5a00;
+          font-size: 13px;
+          font-weight: 600;
+          padding: 10px 14px;
+          border-radius: 10px;
+          margin-bottom: 14px;
         }
         .oosBadge {
           position: absolute;

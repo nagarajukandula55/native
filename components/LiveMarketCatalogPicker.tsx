@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { getLiveMarketItems, LiveMarketItem, LiveMarketOrderItemInput } from "@/lib/an-sdk/liveMarket";
+import { getLiveMarketItems, LiveMarketItem, LiveMarketOrderItemInput, OperatingHoursStatus } from "@/lib/an-sdk/liveMarket";
 
 /**
  * Priced catalogue grid for Live Market -- unlike GroceryCatalogPicker,
@@ -26,6 +26,7 @@ export default function LiveMarketCatalogPicker({
   const [wantsCleaning, setWantsCleaning] = useState<Record<string, boolean>>({});
   const [activeCategory, setActiveCategory] = useState<string>("All");
   const [detailItem, setDetailItem] = useState<LiveMarketItem | null>(null);
+  const [operatingHours, setOperatingHours] = useState<OperatingHoursStatus | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -34,9 +35,10 @@ export default function LiveMarketCatalogPicker({
     setCartQty({});
     setWantsCleaning({});
     getLiveMarketItems(shopId)
-      .then((list) => {
+      .then(({ items: list, operatingHours: hours }) => {
         if (cancelled) return;
         setItems(list);
+        setOperatingHours(hours);
       })
       .catch(() => {
         if (cancelled) return;
@@ -86,7 +88,7 @@ export default function LiveMarketCatalogPicker({
   }, [cartQty, wantsCleaning, items]);
 
   function setQuantity(item: LiveMarketItem, quantity: number) {
-    if (!item.isActive) return;
+    if (!item.isActive || (operatingHours && !operatingHours.isOpen)) return;
     setCartQty((prev) => ({ ...prev, [item._id]: quantity }));
   }
 
@@ -96,6 +98,12 @@ export default function LiveMarketCatalogPicker({
 
   return (
     <div className="catalog">
+      {operatingHours && !operatingHours.isOpen && (
+        <p className="closedBanner">
+          🕒 Closed right now — open daily {operatingHours.openTime} to {operatingHours.closeTime}. You can browse, but ordering is disabled until we reopen.
+        </p>
+      )}
+
       {categories.length > 1 && (
         <div className="catTabs">
           {categories.map((c) => (
@@ -136,6 +144,10 @@ export default function LiveMarketCatalogPicker({
               {!item.isActive ? (
                 <button type="button" className="addBtn" disabled>
                   Out of Stock
+                </button>
+              ) : operatingHours && !operatingHours.isOpen ? (
+                <button type="button" className="addBtn" disabled>
+                  Closed
                 </button>
               ) : cartQty[item._id] > 0 ? (
                 <div className="stepper">
@@ -268,6 +280,16 @@ export default function LiveMarketCatalogPicker({
           height: 100%;
           object-fit: cover;
           display: block;
+        }
+        .closedBanner {
+          background: #fff3e0;
+          border: 1px solid #ffcc80;
+          color: #8a5a00;
+          font-size: 13px;
+          font-weight: 600;
+          padding: 10px 14px;
+          border-radius: 10px;
+          margin-bottom: 14px;
         }
         .oosBadge {
           position: absolute;

@@ -48,16 +48,27 @@ export type FreshItem = {
   isActive: boolean;
 };
 
+export type OperatingHoursStatus = {
+  enabled: boolean;
+  openTime: string;
+  closeTime: string;
+  isOpen: boolean;
+};
+
 /**
  * GET /api/fresh-items?shopId=&businessId= — a shop's priced catalogue.
  * Requests isActive=all deliberately -- see getLiveMarketItems's identical
- * comment in liveMarket.ts.
+ * comment in liveMarket.ts. Also returns operatingHours -- see that same
+ * comment for the rationale.
  */
 export async function getFreshItems(shopId: string, businessId?: string) {
   const data = await anGet(
     `/api/fresh-items${toQueryString({ shopId, businessId: businessId || undefined, isActive: "all" })}`
   );
-  return (data?.data || []) as FreshItem[];
+  return {
+    items: (data?.data || []) as FreshItem[],
+    operatingHours: (data?.operatingHours || { enabled: false, openTime: "06:00", closeTime: "22:00", isOpen: true }) as OperatingHoursStatus,
+  };
 }
 
 export type FreshOrderItemInput = {
