@@ -43,13 +43,19 @@ export type FreshItem = {
   // -- this is the one real price to show/add up on the storefront.
   displayRatePerUnit: number;
   priceChangePercent: number;
+  offersCleaning?: boolean;
+  cleaningCharge?: number;
   isActive: boolean;
 };
 
-/** GET /api/fresh-items?shopId=&businessId= — a shop's priced catalogue. */
+/**
+ * GET /api/fresh-items?shopId=&businessId= — a shop's priced catalogue.
+ * Requests isActive=all deliberately -- see getLiveMarketItems's identical
+ * comment in liveMarket.ts.
+ */
 export async function getFreshItems(shopId: string, businessId?: string) {
   const data = await anGet(
-    `/api/fresh-items${toQueryString({ shopId, businessId: businessId || undefined, isActive: true })}`
+    `/api/fresh-items${toQueryString({ shopId, businessId: businessId || undefined, isActive: "all" })}`
   );
   return (data?.data || []) as FreshItem[];
 }
@@ -60,6 +66,7 @@ export type FreshOrderItemInput = {
   quantity: number;
   unit?: string;
   notes?: string;
+  wantsCleaning?: boolean;
 };
 
 /**

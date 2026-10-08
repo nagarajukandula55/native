@@ -135,7 +135,7 @@ export default function FreshPage() {
 
           {selectedShopId && (
             <div className="section">
-              <h2>1. Pick items — today&apos;s price</h2>
+              <h2>Pick items — today's price</h2>
               <FreshCatalogPicker
                 key={selectedShopId}
                 shopId={selectedShopId}
@@ -149,7 +149,7 @@ export default function FreshPage() {
 
           {selectedShopId && (
             <div className="section">
-              <h2>2. Delivery address</h2>
+              <h2>Delivery address</h2>
               <DeliveryAddressPicker onChange={setAddress} />
             </div>
           )}

@@ -5,10 +5,12 @@ import { getLiveMarketItems, LiveMarketItem, LiveMarketOrderItemInput } from "@/
 
 /**
  * Priced catalogue grid for Live Market -- unlike GroceryCatalogPicker,
- * this shows a REAL price per item (ratePerUnit) and a running cart
+ * this shows a REAL price per item (displayRatePerUnit) and a running cart
  * total, since Live Market is not a blind-quote flow (see
  * lib/an-sdk/liveMarket.ts's doc comment). Same tap-to-add stepper
- * interaction as GroceryCatalogPicker, extended with price display.
+ * interaction as GroceryCatalogPicker, extended with price display,
+ * Out of Stock handling, an optional cleaning/cutting add-on, and a
+ * tap-to-view detail popup (full image + description).
  */
 export default function LiveMarketCatalogPicker({
   shopId,
@@ -21,13 +23,16 @@ export default function LiveMarketCatalogPicker({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [cartQty, setCartQty] = useState<Record<string, number>>({});
+  const [wantsCleaning, setWantsCleaning] = useState<Record<string, boolean>>({});
   const [activeCategory, setActiveCategory] = useState<string>("All");
+  const [detailItem, setDetailItem] = useState<LiveMarketItem | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError("");
     setCartQty({});
+    setWantsCleaning({});
     getLiveMarketItems(shopId)
       .then((list) => {
         if (cancelled) return;
@@ -53,19 +58,35 @@ export default function LiveMarketCatalogPicker({
   const visible = activeCategory === "All" ? items : items.filter((i) => i.category === activeCategory);
 
   const total = useMemo(
-    () => items.reduce((sum, item) => sum + (cartQty[item._id] || 0) * item.displayRatePerUnit, 0),
-    [items, cartQty]
+    () =>
+      items.reduce((sum, item) => {
+        const qty = cartQty[item._id] || 0;
+        if (qty <= 0) return sum;
+        let lineTotal = qty * item.displayRatePerUnit;
+        if (wantsCleaning[item._id] && item.offersCleaning && item.cleaningCharge) {
+          lineTotal += qty * item.cleaningCharge;
+        }
+        return sum + lineTotal;
+      }, 0),
+    [items, cartQty, wantsCleaning]
   );
 
   useEffect(() => {
     const cartItems: LiveMarketOrderItemInput[] = items
       .filter((i) => (cartQty[i._id] || 0) > 0)
-      .map((i) => ({ itemId: i._id, name: i.name, quantity: cartQty[i._id], unit: i.unit }));
+      .map((i) => ({
+        itemId: i._id,
+        name: i.name,
+        quantity: cartQty[i._id],
+        unit: i.unit,
+        wantsCleaning: i.offersCleaning ? !!wantsCleaning[i._id] : undefined,
+      }));
     onCartChange(cartItems, Math.round(total * 100) / 100);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cartQty, items]);
+  }, [cartQty, wantsCleaning, items]);
 
   function setQuantity(item: LiveMarketItem, quantity: number) {
+    if (!item.isActive) return;
     setCartQty((prev) => ({ ...prev, [item._id]: quantity }));
   }
 
@@ -92,24 +113,31 @@ export default function LiveMarketCatalogPicker({
 
       <div className="grid">
         {visible.map((item) => (
-          <div className="itemCard" key={item._id}>
-            <div className="thumb">
+          <div className={`itemCard ${!item.isActive ? "outOfStock" : ""}`} key={item._id}>
+            <button type="button" className="thumb" onClick={() => setDetailItem(item)} aria-label={`View ${item.name} details`}>
               {item.imageUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={item.imageUrl} alt={item.name} />
               ) : (
                 <div className="thumbPlaceholder">{item.name.charAt(0).toUpperCase()}</div>
               )}
-            </div>
+              {!item.isActive && <span className="oosBadge">Out of Stock</span>}
+            </button>
             <div className="info">
-              <p className="name">{item.name}</p>
+              <button type="button" className="nameBtn" onClick={() => setDetailItem(item)}>
+                {item.name}
+              </button>
               <p className="rate">
                 ₹{item.displayRatePerUnit}
                 <span className="unit">/{item.unit}</span>
               </p>
             </div>
             <div className="pickRow">
-              {cartQty[item._id] > 0 ? (
+              {!item.isActive ? (
+                <button type="button" className="addBtn" disabled>
+                  Out of Stock
+                </button>
+              ) : cartQty[item._id] > 0 ? (
                 <div className="stepper">
                   <button type="button" className="stepBtn" onClick={() => setQuantity(item, Math.max(0, (cartQty[item._id] || 0) - 1))}>
                     −
@@ -125,6 +153,21 @@ export default function LiveMarketCatalogPicker({
                 </button>
               )}
             </div>
+            {item.isActive && cartQty[item._id] > 0 && item.offersCleaning && !!item.cleaningCharge && (
+              <div className="cleaningBlock">
+                <label className="cleaningRow">
+                  <input
+                    type="checkbox"
+                    checked={!!wantsCleaning[item._id]}
+                    onChange={(e) => setWantsCleaning((prev) => ({ ...prev, [item._id]: e.target.checked }))}
+                  />
+                  Clean &amp; cut (+₹{item.cleaningCharge}/{item.unit})
+                </label>
+                {wantsCleaning[item._id] && (
+                  <p className="cleaningNote">Note: cleaning removes waste (scales/gills/shell) -- the weight you receive will be a little less than what you ordered.</p>
+                )}
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -133,6 +176,34 @@ export default function LiveMarketCatalogPicker({
         <div className="cartBar">
           <span>Cart total</span>
           <span className="cartTotal">₹{total.toFixed(2)}</span>
+        </div>
+      )}
+
+      {detailItem && (
+        <div className="detailOverlay" onClick={() => setDetailItem(null)}>
+          <div className="detailCard" onClick={(e) => e.stopPropagation()}>
+            <button type="button" className="closeBtn" onClick={() => setDetailItem(null)} aria-label="Close">
+              ✕
+            </button>
+            <div className="detailImage">
+              {detailItem.imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={detailItem.imageUrl} alt={detailItem.name} />
+              ) : (
+                <div className="thumbPlaceholder">{detailItem.name.charAt(0).toUpperCase()}</div>
+              )}
+            </div>
+            <h3>{detailItem.name}</h3>
+            {!detailItem.isActive && <p className="oosText">Out of Stock today</p>}
+            <p className="detailRate">
+              ₹{detailItem.displayRatePerUnit}
+              <span className="unit">/{detailItem.unit}</span>
+            </p>
+            {detailItem.description && <p className="detailDesc">{detailItem.description}</p>}
+            {detailItem.offersCleaning && !!detailItem.cleaningCharge && (
+              <p className="detailCleaning">Cleaning &amp; cutting available (+₹{detailItem.cleaningCharge}/{detailItem.unit})</p>
+            )}
+          </div>
         </div>
       )}
 
@@ -179,16 +250,35 @@ export default function LiveMarketCatalogPicker({
           display: flex;
           flex-direction: column;
         }
+        .itemCard.outOfStock {
+          opacity: 0.6;
+        }
         .thumb {
+          position: relative;
           width: 100%;
           height: 100px;
           background: #f0f0f0;
+          border: none;
+          padding: 0;
+          cursor: pointer;
+          display: block;
         }
         .thumb img {
           width: 100%;
           height: 100%;
           object-fit: cover;
           display: block;
+        }
+        .oosBadge {
+          position: absolute;
+          top: 6px;
+          left: 6px;
+          background: rgba(0, 0, 0, 0.75);
+          color: #fff;
+          font-size: 10px;
+          font-weight: 700;
+          padding: 3px 7px;
+          border-radius: 6px;
         }
         .thumbPlaceholder {
           width: 100%;
@@ -205,10 +295,16 @@ export default function LiveMarketCatalogPicker({
           padding: 8px 10px 0;
           flex: 1;
         }
-        .name {
+        .nameBtn {
           margin: 0;
           font-weight: 600;
           font-size: 13px;
+          background: none;
+          border: none;
+          padding: 0;
+          text-align: left;
+          cursor: pointer;
+          color: #222;
         }
         .rate {
           margin: 4px 0 0;
@@ -237,6 +333,29 @@ export default function LiveMarketCatalogPicker({
           font-size: 12px;
           font-weight: 700;
           cursor: pointer;
+        }
+        .addBtn:disabled {
+          border-color: #ccc;
+          color: #999;
+          cursor: not-allowed;
+        }
+        .cleaningBlock {
+          padding: 0 10px 10px;
+        }
+        .cleaningRow {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 11px;
+          color: #555;
+        }
+        .cleaningNote {
+          margin: 4px 0 0;
+          font-size: 10px;
+          color: #a15c00;
+          background: #fff7e6;
+          border-radius: 6px;
+          padding: 5px 7px;
         }
         .stepper {
           width: 100%;
@@ -279,6 +398,82 @@ export default function LiveMarketCatalogPicker({
         }
         .cartTotal {
           font-weight: 700;
+        }
+        .detailOverlay {
+          position: fixed;
+          inset: 0;
+          background: rgba(0, 0, 0, 0.55);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 300;
+          padding: 16px;
+        }
+        .detailCard {
+          position: relative;
+          background: #fff;
+          border-radius: 14px;
+          max-width: 360px;
+          width: 100%;
+          max-height: 85vh;
+          overflow-y: auto;
+          padding: 16px;
+        }
+        .closeBtn {
+          position: absolute;
+          top: 10px;
+          right: 10px;
+          border: none;
+          background: rgba(0, 0, 0, 0.6);
+          color: #fff;
+          width: 28px;
+          height: 28px;
+          border-radius: 50%;
+          cursor: pointer;
+          font-size: 14px;
+          z-index: 1;
+        }
+        .detailImage {
+          width: 100%;
+          height: 220px;
+          border-radius: 10px;
+          overflow: hidden;
+          background: #f0f0f0;
+          margin-bottom: 12px;
+        }
+        .detailImage img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          display: block;
+        }
+        .detailCard h3 {
+          margin: 0 0 4px;
+        }
+        .oosText {
+          color: #b91c1c;
+          font-weight: 600;
+          font-size: 13px;
+          margin: 0 0 6px;
+        }
+        .detailRate {
+          font-size: 18px;
+          font-weight: 700;
+          color: #1f3d2b;
+          margin: 0 0 10px;
+        }
+        .detailDesc {
+          font-size: 13px;
+          color: #444;
+          line-height: 1.5;
+        }
+        .detailCleaning {
+          margin-top: 10px;
+          font-size: 12px;
+          color: #555;
+          background: #f7f3ec;
+          border-radius: 8px;
+          padding: 8px 10px;
         }
       `}</style>
     </div>

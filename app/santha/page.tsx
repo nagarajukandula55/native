@@ -165,7 +165,7 @@ export default function SanthaPage() {
       ) : (
         <>
           <div className="section">
-            <h2>1. Choose a santha session</h2>
+            <h2>Choose a santha session</h2>
             {sessionsLoading && <p>Loading sessions…</p>}
             {sessionsError && <p className="error">{sessionsError}</p>}
             {!!sessions.length && (
@@ -215,7 +215,7 @@ export default function SanthaPage() {
           </div>
 
       <div className="section">
-        <h2>2. Pick items from the catalogue</h2>
+        <h2>Pick items from the catalogue</h2>
         <p className="catalogHint">
           Prices aren't shown — the market stall visited by our executive will send back a real
           quote for exactly what you pick.
@@ -224,12 +224,12 @@ export default function SanthaPage() {
       </div>
 
       <div className="section">
-        <h2>3. Delivery address</h2>
+        <h2>Delivery address</h2>
         <DeliveryAddressPicker onChange={setAddress} />
       </div>
 
       <form className="section" onSubmit={handleSubmit}>
-        <h2>4. Review your list</h2>
+        <h2>Review your list</h2>
         <p className="catalogHint">Not in the catalogue? Add it here.</p>
         <div className="items">
           {rows.map((row, idx) => (

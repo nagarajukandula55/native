@@ -43,13 +43,26 @@ export type LiveMarketItem = {
   // -- this is the one real price to show/add up on the storefront.
   displayRatePerUnit: number;
   priceChangePercent: number;
+  // Cleaning/cutting service, applicable to some items (fish/prawns etc).
+  // When offered, the customer can opt in at order time; the charge shows
+  // as its own visible price-breakup line, never folded into the unit price.
+  offersCleaning?: boolean;
+  cleaningCharge?: number;
+  // Enable/disable -- "if enabled we ship it". false means the shop/admin
+  // has marked this unavailable today; it still shows in the catalogue
+  // (Out of Stock, not addable to cart) rather than disappearing.
   isActive: boolean;
 };
 
-/** GET /api/live-market-items?shopId=&businessId= — a shop's priced catalogue. */
+/**
+ * GET /api/live-market-items?shopId=&businessId= — a shop's priced
+ * catalogue. Requests isActive=all deliberately -- a disabled item must
+ * still show up here (marked Out of Stock in the UI via its own isActive
+ * flag, not addable to cart), not disappear entirely.
+ */
 export async function getLiveMarketItems(shopId: string, businessId?: string) {
   const data = await anGet(
-    `/api/live-market-items${toQueryString({ shopId, businessId: businessId || undefined, isActive: true })}`
+    `/api/live-market-items${toQueryString({ shopId, businessId: businessId || undefined, isActive: "all" })}`
   );
   return (data?.data || []) as LiveMarketItem[];
 }
@@ -60,6 +73,10 @@ export type LiveMarketOrderItemInput = {
   quantity: number;
   unit?: string;
   notes?: string;
+  // Opt-in to the item's cleaning/cutting service, if it offers one --
+  // the backend re-validates this against the item's own offersCleaning/
+  // cleaningCharge and adds it as its own visible order line.
+  wantsCleaning?: boolean;
 };
 
 /**

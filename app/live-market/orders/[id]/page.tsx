@@ -81,6 +81,16 @@ export default function LiveMarketOrderDetailPage() {
       <h1>Order #{String(order._id).slice(-6).toUpperCase()}</h1>
       <p className="status">{(order.status || "").replace(/_/g, " ")}</p>
 
+      {order.status === "OUT_FOR_DELIVERY" && order.estimatedDeliveryAt && (
+        <p className="eta">
+          🚴 Arriving by{" "}
+          {new Date(order.estimatedDeliveryAt).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" })}
+        </p>
+      )}
+      {["REQUESTED", "CONFIRMED", "REACHED_SHOP"].includes(order.status) && (
+        <p className="eta muted">Expect your order within about an hour.</p>
+      )}
+
       <EnablePushButton />
       <RiderInfoCard order={order} />
 
@@ -126,7 +136,9 @@ export default function LiveMarketOrderDetailPage() {
         .container { max-width: 700px; margin: 0 auto; padding: 40px 20px; }
         .back { color: #c28b45; font-weight: 600; text-decoration: none; font-size: 13px; }
         h1 { margin: 12px 0 4px; }
-        .status { font-weight: 700; color: #c28b45; margin-bottom: 20px; }
+        .status { font-weight: 700; color: #c28b45; margin-bottom: 8px; }
+        .eta { font-size: 13px; font-weight: 600; color: #1f3d2b; margin: 0 0 20px; }
+        .eta.muted { color: #888; font-weight: 500; }
         .section {
           background: #fff;
           border-radius: 12px;
