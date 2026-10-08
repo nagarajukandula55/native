@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
+
 // Floating WhatsApp contact button, shown on every page. Reuses the same
 // number already linked from the policy pages (refund/shipping/privacy),
 // rather than inventing a new contact channel.
@@ -7,9 +9,22 @@ const WHATSAPP_NUMBER = "918985229693";
 const DEFAULT_MESSAGE = "Hi Native, I have a question about ";
 
 export default function WhatsAppButton() {
-  const href = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(
-    DEFAULT_MESSAGE + (typeof window !== "undefined" ? window.location.href : "")
-  )}`;
+  // `typeof window !== "undefined"` reads as true on the client's FIRST
+  // render too (hydration's reconciliation pass, not just real interactive
+  // renders after it) -- so computing the URL inline here produced a
+  // different href on the client's first pass than what the server
+  // embedded, failing hydration on every single page load (caught via a
+  // real Playwright mobile-viewport test run: "Hydration failed because
+  // the initial UI does not match what was rendered on the server").
+  // Starting state WITHOUT the page URL guarantees the first client render
+  // matches the server-rendered markup exactly; the effect (post-hydration
+  // only) then fills in the real page URL.
+  const [pageUrl, setPageUrl] = useState("");
+  useEffect(() => {
+    setPageUrl(window.location.href);
+  }, []);
+
+  const href = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(DEFAULT_MESSAGE + pageUrl)}`;
 
   return (
     <a

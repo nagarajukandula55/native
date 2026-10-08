@@ -14,6 +14,15 @@ export default function InstallAppButton() {
   const [installed, setInstalled] = useState(false);
   const [showIosHelp, setShowIosHelp] = useState(false);
   const [dismissed, setDismissed] = useState(false);
+  // Starts false (matching the server, which has no `navigator` at all) --
+  // computing this inline instead, `typeof navigator !== "undefined"` reads
+  // as already-resolved on the client's FIRST render pass (hydration's
+  // reconciliation, before this component's own effect has run), so an
+  // iPhone visitor's client render produced the installBar markup while the
+  // server had rendered null, failing hydration on every single page load
+  // (caught via a real Playwright mobile-viewport test run). Resolved for
+  // real inside the effect below, post-hydration only.
+  const [isIos, setIsIos] = useState(false);
 
   useEffect(() => {
     if ("serviceWorker" in navigator) {
@@ -23,6 +32,8 @@ export default function InstallAppButton() {
     const standalone =
       window.matchMedia?.("(display-mode: standalone)").matches || window.navigator.standalone === true;
     setInstalled(!!standalone);
+
+    setIsIos(/iphone|ipad|ipod/i.test(navigator.userAgent));
 
     try {
       setDismissed(localStorage.getItem("native_install_dismissed") === "1");
@@ -40,8 +51,6 @@ export default function InstallAppButton() {
   }, []);
 
   if (installed || dismissed) return null;
-
-  const isIos = typeof navigator !== "undefined" && /iphone|ipad|ipod/i.test(navigator.userAgent);
 
   async function handleClick() {
     if (deferredPrompt) {
