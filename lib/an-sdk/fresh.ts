@@ -33,7 +33,16 @@ export type FreshItem = {
   imageUrl?: string;
   category: string;
   unit: string;
+  // Raw, shop-entered values -- NOT what's charged/shown. Use
+  // displayRatePerUnit below for anything customer-facing; the backend
+  // still authoritatively recomputes the real price at order-creation time
+  // regardless of what's sent, so this is a display-only distinction.
+  basePrice: number;
   ratePerUnit: number;
+  // All-inclusive price (shop markup + AN Group's platform fee folded in)
+  // -- this is the one real price to show/add up on the storefront.
+  displayRatePerUnit: number;
+  priceChangePercent: number;
   isActive: boolean;
 };
 

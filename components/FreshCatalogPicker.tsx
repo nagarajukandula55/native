@@ -53,7 +53,7 @@ export default function FreshCatalogPicker({
   const visible = activeCategory === "All" ? items : items.filter((i) => i.category === activeCategory);
 
   const total = useMemo(
-    () => items.reduce((sum, item) => sum + (cartQty[item._id] || 0) * item.ratePerUnit, 0),
+    () => items.reduce((sum, item) => sum + (cartQty[item._id] || 0) * item.displayRatePerUnit, 0),
     [items, cartQty]
   );
 
@@ -104,7 +104,7 @@ export default function FreshCatalogPicker({
             <div className="info">
               <p className="name">{item.name}</p>
               <p className="rate">
-                ₹{item.ratePerUnit}
+                ₹{item.displayRatePerUnit}
                 <span className="unit">/{item.unit}</span>
               </p>
             </div>
