@@ -4,6 +4,14 @@
 }
 
 /* GLOBAL RESET */
+/* No box-sizing reset existed anywhere in this stylesheet, so every
+   `width: 100%` + `padding` element (inputs, selects, cards) added its
+   padding ON TOP of that 100% under the browser's content-box default --
+   overflowing its container by the padding amount. Most visible on
+   narrow/mobile layouts, e.g. checkout page inputs bleeding off-screen. */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
 html, body {
   /* Defensive safety net -- the real bug (viewport meta tag missing
      width=device-width entirely, see app/layout.tsx's `viewport` export)

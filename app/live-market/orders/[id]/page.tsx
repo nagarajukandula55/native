@@ -125,7 +125,14 @@ export default function LiveMarketOrderDetailPage() {
         <ul className="items">
           {(order.items || []).map((it: any, idx: number) => (
             <li key={idx}>
-              <span>{it.name} — {it.quantity} {it.unit || ""} × ₹{it.ratePerUnit}</span>
+              <span>
+                {it.name} — {it.quantity} {it.unit || ""} × ₹{it.ratePerUnit}
+                {it.wantsCleaning ? (
+                  <span className="cleaningBadge">Clean &amp; cut</span>
+                ) : (
+                  <span className="cleaningBadge cleaningBadgeOff">Whole, no cleaning</span>
+                )}
+              </span>
               <span className="itemAmount">₹{it.amount}</span>
             </li>
           ))}
@@ -176,6 +183,20 @@ export default function LiveMarketOrderDetailPage() {
           font-size: 14px;
         }
         .itemAmount { font-weight: 600; }
+        .cleaningBadge {
+          display: inline-block;
+          margin-left: 8px;
+          padding: 2px 8px;
+          border-radius: 999px;
+          font-size: 11px;
+          font-weight: 600;
+          background: #eef6ec;
+          color: #1f3d2b;
+        }
+        .cleaningBadgeOff {
+          background: #f4f4f4;
+          color: #888;
+        }
         .amounts .total {
           display: flex;
           justify-content: space-between;

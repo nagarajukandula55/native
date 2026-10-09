@@ -7,6 +7,8 @@ import {
   useState,
 } from "react";
 
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { pincode } from "@/lib/an-sdk";
 import { useCart } from "../../context/CartContext";
 import { useRouter } from "next/navigation";
@@ -884,6 +886,10 @@ useEffect(() => {
     <div className="checkoutWrapper">
       <div className="bgGlow" />
 
+      <Link href="/cart" className="backToCartLink">
+        <ArrowLeft size={16} /> Back to Cart
+      </Link>
+
       <div className="checkoutGrid">
 
         {/* LEFT */}
@@ -1208,6 +1214,25 @@ useEffect(() => {
           padding: 40px 20px;
           position: relative;
           overflow: hidden;
+        }
+
+        .backToCartLink {
+          position: relative;
+          z-index: 1;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          width: fit-content;
+          max-width: 1400px;
+          margin: 0 auto 16px;
+          padding: 0 4px;
+          color: #4338ca;
+          font-weight: 600;
+          font-size: 14px;
+          text-decoration: none;
+        }
+        .backToCartLink:hover {
+          text-decoration: underline;
         }
 
         .bgGlow {

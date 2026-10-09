@@ -186,18 +186,6 @@ export default function Navbar({ logoUrl } = {}) {
                       <Link href="/orders" onClick={() => setAccountOpen(false)}>
                         <ClipboardList size={14} /> My Orders
                       </Link>
-                      <Link href="/groceries/orders" onClick={() => setAccountOpen(false)}>
-                        <Carrot size={14} /> My Grocery Orders
-                      </Link>
-                      <Link href="/santha/orders" onClick={() => setAccountOpen(false)}>
-                        <Store size={14} /> My Santha Orders
-                      </Link>
-                      <Link href="/live-market/orders" onClick={() => setAccountOpen(false)}>
-                        <Fish size={14} /> My Live Orders
-                      </Link>
-                      <Link href="/fresh/orders" onClick={() => setAccountOpen(false)}>
-                        <Apple size={14} /> My Fresh Orders
-                      </Link>
                       {isVendor && (
                         <Link href="/vendor/dashboard" onClick={() => setAccountOpen(false)}>
                           <LayoutDashboard size={14} /> Vendor Dashboard
@@ -282,18 +270,6 @@ export default function Navbar({ logoUrl } = {}) {
               </Link>
               <Link href="/orders" onClick={() => setMenuOpen(false)}>
                 <ClipboardList size={16} /> My Orders
-              </Link>
-              <Link href="/groceries/orders" onClick={() => setMenuOpen(false)}>
-                <Carrot size={16} /> My Grocery Orders
-              </Link>
-              <Link href="/santha/orders" onClick={() => setMenuOpen(false)}>
-                <Store size={16} /> My Santha Orders
-              </Link>
-              <Link href="/live-market/orders" onClick={() => setMenuOpen(false)}>
-                <Fish size={16} /> My Live Orders
-              </Link>
-              <Link href="/fresh/orders" onClick={() => setMenuOpen(false)}>
-                <Apple size={16} /> My Fresh Orders
               </Link>
               {isVendor && (
                 <Link href="/vendor/dashboard" onClick={() => setMenuOpen(false)}>
