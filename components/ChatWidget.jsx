@@ -54,23 +54,39 @@ export default function ChatWidget() {
     }
   }, []);
 
-  // Poll for ops replies every 4s while the panel is open.
+  // Poll for ops replies while the panel is open, backing off from 4s up to
+  // 20s when nothing new arrives so an idle chat panel doesn't hammer the
+  // backend; resets to 4s as soon as a new message shows up.
   useEffect(() => {
     if (!open || !conversationId) return;
     let cancelled = false;
+    let timer;
+    let delay = 4000;
+    let lastCount = -1;
+
     async function poll() {
       try {
         const data = await getChatMessages(conversationId);
-        if (!cancelled) setMessages(data?.messages || []);
+        const msgs = data?.messages || [];
+        if (!cancelled) {
+          setMessages(msgs);
+          if (msgs.length !== lastCount) {
+            lastCount = msgs.length;
+            delay = 4000;
+          } else {
+            delay = Math.min(delay * 1.5, 20000);
+          }
+        }
       } catch {
         /* ignore -- retried next tick */
       }
+      if (!cancelled) timer = setTimeout(poll, delay);
     }
+
     poll();
-    const t = setInterval(poll, 4000);
     return () => {
       cancelled = true;
-      clearInterval(t);
+      clearTimeout(timer);
     };
   }, [open, conversationId]);
 

@@ -29,6 +29,9 @@ export default function MonthlyGroceriesPage() {
   const [couponCode, setCouponCode] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  // Two-step flow: build the list first, then move to a separate checkout
+  // step that handles address + promo + requesting the quote.
+  const [step, setStep] = useState<"list" | "checkout">("list");
 
   useEffect(() => {
     setPincode(getStoredPincode());
@@ -196,6 +199,8 @@ export default function MonthlyGroceriesPage() {
             )}
           </div>
 
+      {step === "list" && (
+        <>
       <div className="section">
         <h2>Pick items from the catalogue</h2>
         <p className="catalogHint">
@@ -209,15 +214,8 @@ export default function MonthlyGroceriesPage() {
         )}
       </div>
 
-      {selectedShopId && (
-        <div className="section">
-          <h2>Delivery address</h2>
-          <DeliveryAddressPicker onChange={setAddress} />
-        </div>
-      )}
-
-      <form className="section" onSubmit={handleSubmit}>
-        <h2>Review your list</h2>
+      <div className="section">
+        <h2>Your list</h2>
         <p className="catalogHint">Not in the catalogue? Add it here.</p>
         <div className="items">
           {rows.map((row, idx) => (
@@ -265,20 +263,47 @@ export default function MonthlyGroceriesPage() {
           + Add item
         </button>
 
-        <div className="couponRow">
-          <input
-            value={couponCode}
-            onChange={(e) => setCouponCode(e.target.value)}
-            placeholder="Promo code (optional, applied once your quote is ready)"
-          />
-        </div>
-
-        {submitError && <p className="error">{submitError}</p>}
-
-        <button type="submit" className="submitBtn" disabled={submitting || userLoading || !address}>
-          {submitting ? "Submitting…" : "Request Quote"}
+        <button
+          type="button"
+          className="submitBtn"
+          onClick={() => setStep("checkout")}
+          disabled={!selectedShopId || !rows.some((r) => r.name.trim())}
+        >
+          Proceed to Checkout
         </button>
-      </form>
+      </div>
+        </>
+      )}
+
+      {step === "checkout" && (
+        <>
+          <button type="button" className="backLink" onClick={() => setStep("list")}>
+            ← Back to list
+          </button>
+
+          <div className="section">
+            <h2>Delivery address</h2>
+            <DeliveryAddressPicker onChange={setAddress} />
+          </div>
+
+          <form className="section" onSubmit={handleSubmit}>
+            <h2>Promo code</h2>
+            <div className="couponRow">
+              <input
+                value={couponCode}
+                onChange={(e) => setCouponCode(e.target.value)}
+                placeholder="Promo code (optional, applied once your quote is ready)"
+              />
+            </div>
+
+            {submitError && <p className="error">{submitError}</p>}
+
+            <button type="submit" className="submitBtn" disabled={submitting || userLoading || !address}>
+              {submitting ? "Submitting…" : "Request Quote"}
+            </button>
+          </form>
+        </>
+      )}
         </>
       )}
 
@@ -419,6 +444,16 @@ export default function MonthlyGroceriesPage() {
           border-radius: 8px;
           cursor: pointer;
           font-weight: 600;
+        }
+        .backLink {
+          background: none;
+          border: none;
+          color: #c28b45;
+          font-weight: 600;
+          cursor: pointer;
+          padding: 0;
+          margin-bottom: 16px;
+          font-size: 14px;
         }
         .couponRow {
           margin-top: 16px;

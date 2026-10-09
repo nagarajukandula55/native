@@ -78,7 +78,50 @@ export class ApiError extends Error {
    typed ApiError on non-2xx so callers can just try/catch.
 ========================================================= */
 
+// Lightweight de-dup + short-TTL cache for GET calls only. Every page here
+// previously fired a fresh backend request on every mount (cache: "no-store"
+// everywhere, no SWR/React Query in the repo) -- two components reading the
+// same endpoint on the same page each caused their own round trip, and
+// re-navigating back to a page re-fetched data that hadn't changed. This
+// keeps GETs fresh (15s TTL) while collapsing duplicate concurrent/rapid
+// calls to the same URL into one backend request. Never applied to
+// mutating methods, and callers can still force a bypass via
+// options.cache = "no-store" explicitly passed through (checked below).
+const GET_CACHE_TTL_MS = 15000;
+const getCache = new Map<string, { data: unknown; ts: number }>();
+const inFlight = new Map<string, Promise<unknown>>();
+
 export async function anFetch(endpoint: string, options: RequestInit = {}) {
+  const method = (options.method || "GET").toUpperCase();
+  const cacheKey = endpoint;
+  const cacheable = method === "GET" && options.cache !== "no-store";
+
+  if (cacheable) {
+    const cached = getCache.get(cacheKey);
+    if (cached && Date.now() - cached.ts < GET_CACHE_TTL_MS) {
+      return cached.data;
+    }
+    const pending = inFlight.get(cacheKey);
+    if (pending) return pending;
+  }
+
+  const promise = anFetchUncached(endpoint, options);
+
+  if (cacheable) {
+    inFlight.set(cacheKey, promise);
+    try {
+      const data = await promise;
+      getCache.set(cacheKey, { data, ts: Date.now() });
+      return data;
+    } finally {
+      inFlight.delete(cacheKey);
+    }
+  }
+
+  return promise;
+}
+
+async function anFetchUncached(endpoint: string, options: RequestInit) {
   let url = endpoint.startsWith("http") ? endpoint : `${AN_API}${endpoint}`;
 
   // ANgroup routes read businessId from a query param (falling back to a

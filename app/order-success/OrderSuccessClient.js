@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { anGet } from "@/lib/an-sdk/client";
 
@@ -30,6 +30,8 @@ export default function OrderSuccessClient() {
   // Immediately after payment, the customer sees a payment receipt instead
   // (see the RECEIPT block below).
   const [invoice, setInvoice] = useState(null);
+  const statusRef = useRef(status);
+  statusRef.current = status;
 
   useEffect(() => {
     const id =
@@ -47,7 +49,14 @@ export default function OrderSuccessClient() {
 
     fetchOrder(id);
 
+    // Stop polling once the order reaches a terminal status -- otherwise
+    // this hammered the backend every 15s indefinitely for as long as the
+    // tab stayed open, even for orders that will never change again.
     const interval = setInterval(() => {
+      if (["DELIVERED", "FAILED", "CANCELLED"].includes(statusRef.current)) {
+        clearInterval(interval);
+        return;
+      }
       fetchOrder(id, true);
     }, 15000);
 

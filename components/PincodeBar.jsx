@@ -105,9 +105,20 @@ export default function PincodeBar() {
           cursor: pointer;
           font-size: 13px;
           color: #333;
+          white-space: nowrap;
+          flex-shrink: 0;
         }
         .pincodeBar:hover {
           background: #faf5ec;
+        }
+        @media (max-width: 640px) {
+          .pincodeBar {
+            padding: 6px 8px;
+            font-size: 12px;
+            max-width: 110px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+          }
         }
         .pincodeHint {
           font-size: 14px;

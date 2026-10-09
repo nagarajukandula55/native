@@ -131,7 +131,7 @@ export default function Navbar({ logoUrl } = {}) {
         )}
 
         <nav className="nav">
-          {!mobile && <PincodeBar />}
+          <PincodeBar />
           {!mobile && (
             <>
               <NavLink href="/" label="Home" pathname={pathname} icon={Home} />
@@ -234,7 +234,6 @@ export default function Navbar({ logoUrl } = {}) {
       {/* MOBILE MENU */}
       {mobile && menuOpen && (
         <div className="mobileMenu">
-          <PincodeBar />
           <SearchBar />
           <Link href="/" onClick={() => setMenuOpen(false)}>
             <Home size={16} /> Home

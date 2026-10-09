@@ -26,6 +26,9 @@ export default function FreshPage() {
   const [couponCode, setCouponCode] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  // Two-step flow: pick items first, then move to a separate checkout step
+  // that handles address + promo + placing the order.
+  const [step, setStep] = useState<"shop" | "checkout">("shop");
 
   useEffect(() => {
     setPincode(getStoredPincode());
@@ -133,51 +136,76 @@ export default function FreshPage() {
           {shopsLoading && <p>Loading…</p>}
           {shopsError && <p className="error">{shopsError}</p>}
 
-          {selectedShopId && (
-            <div className="section">
-              <h2>Pick items — today's price</h2>
-              <FreshCatalogPicker
-                key={selectedShopId}
-                shopId={selectedShopId}
-                onCartChange={(items, total) => {
-                  setCartItems(items);
-                  setCartTotal(total);
-                }}
-              />
-            </div>
-          )}
-
-          {selectedShopId && (
-            <div className="section">
-              <h2>Delivery address</h2>
-              <DeliveryAddressPicker onChange={setAddress} />
-            </div>
-          )}
-
-          <div className="section">
-            <div className="couponRow">
-              <input
-                value={couponCode}
-                onChange={(e) => setCouponCode(e.target.value)}
-                placeholder="Promo code (optional)"
-              />
-            </div>
-            <div className="checkoutRow">
-              <div>
-                <p className="totalLabel">Total</p>
-                <p className="totalValue">₹{cartTotal.toFixed(2)}</p>
+          {step === "shop" && selectedShopId && (
+            <>
+              <div className="section">
+                <h2>Pick items — today's price</h2>
+                <FreshCatalogPicker
+                  key={selectedShopId}
+                  shopId={selectedShopId}
+                  onCartChange={(items, total) => {
+                    setCartItems(items);
+                    setCartTotal(total);
+                  }}
+                />
               </div>
-              {submitError && <p className="error">{submitError}</p>}
-              <button
-                type="button"
-                className="submitBtn"
-                onClick={handlePlaceOrder}
-                disabled={submitting || userLoading || !cartItems.length || !address}
-              >
-                {submitting ? "Placing order…" : "Place Order"}
+              <div className="section">
+                <div className="checkoutRow">
+                  <div>
+                    <p className="totalLabel">Total</p>
+                    <p className="totalValue">₹{cartTotal.toFixed(2)}</p>
+                  </div>
+                  <button
+                    type="button"
+                    className="submitBtn"
+                    onClick={() => setStep("checkout")}
+                    disabled={!cartItems.length}
+                  >
+                    Proceed to Checkout
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+
+          {step === "checkout" && (
+            <>
+              <button type="button" className="backLink" onClick={() => setStep("shop")}>
+                ← Back to items
               </button>
-            </div>
-          </div>
+
+              <div className="section">
+                <h2>Delivery address</h2>
+                <DeliveryAddressPicker onChange={setAddress} />
+              </div>
+
+              <div className="section">
+                <h2>Promo code</h2>
+                <div className="couponRow">
+                  <input
+                    value={couponCode}
+                    onChange={(e) => setCouponCode(e.target.value)}
+                    placeholder="Promo code (optional)"
+                  />
+                </div>
+                <div className="checkoutRow">
+                  <div>
+                    <p className="totalLabel">Total</p>
+                    <p className="totalValue">₹{cartTotal.toFixed(2)}</p>
+                  </div>
+                  {submitError && <p className="error">{submitError}</p>}
+                  <button
+                    type="button"
+                    className="submitBtn"
+                    onClick={handlePlaceOrder}
+                    disabled={submitting || userLoading || !cartItems.length || !address}
+                  >
+                    {submitting ? "Placing order…" : "Place Order"}
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
         </>
       )}
 
@@ -274,6 +302,16 @@ export default function FreshPage() {
           margin: 0;
           font-size: 12px;
           color: #777;
+        }
+        .backLink {
+          background: none;
+          border: none;
+          color: #c28b45;
+          font-weight: 600;
+          cursor: pointer;
+          padding: 0;
+          margin-bottom: 16px;
+          font-size: 14px;
         }
         .couponRow {
           margin-bottom: 12px;
