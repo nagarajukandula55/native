@@ -29,10 +29,10 @@ export default function MonthlyGroceriesPage() {
   const [couponCode, setCouponCode] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
-  // Four-step flow: pick a shop, then pick items from its catalogue, then
-  // review the entire selection, then a separate checkout step for
-  // address + promo + requesting the quote.
-  const [step, setStep] = useState<"shop" | "items" | "review" | "checkout">("shop");
+  // Five-step flow: pick a shop, pick items from its catalogue, review the
+  // entire selection, then address, then promo + request the quote --
+  // each its own step.
+  const [step, setStep] = useState<"shop" | "items" | "review" | "address" | "payment">("shop");
 
   useEffect(() => {
     setPincode(getStoredPincode());
@@ -308,14 +308,14 @@ export default function MonthlyGroceriesPage() {
                       </div>
                     ))}
                 </div>
-                <button type="button" className="submitBtn" onClick={() => setStep("checkout")}>
+                <button type="button" className="submitBtn" onClick={() => setStep("address")}>
                   Proceed to Checkout
                 </button>
               </div>
             </>
           )}
 
-          {step === "checkout" && (
+          {step === "address" && (
             <>
               <button type="button" className="backLink" onClick={() => setStep("review")}>
                 ← Back to selection
@@ -324,7 +324,23 @@ export default function MonthlyGroceriesPage() {
               <div className="section">
                 <h2>Delivery address</h2>
                 <DeliveryAddressPicker onChange={setAddress} />
+                <button
+                  type="button"
+                  className="submitBtn"
+                  onClick={() => setStep("payment")}
+                  disabled={!address}
+                >
+                  Continue
+                </button>
               </div>
+            </>
+          )}
+
+          {step === "payment" && (
+            <>
+              <button type="button" className="backLink" onClick={() => setStep("address")}>
+                ← Back to address
+              </button>
 
               <form className="section" onSubmit={handleSubmit}>
                 <h2>Promo code</h2>
