@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useUser } from "@/context/UserContext";
@@ -19,6 +19,8 @@ export default function LiveMarketOrderDetailPage() {
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const statusRef = useRef<string>("");
+  statusRef.current = order?.status || "";
 
   useEffect(() => {
     if (userLoading) return;
@@ -28,19 +30,37 @@ export default function LiveMarketOrderDetailPage() {
     }
     if (!id) return;
     let cancelled = false;
-    setLoading(true);
-    getLiveMarketOrder(id)
-      .then((data) => {
-        if (!cancelled) setOrder(data);
-      })
-      .catch((err) => {
-        if (!cancelled) setError(err instanceof ApiError ? err.message : "Could not load order");
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+
+    const fetchOrder = (silent = false) => {
+      if (!silent) setLoading(true);
+      return getLiveMarketOrder(id)
+        .then((data) => {
+          if (!cancelled) setOrder(data);
+        })
+        .catch((err) => {
+          if (!cancelled && !silent) setError(err instanceof ApiError ? err.message : "Could not load order");
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false);
+        });
+    };
+
+    fetchOrder();
+
+    // Poll for status changes (packed/dispatched/delivered etc.) while the
+    // page is open, same pattern as order-success -- stops once the order
+    // reaches a terminal status instead of polling forever.
+    const interval = setInterval(() => {
+      if (["DELIVERED", "CANCELLED", "FAILED", "REJECTED"].includes(statusRef.current)) {
+        clearInterval(interval);
+        return;
+      }
+      fetchOrder(true);
+    }, 15000);
+
     return () => {
       cancelled = true;
+      clearInterval(interval);
     };
   }, [id, user, userLoading, router]);
 

@@ -32,4 +32,10 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Needed for the "Use my current location" pincode/address GPS
+         capture (PincodeBar, DeliveryAddressPicker): the WebView's
+         navigator.geolocation calls are silently denied without these,
+         even though the web code itself needs no native change. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 </manifest>

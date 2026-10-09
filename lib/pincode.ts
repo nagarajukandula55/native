@@ -21,6 +21,40 @@ export function getStoredPincode(): string {
   }
 }
 
+/**
+ * Resolves the device's current GPS position to a 6-digit Indian pincode
+ * via reverse geocoding (OpenStreetMap Nominatim -- free, no API key).
+ * Used by the "Use my current location" option so a customer doesn't have
+ * to know/type their own pincode; this only ever reads one-shot location,
+ * never tracks it continuously.
+ */
+export async function detectPincodeFromLocation(): Promise<string> {
+  if (typeof navigator === "undefined" || !navigator.geolocation) {
+    throw new Error("Location isn't available on this device.");
+  }
+
+  const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+    navigator.geolocation.getCurrentPosition(resolve, reject, {
+      enableHighAccuracy: true,
+      timeout: 10000,
+    });
+  });
+
+  const { latitude, longitude } = position.coords;
+  const res = await fetch(
+    `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`,
+    { headers: { Accept: "application/json" } }
+  );
+  if (!res.ok) throw new Error("Could not determine your pincode from your location.");
+
+  const data = await res.json();
+  const postcode = data?.address?.postcode;
+  if (!postcode || !/^\d{6}$/.test(postcode)) {
+    throw new Error("Could not determine your pincode from your location.");
+  }
+  return postcode;
+}
+
 export function setStoredPincode(pincode: string) {
   if (typeof window === "undefined") return;
   try {

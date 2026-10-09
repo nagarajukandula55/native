@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { MapPin } from "lucide-react";
+import { MapPin, LocateFixed } from "lucide-react";
 import Modal from "./ui/Modal";
 import { pincode as pincodeApi } from "@/lib/an-sdk";
-import { getStoredPincode, setStoredPincode } from "@/lib/pincode";
+import { getStoredPincode, setStoredPincode, detectPincodeFromLocation } from "@/lib/pincode";
 
 /**
  * Delivery-pincode capture + indicator. Some categories (e.g. the phased
@@ -22,6 +22,7 @@ export default function PincodeBar() {
   const [input, setInput] = useState("");
   const [error, setError] = useState("");
   const [checking, setChecking] = useState(false);
+  const [locating, setLocating] = useState(false);
 
   useEffect(() => {
     const stored = getStoredPincode();
@@ -29,12 +30,7 @@ export default function PincodeBar() {
     if (!stored) setOpen(true);
   }, []);
 
-  const handleSave = async () => {
-    if (!/^\d{6}$/.test(input)) {
-      setError("Enter a valid 6-digit pincode");
-      return;
-    }
-
+  const commitPincode = async (value) => {
     setChecking(true);
     setError("");
 
@@ -43,7 +39,7 @@ export default function PincodeBar() {
       // if it fails (network hiccup, unknown pincode) we still let the
       // customer proceed rather than blocking browsing on a third-party
       // lookup being available.
-      const data = await pincodeApi.lookupPincode(input);
+      const data = await pincodeApi.lookupPincode(value);
       if (data && data.success === false) {
         setError("We couldn't find that pincode. You can still continue.");
       }
@@ -53,9 +49,35 @@ export default function PincodeBar() {
       setChecking(false);
     }
 
-    setStoredPincode(input);
-    setPincode(input);
+    setStoredPincode(value);
+    setPincode(value);
     setOpen(false);
+  };
+
+  const handleSave = async () => {
+    if (!/^\d{6}$/.test(input)) {
+      setError("Enter a valid 6-digit pincode");
+      return;
+    }
+    await commitPincode(input);
+  };
+
+  const handleUseLocation = async () => {
+    setLocating(true);
+    setError("");
+    try {
+      const detected = await detectPincodeFromLocation();
+      setInput(detected);
+      // Still goes through the same lookup/availability check as a typed
+      // pincode -- if Native isn't live there yet, the category pages'
+      // existing "not available in your area" messaging kicks in exactly
+      // like it would for a manually typed pincode.
+      await commitPincode(detected);
+    } catch (err) {
+      setError(err?.message || "Couldn't get your location. You can enter your pincode manually.");
+    } finally {
+      setLocating(false);
+    }
   };
 
   return (
@@ -78,6 +100,16 @@ export default function PincodeBar() {
         <p className="pincodeHint">
           Enter your pincode so we can show you what's available in your area.
         </p>
+        <button
+          type="button"
+          className="useLocationBtn"
+          onClick={handleUseLocation}
+          disabled={locating || checking}
+        >
+          <LocateFixed size={14} />
+          {locating ? "Detecting your location..." : "Use my current location"}
+        </button>
+        <div className="orDivider">or enter manually</div>
         <input
           className="pincodeInput"
           value={input}
@@ -88,7 +120,7 @@ export default function PincodeBar() {
           onKeyDown={(e) => e.key === "Enter" && handleSave()}
         />
         {error && <p className="pincodeError">{error}</p>}
-        <button className="pincodeSaveBtn" onClick={handleSave} disabled={checking}>
+        <button className="pincodeSaveBtn" onClick={handleSave} disabled={checking || locating}>
           {checking ? "Checking..." : "Save"}
         </button>
       </Modal>
@@ -124,6 +156,32 @@ export default function PincodeBar() {
           font-size: 14px;
           color: #64748b;
           margin-bottom: 12px;
+        }
+        .useLocationBtn {
+          width: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          padding: 12px;
+          border: 1px solid #1f3d2b;
+          border-radius: 10px;
+          background: #eef6ec;
+          color: #1f3d2b;
+          font-weight: 600;
+          font-size: 14px;
+          cursor: pointer;
+          margin-bottom: 10px;
+        }
+        .useLocationBtn:disabled {
+          opacity: 0.7;
+          cursor: wait;
+        }
+        .orDivider {
+          text-align: center;
+          font-size: 12px;
+          color: #9aa5b1;
+          margin-bottom: 10px;
         }
         .pincodeInput {
           width: 100%;
