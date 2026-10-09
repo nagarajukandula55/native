@@ -29,9 +29,10 @@ export default function MonthlyGroceriesPage() {
   const [couponCode, setCouponCode] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
-  // Two-step flow: build the list first, then move to a separate checkout
-  // step that handles address + promo + requesting the quote.
-  const [step, setStep] = useState<"list" | "checkout">("list");
+  // Four-step flow: pick a shop, then pick items from its catalogue, then
+  // review the entire selection, then a separate checkout step for
+  // address + promo + requesting the quote.
+  const [step, setStep] = useState<"shop" | "items" | "review" | "checkout">("shop");
 
   useEffect(() => {
     setPincode(getStoredPincode());
@@ -178,132 +179,171 @@ export default function MonthlyGroceriesPage() {
         </div>
       ) : (
         <>
-          <div className="section">
-            <h2>Choose a shop</h2>
-            {shopsLoading && <p>Loading shops…</p>}
-            {shopsError && <p className="error">{shopsError}</p>}
-            {!!shops.length && (
-              <div className="shopGrid">
-                {shops.map((shop) => (
-                  <button
-                    type="button"
-                    key={shop._id}
-                    className={`shopCard ${selectedShopId === shop._id ? "selected" : ""}`}
-                    onClick={() => setSelectedShopId(shop._id)}
-                  >
-                    <p className="shopName">{shop.name}</p>
-                    {shop.address && <p className="shopAddr">{shop.address}</p>}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-      {step === "list" && (
-        <>
-      <div className="section">
-        <h2>Pick items from the catalogue</h2>
-        <p className="catalogHint">
-          Prices aren't shown — the shop visited by our executive will send back a real quote for
-          exactly what you pick.
-        </p>
-        {selectedShopId ? (
-          <GroceryCatalogPicker key={selectedShopId} type="GROCERY" shopId={selectedShopId} onAdd={addCatalogPick} />
-        ) : (
-          <p className="catalogHint">Choose a shop above to see its item catalogue.</p>
-        )}
-      </div>
-
-      <div className="section">
-        <h2>Your list</h2>
-        <p className="catalogHint">Not in the catalogue? Add it here.</p>
-        <div className="items">
-          {rows.map((row, idx) => (
-            <div className="itemRow" key={idx}>
-              <input
-                placeholder="Item name"
-                value={row.name}
-                onChange={(e) => updateRow(idx, { name: e.target.value })}
-                className="itemName"
-              />
-              <input
-                type="number"
-                min={0}
-                step="any"
-                placeholder="Qty"
-                value={row.quantity}
-                onChange={(e) => updateRow(idx, { quantity: Number(e.target.value) })}
-                className="itemQty"
-              />
-              <input
-                placeholder="Unit (kg, pcs...)"
-                value={row.unit}
-                onChange={(e) => updateRow(idx, { unit: e.target.value })}
-                className="itemUnit"
-              />
-              <input
-                placeholder="Notes (optional)"
-                value={row.notes}
-                onChange={(e) => updateRow(idx, { notes: e.target.value })}
-                className="itemNotes"
-              />
+          {step === "shop" && (
+            <div className="section">
+              <h2>Choose a shop</h2>
+              {shopsLoading && <p>Loading shops…</p>}
+              {shopsError && <p className="error">{shopsError}</p>}
+              {!!shops.length && (
+                <div className="shopGrid">
+                  {shops.map((shop) => (
+                    <button
+                      type="button"
+                      key={shop._id}
+                      className={`shopCard ${selectedShopId === shop._id ? "selected" : ""}`}
+                      onClick={() => setSelectedShopId(shop._id)}
+                    >
+                      <p className="shopName">{shop.name}</p>
+                      {shop.address && <p className="shopAddr">{shop.address}</p>}
+                    </button>
+                  ))}
+                </div>
+              )}
               <button
                 type="button"
-                className="removeBtn"
-                onClick={() => removeRow(idx)}
-                disabled={rows.length === 1}
-                title="Remove item"
+                className="submitBtn"
+                onClick={() => setStep("items")}
+                disabled={!selectedShopId}
               >
-                ✕
+                Continue
               </button>
             </div>
-          ))}
-        </div>
-        <button type="button" className="addBtn" onClick={addRow}>
-          + Add item
-        </button>
+          )}
 
-        <button
-          type="button"
-          className="submitBtn"
-          onClick={() => setStep("checkout")}
-          disabled={!selectedShopId || !rows.some((r) => r.name.trim())}
-        >
-          Proceed to Checkout
-        </button>
-      </div>
-        </>
-      )}
+          {step === "items" && (
+            <>
+              <button type="button" className="backLink" onClick={() => setStep("shop")}>
+                ← Back to shop
+              </button>
 
-      {step === "checkout" && (
-        <>
-          <button type="button" className="backLink" onClick={() => setStep("list")}>
-            ← Back to list
-          </button>
+              <div className="section">
+                <h2>Pick items from the catalogue</h2>
+                <p className="catalogHint">
+                  Prices aren't shown — the shop visited by our executive will send back a real
+                  quote for exactly what you pick.
+                </p>
+                <GroceryCatalogPicker key={selectedShopId} type="GROCERY" shopId={selectedShopId} onAdd={addCatalogPick} />
+              </div>
 
-          <div className="section">
-            <h2>Delivery address</h2>
-            <DeliveryAddressPicker onChange={setAddress} />
-          </div>
+              <div className="section">
+                <h2>Not in the catalogue?</h2>
+                <p className="catalogHint">Add it here.</p>
+                <div className="items">
+                  {rows.map((row, idx) => (
+                    <div className="itemRow" key={idx}>
+                      <input
+                        placeholder="Item name"
+                        value={row.name}
+                        onChange={(e) => updateRow(idx, { name: e.target.value })}
+                        className="itemName"
+                      />
+                      <input
+                        type="number"
+                        min={0}
+                        step="any"
+                        placeholder="Qty"
+                        value={row.quantity}
+                        onChange={(e) => updateRow(idx, { quantity: Number(e.target.value) })}
+                        className="itemQty"
+                      />
+                      <input
+                        placeholder="Unit (kg, pcs...)"
+                        value={row.unit}
+                        onChange={(e) => updateRow(idx, { unit: e.target.value })}
+                        className="itemUnit"
+                      />
+                      <input
+                        placeholder="Notes (optional)"
+                        value={row.notes}
+                        onChange={(e) => updateRow(idx, { notes: e.target.value })}
+                        className="itemNotes"
+                      />
+                      <button
+                        type="button"
+                        className="removeBtn"
+                        onClick={() => removeRow(idx)}
+                        disabled={rows.length === 1}
+                        title="Remove item"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <button type="button" className="addBtn" onClick={addRow}>
+                  + Add item
+                </button>
 
-          <form className="section" onSubmit={handleSubmit}>
-            <h2>Promo code</h2>
-            <div className="couponRow">
-              <input
-                value={couponCode}
-                onChange={(e) => setCouponCode(e.target.value)}
-                placeholder="Promo code (optional, applied once your quote is ready)"
-              />
-            </div>
+                <button
+                  type="button"
+                  className="submitBtn"
+                  onClick={() => setStep("review")}
+                  disabled={!rows.some((r) => r.name.trim())}
+                >
+                  Review selection
+                </button>
+              </div>
+            </>
+          )}
 
-            {submitError && <p className="error">{submitError}</p>}
+          {step === "review" && (
+            <>
+              <button type="button" className="backLink" onClick={() => setStep("items")}>
+                ← Back to items
+              </button>
 
-            <button type="submit" className="submitBtn" disabled={submitting || userLoading || !address}>
-              {submitting ? "Submitting…" : "Request Quote"}
-            </button>
-          </form>
-        </>
-      )}
+              <div className="section">
+                <h2>Your selection</h2>
+                <p className="catalogHint">Check everything looks right before checking out.</p>
+                <div className="reviewList">
+                  {rows
+                    .filter((r) => r.name.trim())
+                    .map((row, idx) => (
+                      <div className="reviewRow" key={idx}>
+                        <span className="reviewName">{row.name}</span>
+                        <span className="reviewQty">
+                          {row.quantity} {row.unit}
+                        </span>
+                        {row.notes && <span className="reviewNotes">{row.notes}</span>}
+                      </div>
+                    ))}
+                </div>
+                <button type="button" className="submitBtn" onClick={() => setStep("checkout")}>
+                  Proceed to Checkout
+                </button>
+              </div>
+            </>
+          )}
+
+          {step === "checkout" && (
+            <>
+              <button type="button" className="backLink" onClick={() => setStep("review")}>
+                ← Back to selection
+              </button>
+
+              <div className="section">
+                <h2>Delivery address</h2>
+                <DeliveryAddressPicker onChange={setAddress} />
+              </div>
+
+              <form className="section" onSubmit={handleSubmit}>
+                <h2>Promo code</h2>
+                <div className="couponRow">
+                  <input
+                    value={couponCode}
+                    onChange={(e) => setCouponCode(e.target.value)}
+                    placeholder="Promo code (optional, applied once your quote is ready)"
+                  />
+                </div>
+
+                {submitError && <p className="error">{submitError}</p>}
+
+                <button type="submit" className="submitBtn" disabled={submitting || userLoading || !address}>
+                  {submitting ? "Submitting…" : "Request Quote"}
+                </button>
+              </form>
+            </>
+          )}
         </>
       )}
 
@@ -454,6 +494,35 @@ export default function MonthlyGroceriesPage() {
           padding: 0;
           margin-bottom: 16px;
           font-size: 14px;
+        }
+        .reviewList {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+          margin-bottom: 16px;
+        }
+        .reviewRow {
+          display: flex;
+          align-items: baseline;
+          gap: 10px;
+          padding: 10px 12px;
+          border: 1px solid #eee;
+          border-radius: 8px;
+          background: #fafafa;
+          flex-wrap: wrap;
+        }
+        .reviewName {
+          font-weight: 600;
+          flex: 1;
+        }
+        .reviewQty {
+          color: #555;
+          font-size: 13px;
+        }
+        .reviewNotes {
+          color: #999;
+          font-size: 12px;
+          width: 100%;
         }
         .couponRow {
           margin-top: 16px;
