@@ -38,4 +38,10 @@
          even though the web code itself needs no native change. -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <!-- Required on Android 13+ to show any notification at all. Harmless
+         to declare now even though push itself is still disabled
+         (NativeShellInit's FIREBASE_CONFIGURED flag): without this,
+         turning Firebase on later would silently fail to show
+         notifications until someone noticed this was missing too. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 </manifest>
