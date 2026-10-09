@@ -5,6 +5,7 @@ import { CartProvider } from "@/context/CartContext";
 import { WishlistProvider } from "@/context/WishlistContext";
 import { UserProvider } from "@/context/UserContext";
 import CookieConsent from "@/components/CookieConsent";
+import NativeShellInit from "@/components/NativeShellInit";
 import WhatsAppButton from "@/components/WhatsAppButton";
 import ChatWidget from "@/components/ChatWidget";
 import InstallAppButton from "@/components/InstallAppButton";
@@ -173,6 +174,7 @@ export default async function RootLayout({
               <ChatWidget />
               <InstallAppButton />
               <CookieConsent />
+              <NativeShellInit />
             </WishlistProvider>
           </CartProvider>
         </UserProvider>
