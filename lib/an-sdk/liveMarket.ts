@@ -29,6 +29,14 @@ export type LiveMarketItem = {
   _id: string;
   shopId: string;
   name: string;
+  // Per-language names -- optional, admin-entered in native-admin. Falls
+  // back to `name` (English) when blank for the customer's resolved
+  // language. See lib/language.ts's localizedName()/STATE_TO_LANGUAGE.
+  nameTe?: string;
+  nameKn?: string;
+  nameTa?: string;
+  nameMl?: string;
+  nameHi?: string;
   description?: string;
   imageUrl?: string;
   category: string;

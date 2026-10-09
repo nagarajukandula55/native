@@ -5,6 +5,22 @@ import { MapPin, LocateFixed } from "lucide-react";
 import Modal from "./ui/Modal";
 import { pincode as pincodeApi } from "@/lib/an-sdk";
 import { getStoredPincode, setStoredPincode, detectPincodeFromLocation } from "@/lib/pincode";
+import { setStoredLanguage } from "@/lib/language";
+
+/**
+ * Resolves the customer's display language from their pincode (via
+ * /api/pincode-state, which keeps the 2.3MB pincode dataset server-side)
+ * and stores it -- non-blocking, best-effort, never blocks pincode save.
+ */
+async function resolveAndStoreLanguage(pincode) {
+  try {
+    const res = await fetch(`/api/pincode-state/${pincode}`);
+    const data = await res.json();
+    if (data?.language) setStoredLanguage(data.language);
+  } catch {
+    /* non-blocking -- falls back to whatever language was already stored */
+  }
+}
 
 /**
  * Delivery-pincode capture + indicator. Some categories (e.g. the phased
@@ -28,6 +44,7 @@ export default function PincodeBar() {
     const stored = getStoredPincode();
     setPincode(stored);
     if (!stored) setOpen(true);
+    else resolveAndStoreLanguage(stored);
   }, []);
 
   const commitPincode = async (value) => {
@@ -52,6 +69,7 @@ export default function PincodeBar() {
     setStoredPincode(value);
     setPincode(value);
     setOpen(false);
+    resolveAndStoreLanguage(value);
   };
 
   const handleSave = async () => {
