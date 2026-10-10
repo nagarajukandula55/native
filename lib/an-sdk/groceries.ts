@@ -54,6 +54,11 @@ export type GroceryItem = {
   _id: string;
   type: "GROCERY" | "SANTHA";
   name: string;
+  nameTe?: string;
+  nameKn?: string;
+  nameTa?: string;
+  nameMl?: string;
+  nameHi?: string;
   description?: string;
   imageUrl?: string;
   category: string;

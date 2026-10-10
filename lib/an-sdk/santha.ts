@@ -42,6 +42,11 @@ function toQueryString(params: Record<string, any> = {}) {
 export type SanthaItem = {
   _id: string;
   name: string;
+  nameTe?: string;
+  nameKn?: string;
+  nameTa?: string;
+  nameMl?: string;
+  nameHi?: string;
   description?: string;
   imageUrl?: string;
   category: string;

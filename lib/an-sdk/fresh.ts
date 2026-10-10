@@ -29,6 +29,11 @@ export type FreshItem = {
   _id: string;
   shopId: string;
   name: string;
+  nameTe?: string;
+  nameKn?: string;
+  nameTa?: string;
+  nameMl?: string;
+  nameHi?: string;
   description?: string;
   imageUrl?: string;
   category: string;

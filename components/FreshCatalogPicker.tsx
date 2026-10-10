@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { getFreshItems, FreshItem, FreshOrderItemInput, OperatingHoursStatus } from "@/lib/an-sdk/fresh";
+import { useDisplayLanguage, localizedName } from "@/lib/language";
 
 /**
  * Priced catalogue grid for Fresh -- unlike GroceryCatalogPicker,
@@ -27,6 +28,7 @@ export default function FreshCatalogPicker({
   const [activeCategory, setActiveCategory] = useState<string>("All");
   const [detailItem, setDetailItem] = useState<FreshItem | null>(null);
   const [operatingHours, setOperatingHours] = useState<OperatingHoursStatus | null>(null);
+  const displayLanguage = useDisplayLanguage();
 
   useEffect(() => {
     let cancelled = false;
@@ -120,20 +122,22 @@ export default function FreshCatalogPicker({
       )}
 
       <div className="grid">
-        {visible.map((item) => (
+        {visible.map((item) => {
+          const displayName = localizedName(item, displayLanguage);
+          return (
           <div className={`itemCard ${!item.isActive ? "outOfStock" : ""}`} key={item._id}>
-            <button type="button" className="thumb" onClick={() => setDetailItem(item)} aria-label={`View ${item.name} details`}>
+            <button type="button" className="thumb" onClick={() => setDetailItem(item)} aria-label={`View ${displayName} details`}>
               {item.imageUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={item.imageUrl} alt={item.name} />
+                <img src={item.imageUrl} alt={displayName} />
               ) : (
-                <div className="thumbPlaceholder">{item.name.charAt(0).toUpperCase()}</div>
+                <div className="thumbPlaceholder">{displayName.charAt(0).toUpperCase()}</div>
               )}
               {!item.isActive && <span className="oosBadge">Out of Stock</span>}
             </button>
             <div className="info">
               <button type="button" className="nameBtn" onClick={() => setDetailItem(item)}>
-                {item.name}
+                {displayName}
               </button>
               <p className="rate">
                 ₹{item.displayRatePerUnit}
@@ -181,7 +185,8 @@ export default function FreshCatalogPicker({
               </div>
             )}
           </div>
-        ))}
+          );
+        })}
       </div>
 
       {total > 0 && (
@@ -200,12 +205,12 @@ export default function FreshCatalogPicker({
             <div className="detailImage">
               {detailItem.imageUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={detailItem.imageUrl} alt={detailItem.name} />
+                <img src={detailItem.imageUrl} alt={localizedName(detailItem, displayLanguage)} />
               ) : (
-                <div className="thumbPlaceholder">{detailItem.name.charAt(0).toUpperCase()}</div>
+                <div className="thumbPlaceholder">{localizedName(detailItem, displayLanguage).charAt(0).toUpperCase()}</div>
               )}
             </div>
-            <h3>{detailItem.name}</h3>
+            <h3>{localizedName(detailItem, displayLanguage)}</h3>
             {!detailItem.isActive && <p className="oosText">Out of Stock today</p>}
             <p className="detailRate">
               ₹{detailItem.displayRatePerUnit}

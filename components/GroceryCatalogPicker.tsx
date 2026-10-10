@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { getGroceryItems, GroceryItem, GroceryOrderItemInput } from "@/lib/an-sdk/groceries";
+import { useDisplayLanguage, localizedName } from "@/lib/language";
 
 /**
  * Browsable catalogue grid for Monthly Groceries / Santha item picking --
@@ -38,6 +39,7 @@ export default function GroceryCatalogPicker({
   const [error, setError] = useState("");
   const [cartQty, setCartQty] = useState<Record<string, number>>({});
   const [activeCategory, setActiveCategory] = useState<string>("All");
+  const displayLanguage = useDisplayLanguage();
 
   useEffect(() => {
     let cancelled = false;
@@ -94,18 +96,20 @@ export default function GroceryCatalogPicker({
       )}
 
       <div className="grid">
-        {visible.map((item) => (
+        {visible.map((item) => {
+          const displayName = localizedName(item, displayLanguage);
+          return (
           <div className="itemCard" key={item._id}>
             <div className="thumb">
               {item.imageUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={item.imageUrl} alt={item.name} />
+                <img src={item.imageUrl} alt={displayName} />
               ) : (
-                <div className="thumbPlaceholder">{item.name.charAt(0).toUpperCase()}</div>
+                <div className="thumbPlaceholder">{displayName.charAt(0).toUpperCase()}</div>
               )}
             </div>
             <div className="info">
-              <p className="name">{item.name}</p>
+              <p className="name">{displayName}</p>
               {item.description && <p className="desc">{item.description}</p>}
               <p className="unit">Unit: {item.unit}</p>
             </div>
@@ -127,7 +131,8 @@ export default function GroceryCatalogPicker({
               )}
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
 
       <style jsx>{`

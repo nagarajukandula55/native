@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useCart } from "@/context/CartContext";
 import { getProductDisplayName } from "@/lib/product";
+import { useDisplayLanguage } from "@/lib/language";
 import { getProducts, getCategories } from "@/lib/an-sdk/products";
 import FilterSidebar from "@/components/FilterSidebar";
 import SearchBar from "@/components/SearchBar";
@@ -25,6 +26,7 @@ function ProductsPageInner() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
+  const displayLanguage = useDisplayLanguage();
 
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -135,7 +137,7 @@ function ProductsPageInner() {
         _id: id,
         productId: id,
         productKey: p.productKey || id,
-        name: getProductDisplayName(p) || "Product",
+        name: getProductDisplayName(p, displayLanguage) || "Product",
         slug: p.slug,
         price: Number(p.displayPrice || p.price || 0),
         mrp: Number(p.mrp || 0),
@@ -152,11 +154,11 @@ function ProductsPageInner() {
   function handleShare(p) {
     const url = `${window.location.origin}/products/${p.slug}`;
 
-    const text = `🛍️ ${getProductDisplayName(p)}\n₹${p.displayPrice || p.price || 0}\n\n${url}`;
+    const text = `🛍️ ${getProductDisplayName(p, displayLanguage)}\n₹${p.displayPrice || p.price || 0}\n\n${url}`;
 
     if (navigator.share) {
       navigator.share({
-        title: getProductDisplayName(p),
+        title: getProductDisplayName(p, displayLanguage),
         text,
         url,
       });
@@ -205,7 +207,7 @@ function ProductsPageInner() {
 
               const stockLevel = p.stock ?? null;
               const inStock = stockLevel === null ? true : stockLevel > 0;
-              const displayName = getProductDisplayName(p);
+              const displayName = getProductDisplayName(p, displayLanguage);
 
               return (
                 <div className="card" key={p._id}>
@@ -354,7 +356,7 @@ function ProductsPageInner() {
               itemListElement: products.slice(0, 10).map((p, index) => ({
                 "@type": "ListItem",
                 position: index + 1,
-                name: getProductDisplayName(p),
+                name: getProductDisplayName(p, displayLanguage),
                 url: `https://shopnative.in/products/${p.slug}`,
               })),
             }),

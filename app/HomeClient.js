@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/context/CartContext";
 import { getProductDisplayName } from "@/lib/product";
+import { useDisplayLanguage } from "@/lib/language";
 import { getProducts, getCategories } from "@/lib/an-sdk/products";
 import { getBanners } from "@/lib/an-sdk/banners";
 import { getRecentReviews } from "@/lib/an-sdk/reviews";
@@ -12,6 +13,7 @@ import WishlistButton from "@/components/WishlistButton";
 import RecentlyViewed from "@/components/RecentlyViewed";
 import HeroSlideshow from "@/components/HeroSlideshow";
 import { PINCODE_CHANGED_EVENT } from "@/lib/pincode";
+import { Fish, Apple, Store, Carrot } from "lucide-react";
 
 // Simple keyword → emoji map so real category names (whatever the backend
 // returns) still get a sensible icon without needing per-category image
@@ -46,6 +48,7 @@ function iconForCategory(name = "") {
 export default function HomeClient() {
   const { addToCart } = useCart();
   const router = useRouter();
+  const displayLanguage = useDisplayLanguage();
 
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -193,9 +196,54 @@ export default function HomeClient() {
     },
   ];
 
+  // Dedicated slides for Live/Fresh/Santha/Groceries -- these are
+  // structural navigation into the four verticals (which otherwise have
+  // zero discoverability outside the navbar, see .verticalQuickAccess
+  // below), not admin-managed promotional content, so they're always
+  // appended regardless of whether real banners are configured.
+  const verticalSlides = [
+    {
+      img: "/hero/slide-1.jpg",
+      fallback: "/hero_optimized.jpg",
+      eyebrow: "TODAY'S REAL PRICE",
+      heading: "Live Fish,\nChicken & Mutton.",
+      sub: "Fresh from a shop near you — no waiting for a quote, pay and we deliver.",
+      ctaText: "SHOP LIVE",
+      ctaLink: "/live-market",
+    },
+    {
+      img: "/hero/slide-1.jpg",
+      fallback: "/hero_optimized.jpg",
+      eyebrow: "PICKED TODAY",
+      heading: "Fresh Fruits\n& Vegetables.",
+      sub: "Real price, real quality — delivered the same day.",
+      ctaText: "SHOP FRESH",
+      ctaLink: "/fresh",
+    },
+    {
+      img: "/hero/slide-1.jpg",
+      fallback: "/hero_optimized.jpg",
+      eyebrow: "WEEKLY MARKET",
+      heading: "Santha,\nDelivered to You.",
+      sub: "Order from your local weekly market — picked up and delivered the same day it runs.",
+      ctaText: "SHOP SANTHA",
+      ctaLink: "/santha",
+    },
+    {
+      img: "/hero/slide-1.jpg",
+      fallback: "/hero_optimized.jpg",
+      eyebrow: "MONTHLY ESSENTIALS",
+      heading: "Monthly Groceries,\nSorted.",
+      sub: "List what you need, get a real quote, pay, and we bring it to your door.",
+      ctaText: "SHOP GROCERIES",
+      ctaLink: "/groceries",
+    },
+  ];
+
   // Real admin-uploaded banners take priority; fall back to the static
-  // set (unchanged) whenever the banner API errors or returns nothing.
-  const slides = dynamicSlides && dynamicSlides.length > 0 ? dynamicSlides : staticSlides;
+  // set whenever the banner API errors or returns nothing -- either way,
+  // the vertical nav slides always come along.
+  const slides = [...(dynamicSlides && dynamicSlides.length > 0 ? dynamicSlides : staticSlides), ...verticalSlides];
 
   // Shared product-card markup — reused by both the Featured section and
   // Best Sellers below, so there's exactly one card component on this page
@@ -206,7 +254,7 @@ export default function HomeClient() {
     const inStock = stockLevel === null ? true : stockLevel > 0;
 
     const pid = p.id || p._id;
-    const displayName = getProductDisplayName(p);
+    const displayName = getProductDisplayName(p, displayLanguage);
     const imgSrc =
       failedProductImages[pid] || !p.images?.[0] ? "/placeholder.png" : p.images[0];
 
@@ -318,6 +366,32 @@ export default function HomeClient() {
 
       {/* ================= HERO SLIDESHOW ================= */}
       <HeroSlideshow slides={slides} />
+
+      {/* ================= VERTICAL QUICK ACCESS =================
+          Live/Fresh/Santha/Groceries previously had ZERO link anywhere on
+          the home page -- the only way in was the navbar, which on mobile
+          buries them inside the hamburger menu. This is a persistent
+          always-visible strip (not a one-time popup, which gets dismissed
+          and forgotten) so these categories are one tap away on every
+          visit, matching the Swiggy/Blinkit-style category-row pattern. */}
+      <div className="verticalQuickAccess">
+        <Link href="/live-market" className="verticalTile verticalTileLive">
+          <Fish size={22} />
+          <span>Live</span>
+        </Link>
+        <Link href="/fresh" className="verticalTile verticalTileFresh">
+          <Apple size={22} />
+          <span>Fresh</span>
+        </Link>
+        <Link href="/santha" className="verticalTile verticalTileSantha">
+          <Store size={22} />
+          <span>Santha</span>
+        </Link>
+        <Link href="/groceries" className="verticalTile verticalTileGroceries">
+          <Carrot size={22} />
+          <span>Groceries</span>
+        </Link>
+      </div>
 
       {/* ================= FEATURE STRIP (moved out of hero so it reads
           cleanly under the full-bleed slideshow rather than overlaid on
@@ -611,6 +685,52 @@ export default function HomeClient() {
 
         .reviewProduct {
           color: #c28b45;
+        }
+
+        /* ===== VERTICAL QUICK ACCESS (Live/Fresh/Santha/Groceries) ===== */
+        .verticalQuickAccess {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 10px;
+          max-width: 900px;
+          margin: 0 auto;
+          padding: 16px 20px 0;
+        }
+        .verticalTile {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 6px;
+          padding: 14px 8px;
+          border-radius: 14px;
+          text-decoration: none;
+          font-size: 13px;
+          font-weight: 700;
+          color: #fff;
+          box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+        }
+        .verticalTileLive {
+          background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        }
+        .verticalTileFresh {
+          background: linear-gradient(135deg, #16a34a, #15803d);
+        }
+        .verticalTileSantha {
+          background: linear-gradient(135deg, #c28b45, #a3702f);
+        }
+        .verticalTileGroceries {
+          background: linear-gradient(135deg, #ea580c, #c2410c);
+        }
+        @media (max-width: 640px) {
+          .verticalQuickAccess {
+            padding: 12px 12px 0;
+            gap: 8px;
+          }
+          .verticalTile {
+            padding: 12px 4px;
+            font-size: 12px;
+            border-radius: 12px;
+          }
         }
 
         /* ===== FEATURE STRIP (below the hero slideshow) ===== */

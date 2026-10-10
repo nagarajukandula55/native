@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useCart } from "@/context/CartContext";
 import { getProductDisplayName } from "@/lib/product";
+import { useDisplayLanguage } from "@/lib/language";
 import WishlistButton from "./WishlistButton";
 import RelatedProducts from "./RelatedProducts";
 import RecentlyViewed from "./RecentlyViewed";
@@ -16,6 +17,7 @@ export default function ProductView({
   variants = [],
 }) {
   const { addToCart } = useCart();
+  const displayLanguage = useDisplayLanguage();
 
   /* Track this view for the "Recently Viewed" rail (client-only, no
      backend dependency). */
@@ -70,7 +72,8 @@ export default function ProductView({
   // name regardless of which size button was active, since it never read
   // from selectedVariant at all (only price/stock did).
   const displayName = getProductDisplayName(
-    selectedVariant?.displayName || selectedVariant?.name ? selectedVariant : product
+    selectedVariant?.displayName || selectedVariant?.name ? selectedVariant : product,
+    displayLanguage
   );
 
   const handleAddToCart = () => {
