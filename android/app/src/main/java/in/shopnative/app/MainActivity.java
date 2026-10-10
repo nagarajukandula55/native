@@ -1,9 +1,11 @@
 package in.shopnative.app;
 
 import android.os.Build;
+import android.os.Bundle;
 import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebView;
+import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import com.getcapacitor.BridgeActivity;
@@ -20,6 +22,31 @@ import com.getcapacitor.BridgeWebViewClient;
  */
 public class MainActivity extends BridgeActivity {
   private static final String OFFLINE_URL = "https://localhost/offline.html";
+
+  @Override
+  public void onCreate(Bundle savedInstanceState) {
+    super.onCreate(savedInstanceState);
+    // Capacitor's BridgeActivity does NOT handle the hardware/gesture back
+    // button by itself -- without this, every back press exited the whole
+    // app instead of navigating back through the site's own page history
+    // (the SPA's client-side route changes, e.g. live-market -> live-
+    // market/orders, DO register as WebView history entries via
+    // history.pushState, so canGoBack() correctly reflects in-app
+    // navigation). Only exits the app once there's truly nowhere left to
+    // go back to.
+    getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+      @Override
+      public void handleOnBackPressed() {
+        WebView webView = bridge.getWebView();
+        if (webView != null && webView.canGoBack()) {
+          webView.goBack();
+        } else {
+          setEnabled(false);
+          getOnBackPressedDispatcher().onBackPressed();
+        }
+      }
+    });
+  }
 
   @Override
   public void onStart() {
