@@ -66,5 +66,23 @@ export function setStoredPincode(pincode: string) {
   } catch {
     /* ignore (private browsing, etc.) */
   }
+  // Mirror into a cookie alongside localStorage -- localStorage stays the
+  // client-side source of truth (unchanged), but it's invisible to the
+  // server. A cookie travels with every request, so a server component
+  // (lib/pincodeServer.ts) can read the customer's last-known pincode on
+  // the very first render of a pincode-gated page (vertical ordering pages,
+  // home's category tiles) instead of that page always starting blank and
+  // fetching only after the client mounts. 1 year expiry, matches how long
+  // a delivery pincode choice is expected to stay relevant; SameSite=Lax
+  // since this is only ever read, never used for anything auth-sensitive.
+  try {
+    if (pincode) {
+      document.cookie = `${PINCODE_STORAGE_KEY}=${encodeURIComponent(pincode)}; path=/; max-age=31536000; SameSite=Lax`;
+    } else {
+      document.cookie = `${PINCODE_STORAGE_KEY}=; path=/; max-age=0; SameSite=Lax`;
+    }
+  } catch {
+    /* ignore */
+  }
   window.dispatchEvent(new CustomEvent(PINCODE_CHANGED_EVENT, { detail: pincode }));
 }
