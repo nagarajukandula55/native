@@ -12,28 +12,52 @@ import FilterSidebar from "@/components/FilterSidebar";
 import SearchBar from "@/components/SearchBar";
 import WishlistButton from "@/components/WishlistButton";
 
-export default function ProductsPageClient() {
+export default function ProductsPageClient({
+  initialProducts,
+  initialTotalPages,
+  initialCategoryName,
+  initialKey,
+}) {
   return (
     <Suspense fallback={<div className="container">Loading...</div>}>
-      <ProductsPageInner />
+      {/* Keyed by the server component's exact filter/sort/page signature
+          (app/products/page.js) -- every URL change this page can produce
+          (filter, sort, search, page) changes initialKey too, which remounts
+          this subtree with the new server-fetched initial props instead of
+          trying to reconcile old state against a different result set. */}
+      <ProductsPageInner
+        key={initialKey}
+        initialProducts={initialProducts}
+        initialTotalPages={initialTotalPages}
+        initialCategoryName={initialCategoryName}
+      />
     </Suspense>
   );
 }
 
 const PAGE_SIZE = 24;
 
-function ProductsPageInner() {
+function ProductsPageInner({
+  initialProducts = [],
+  initialTotalPages = 1,
+  initialCategoryName = "",
+}) {
   const { addToCart } = useCart();
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
   const displayLanguage = useDisplayLanguage();
 
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // Seeded from the server component (app/products/page.js), which already
+  // fetched this exact filter/sort/page combo -- so the listing ships with
+  // real results in the initial HTML instead of a "Loading..." flash.
+  // ProductsPageClient's `key` guarantees a fresh mount (and therefore
+  // fresh initial state from these props) on every filter/sort/page change.
+  const [products, setProducts] = useState(initialProducts);
+  const [loading, setLoading] = useState(false);
   const [addingId, setAddingId] = useState(null);
-  const [categoryName, setCategoryName] = useState("");
-  const [totalPages, setTotalPages] = useState(1);
+  const [categoryName, setCategoryName] = useState(initialCategoryName);
+  const [totalPages, setTotalPages] = useState(initialTotalPages);
 
   const search = searchParams.get("search") || "";
   const category = searchParams.get("category") || "";
@@ -50,8 +74,21 @@ function ProductsPageInner() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
+  // This component only ever mounts fresh (remounted by `key` above
+  // whenever the URL's filters change), so its very first effect run
+  // always corresponds exactly to the initialProducts/initialTotalPages
+  // this mount was seeded with -- skip that one redundant fetch, then
+  // fetch normally for anything that changes after mount (there shouldn't
+  // be anything, since a changed filter/sort/page is itself a remount, but
+  // this keeps the component correct even if that assumption ever changes).
+  const skipNextFetch = useRef(true);
+
   /* ================= FETCH (SEARCH + FILTERS + SORT + PAGE) ================= */
   useEffect(() => {
+    if (skipNextFetch.current) {
+      skipNextFetch.current = false;
+      return;
+    }
     let cancelled = false;
     setLoading(true);
 
@@ -95,8 +132,15 @@ function ProductsPageInner() {
   /* ================= RESOLVE CATEGORY NAME =================
      `category` in the URL is a category _id (see FilterSidebar/homepage —
      both link/filter by _id, not name), so look up its display name for
-     the heading rather than showing the raw id to the user. */
+     the heading rather than showing the raw id to the user. Server-
+     resolved already for this exact mount (see skipNextFetch's comment
+     above -- same reasoning applies here). */
+  const skipNextCategoryFetch = useRef(true);
   useEffect(() => {
+    if (skipNextCategoryFetch.current) {
+      skipNextCategoryFetch.current = false;
+      return;
+    }
     if (!category) {
       setCategoryName("");
       return;
