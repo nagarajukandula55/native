@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/context/CartContext";
@@ -76,7 +77,7 @@ export default function CartPage() {
           {cart.map((item) => (
             <div key={item.productId} className="row">
 
-              <img src={item.image || "/placeholder.png"} />
+              <Image src={item.image || "/placeholder.png"} alt={item.name} width={100} height={100} />
 
               <div className="details">
                 <h3>{item.name}</h3>

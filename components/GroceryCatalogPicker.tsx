@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import { getGroceryItems, GroceryItem, GroceryOrderItemInput } from "@/lib/an-sdk/groceries";
 import { useDisplayLanguage, localizedName } from "@/lib/language";
 
@@ -102,8 +103,7 @@ export default function GroceryCatalogPicker({
           <div className="itemCard" key={item._id}>
             <div className="thumb">
               {item.imageUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={item.imageUrl} alt={displayName} />
+                <Image src={item.imageUrl} alt={displayName} fill sizes="150px" style={{ objectFit: "cover" }} />
               ) : (
                 <div className="thumbPlaceholder">{displayName.charAt(0).toUpperCase()}</div>
               )}
@@ -179,6 +179,7 @@ export default function GroceryCatalogPicker({
           flex-direction: column;
         }
         .thumb {
+          position: relative;
           width: 100%;
           height: 100px;
           background: #f0f0f0;

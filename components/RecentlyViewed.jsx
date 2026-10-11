@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 
 /**
@@ -25,7 +26,7 @@ export default function RecentlyViewed({ excludeId, title = "Recently Viewed" })
       <div className="row">
         {items.map((p) => (
           <Link href={`/products/${p.slug}`} key={p.productId} className="card">
-            <img src={p.image} alt={p.name} />
+            <Image src={p.image} alt={p.name} width={150} height={120} />
             <div className="name">{p.name}</div>
             <div className="price">₹{p.price}</div>
           </Link>

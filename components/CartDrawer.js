@@ -2,6 +2,7 @@
 
 import { useCart } from "@/context/CartContext";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import Link from "next/link";
 
 export default function CartDrawer() {
@@ -55,9 +56,11 @@ export default function CartDrawer() {
             {cart.map((item) => (
               <div className="card" key={item.productId}>
 
-                <img
+                <Image
                   src={item.image || "/placeholder.png"}
                   alt={item.name}
+                  width={64}
+                  height={64}
                 />
 
                 <div className="content">

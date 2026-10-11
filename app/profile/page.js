@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+import Image from "next/image"
 import Link from "next/link"
 import { getMe, isLoggedIn } from "@/lib/an-sdk/auth"
 import { updateProfile, changePassword } from "@/lib/an-sdk/users"
@@ -280,8 +281,8 @@ export default function ProfilePage() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 16 }}>
             {wishlist.map((item) => (
               <div key={item.productId} style={{ border: "1px solid #eee", borderRadius: 10, overflow: "hidden", background: "#fff" }}>
-                <Link href={`/products/${item.slug}`}>
-                  <img src={item.image} alt={item.name} style={{ width: "100%", height: 140, objectFit: "cover" }} />
+                <Link href={`/products/${item.slug}`} style={{ position: "relative", display: "block", width: "100%", height: 140 }}>
+                  <Image src={item.image} alt={item.name} fill sizes="200px" style={{ objectFit: "cover" }} />
                 </Link>
                 <div style={{ padding: 10 }}>
                   <h4 style={{ fontSize: 14, margin: "0 0 6px" }}>{item.name}</h4>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useCart } from "@/context/CartContext";
 import { getProductDisplayName } from "@/lib/product";
@@ -177,14 +178,24 @@ export default function ProductView({
           {/* LEFT */}
           <div>
             {selectedImage && (
-              <img
-                src={selectedImage}
-                alt={displayName}
+              <div
                 style={{
+                  position: "relative",
                   width: "100%",
+                  paddingTop: "100%",
                   borderRadius: "12px",
+                  overflow: "hidden",
                 }}
-              />
+              >
+                <Image
+                  src={selectedImage}
+                  alt={displayName}
+                  fill
+                  sizes="(max-width: 768px) 100vw, 50vw"
+                  priority
+                  style={{ objectFit: "contain" }}
+                />
+              </div>
             )}
 
             <div
@@ -196,10 +207,12 @@ export default function ProductView({
               }}
             >
               {images.map((img, i) => (
-                <img
+                <Image
                   key={i}
                   src={img}
                   alt=""
+                  width={70}
+                  height={70}
                   onClick={() =>
                     setSelectedImage(img)
                   }

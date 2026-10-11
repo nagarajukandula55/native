@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useCart } from "../context/CartContext";
 
@@ -23,7 +24,7 @@ export default function Navbar() {
       }}
     >
       <Link href="/">
-        <img src="/logo.png" alt="Native" style={{ height: "75px" }} />
+        <Image src="/logo.png" alt="Native" width={400} height={379} style={{ height: "75px", width: "auto" }} priority />
       </Link>
 
       <div style={{ display: "flex", gap: "40px" }}>

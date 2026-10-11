@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useCart } from "@/context/CartContext";
@@ -221,17 +222,14 @@ function ProductsPageInner() {
                       className="imgWrap"
                       style={{ position: "relative", width: "100%", paddingTop: "100%", overflow: "hidden" }}
                     >
-                      <img
+                      <Image
                         src={p.images?.[0] || "/placeholder.png"}
                         alt={displayName}
+                        fill
+                        sizes="(max-width: 900px) 50vw, (max-width: 1400px) 25vw, 240px"
                         style={{
-                          position: "absolute",
-                          inset: 0,
-                          width: "100%",
-                          height: "100%",
                           objectFit: "cover",
                           objectPosition: "top",
-                          display: "block",
                         }}
                       />
 

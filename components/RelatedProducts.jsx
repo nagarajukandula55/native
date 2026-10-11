@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useCart } from "@/context/CartContext";
 
@@ -50,7 +51,9 @@ export default function RelatedProducts({ slug, title = "You May Also Like" }) {
         {products.map((p) => (
           <div className="card" key={p._id || p.slug}>
             <Link href={`/products/${p.slug}`}>
-              <img src={p.images?.[0] || "/placeholder.png"} alt={p.name} />
+              <div className="imgWrap">
+                <Image src={p.images?.[0] || "/placeholder.png"} alt={p.name} fill sizes="180px" style={{ objectFit: "cover" }} />
+              </div>
               <div className="name">{p.name}</div>
               <div className="price">₹{p.displayPrice || p.minPrice || p.price || 0}</div>
             </Link>
@@ -105,10 +108,10 @@ export default function RelatedProducts({ slug, title = "You May Also Like" }) {
           color: inherit;
         }
 
-        .card img {
+        .imgWrap {
+          position: relative;
           width: 100%;
           height: 140px;
-          object-fit: cover;
         }
 
         .name {

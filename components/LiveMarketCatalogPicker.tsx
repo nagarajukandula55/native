@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import { getLiveMarketItems, LiveMarketItem, LiveMarketOrderItemInput, OperatingHoursStatus } from "@/lib/an-sdk/liveMarket";
 import { useDisplayLanguage, localizedName } from "@/lib/language";
 
@@ -128,8 +129,7 @@ export default function LiveMarketCatalogPicker({
           <div className={`itemCard ${!item.isActive ? "outOfStock" : ""}`} key={item._id}>
             <button type="button" className="thumb" onClick={() => setDetailItem(item)} aria-label={`View ${displayName} details`}>
               {item.imageUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={item.imageUrl} alt={displayName} />
+                <Image src={item.imageUrl} alt={displayName} fill sizes="150px" style={{ objectFit: "cover" }} />
               ) : (
                 <div className="thumbPlaceholder">{displayName.charAt(0).toUpperCase()}</div>
               )}
@@ -204,8 +204,13 @@ export default function LiveMarketCatalogPicker({
             </button>
             <div className="detailImage">
               {detailItem.imageUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={detailItem.imageUrl} alt={localizedName(detailItem, displayLanguage)} />
+                <Image
+                  src={detailItem.imageUrl}
+                  alt={localizedName(detailItem, displayLanguage)}
+                  fill
+                  sizes="400px"
+                  style={{ objectFit: "cover" }}
+                />
               ) : (
                 <div className="thumbPlaceholder">{localizedName(detailItem, displayLanguage).charAt(0).toUpperCase()}</div>
               )}
@@ -461,6 +466,7 @@ export default function LiveMarketCatalogPicker({
           z-index: 1;
         }
         .detailImage {
+          position: relative;
           width: 100%;
           height: 220px;
           border-radius: 10px;

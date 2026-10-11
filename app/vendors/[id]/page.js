@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCart } from "@/context/CartContext";
@@ -74,7 +75,9 @@ export default function VendorStorefrontPage() {
   return (
     <div className="container">
       <section className="banner">
-        {vendor.logo && <img src={vendor.logo} alt={vendor.businessName} className="logo" />}
+        {vendor.logo && (
+          <Image src={vendor.logo} alt={vendor.businessName} width={72} height={72} className="logo" />
+        )}
         <div>
           <h1>{vendor.businessName || vendor.name}</h1>
           {vendor.description && <p className="desc">{vendor.description}</p>}
@@ -91,7 +94,7 @@ export default function VendorStorefrontPage() {
             <div className="card" key={p._id || p.id}>
               <Link href={`/products/${p.slug}`} className="link">
                 <div className="imgWrap">
-                  <img src={p.images?.[0] || "/placeholder.png"} alt={p.displayName || p.name} />
+                  <Image src={p.images?.[0] || "/placeholder.png"} alt={p.displayName || p.name} fill sizes="(max-width: 768px) 50vw, 25vw" />
                 </div>
                 <div className="content">
                   <h3>{p.displayName || p.name}</h3>
@@ -191,9 +194,12 @@ export default function VendorStorefrontPage() {
           text-decoration: none;
           color: inherit;
         }
-        .imgWrap img {
+        .imgWrap {
+          position: relative;
           width: 100%;
           height: 180px;
+        }
+        .imgWrap img {
           object-fit: cover;
         }
         .content {

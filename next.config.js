@@ -5,6 +5,23 @@ const nextConfig = {
 
   serverExternalPackages: ["pdfkit"],
 
+  images: {
+    // Product/category/banner image URLs come back from the AN Group
+    // backend (NEXT_PUBLIC_AN_API -- angroup.in in production, localhost
+    // in dev), but the actual files are hosted on Cloudinary (confirmed
+    // from a live product's image URL: res.cloudinary.com/<cloud-name>/...)
+    // -- that's the host next/image actually needs to be allowed to
+    // optimize from. Both are listed so this keeps working if the backend
+    // ever serves images directly instead.
+    remotePatterns: [
+      { protocol: "https", hostname: "res.cloudinary.com" },
+      { protocol: "https", hostname: "www.angroup.in" },
+      { protocol: "https", hostname: "angroup.in" },
+      { protocol: "http", hostname: "localhost" },
+    ],
+    formats: ["image/avif", "image/webp"],
+  },
+
   experimental: {
     // Vercel's file-tracing doesn't reliably pick up a dynamic
     // fs.readFileSync(path.join(process.cwd(), ...)) call the way it does

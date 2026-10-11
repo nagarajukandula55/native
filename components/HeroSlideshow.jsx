@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 
 /**
@@ -58,9 +59,12 @@ export default function HeroSlideshow({ slides }) {
         return (
           <div key={i} className={`slide ${i === index ? "active" : ""}`}>
             {src ? (
-              <img
+              <Image
                 src={src}
                 alt={slide.heading.replace("\n", " ")}
+                fill
+                sizes="100vw"
+                priority={i === 0}
                 className="slideImg"
                 onError={() => handleImgError(i)}
               />
@@ -139,11 +143,8 @@ export default function HeroSlideshow({ slides }) {
         }
 
         .slideImg {
-          width: 100%;
-          height: 100%;
           object-fit: cover;
           object-position: center;
-          display: block;
         }
 
         .slideFlat {

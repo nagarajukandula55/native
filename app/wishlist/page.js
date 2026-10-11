@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useWishlist } from "@/context/WishlistContext";
@@ -27,8 +28,8 @@ export default function WishlistPage() {
         <div className="grid">
           {items.map((item) => (
             <div className="card" key={item.productId}>
-              <Link href={`/products/${item.slug}`}>
-                <img src={item.image} alt={item.name} />
+              <Link href={`/products/${item.slug}`} className="imgWrap">
+                <Image src={item.image} alt={item.name} fill sizes="200px" style={{ objectFit: "cover" }} />
               </Link>
 
               <div className="body">
@@ -103,10 +104,11 @@ export default function WishlistPage() {
           background: #fff;
         }
 
-        .card img {
+        .imgWrap {
+          position: relative;
+          display: block;
           width: 100%;
           height: 180px;
-          object-fit: cover;
         }
 
         .body {

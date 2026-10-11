@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useCart } from "@/context/CartContext";
 
@@ -8,8 +9,8 @@ export default function ProductCard({ product }) {
 
   return (
     <div className="card">
-      <Link href={`/products/${product.slug}`}>
-        <img src={product.image || "/placeholder.png"} alt={product.name} />
+      <Link href={`/products/${product.slug}`} className="imgWrap">
+        <Image src={product.image || "/placeholder.png"} alt={product.name} fill sizes="(max-width: 768px) 50vw, 25vw" style={{ objectFit: "cover" }} />
       </Link>
 
       <div className="body">
@@ -34,10 +35,11 @@ export default function ProductCard({ product }) {
           transform: translateY(-3px);
         }
 
-        img {
+        .imgWrap {
+          position: relative;
+          display: block;
           width: 100%;
           height: 200px;
-          object-fit: cover;
         }
 
         .body {

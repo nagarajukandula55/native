@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { getBlogList } from "@/lib/an-sdk/blog";
 
@@ -19,7 +20,11 @@ export default function BlogPageClient() {
         {blogs.map((b) => (
           <Link key={b._id} href={`/blog/${b.slug}`}>
             <div style={card}>
-              <img src={b.image} style={{ width: "100%", height: 200, objectFit: "cover" }} />
+              {b.image && (
+                <div style={{ position: "relative", width: "100%", height: 200 }}>
+                  <Image src={b.image} alt={b.title || ""} fill sizes="600px" style={{ objectFit: "cover" }} />
+                </div>
+              )}
               <h2>{b.title}</h2>
               <p>{b.excerpt}</p>
             </div>

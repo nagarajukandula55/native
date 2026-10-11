@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { getBlogList } from "@/lib/an-sdk/blog";
 
@@ -68,7 +69,11 @@ export default function RelatedReads({ category }) {
             href={`/blog/${post.slug}`}
             className="card"
           >
-            {post.image && <img src={post.image} alt={post.title} />}
+            {post.image && (
+              <div className="imgWrap">
+                <Image src={post.image} alt={post.title} fill sizes="220px" style={{ objectFit: "cover" }} />
+              </div>
+            )}
             <div className="body">
               <h3>{post.title}</h3>
               {post.excerpt && <p>{post.excerpt}</p>}
@@ -113,10 +118,10 @@ export default function RelatedReads({ category }) {
           display: flex;
           flex-direction: column;
         }
-        .card img {
+        .imgWrap {
+          position: relative;
           width: 100%;
           height: 160px;
-          object-fit: cover;
         }
         .body {
           padding: 14px;
