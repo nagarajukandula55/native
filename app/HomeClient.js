@@ -1,14 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/context/CartContext";
 import { getProductDisplayName } from "@/lib/product";
 import { useDisplayLanguage } from "@/lib/language";
-import { getProducts, getCategories } from "@/lib/an-sdk/products";
-import { getBanners } from "@/lib/an-sdk/banners";
-import { getRecentReviews } from "@/lib/an-sdk/reviews";
+import { getCategories } from "@/lib/an-sdk/products";
 import WishlistButton from "@/components/WishlistButton";
 import RecentlyViewed from "@/components/RecentlyViewed";
 import HeroSlideshow from "@/components/HeroSlideshow";
@@ -45,70 +44,57 @@ function iconForCategory(name = "") {
   return "🌿";
 }
 
-export default function HomeClient() {
+export default function HomeClient({
+  initialProducts = [],
+  initialFeaturedProducts = [],
+  initialReviews = [],
+  initialBanners = [],
+}) {
   const { addToCart } = useCart();
   const router = useRouter();
   const displayLanguage = useDisplayLanguage();
 
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [featuredProducts, setFeaturedProducts] = useState([]);
-  const [featuredLoading, setFeaturedLoading] = useState(true);
+  // Best sellers, featured products and reviews now arrive pre-fetched from
+  // the server component (app/page.js) -- seeded straight into state with
+  // loading already false, instead of starting empty and fetching client-
+  // side. Categories stay genuinely client-fetched below: that listing is
+  // filtered by the customer's pincode (localStorage, can change after
+  // hydration), which the server has no way to know on first render.
+  const [products, setProducts] = useState(initialProducts);
+  const [loading, setLoading] = useState(false);
+  const [featuredProducts, setFeaturedProducts] = useState(initialFeaturedProducts);
+  const [featuredLoading, setFeaturedLoading] = useState(false);
   const [categories, setCategories] = useState([]);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [failedCatImages, setFailedCatImages] = useState({});
   const [failedProductImages, setFailedProductImages] = useState({});
-  const [dynamicSlides, setDynamicSlides] = useState(null);
-  const [reviews, setReviews] = useState([]);
+  const [dynamicSlides, setDynamicSlides] = useState(
+    initialBanners.length > 0
+      ? initialBanners.map((b) => ({
+          img: b.imageUrl,
+          fallback: b.imageUrl,
+          eyebrow: b.subheading || "",
+          heading: b.heading || "",
+          sub: b.subheading || "",
+          ctaText: b.ctaText || "SHOP NOW",
+          ctaLink: b.ctaLink || "/products",
+        }))
+      : null
+  );
+  const [reviews, setReviews] = useState(initialReviews);
 
-  /* ================= FETCH BEST SELLERS =================
-     Manually-pinned products (NativeProduct.isBestSeller, flipped from
-     native-admin's Products > Live tab) first, then ranked by real sales
-     volume from angroup's periodic /api/cron/recompute-best-sellers job
-     -- this used to just fetch "newest" and label it "Best Sellers",
-     which wasn't actually sales-ranked at all. */
-  useEffect(() => {
-    async function loadProducts() {
-      try {
-        const data = await getProducts({ bestSeller: true, limit: 6 });
-        const list = data?.products || [];
-        setProducts(list);
-      } catch (err) {
-        console.error("Product fetch error:", err);
-        setProducts([]);
-      } finally {
-        setLoading(false);
+  // One pass over `products` to build a category-name -> first-product-image
+  // lookup, instead of re-scanning the whole products array per category
+  // tile on every render (O(categories * products) before this).
+  const categoryCoverByName = useMemo(() => {
+    const map = {};
+    for (const p of products) {
+      if (p.category && !(p.category in map) && p.images?.[0]) {
+        map[p.category] = p.images[0];
       }
     }
-    loadProducts();
-  }, []);
-
-  /* ================= FETCH FEATURED PRODUCTS =================
-     Admin-toggled highlight (NativeProduct.isFeatured, flipped from
-     native-admin's Products > Live tab) -- independent of "newest" above,
-     so a vendor's best/seasonal picks can be pinned to the homepage without
-     needing to be the most recently approved products. */
-  useEffect(() => {
-    async function loadFeatured() {
-      try {
-        const data = await getProducts({ featured: true, limit: 8 });
-        setFeaturedProducts(data?.products || []);
-      } catch (err) {
-        console.error("Featured product fetch error:", err);
-        setFeaturedProducts([]);
-      } finally {
-        setFeaturedLoading(false);
-      }
-    }
-    loadFeatured();
-  }, []);
-
-  /* ================= FETCH REVIEWS ================= */
-  useEffect(() => {
-    getRecentReviews(6)
-      .then((data) => setReviews(data?.reviews || []))
-      .catch(() => setReviews([]));
-  }, []);
+    return map;
+  }, [products]);
 
   /* ================= FETCH CATEGORIES =================
      Re-runs whenever the customer sets/changes their delivery pincode (see
@@ -145,34 +131,9 @@ export default function HomeClient() {
     return () => window.removeEventListener(PINCODE_CHANGED_EVENT, loadCategories);
   }, []);
 
-  /* ================= FETCH BANNERS (admin-uploaded hero slides) =========
-     Preferred-first-source: if the banner API returns real, active banners
-     they replace the hardcoded slides below; any failure or an empty list
-     leaves dynamicSlides null so the static 3-slide fallback (unchanged)
-     keeps working — the homepage never breaks on this call. */
-  useEffect(() => {
-    async function loadBanners() {
-      try {
-        const { success, banners } = await getBanners();
-        if (success && Array.isArray(banners) && banners.length > 0) {
-          setDynamicSlides(
-            banners.map((b) => ({
-              img: b.imageUrl,
-              fallback: b.imageUrl,
-              eyebrow: b.subheading || "",
-              heading: b.heading || "",
-              sub: b.subheading || "",
-              ctaText: b.ctaText || "SHOP NOW",
-              ctaLink: b.ctaLink || "/products",
-            }))
-          );
-        }
-      } catch (err) {
-        console.error("Banner fetch error:", err);
-      }
-    }
-    loadBanners();
-  }, []);
+  // dynamicSlides is seeded from initialBanners (server-fetched, see
+  // useState above) -- admin-uploaded banners take priority over the
+  // static slides below whenever any were returned.
 
   // Static fallback slide — used only when the admin hasn't configured any
   // banners yet (see dynamicSlides below). Previously this pulled real
@@ -272,17 +233,14 @@ export default function HomeClient() {
           className="imgWrap"
           style={{ position: "relative", display: "block", width: "100%", paddingTop: "100%", overflow: "hidden" }}
         >
-          <img
+          <Image
             src={imgSrc}
             alt={displayName}
+            fill
+            sizes="(max-width: 768px) 50vw, 25vw"
             style={{
-              position: "absolute",
-              inset: 0,
-              width: "100%",
-              height: "100%",
               objectFit: "cover",
               objectPosition: "top",
-              display: "block",
             }}
             onError={() => {
               if (!failedProductImages[pid]) {
@@ -432,8 +390,7 @@ export default function HomeClient() {
               // always wins; falls back to a matching product's own photo,
               // then finally the emoji map below.
               const rawCover =
-                cat.imageUrl ||
-                (!loading ? products.find((p) => p.category === cat.name)?.images?.[0] : undefined);
+                cat.imageUrl || (!loading ? categoryCoverByName[cat.name] : undefined);
               // Track failed image loads in real React state rather than
               // mutating the DOM directly from onError -- a direct DOM
               // mutation (classList.add/style.display) is invisible to
@@ -451,9 +408,11 @@ export default function HomeClient() {
                   className={cover ? "catTile" : "catTile catTileNoCover"}
                 >
                   {cover ? (
-                    <img
+                    <Image
                       src={cover}
                       alt=""
+                      fill
+                      sizes="150px"
                       className="catTileImg"
                       onError={() =>
                         setFailedCatImages((prev) => ({ ...prev, [catId]: true }))
