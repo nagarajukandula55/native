@@ -3,7 +3,6 @@
 const nextConfig = {
   reactStrictMode: true,
 
-  serverExternalPackages: ["pdfkit"],
 
   images: {
     // Product/category/banner image URLs come back from the AN Group

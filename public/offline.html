@@ -56,14 +56,14 @@
 </head>
 <body>
   <div class="wrap">
-    <img class="logo" src="/brand/native_logo_512.png" alt="Native" />
+    <img class="logo" src="/brand/native_logo_192.png" alt="Native" />
     <h1>You're offline</h1>
     <p>We couldn't reach Native. Check your internet connection and try again.</p>
     <button id="retryBtn" type="button">Try Again</button>
   </div>
   <script>
     document.getElementById("retryBtn").addEventListener("click", function () {
-      window.location.replace("https://shopnative.in/");
+      window.location.reload();
     });
   </script>
 </body>

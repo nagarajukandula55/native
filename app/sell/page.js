@@ -20,7 +20,7 @@ const PERKS = [
   },
   {
     title: "Same secure login",
-    body: "Sign in with the same AN group account you already use across other properties.",
+    body: "Use your Native account to apply and manage your vendor profile.",
   },
 ];
 
@@ -37,6 +37,8 @@ export default function SellPage() {
     email: "",
     phone: "",
     gstNumber: "",
+    gstRegistered: false,
+    panNumber: "",
     category: "",
     message: "",
   });
@@ -69,7 +71,7 @@ export default function SellPage() {
     }));
 
     getMyVendorStatus()
-      .then((data) => setStatus(data?.status || data || null))
+      .then((data) => setStatus(data || null))
       .catch(() => setStatus(null))
       .finally(() => setCheckingStatus(false));
   }, [user, userLoading]);
@@ -78,8 +80,13 @@ export default function SellPage() {
     e.preventDefault();
     setError("");
 
-    if (!form.businessName || !form.contactName || !form.email) {
+    if (!form.businessName.trim() || !form.contactName.trim() || !form.email || !form.phone.trim()) {
       setError("Please fill all required fields");
+      return;
+    }
+    if (form.gstRegistered ? !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(form.gstNumber.trim()) :
+      !/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(form.panNumber.trim())) {
+      setError(form.gstRegistered ? "Enter a valid GSTIN." : "Enter a valid PAN.");
       return;
     }
 
@@ -95,9 +102,7 @@ export default function SellPage() {
     } catch (err) {
       console.error(err);
       setError(
-        err instanceof ApiError
-          ? err.message
-          : "Couldn't submit your application right now. Please try again shortly."
+        err instanceof Error ? err.message : "Couldn't submit your application right now. Please try again shortly."
       );
     } finally {
       setSubmitting(false);
@@ -112,8 +117,7 @@ export default function SellPage() {
         <h1>Sell on Native</h1>
         <p>
           Bring your products to Native's marketplace and reach customers who
-          care about authentic, natural food — the same way vendors onboard
-          across the AN group.
+          care about authentic, natural food.
         </p>
       </section>
 
@@ -191,17 +195,23 @@ export default function SellPage() {
               className="input"
             />
             <input
-              placeholder="Phone"
+              placeholder="Phone *"
+              required
               value={form.phone}
               onChange={(e) => setForm({ ...form, phone: e.target.value })}
               className="input"
             />
-            <input
-              placeholder="GST number (if applicable)"
-              value={form.gstNumber}
-              onChange={(e) => setForm({ ...form, gstNumber: e.target.value })}
-              className="input"
-            />
+            <label>
+              <input type="checkbox" checked={form.gstRegistered} onChange={(e) => setForm({ ...form, gstRegistered: e.target.checked })} />{" "}
+              GST registered
+            </label>
+            {form.gstRegistered ? (
+              <input placeholder="GSTIN *" required value={form.gstNumber} maxLength={15}
+                onChange={(e) => setForm({ ...form, gstNumber: e.target.value.toUpperCase() })} className="input" />
+            ) : (
+              <input placeholder="PAN *" required value={form.panNumber} maxLength={10}
+                onChange={(e) => setForm({ ...form, panNumber: e.target.value.toUpperCase() })} className="input" />
+            )}
             <select
               value={categories.some((c) => (c.name || c) === form.category) ? form.category : (form.category ? "__other" : "")}
               onChange={(e) =>

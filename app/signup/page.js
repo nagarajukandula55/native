@@ -91,7 +91,9 @@ export default function SignupPage() {
         accountType: form.accountType,
       });
       setMsg("success:Account created — redirecting...");
-      setTimeout(() => router.push("/"), 1200);
+      const next = new URLSearchParams(window.location.search).get("next");
+      const destination = next && next.startsWith("/") && !next.startsWith("//") && !/[\\\r\n]/.test(next) ? next : "/";
+      setTimeout(() => router.replace(destination), 1200);
     } catch (err) {
       console.error(err);
       if (err instanceof ApiError) {

@@ -1,4 +1,3 @@
-import { anGet } from "./client";
 import {
   MIN_ORDER_VALUE,
   SMALL_CART_FEE_THRESHOLD,
@@ -24,25 +23,23 @@ const FALLBACK_SETTINGS: StoreSettings = {
 };
 
 /**
- * Public, unauthenticated storefront settings. ANgroup has no dedicated
- * /api/store-settings route -- these values live on the admin-editable
- * `storefront` field of MobileAppConfig (see ANgroup's
- * src/models/MobileAppConfig.ts and the "Storefront Settings" section of
- * /admin/native/mobile-settings), read via the same public
- * GET /api/mobile-app/config endpoint the app itself already calls at
- * launch. That route was already public/unauthenticated (see ANgroup's
- * middleware.ts), so no new backend route or middleware entry was needed.
- *
- * Any failure falls back to the current lib/constants.ts values so
- * cart/checkout pricing never breaks or flashes $0 if this call fails.
+ * Read the same Native Admin StoreSettings used by backend order pricing,
+ * through our same-origin public proxy. Fallbacks are display estimates;
+ * success:false prevents checkout until the live settings can be loaded.
  */
 export async function getStoreSettings(): Promise<{
   success: boolean;
   settings: StoreSettings;
 }> {
   try {
-    const data = await anGet(`/api/mobile-app/config`);
-    const settings = data?.config?.storefront || {};
+    const response = await fetch("/api/store-settings", { cache: "no-store" });
+    if (!response.ok) throw new Error("Unable to load checkout settings");
+    const data = await response.json();
+    const settings = data?.data;
+    if (!data.success || !settings || Object.keys(FALLBACK_SETTINGS).some((key) =>
+      typeof settings[key] !== "number" || !Number.isFinite(settings[key]) || settings[key] < 0)) {
+      throw new Error("Invalid checkout settings");
+    }
     return {
       success: true,
       settings: {

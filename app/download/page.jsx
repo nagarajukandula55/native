@@ -22,8 +22,12 @@ export default function DownloadPage() {
       setDeferredPrompt(e);
     }
     window.addEventListener("beforeinstallprompt", onBeforeInstall);
-    window.addEventListener("appinstalled", () => setInstalled(true));
-    return () => window.removeEventListener("beforeinstallprompt", onBeforeInstall);
+    const onInstalled = () => setInstalled(true);
+    window.addEventListener("appinstalled", onInstalled);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", onBeforeInstall);
+      window.removeEventListener("appinstalled", onInstalled);
+    };
   }, []);
 
   async function handleInstall() {
@@ -41,7 +45,7 @@ export default function DownloadPage() {
   return (
     <div className="container">
       <h1>Get the Native App</h1>
-      <p className="sub">Install Native for faster access, offline browsing of pages you've visited, and a home-screen icon — no app store needed.</p>
+      <p className="sub">Install Native for faster access and a home-screen icon. Connect to the internet to browse products and manage orders.</p>
 
       <div className="grid">
         <div className="card">
@@ -53,8 +57,8 @@ export default function DownloadPage() {
           {installed ? (
             <button className="btn installed" disabled>✓ Installed</button>
           ) : (
-            <button className="btn primary" onClick={handleInstall}>
-              📲 Install Now
+            <button className="btn primary" onClick={handleInstall} disabled={!deferredPrompt && !isIos}>
+              {deferredPrompt || isIos ? "Install Now" : "Use your browser menu to install"}
             </button>
           )}
         </div>

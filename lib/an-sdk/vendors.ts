@@ -1,19 +1,14 @@
 /**
  * Multi-vendor marketplace SDK module.
  *
- * NONE of these routes exist in the original backend-reference bundle —
- * the original app was single-seller ("Native" sold everything itself).
- * Every function here is a proposal for what AN group's shared backend
- * needs to expose so Native can operate as one tenant/business inside a
- * multi-vendor marketplace, with its own vendors selling under it.
- * See backend-reference/MULTI_VENDOR_PROPOSAL.md for the full shape
- * (models, response bodies, state machine) each of these is expected to
- * return. Every call still goes through the same anGet/anPost/etc client
- * as the rest of the SDK, so once AN group implements these they work
- * with zero changes on this side.
+ * Adapts Native's vendor forms to the shared backend's identity, tax and
+ * response contracts. Vendor capability comes from the authenticated
+ * profile, including active vendor-team memberships.
  */
 
 import { anGet, anPost, anPut, anDelete } from "./client";
+import { getMe } from "./auth";
+import { ApiError } from "./client";
 
 function toQueryString(params: Record<string, any> = {}) {
   const qs = new URLSearchParams();
@@ -36,6 +31,8 @@ export type VendorApplication = {
   email: string;
   phone: string;
   gstNumber?: string;
+  gstRegistered: boolean;
+  panNumber?: string;
   category?: string;
   message?: string;
 };
@@ -51,20 +48,37 @@ export type VendorApplication = {
  * those form fields when the vendor-onboarding UI needs to go further.
  */
 export async function applyAsVendor(payload: VendorApplication) {
+  const user = await getMe();
+  if (!user?.username) throw new Error("Please sign in to your registered Native account before applying.");
   return anPost("/api/vendors/apply", {
+    businessId: process.env.NEXT_PUBLIC_AN_BUSINESS_ID,
+    userId: user.username,
     companyName: payload.businessName,
     contactPerson: payload.contactName,
-    email: payload.email,
+    email: user.email,
     phone: payload.phone,
     gstNumber: payload.gstNumber,
+    gstRegistered: payload.gstRegistered,
+    panNumber: payload.panNumber,
     category: payload.category,
-    message: payload.message,
+    notes: payload.message,
   });
 }
 
 /** Status of the current user's own vendor application/account, if any. */
 export async function getMyVendorStatus() {
-  return anGet("/api/vendors/me/status");
+  try {
+    const result = await anGet("/api/vendor/profile");
+    const vendor = result?.data;
+    if (!vendor) return null;
+    const raw = String(vendor.status || "").toUpperCase();
+    const status = ["INACTIVE", "REJECTED", "SUSPENDED"].includes(raw) ? raw.toLowerCase() :
+      (vendor.isApproved || ["APPROVED", "ACTIVE"].includes(raw)) ? "active" : "pending";
+    return { ...vendor, status };
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) return null;
+    throw error;
+  }
 }
 
 /* ============================================================
@@ -83,15 +97,19 @@ export async function getMyVendorStatus() {
 ============================================================ */
 
 export async function getVendorProfile() {
-  return anGet("/api/vendor/profile");
+  const result = await anGet("/api/vendor/profile");
+  const profile = result?.data || result;
+  return { ...profile, businessName: profile.companyName, contactName: profile.contactPerson };
 }
 
 export async function updateVendorProfile(payload: Record<string, any>) {
-  return anPut("/api/vendor/profile", payload);
+  return anPut("/api/vendor/profile", { ...payload, companyName: payload.businessName, contactPerson: payload.contactName });
 }
 
 export async function getVendorDashboardStats() {
-  return anGet("/api/vendor/dashboard");
+  const result = await anGet("/api/vendor/dashboard");
+  const stats = result?.data?.stats || result;
+  return { ...stats, revenue: stats.totalRevenue, pendingPayout: stats.outstanding };
 }
 
 /**
@@ -103,7 +121,8 @@ export async function getVendorDashboardStats() {
  * exist and 404'd every call.
  */
 export async function getVendorProducts(query: Record<string, any> = {}) {
-  return anGet(`/api/vendor-products${toQueryString(query)}`);
+  const result = await anGet(`/api/vendor-products${toQueryString(query)}`);
+  return { ...result, products: result?.data || result?.products || [] };
 }
 
 export async function createVendorProduct(payload: any) {

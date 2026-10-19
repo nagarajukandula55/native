@@ -62,10 +62,19 @@ export function isLoggedIn() {
 
 /** Current session user. Returns null instead of throwing when logged out. */
 export async function getMe() {
-  if (!getToken()) return null;
+  const sessionToken = getToken();
+  if (!sessionToken) return null;
   try {
-    const data = await anGet("/api/auth/me");
-    return data?.user || null;
+    const data = await anGet("/api/auth/me", { cache: "no-store" });
+    if (!data?.user) return null;
+    let hasVendorAccess = false;
+    try {
+      const profile = await anGet("/api/vendor/profile", { cache: "no-store" });
+      const vendor = profile?.data;
+      hasVendorAccess = !!vendor && !["INACTIVE", "REJECTED", "SUSPENDED"].includes(vendor.status) &&
+        (vendor.isApproved === true || ["APPROVED", "ACTIVE"].includes(vendor.status));
+    } catch { /* Customer accounts have no vendor profile. */ }
+    return getToken() === sessionToken ? { ...data.user, hasVendorAccess } : null;
   } catch {
     return null;
   }

@@ -49,6 +49,7 @@ export function getToken(): string | null {
 }
 
 export function setToken(token: string | null) {
+  clearApiCache();
   if (typeof window === "undefined") return;
   try {
     if (token) localStorage.setItem(TOKEN_KEY, token);
@@ -90,11 +91,24 @@ export class ApiError extends Error {
 const GET_CACHE_TTL_MS = 15000;
 const getCache = new Map<string, { data: unknown; ts: number }>();
 const inFlight = new Map<string, Promise<unknown>>();
+let cacheGeneration = 0;
+
+export function clearApiCache() {
+  cacheGeneration += 1;
+  getCache.clear();
+  inFlight.clear();
+}
 
 export async function anFetch(endpoint: string, options: RequestInit = {}) {
   const method = (options.method || "GET").toUpperCase();
-  const cacheKey = endpoint;
-  const cacheable = method === "GET" && options.cache !== "no-store";
+  const cacheKey = `${AN_BUSINESS_ID}:${endpoint}:${JSON.stringify(options.headers || {})}`;
+  const cacheable = typeof window !== "undefined" && !getToken() &&
+    !new Headers(options.headers).has("Authorization") &&
+    /^\/api\/(products|product-categories|storefront\/banners|businesses\/public)(\?|\/|$)/.test(endpoint) &&
+    method === "GET" && options.cache !== "no-store";
+  const mutating = method !== "GET" && method !== "HEAD";
+  if (mutating) clearApiCache();
+  const generation = cacheGeneration;
 
   if (cacheable) {
     const cached = getCache.get(cacheKey);
@@ -111,14 +125,18 @@ export async function anFetch(endpoint: string, options: RequestInit = {}) {
     inFlight.set(cacheKey, promise);
     try {
       const data = await promise;
-      getCache.set(cacheKey, { data, ts: Date.now() });
+      if (generation === cacheGeneration) getCache.set(cacheKey, { data, ts: Date.now() });
       return data;
     } finally {
-      inFlight.delete(cacheKey);
+      if (inFlight.get(cacheKey) === promise) inFlight.delete(cacheKey);
     }
   }
 
-  return promise;
+  try {
+    return await promise;
+  } finally {
+    if (mutating) clearApiCache();
+  }
 }
 
 async function anFetchUncached(endpoint: string, options: RequestInit) {
@@ -163,6 +181,7 @@ async function anFetchUncached(endpoint: string, options: RequestInit) {
       // don't use cookies at all.
       credentials: "include",
       cache: options.cache ?? "no-store",
+      signal: options.signal || AbortSignal.timeout(15000),
     });
   } catch (err: any) {
     throw new ApiError(

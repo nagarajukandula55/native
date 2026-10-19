@@ -10,6 +10,7 @@ import { getMySanthaOrders } from "@/lib/an-sdk/santha";
 import { getMyLiveMarketOrders } from "@/lib/an-sdk/liveMarket";
 import { getMyFreshOrders } from "@/lib/an-sdk/fresh";
 import { ApiError } from "@/lib/an-sdk/client";
+import { getToken } from "@/lib/an-sdk/client";
 
 const AN_API = (process.env.NEXT_PUBLIC_AN_API || "").replace(/^https?:\/\/angroup\.in/i, "https://www.angroup.in");
 
@@ -156,12 +157,12 @@ export default function MyOrdersPage() {
         // angroup's service-key-gated /api/orders/invoice-lookup -- avoids
         // one request per row. Best-effort: a failed lookup just means
         // every row falls back to its receipt link.
-        const idsNeedingInvoiceCheck = merged.filter(isPaidOrLater).map((o) => String(o._id)).filter(Boolean);
+        const idsNeedingInvoiceCheck = merged.filter((o) => o.type === "PRODUCT" && isPaidOrLater(o)).map((o) => String(o._id)).filter(Boolean).slice(0, 100);
         if (idsNeedingInvoiceCheck.length) {
           try {
             const res = await fetch("/api/my-orders/invoices", {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken() || ""}` },
               body: JSON.stringify({ orderIds: idsNeedingInvoiceCheck }),
               cache: "no-store",
             });

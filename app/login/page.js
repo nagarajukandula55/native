@@ -44,10 +44,14 @@ export default function LoginPage() {
 
     try {
       setLoading(true);
-      await login(form.email, form.password);
-      await refreshUser();
+      await login(form.email.trim(), form.password);
+      const user = await refreshUser();
+      if (!user) throw new Error("Unable to verify your session. Please try again.");
       logEvent("login", `Logged in as ${form.email}`, { email: form.email });
-      router.push("/");
+      const next = new URLSearchParams(window.location.search).get("next");
+      const destination = next && next.startsWith("/") && !next.startsWith("//") && !/[\\\r\n]/.test(next) ? next :
+        user.hasVendorAccess ? "/vendor/dashboard" : "/";
+      router.replace(destination);
     } catch (err) {
       console.error(err);
       if (err instanceof ApiError) {
@@ -77,6 +81,16 @@ export default function LoginPage() {
         <h2>Welcome back</h2>
         <p className="sub">Log in to your Native account</p>
 
+        <p className="footer">
+          Have a shop login set by Native?{" "}
+          <a
+            href="/shop/login"
+            className="link"
+          >
+            Shop sign in
+          </a>
+        </p>
+
         {ssoMode ? (
           <>
             <button
@@ -98,7 +112,7 @@ export default function LoginPage() {
           <form onSubmit={handleLogin}>
             <input
               name="email"
-              placeholder="Email or phone"
+              placeholder="Email or username"
               value={form.email}
               onChange={handleChange}
               className="input"

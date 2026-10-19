@@ -7,7 +7,8 @@
     "start": "next start",
     "lint": "next lint",
     "mock-backend": "node mock-backend/server.js",
-    "smoke-test": "node mock-backend/smoke-test.js"
+    "smoke-test": "node mock-backend/smoke-test.js",
+    "test:system": "node --test tests/system-regressions.cjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.3",

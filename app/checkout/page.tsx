@@ -96,6 +96,7 @@ export default function CheckoutPage() {
     smallCartFee: SMALL_CART_FEE,
     deliveryCharge: DELIVERY_CHARGE,
   });
+  const [settingsStatus, setSettingsStatus] = useState<"loading" | "ready" | "error">("loading");
 
   useEffect(() => {
     let cancelled = false;
@@ -104,6 +105,7 @@ export default function CheckoutPage() {
       if (!cancelled && res.success) {
         setStoreSettings(res.settings);
       }
+      if (!cancelled) setSettingsStatus(res.success ? "ready" : "error");
     });
 
     return () => {
@@ -611,6 +613,7 @@ useEffect(() => {
   ========================================================= */
     
     const handlePay = async () => {
+      if (settingsStatus !== "ready") return;
       if (!validateForm()) return;
 
       // Defense-in-depth: the cart page already blocks "Proceed to Checkout"
@@ -745,7 +748,7 @@ useEffect(() => {
           currency:
             razorpayOrder.currency,
 
-          name: "AN Group",
+          name: "Native",
 
           description:
             "Secure Checkout",
@@ -1187,7 +1190,7 @@ useEffect(() => {
             <button
               className="payBtn"
               onClick={handlePay}
-              disabled={loading || displaySummary.subtotal < storeSettings.minOrderValue}
+              disabled={loading || settingsStatus !== "ready" || displaySummary.subtotal < storeSettings.minOrderValue}
             >
               {loading
                 ? "Processing..."
@@ -1195,6 +1198,8 @@ useEffect(() => {
                 ? "Retry Payment"
                 : `Pay ₹${displaySummary.grandTotal.toFixed(2)}`}
             </button>
+            {settingsStatus === "loading" && <p role="status">Checking delivery charges…</p>}
+            {settingsStatus === "error" && <p role="alert">Unable to confirm delivery charges. <button onClick={() => window.location.reload()}>Try again</button></p>}
 
             <div className="secureNote">🔒 Protected by Razorpay Secure</div>
           </div>

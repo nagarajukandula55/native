@@ -1,6 +1,7 @@
 {
   "name": "Native — Eat Healthy, Stay Healthy",
   "short_name": "Native",
+  "id": "/",
   "description": "Authentic natural food products refined directly from the source.",
   "start_url": "/",
   "scope": "/",
@@ -9,6 +10,7 @@
   "background_color": "#faf8f3",
   "theme_color": "#1f3d2b",
   "icons": [
+    { "src": "/brand/native_logo_192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
     { "src": "/brand/native_logo_128.png", "sizes": "128x128", "type": "image/png" },
     { "src": "/brand/native_logo_256.png", "sizes": "256x256", "type": "image/png" },
     { "src": "/brand/native_logo_512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
