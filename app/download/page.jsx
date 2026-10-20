@@ -45,7 +45,7 @@ export default function DownloadPage() {
   return (
     <div className="container">
       <h1>Get the Native App</h1>
-      <p className="sub">Install Native for faster access and a home-screen icon. Connect to the internet to browse products and manage orders.</p>
+      <p className="sub">Install any Native PWA for faster access and a home-screen icon. Open the PWA you need, then use the install button or your browser menu.</p>
 
       <div className="grid">
         <div className="card">
@@ -53,7 +53,8 @@ export default function DownloadPage() {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/brand/native_logo_256.png" alt="Native" className="appIcon" />
           <h2>Native Web App</h2>
-          <p>Installs directly from your browser — works on Android, iOS, and desktop. Updates automatically, no store review needed.</p>
+          <p>For customers browsing products, placing orders, and tracking deliveries.</p>
+          <a className="btn secondary" href="/">Open Storefront →</a>
           {installed ? (
             <button className="btn installed" disabled>✓ Installed</button>
           ) : (
@@ -64,28 +65,28 @@ export default function DownloadPage() {
         </div>
 
         <div className="card">
-          <div className="badge soon">Coming soon</div>
+          <div className="badge live">Available now</div>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/brand/native_logo_256.png" alt="Native for Android" className="appIcon dimmed" />
-          <h2>Native for Android</h2>
-          <p>A standalone app on the Google Play Store, with push notifications and deeper device integration.</p>
-          <button className="btn disabled" disabled>Coming Soon</button>
+          <img src="/brand/native_logo_256.png" alt="Native Shops" className="appIcon" />
+          <h2>Native Shops</h2>
+          <p>For shops managing incoming orders and confirming handover.</p>
+          <a className="btn secondary" href="/shop/login">Open Shops →</a>
         </div>
 
         <div className="card">
-          <div className="badge soon">Coming soon</div>
+          <div className="badge live">Available now</div>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/brand/native_logo_256.png" alt="Native for iOS" className="appIcon dimmed" />
-          <h2>Native for iOS</h2>
-          <p>A standalone app on the Apple App Store, with push notifications and deeper device integration.</p>
-          <button className="btn disabled" disabled>Coming Soon</button>
+          <img src="/brand/native_logo_256.png" alt="Native Vendors" className="appIcon" />
+          <h2>Native Vendors</h2>
+          <p>For approved vendors managing products, orders, inventory, and payouts.</p>
+          <a className="btn secondary" href="/login?next=%2Fvendor%2Fdashboard">Open Vendors →</a>
         </div>
       </div>
 
       <h2 className="teamHeading">For our team</h2>
       <p className="sub">
-        These install the same way — straight from the browser, no app store. Each opens its own app&apos;s site to
-        install, since a browser can only install the app it&apos;s currently on.
+        These install the same way — straight from the browser, with no app store. Each link opens that PWA&apos;s own
+        install page.
       </p>
 
       <div className="grid">
@@ -110,6 +111,24 @@ export default function DownloadPage() {
             Open Install Page →
           </a>
         </div>
+
+        <div className="card">
+          <div className="badge live">Available now</div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/brand/native_logo_256.png" alt="Native Admin" className="appIcon" />
+          <h2>Native Admin</h2>
+          <p>For Native administrators managing shops, vendors, products, and operations.</p>
+          <a className="btn primary" href="https://admin.shopnative.in/download">
+            Open Install Page →
+          </a>
+        </div>
+      </div>
+
+      <div className="installGuide">
+        <h2>How to install</h2>
+        <p><strong>Android or desktop:</strong> open a link above, then choose Install from the browser prompt or the browser menu.</p>
+        <p><strong>iPhone or iPad:</strong> open the link in Safari, tap Share, then choose Add to Home Screen.</p>
+        <p>Each PWA installs separately. Sign in with the account for that role after installation.</p>
       </div>
 
       {showIosHelp && (
@@ -149,6 +168,8 @@ export default function DownloadPage() {
         }
         .btn.primary { background: #1f3d2b; color: #fff; }
         .btn.primary:hover { background: #16301f; }
+        .btn.secondary { background: #eef6f0; color: #1f3d2b; }
+        .btn.secondary:hover { background: #dcecdf; }
         .btn.installed { background: #dcfce7; color: #166534; cursor: default; }
         .btn.disabled { background: #f3f4f6; color: #9ca3af; cursor: not-allowed; }
         .iosHelp {
@@ -157,6 +178,9 @@ export default function DownloadPage() {
         }
         .iosCard { background: #fff; color: #222; padding: 20px; border-radius: 12px; max-width: 300px; text-align: center; }
         .iosCard button { margin-top: 12px; background: #1f3d2b; color: #fff; border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; }
+        .installGuide { margin: 40px auto 0; max-width: 650px; padding: 22px; border-radius: 14px; background: #f4f8f5; text-align: left; }
+        .installGuide h2 { text-align: center; margin-bottom: 12px; }
+        .installGuide p { min-height: 0; margin: 8px 0; }
       `}</style>
     </div>
   );
