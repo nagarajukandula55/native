@@ -84,6 +84,8 @@ export type FreshOrderItemInput = {
   notes?: string;
   wantsCleaning?: boolean;
 };
+export type CustomBowlSelection = { ingredientId: string; grams: number };
+export type CustomBowlOrderInput = { bowlId: string; sizeCode: string; selections: CustomBowlSelection[]; pricing?: { total: number; totalGrams: number } };
 
 /**
  * POST /api/fresh-orders
@@ -101,6 +103,7 @@ export async function createFreshOrder(payload: {
   pincode: string;
   address: OrderAddressInput;
   items: FreshOrderItemInput[];
+  bowls?: CustomBowlOrderInput[];
   couponCode?: string;
 }) {
   const data = await anPost("/api/fresh-orders", {

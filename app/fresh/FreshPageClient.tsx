@@ -5,10 +5,11 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useUser } from "@/context/UserContext";
 import { getStoredPincode, PINCODE_CHANGED_EVENT } from "@/lib/pincode";
-import { getShops, createFreshOrder, FreshOrderItemInput, OrderAddressInput } from "@/lib/an-sdk/fresh";
+import { getShops, createFreshOrder, FreshOrderItemInput, CustomBowlOrderInput, OrderAddressInput } from "@/lib/an-sdk/fresh";
 import { ApiError } from "@/lib/an-sdk/client";
 import FreshCatalogPicker from "@/components/FreshCatalogPicker";
 import DeliveryAddressPicker from "@/components/DeliveryAddressPicker";
+import CustomBowlBuilder from "@/components/CustomBowlBuilder";
 
 export default function FreshPageClient({
   initialPincode = "",
@@ -37,6 +38,8 @@ export default function FreshPageClient({
 
   const [cartItems, setCartItems] = useState<FreshOrderItemInput[]>([]);
   const [cartTotal, setCartTotal] = useState(0);
+  const [customBowl, setCustomBowl] = useState<CustomBowlOrderInput | null>(null);
+  const [customBowlTotal, setCustomBowlTotal] = useState(0);
   const [address, setAddress] = useState<OrderAddressInput | null>(null);
   const [couponCode, setCouponCode] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -99,7 +102,7 @@ export default function FreshPageClient({
       setSubmitError("Please select a shop.");
       return;
     }
-    if (!cartItems.length) {
+    if (!cartItems.length && !customBowl) {
       setSubmitError("Add at least one item to your cart.");
       return;
     }
@@ -116,6 +119,7 @@ export default function FreshPageClient({
         shopId: selectedShopId,
         address,
         items: cartItems,
+        bowls: customBowl ? [customBowl] : undefined,
         couponCode: couponCode.trim() || undefined,
       });
       router.push(`/fresh/orders/${order._id}`);
@@ -173,18 +177,19 @@ export default function FreshPageClient({
                     setCartTotal(total);
                   }}
                 />
+                <CustomBowlBuilder shopId={selectedShopId} onChange={(bowl, total) => { setCustomBowl(bowl); setCustomBowlTotal(total); }} />
               </div>
               <div className="section">
                 <div className="checkoutRow">
                   <div>
                     <p className="totalLabel">Total</p>
-                    <p className="totalValue">₹{cartTotal.toFixed(2)}</p>
+                    <p className="totalValue">₹{(cartTotal + customBowlTotal).toFixed(2)}</p>
                   </div>
                   <button
                     type="button"
                     className="submitBtn"
                     onClick={() => setStep("address")}
-                    disabled={!cartItems.length}
+                    disabled={!cartItems.length && !customBowl}
                   >
                     Proceed to Checkout
                   </button>
@@ -232,14 +237,14 @@ export default function FreshPageClient({
                 <div className="checkoutRow">
                   <div>
                     <p className="totalLabel">Total</p>
-                    <p className="totalValue">₹{cartTotal.toFixed(2)}</p>
+                    <p className="totalValue">₹{(cartTotal + customBowlTotal).toFixed(2)}</p>
                   </div>
                   {submitError && <p className="error">{submitError}</p>}
                   <button
                     type="button"
                     className="submitBtn"
                     onClick={handlePlaceOrder}
-                    disabled={submitting || userLoading || !cartItems.length || !address}
+                    disabled={submitting || userLoading || (!cartItems.length && !customBowl) || !address}
                   >
                     {submitting ? "Placing order…" : "Place Order"}
                   </button>
