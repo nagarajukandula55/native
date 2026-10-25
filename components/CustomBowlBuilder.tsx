@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { anGet, anPost, ApiError } from "@/lib/an-sdk/client";
 import type { CustomBowlOrderInput } from "@/lib/an-sdk/fresh";
 
-type Bowl = { _id: string; name: string; category: string; sizes: { code: string; name: string; totalGrams: number }[]; ingredients: { freshItemId: string; name: string; pricePerKg: number; maxGrams: number; minGrams: number; incrementGrams: number }[] };
+type Bowl = { _id: string; name: string; category: string; sizes: { code: string; name: string; totalGrams: number; pricingMode?: "DYNAMIC" | "FIXED"; fixedPrice?: number }[]; ingredients: { freshItemId: string; name: string; pricePerKg: number; maxGrams: number; minGrams: number; incrementGrams: number }[] };
 export default function CustomBowlBuilder({ shopId, onChange }: { shopId: string; onChange: (bowl: CustomBowlOrderInput | null, total: number) => void }) {
   const [bowls, setBowls] = useState<Bowl[]>([]); const [selected, setSelected] = useState<Bowl | null>(null); const [sizeCode, setSizeCode] = useState(""); const [grams, setGrams] = useState<Record<string, number>>({}); const [pricing, setPricing] = useState<any>(null); const [error, setError] = useState(""); const [loading, setLoading] = useState(true);
   useEffect(() => { let active = true; setLoading(true); anGet(`/api/custom-bowls?shopId=${encodeURIComponent(shopId)}&channel=fresh`).then(json => { if (active) setBowls(json?.data || []); }).catch(() => { if (active) setError("Custom bowls are not available right now."); }).finally(() => active && setLoading(false)); return () => { active = false; }; }, [shopId]);
