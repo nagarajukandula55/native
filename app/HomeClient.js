@@ -128,7 +128,7 @@ export default function HomeClient({
         // The homepage only has room for 4 tiles, so prefer categories that
         // actually have something to sell; ties (and the all-zero case)
         // fall back to name order, matching the API's own sort.
-        const sorted = [...(data?.categories || [])].filter((cat) => Number(cat.productCount || 0) > 0).sort((a, b) => {
+        const sorted = [...(data?.categories || [])].sort((a, b) => {
           const byCount = (b.productCount || 0) - (a.productCount || 0);
           if (byCount !== 0) return byCount;
           return (a.name || "").localeCompare(b.name || "");
@@ -393,7 +393,10 @@ export default function HomeClient({
           <p className="center">No categories found</p>
         ) : (
           <div className="categoryShowcase">
-            {categories.map((cat, i) => {
+            {categories.filter((cat) => {
+              const id = cat.id || cat._id;
+              return categoryProductsLoading || (categoryProducts[id] || []).length > 0;
+            }).map((cat, i) => {
               // Only trust a cover photo once the products fetch has actually
               // finished — otherwise every tile briefly (or permanently, if
               // products load slower/fail) renders with `cover === undefined`.
