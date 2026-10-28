@@ -2,15 +2,27 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { subscribeNewsletter } from "@/lib/an-sdk/contact";
 import { ApiError } from "@/lib/an-sdk/client";
+import { getStoreSettings } from "@/lib/an-sdk/storeSettings";
 
 export default function Footer() {
   const year = new Date().getFullYear();
 
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState("idle"); // idle | loading | done | error
+  const [socialLinks, setSocialLinks] = useState([
+    { label: "Facebook", url: "https://facebook.com" },
+    { label: "Instagram", url: "https://instagram.com/native_foodstore" },
+    { label: "Twitter", url: "https://twitter.com" },
+  ]);
+
+  useEffect(() => {
+    getStoreSettings().then((result) => {
+      if (result.success && result.settings.socialLinks?.length) setSocialLinks(result.settings.socialLinks);
+    }).catch(() => {});
+  });
 
   async function handleSubscribe(e) {
     e.preventDefault();
@@ -44,15 +56,9 @@ export default function Footer() {
           </div>
 
           <div className="socials">
-            <a href="https://facebook.com" target="_blank" rel="noreferrer">
-              <img src="/icons/facebook.svg" alt="Facebook" width={24} />
-            </a>
-            <a href="https://instagram.com/native_foodstore" target="_blank" rel="noreferrer">
-              <img src="/icons/instagram.svg" alt="Instagram" width={24} />
-            </a>
-            <a href="https://twitter.com" target="_blank" rel="noreferrer">
-              <img src="/icons/twitter.svg" alt="Twitter" width={24} />
-            </a>
+            {socialLinks.map((link) => { const label = link.label.toLowerCase(); const icon = label.includes("instagram") ? "/icons/instagram.svg" : label.includes("twitter") || label === "x" ? "/icons/twitter.svg" : label.includes("facebook") ? "/icons/facebook.svg" : null; return <a key={`${link.label}-${link.url}`} href={link.url} target="_blank" rel="noreferrer" aria-label={link.label} title={link.label}>
+              {icon ? <img src={icon} alt="" width={24} /> : <span className="socialCustom">{link.label.slice(0, 1).toUpperCase()}</span>}
+            </a>; })}
           </div>
         </div>
 

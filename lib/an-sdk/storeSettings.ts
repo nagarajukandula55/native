@@ -12,6 +12,7 @@ export type StoreSettings = {
   deliveryChargeThreshold: number;
   smallCartFee: number;
   deliveryCharge: number;
+  socialLinks?: { label: string; url: string }[];
 };
 
 const FALLBACK_SETTINGS: StoreSettings = {
@@ -63,6 +64,7 @@ export async function getStoreSettings(): Promise<{
           typeof settings.deliveryCharge === "number"
             ? settings.deliveryCharge
             : FALLBACK_SETTINGS.deliveryCharge,
+        socialLinks: Array.isArray(settings.socialLinks) ? settings.socialLinks : [],
       },
     };
   } catch (err) {
