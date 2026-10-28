@@ -13,7 +13,6 @@ import RecentlyViewed from "@/components/RecentlyViewed";
 import HeroSlideshow from "@/components/HeroSlideshow";
 import VerticalShowcase from "@/components/VerticalShowcase";
 import { PINCODE_CHANGED_EVENT } from "@/lib/pincode";
-import { Fish, Apple, Store, Carrot } from "lucide-react";
 
 // Simple keyword → emoji map so real category names (whatever the backend
 // returns) still get a sensible icon without needing per-category image
@@ -129,7 +128,7 @@ export default function HomeClient({
         // The homepage only has room for 4 tiles, so prefer categories that
         // actually have something to sell; ties (and the all-zero case)
         // fall back to name order, matching the API's own sort.
-        const sorted = [...(data?.categories || [])].sort((a, b) => {
+        const sorted = [...(data?.categories || [])].filter((cat) => Number(cat.productCount || 0) > 0).sort((a, b) => {
           const byCount = (b.productCount || 0) - (a.productCount || 0);
           if (byCount !== 0) return byCount;
           return (a.name || "").localeCompare(b.name || "");
@@ -305,10 +304,13 @@ export default function HomeClient({
         </Link>
 
         <div className="productBody">
-          <Link href={`/products/${p.slug || p._id}`} className="productLink">
-            <h3>{displayName}</h3>
-          </Link>
-          <p className="price">{p.variantCount > 1 ? `From ₹${price}` : `₹${price}`}</p>
+          <div className="productTitleRow">
+            <Link href={`/products/${p.slug || p._id}`} className="productLink">
+              <h3>{displayName}</h3>
+            </Link>
+            <p className="price">{p.variantCount > 1 ? `From ₹${price}` : `₹${price}`}</p>
+          </div>
+          {(p.sizeValue || p.sizeUnit) && <span className="productUnit">{p.sizeValue || ""}{p.sizeUnit || ""}</span>}
 
           <button
             className="addToCartBtn"
@@ -365,34 +367,6 @@ export default function HomeClient({
 
       {/* ================= HERO SLIDESHOW ================= */}
       <HeroSlideshow slides={slides} />
-
-      {/* ================= VERTICAL QUICK ACCESS =================
-          Live/Fresh/Santha/Groceries previously had ZERO link anywhere on
-          the home page -- the only way in was the navbar, which on mobile
-          buries them inside the hamburger menu. This is a persistent
-          always-visible strip (not a one-time popup, which gets dismissed
-          and forgotten) so these categories are one tap away on every
-          visit, matching the Swiggy/Blinkit-style category-row pattern. */}
-      <div className="verticalQuickAccess">
-        <Link href="/live-market" className="verticalTile verticalTileLive">
-          <Fish size={22} />
-          <span>Live</span>
-        </Link>
-        <Link href="/fresh" className="verticalTile verticalTileFresh">
-          <Apple size={22} />
-          <span>Fresh</span>
-        </Link>
-        <Link href="/santha" className="verticalTile verticalTileSantha">
-          <Store size={22} />
-          <span>Santha</span>
-        </Link>
-        <Link href="/groceries" className="verticalTile verticalTileGroceries">
-          <Carrot size={22} />
-          <span>Groceries</span>
-        </Link>
-      </div>
-
-      <VerticalShowcase />
 
       {/* ================= FEATURE STRIP (moved out of hero so it reads
           cleanly under the full-bleed slideshow rather than overlaid on
@@ -510,6 +484,8 @@ export default function HomeClient({
           </Link>
         </div>
       </section>
+
+      <VerticalShowcase />
 
       {/* ================= TRUST BADGES ================= */}
       <section className="trustStrip">
@@ -1018,13 +994,20 @@ export default function HomeClient({
         .productLink {
           text-decoration: none;
           color: inherit;
+          min-width: 0;
         }
+
+        .productTitleRow { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
 
         .productBody h3 {
           margin: 0;
           font-size: 15px;
           font-weight: 700;
           color: #222;
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
         }
 
         .price {
@@ -1032,7 +1015,10 @@ export default function HomeClient({
           font-size: 16px;
           color: #1f3d2b;
           margin: 0;
+          white-space: nowrap;
         }
+
+        .productUnit { color: #718078; font-size: 12px; }
 
         .addToCartBtn {
           margin-top: auto;

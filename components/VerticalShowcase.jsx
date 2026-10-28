@@ -25,6 +25,11 @@ export default function VerticalShowcase() {
     async function load() {
       const pincode = getStoredPincode();
       setLoading(true);
+      if (!pincode) {
+        if (active) setItems({});
+        setLoading(false);
+        return;
+      }
       try {
         const shops = await getShops(pincode);
         const shop = shops?.[0];
