@@ -25,13 +25,10 @@ export default function VerticalShowcase() {
     async function load() {
       const pincode = getStoredPincode();
       setLoading(true);
-      if (!pincode) {
-        if (active) setItems({});
-        setLoading(false);
-        return;
-      }
       try {
-        const shops = await getShops(pincode);
+        // Preview the catalogue before pincode entry; the vertical page
+        // performs the authoritative service-area check at order time.
+        const shops = await getShops(pincode || undefined);
         const shop = shops?.[0];
         const [fresh, live, grocery, santha] = await Promise.all([
           shop ? getFreshItems(shop._id).then((r) => r.items) : [],
@@ -56,7 +53,7 @@ export default function VerticalShowcase() {
     <section className="verticalShowcase" aria-labelledby="vertical-showcase-title">
       <div className="verticalShowcaseHeading">
         <div><p className="eyebrow">More from Native</p><h2 id="vertical-showcase-title">Shop fresh, local and everyday essentials</h2></div>
-        <p>Choose a service below to see what is available in your area.</p>
+        <p>Browse the catalogue now. We’ll confirm delivery availability when you start ordering.</p>
       </div>
       <div className="verticalShowcaseGrid">
         {VERTICALS.map((vertical) => {
@@ -68,10 +65,10 @@ export default function VerticalShowcase() {
                 <div className="verticalItemImage"><Image src={item.imageUrl || "/placeholder.png"} alt="" fill sizes="90px" /></div>
                 <span>{item.name}</span>
                 {item.displayRatePerUnit ? <small>₹{item.displayRatePerUnit}/{item.unit || "unit"}</small> : <small>{item.unit || "View availability"}</small>}
-                <b>View &amp; add</b>
+                <b>Start ordering</b>
               </Link>)}
-              <Link href={vertical.href} className="verticalViewMoreTile"><span>＋</span><b>View more</b><small>{vertical.label}</small></Link>
-            </div> : <p className="verticalShowcaseMessage">Set your pincode to see available items.</p>}
+              <Link href={vertical.href} className="verticalViewMoreTile"><span>＋</span><b>Start ordering</b><small>{vertical.label}</small></Link>
+            </div> : <p className="verticalShowcaseMessage">Browse the catalogue and start ordering.</p>}
           </article>;
         })}
       </div>
