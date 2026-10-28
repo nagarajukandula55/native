@@ -77,7 +77,7 @@ export default async function ProductsPage({ searchParams }) {
   if (category) {
     try {
       const data = await getCategories();
-      const match = (data?.categories || []).find((c) => c._id === category);
+      const match = (data?.categories || []).find((c) => (c.id || c._id) === category);
       initialCategoryName = match?.name || "";
     } catch {
       /* ignore -- ProductsPageClient resolves this client-side too */

@@ -1,9 +1,10 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { SlidersHorizontal, X } from "lucide-react";
 import { getCategories } from "@/lib/an-sdk/products";
+import { PINCODE_CHANGED_EVENT } from "@/lib/pincode";
 
 export default function FilterSidebar() {
   const router = useRouter();
@@ -14,6 +15,7 @@ export default function FilterSidebar() {
   const [maxPrice, setMaxPrice] = useState("");
   const [sort, setSort] = useState("");
   const [categories, setCategories] = useState([]);
+  const categoryRequest = useRef(0);
   // Below 900px the page stacks the sidebar above the product grid (see
   // ProductsPageClient's .page media query), but this component used to
   // keep its fixed 250px desktop width even then -- a cramped strip with
@@ -21,6 +23,47 @@ export default function FilterSidebar() {
   // mobile that expands to the full width; unaffected on desktop, where
   // this state is simply never read (CSS always shows .sidebar there).
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  /* ================= LOAD FROM URL ================= */
+  const loadCategories = useCallback(() => {
+    const requestId = ++categoryRequest.current;
+    return getCategories()
+      .then((data) => {
+        if (requestId !== categoryRequest.current) return;
+        const list = Array.isArray(data?.categories)
+          ? data.categories
+          : Array.isArray(data?.data)
+            ? data.data
+            : Array.isArray(data)
+              ? data
+              : [];
+        setCategories(list);
+      })
+      .catch((err) => {
+        console.error("Category fetch error:", err);
+        if (requestId === categoryRequest.current) setCategories([]);
+      });
+  }, []);
+
+  useEffect(() => {
+    const refresh = () => {
+      void loadCategories();
+    };
+    void loadCategories();
+    window.addEventListener(PINCODE_CHANGED_EVENT, refresh);
+    return () => {
+      window.removeEventListener(PINCODE_CHANGED_EVENT, refresh);
+    };
+  }, [loadCategories]);
+
+  /* Keep the selected category valid when a pincode removes it from the
+     available catalogue. The URL remains shareable, but the filter UI must
+     not continue presenting an unavailable option as selected. */
+  useEffect(() => {
+    if (category && categories.length > 0 && !categories.some((c) => (c.id || c._id) === category)) {
+      setCategory("");
+    }
+  }, [category, categories]);
 
   /* ================= LOAD FROM URL ================= */
   useEffect(() => {
@@ -36,20 +79,7 @@ export default function FilterSidebar() {
      category _id (e.g. "cat_1") — so filtering by the hardcoded names
      silently matched zero products. Fetching the real list from
      GET /api/categories and filtering by _id fixes that for real. */
-  useEffect(() => {
-    let cancelled = false;
-    getCategories()
-      .then((data) => {
-        if (!cancelled) setCategories(data?.categories || []);
-      })
-      .catch((err) => {
-        console.error("Category fetch error:", err);
-        if (!cancelled) setCategories([]);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  // Categories are loaded above and refreshed when the delivery pincode changes.
 
   /* ================= APPLY FILTER ================= */
   function applyFilters() {
@@ -100,11 +130,11 @@ export default function FilterSidebar() {
           All Categories
         </label>
         {categories.map((c) => (
-          <label key={c._id}>
+          <label key={c.id || c._id}>
             <input
               type="radio"
-              checked={category === c._id}
-              onChange={() => setCategory(c._id)}
+              checked={category === (c.id || c._id)}
+              onChange={() => setCategory(c.id || c._id)}
             />
             {c.name}
           </label>

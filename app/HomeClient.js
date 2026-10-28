@@ -7,10 +7,11 @@ import { useRouter } from "next/navigation";
 import { useCart } from "@/context/CartContext";
 import { getProductDisplayName } from "@/lib/product";
 import { useDisplayLanguage } from "@/lib/language";
-import { getCategories } from "@/lib/an-sdk/products";
+import { getCategories, getProducts } from "@/lib/an-sdk/products";
 import WishlistButton from "@/components/WishlistButton";
 import RecentlyViewed from "@/components/RecentlyViewed";
 import HeroSlideshow from "@/components/HeroSlideshow";
+import VerticalShowcase from "@/components/VerticalShowcase";
 import { PINCODE_CHANGED_EVENT } from "@/lib/pincode";
 import { Fish, Apple, Store, Carrot } from "lucide-react";
 
@@ -44,6 +45,17 @@ function iconForCategory(name = "") {
   return "🌿";
 }
 
+function descriptionForCategory(name = "") {
+  const n = name.toLowerCase();
+  if (n.includes("oil") || n.includes("ghee")) return "Pure, traditionally made cooking essentials for everyday meals.";
+  if (n.includes("flour") || n.includes("millet") || n.includes("atta") || n.includes("grain")) return "Wholesome grains and flours for nourishing breakfasts and home cooking.";
+  if (n.includes("spice") || n.includes("masala")) return "Aromatic, carefully sourced spices to bring every recipe to life.";
+  if (n.includes("snack") || n.includes("namkeen")) return "Better-for-you snacks made for tea time, travel and sharing.";
+  if (n.includes("sweet") || n.includes("mithai") || n.includes("honey") || n.includes("jaggery")) return "Naturally sweet treats and pantry favourites with familiar flavours.";
+  if (n.includes("tea") || n.includes("coffee") || n.includes("beverage")) return "Thoughtfully sourced drinks for a calm start and a refreshing break.";
+  return "Discover thoughtfully sourced products made with care and brought to your home.";
+}
+
 export default function HomeClient({
   initialProducts = [],
   initialFeaturedProducts = [],
@@ -66,6 +78,8 @@ export default function HomeClient({
   const [featuredLoading, setFeaturedLoading] = useState(false);
   const [categories, setCategories] = useState([]);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
+  const [categoryProducts, setCategoryProducts] = useState({});
+  const [categoryProductsLoading, setCategoryProductsLoading] = useState(false);
   const [failedCatImages, setFailedCatImages] = useState({});
   const [failedProductImages, setFailedProductImages] = useState({});
   const [dynamicSlides, setDynamicSlides] = useState(
@@ -103,10 +117,13 @@ export default function HomeClient({
      shown here need to update the moment the pincode changes, not just at
      checkout. */
   useEffect(() => {
+    let requestId = 0;
     async function loadCategories() {
+      const currentRequest = ++requestId;
       setCategoriesLoading(true);
       try {
         const data = await getCategories();
+        if (currentRequest !== requestId) return;
         // /api/categories now returns every active admin category, including
         // ones with zero live products (previously filtered out server-side).
         // The homepage only has room for 4 tiles, so prefer categories that
@@ -119,10 +136,11 @@ export default function HomeClient({
         });
         setCategories(sorted.slice(0, 4));
       } catch (err) {
+        if (currentRequest !== requestId) return;
         console.error("Category fetch error:", err);
         setCategories([]);
       } finally {
-        setCategoriesLoading(false);
+        if (currentRequest === requestId) setCategoriesLoading(false);
       }
     }
     loadCategories();
@@ -130,6 +148,29 @@ export default function HomeClient({
     window.addEventListener(PINCODE_CHANGED_EVENT, loadCategories);
     return () => window.removeEventListener(PINCODE_CHANGED_EVENT, loadCategories);
   }, []);
+
+  useEffect(() => {
+    if (!categories.length) {
+      setCategoryProducts({});
+      return;
+    }
+    let active = true;
+    setCategoryProductsLoading(true);
+    Promise.all(categories.map(async (cat) => {
+      const id = cat.id || cat._id;
+      try {
+        const data = await getProducts({ category: id, limit: 4 });
+        return [id, data?.products || []];
+      } catch {
+        return [id, []];
+      }
+    })).then((entries) => {
+      if (active) setCategoryProducts(Object.fromEntries(entries));
+    }).finally(() => {
+      if (active) setCategoryProductsLoading(false);
+    });
+    return () => { active = false; };
+  }, [categories]);
 
   // dynamicSlides is seeded from initialBanners (server-fetched, see
   // useState above) -- admin-uploaded banners take priority over the
@@ -351,6 +392,8 @@ export default function HomeClient({
         </Link>
       </div>
 
+      <VerticalShowcase />
+
       {/* ================= FEATURE STRIP (moved out of hero so it reads
           cleanly under the full-bleed slideshow rather than overlaid on
           a photo) ================= */}
@@ -368,14 +411,14 @@ export default function HomeClient({
         ))}
       </div>
 
-      {/* ================= CATEGORY TILES ================= */}
+      {/* ================= SHOP BY CATEGORY ================= */}
       <section id="categories" className="catSection">
         {categoriesLoading ? (
           <p className="center">Loading categories...</p>
         ) : categories.length === 0 ? (
           <p className="center">No categories found</p>
         ) : (
-          <div className="catTiles">
+          <div className="categoryShowcase">
             {categories.map((cat, i) => {
               // Only trust a cover photo once the products fetch has actually
               // finished — otherwise every tile briefly (or permanently, if
@@ -390,7 +433,10 @@ export default function HomeClient({
               // always wins; falls back to a matching product's own photo,
               // then finally the emoji map below.
               const rawCover =
-                cat.imageUrl || (!loading ? categoryCoverByName[cat.name] : undefined);
+                cat.imageUrl ||
+                (!loading
+                  ? categoryCoverByName[cat.id] || categoryCoverByName[cat._id] || categoryCoverByName[cat.name]
+                  : undefined);
               // Track failed image loads in real React state rather than
               // mutating the DOM directly from onError -- a direct DOM
               // mutation (classList.add/style.display) is invisible to
@@ -401,36 +447,29 @@ export default function HomeClient({
               // plausibly what read as "the category section closing
               // itself" without any user action.
               const cover = rawCover && !failedCatImages[catId] ? rawCover : undefined;
+              const items = categoryProducts[catId] || [];
               return (
-                <Link
-                  key={catId}
-                  href={`/products?category=${encodeURIComponent(catId)}`}
-                  className={cover ? "catTile" : "catTile catTileNoCover"}
-                >
-                  {cover ? (
-                    <Image
-                      src={cover}
-                      alt=""
-                      fill
-                      sizes="150px"
-                      className="catTileImg"
-                      onError={() =>
-                        setFailedCatImages((prev) => ({ ...prev, [catId]: true }))
-                      }
-                    />
-                  ) : (
-                    <span className="catTileIcon">{cat.icon || iconForCategory(cat.name)}</span>
-                  )}
-                  <div className="catTileOverlay">
-                    <span className="catTileName">
-                      {(cat.name || "").toUpperCase()}
-                      {typeof cat.productCount === "number" ? ` (${cat.productCount})` : ""}
-                    </span>
-                    <span className="catTileCta">
-                      {cat.productCount === 0 ? "COMING SOON" : "SHOP NOW"}
-                    </span>
+                <article className="categoryShowcaseCard" key={catId}>
+                  <div className="categoryShowcaseIntro">
+                    <div className="categoryShowcaseIcon">{cat.icon || iconForCategory(cat.name)}</div>
+                    <div>
+                      <h3>{cat.name}</h3>
+                      <p>{descriptionForCategory(cat.name)}</p>
+                    </div>
                   </div>
-                </Link>
+                  {categoryProductsLoading && !items.length ? (
+                    <p className="categoryShowcaseMessage">Finding favourites...</p>
+                  ) : items.length ? (
+                    <div className="productGrid categoryProductGrid">
+                      {items.map((p) => renderProductCard(p))}
+                    </div>
+                  ) : (
+                    <p className="categoryShowcaseMessage">New products are coming soon.</p>
+                  )}
+                  <Link href={`/products?category=${encodeURIComponent(catId)}`} className="categoryShowcaseLink">
+                    Explore {cat.name} →
+                  </Link>
+                </article>
               );
             })}
           </div>
@@ -520,6 +559,7 @@ export default function HomeClient({
                 <div className="reviewStars">{"★".repeat(r.rating)}{"☆".repeat(5 - r.rating)}</div>
                 {r.title && <p className="reviewTitle">{r.title}</p>}
                 <p className="reviewBody">&ldquo;{r.body}&rdquo;</p>
+                {r.imageUrl && <img src={r.imageUrl} alt="Customer review" className="reviewImage" />}
                 <p className="reviewMeta">
                   — {r.authorName}
                   {r.verifiedPurchase && <span className="verifiedTag"> · Verified Purchase</span>}
@@ -631,6 +671,8 @@ export default function HomeClient({
           line-height: 1.5;
         }
 
+        .reviewImage { width: 100%; max-height: 180px; object-fit: cover; border-radius: 12px; margin-top: 10px; }
+
         .reviewMeta {
           font-size: 12px;
           color: #888;
@@ -736,6 +778,43 @@ export default function HomeClient({
           margin: 0 auto;
           padding: 28px 20px 0;
         }
+
+        :global(.categoryShowcase) {
+          display: grid;
+          gap: 24px;
+        }
+
+        :global(.categoryShowcaseCard) {
+          padding: 22px;
+          border: 1px solid #e4eadf;
+          border-radius: 22px;
+          background: linear-gradient(135deg, #fbfdf9, #f3f8ef);
+          box-shadow: 0 8px 24px rgba(35, 74, 52, 0.06);
+        }
+
+        :global(.categoryShowcaseIntro) {
+          display: flex;
+          align-items: center;
+          gap: 14px;
+          margin-bottom: 16px;
+        }
+
+        :global(.categoryShowcaseIcon) {
+          flex: 0 0 52px;
+          width: 52px;
+          height: 52px;
+          display: grid;
+          place-items: center;
+          border-radius: 16px;
+          background: #e2f0df;
+          font-size: 26px;
+        }
+
+        :global(.categoryShowcaseIntro h3) { margin: 0; color: #234a34; font-size: 1.2rem; }
+        :global(.categoryShowcaseIntro p) { margin: 4px 0 0; color: #647166; font-size: .88rem; line-height: 1.45; }
+        :global(.categoryProductGrid) { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+        :global(.categoryShowcaseMessage) { min-height: 80px; display: grid; place-items: center; color: #718078; }
+        :global(.categoryShowcaseLink) { display: inline-block; margin-top: 16px; color: #237245; font-weight: 700; text-decoration: none; }
 
         /* :global() on every catTile* rule below -- the outer element is a
            next/link <Link> (rendered as <a class="catTile ...">), which for
@@ -1035,6 +1114,8 @@ export default function HomeClient({
 
         /* ===== RESPONSIVE ===== */
         @media (max-width: 900px) {
+          :global(.categoryProductGrid) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+          :global(.categoryShowcaseCard) { padding: 16px; }
           :global(.catTiles) {
             grid-template-columns: repeat(3, 1fr);
           }

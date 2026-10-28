@@ -178,6 +178,7 @@ export default function ReviewsSection({ productId }) {
 
               {r.title && <p className="title">{r.title}</p>}
               <p className="body">{r.body}</p>
+              {r.imageUrl && <img src={r.imageUrl} alt="Customer review" className="reviewImage" />}
             </div>
           ))}
         </div>
@@ -321,6 +322,8 @@ export default function ReviewsSection({ productId }) {
           color: #444;
           margin: 0;
         }
+
+        .reviewImage { display: block; width: min(100%, 360px); max-height: 240px; object-fit: cover; border-radius: 12px; margin-top: 10px; }
       `}</style>
     </section>
   );

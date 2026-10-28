@@ -9,6 +9,7 @@ export type Review = {
   authorName: string;
   email?: string;
   verifiedPurchase?: boolean;
+  imageUrl?: string;
   createdAt?: string;
 };
 
@@ -37,6 +38,7 @@ export async function getReviews(productId: string, page = 1) {
       body: r.comment,
       verifiedPurchase: !!r.verifiedPurchase,
       createdAt: r.createdAt,
+      imageUrl: r.imageUrl || "",
     })),
     summary: {
       average: data?.summary?.averageRating || 0,
@@ -83,6 +85,7 @@ export async function getRecentReviews(limit = 6) {
       productName: r.productName,
       productSlug: r.productSlug,
       createdAt: r.createdAt,
+      imageUrl: r.imageUrl || "",
     })),
   };
 }

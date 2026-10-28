@@ -149,7 +149,7 @@ function ProductsPageInner({
     getCategories()
       .then((data) => {
         if (cancelled) return;
-        const match = (data?.categories || []).find((c) => c._id === category);
+        const match = (data?.categories || []).find((c) => (c.id || c._id) === category);
         setCategoryName(match?.name || "");
       })
       .catch(() => {

@@ -82,6 +82,17 @@ function normalizeProductList(payload: any) {
   return payload;
 }
 
+function normalizeCategory(c: any) {
+  if (!c || typeof c !== "object") return c;
+  const id = c.id || c._id;
+  return { ...c, id, _id: id };
+}
+
+function normalizeCategoryList(payload: any) {
+  if (!payload || !Array.isArray(payload.categories)) return payload;
+  return { ...payload, categories: payload.categories.map(normalizeCategory) };
+}
+
 /**
  * ANgroup now has a dedicated PUBLIC, unauthenticated storefront catalog
  * at GET /api/storefront/products (businessId/category/search/page/limit)
@@ -237,9 +248,10 @@ export async function getCategories(pincode?: string) {
   // pincode capture prompt (see lib/pincode.ts) so browsing is pincode-aware
   // even before checkout.
   const effectivePincode = pincode ?? getStoredPincode();
-  return anGet(
+  const data = await anGet(
     `/api/categories${toQueryString({ channel: "native", pincode: effectivePincode || undefined })}`
   );
+  return normalizeCategoryList(data);
 }
 
 export async function adminCreateCategory(payload: { name: string }) {
