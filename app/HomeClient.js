@@ -459,7 +459,7 @@ export default function HomeClient({
           <h2 className="bsHeading">
             <span className="leaf">🌿</span> FEATURED <span className="leaf">🌿</span>
           </h2>
-          <div className="productGrid">
+          <div className="productGrid productRow">
             {featuredProducts.map((p) => renderProductCard(p))}
           </div>
         </section>
@@ -476,7 +476,7 @@ export default function HomeClient({
         ) : products.length === 0 ? (
           <p className="center">No products found</p>
         ) : (
-          <div className="productGrid">
+          <div className="productGrid productRow">
             {products.map((p) => renderProductCard(p))}
           </div>
         )}
@@ -933,6 +933,19 @@ export default function HomeClient({
           gap: 20px;
         }
 
+        .productRow {
+          display: grid;
+          grid-auto-flow: column;
+          grid-auto-columns: minmax(180px, 1fr);
+          grid-template-columns: none;
+          overflow-x: auto;
+          overscroll-behavior-inline: contain;
+          padding: 4px 2px 12px;
+          scroll-snap-type: x proximity;
+        }
+
+        .productRow > .productCard { scroll-snap-align: start; min-width: 0; }
+
         .productCard {
           background: #fff;
           border-radius: 14px;
@@ -1103,6 +1116,7 @@ export default function HomeClient({
 
         /* ===== RESPONSIVE ===== */
         @media (max-width: 900px) {
+          .productRow { grid-auto-columns: minmax(160px, 42vw); gap: 12px; }
           :global(.categoryProductGrid) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
           :global(.categoryShowcaseCard) { padding: 16px; }
           :global(.catTiles) {

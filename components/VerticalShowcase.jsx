@@ -64,7 +64,7 @@ export default function VerticalShowcase() {
               {list.map((item) => <Link href={vertical.href} className="verticalItem" key={item._id}>
                 <div className="verticalItemImage"><Image src={item.imageUrl || "/placeholder.png"} alt="" fill sizes="90px" /></div>
                 <span>{item.name}</span>
-                {item.displayRatePerUnit ? <small>₹{item.displayRatePerUnit}/{item.unit || "unit"}</small> : <small>{item.unit || "View availability"}</small>}
+                <small className="verticalItemPrice" style={{ display: "block", marginTop: 7, padding: "4px 6px", borderRadius: 6, background: "#eef7e9", color: "#236b42", fontWeight: 800, width: "max-content", maxWidth: "100%", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.displayRatePerUnit ? `₹${item.displayRatePerUnit}/${item.unit || "unit"}` : "Price after selection"}</small>
                 <b>Start ordering</b>
               </Link>)}
               <Link href={vertical.href} className="verticalViewMoreTile"><span>＋</span><b>Start ordering</b><small>{vertical.label}</small></Link>
