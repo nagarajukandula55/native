@@ -28,12 +28,16 @@ export default function VerticalShowcase() {
       try {
         // Preview the catalogue before pincode entry; the vertical page
         // performs the authoritative service-area check at order time.
-        const shops = await getShops(pincode || undefined);
-        const shop = shops?.[0];
+        const shops = await getShops();
+        const shopIds = (shops || []).map((shop) => shop._id).filter(Boolean);
+        const catalogueForShops = (loader) => Promise.all(shopIds.map((shopId) => loader(shopId).catch(() => []))).then((lists) => {
+          const seen = new Set();
+          return lists.flat().filter((item) => item?._id && !seen.has(String(item._id)) && (seen.add(String(item._id)), true));
+        });
         const [fresh, live, grocery, santha] = await Promise.all([
-          shop ? getFreshItems(shop._id).then((r) => r.items) : [],
-          shop ? getLiveMarketItems(shop._id).then((r) => r.items) : [],
-          shop ? getGroceryItems("GROCERY", undefined, shop._id) : [],
+          catalogueForShops((shopId) => getFreshItems(shopId).then((r) => r.items)),
+          catalogueForShops((shopId) => getLiveMarketItems(shopId).then((r) => r.items)),
+          catalogueForShops((shopId) => getGroceryItems("GROCERY", undefined, shopId)),
           getSanthaItems(),
         ]);
         if (active) setItems({ fresh, live, grocery, santha });
@@ -67,7 +71,7 @@ export default function VerticalShowcase() {
                 <small className="verticalItemPrice" style={{ display: "block", marginTop: 7, padding: "4px 6px", borderRadius: 6, background: "#eef7e9", color: "#236b42", fontWeight: 800, width: "max-content", maxWidth: "100%", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.displayRatePerUnit ? `₹${item.displayRatePerUnit}/${item.unit || "unit"}` : "Price after selection"}</small>
                 <b>Start ordering</b>
               </Link>)}
-              <Link href={vertical.href} className="verticalViewMoreTile"><span>＋</span><b>Start ordering</b><small>{vertical.label}</small></Link>
+              <Link href={vertical.href} className="verticalViewMoreTile" style={{ display: "flex", minHeight: "100%", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6, textAlign: "center" }}><span>＋</span><b>Start ordering</b><small>{vertical.label}</small></Link>
             </div> : <p className="verticalShowcaseMessage">Browse the catalogue and start ordering.</p>}
           </article>;
         })}
