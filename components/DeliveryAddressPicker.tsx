@@ -81,6 +81,15 @@ export default function DeliveryAddressPicker({
     };
   }, [form.pincode]);
 
+  // Keep the current draft available to the parent while the customer types.
+  // Saving to the address book is optional; it must never be the step that
+  // makes the order address exist.
+  useEffect(() => {
+    if (form.name.trim() && form.line1.trim() && /^\d{6}$/.test(form.pincode.trim())) {
+      emitDraft();
+    }
+  }, [form.name, form.line1, form.line2, form.city, form.state, form.pincode, form.phone, form.isBusinessPurchase, form.gstNumber, gps]);
+
   useEffect(() => {
     if (!isLoggedIn()) {
       setAdding(true);

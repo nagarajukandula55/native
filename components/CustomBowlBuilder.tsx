@@ -1,12 +1,26 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { anGet, anPost, ApiError } from "@/lib/an-sdk/client";
+import { isLoggedIn } from "@/lib/an-sdk/auth";
 import type { CustomBowlOrderInput } from "@/lib/an-sdk/fresh";
 
 type Bowl = { _id: string; name: string; category: string; sizes: { code: string; name: string; totalGrams: number; pricingMode?: "DYNAMIC" | "FIXED"; fixedPrice?: number }[]; ingredients: { freshItemId: string; name: string; pricePerKg: number; maxGrams: number; minGrams: number; incrementGrams: number }[] };
 export default function CustomBowlBuilder({ shopId, onChange }: { shopId: string; onChange: (bowl: CustomBowlOrderInput | null, total: number) => void }) {
   const [bowls, setBowls] = useState<Bowl[]>([]); const [selected, setSelected] = useState<Bowl | null>(null); const [sizeCode, setSizeCode] = useState(""); const [grams, setGrams] = useState<Record<string, number>>({}); const [pricing, setPricing] = useState<any>(null); const [error, setError] = useState(""); const [loading, setLoading] = useState(true);
-  useEffect(() => { let active = true; setLoading(true); anGet(`/api/custom-bowls?shopId=${encodeURIComponent(shopId)}&channel=fresh`).then(json => { if (active) setBowls(json?.data || []); }).catch(() => { if (active) setError("Custom bowls are not available right now."); }).finally(() => active && setLoading(false)); return () => { active = false; }; }, [shopId]);
+  useEffect(() => {
+    let active = true;
+    if (!isLoggedIn()) {
+      setBowls([]);
+      setLoading(false);
+      return () => { active = false; };
+    }
+    setLoading(true);
+    anGet(`/api/custom-bowls?shopId=${encodeURIComponent(shopId)}&channel=fresh`)
+      .then(json => { if (active) setBowls(json?.data || []); })
+      .catch(() => { if (active) setError("Custom bowls are not available right now."); })
+      .finally(() => active && setLoading(false));
+    return () => { active = false; };
+  }, [shopId]);
   const size = selected?.sizes.find(item => item.code === sizeCode); const totalGrams = useMemo(() => Object.values(grams).reduce((sum, value) => sum + value, 0), [grams]);
   async function calculate(next: Record<string, number>, nextSize = sizeCode) { if (!selected || !nextSize) return; setGrams(next); setError(""); const selections = selected.ingredients.map(item => ({ ingredientId: item.freshItemId, grams: next[item.freshItemId] || 0 })).filter(item => item.grams > 0); try { const json = await anPost(`/api/custom-bowls/${selected._id}/price`, { channel: "fresh", shopId, businessId: process.env.NEXT_PUBLIC_AN_BUSINESS_ID || "", sizeCode: nextSize, selections }); setPricing(json?.data?.pricing || null); onChange({ bowlId: selected._id, sizeCode: nextSize, selections, pricing: json?.data?.pricing }, json?.data?.pricing?.total || 0); } catch (err) { setPricing(null); onChange(null, 0); setError(err instanceof ApiError ? err.message : "Complete the bowl weight to continue."); } }
   if (loading) return <p className="bowlMuted">Loading custom bowls…</p>; if (!bowls.length) return null;
