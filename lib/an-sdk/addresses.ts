@@ -9,6 +9,7 @@ import { anGet, anPost, anDelete } from "./client";
  */
 export interface SavedAddress {
   _id: string;
+  name?: string;
   label?: string;
   line1: string;
   line2?: string;

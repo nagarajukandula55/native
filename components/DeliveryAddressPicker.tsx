@@ -8,6 +8,8 @@ import {
 } from "@/lib/an-sdk/addresses";
 import type { OrderAddressInput } from "@/lib/an-sdk/orderAddress";
 import { pincode as pincodeApi } from "@/lib/an-sdk";
+import { isLoggedIn } from "@/lib/an-sdk/auth";
+import { setToken } from "@/lib/an-sdk/client";
 
 /**
  * Delivery address picker shared by Fresh/Live Market/Groceries/Santha
@@ -32,6 +34,7 @@ export default function DeliveryAddressPicker({
   const [error, setError] = useState("");
 
   const [form, setForm] = useState({
+    name: "",
     label: "Home",
     line1: "",
     line2: "",
@@ -79,6 +82,12 @@ export default function DeliveryAddressPicker({
   }, [form.pincode]);
 
   useEffect(() => {
+    if (!isLoggedIn()) {
+      setAdding(true);
+      setLoading(false);
+      return;
+    }
+
     let cancelled = false;
     getSavedAddresses()
       .then((list) => {
@@ -92,7 +101,8 @@ export default function DeliveryAddressPicker({
           setAdding(true);
         }
       })
-      .catch(() => {
+      .catch((err: any) => {
+        if (err?.status === 401 || err?.status === 403) setToken(null);
         if (!cancelled) setAdding(true);
       })
       .finally(() => {
@@ -106,6 +116,7 @@ export default function DeliveryAddressPicker({
 
   function emitSelected(a: SavedAddress) {
     onChange({
+      name: a.name,
       line1: a.line1,
       line2: a.line2,
       city: a.city,
@@ -116,6 +127,22 @@ export default function DeliveryAddressPicker({
       lng: a.lng,
       gstNumber: a.gstNumber,
       isBusinessPurchase: a.isBusinessPurchase,
+    });
+  }
+
+  function emitDraft() {
+    onChange({
+      name: form.name.trim(),
+      line1: form.line1.trim(),
+      line2: form.line2.trim() || undefined,
+      city: form.city.trim() || undefined,
+      state: form.state.trim() || undefined,
+      pincode: form.pincode.trim() || undefined,
+      phone: form.phone.trim() || undefined,
+      lat: gps?.lat,
+      lng: gps?.lng,
+      gstNumber: form.isBusinessPurchase ? form.gstNumber.trim() : undefined,
+      isBusinessPurchase: form.isBusinessPurchase,
     });
   }
 
@@ -163,6 +190,10 @@ export default function DeliveryAddressPicker({
 
   async function handleSaveNew() {
     setError("");
+    if (!form.name.trim()) {
+      setError("Full name is required.");
+      return;
+    }
     if (!form.line1.trim()) {
       setError("Address line is required.");
       return;
@@ -171,9 +202,18 @@ export default function DeliveryAddressPicker({
       setError("GST number is required for a business purchase.");
       return;
     }
+    // The order can proceed with a valid address even when the customer is a
+    // guest or their saved-address session has expired. Emit the draft first;
+    // saving it for reuse is an optional authenticated operation.
+    emitDraft();
+    if (!isLoggedIn()) {
+      setAdding(false);
+      return;
+    }
     setSaving(true);
     try {
       const updated = await addSavedAddress({
+        name: form.name.trim(),
         label: form.label || "Home",
         line1: form.line1.trim(),
         line2: form.line2.trim() || undefined,
@@ -195,8 +235,16 @@ export default function DeliveryAddressPicker({
         emitSelected(saved);
       }
       setAdding(false);
-    } catch {
-      setError("Could not save address. Please try again.");
+    } catch (err: any) {
+      // Do not block order placement because the optional address-book write
+      // failed (for example, an expired login token returning 401). The draft
+      // has already been emitted to the current order.
+      if (err?.status === 401 || err?.status === 403) setToken(null);
+      setError(
+        err?.status === 401 || err?.status === 403
+          ? "Address is ready for this order. Sign in again later to save it for reuse."
+          : "Address is ready for this order, but could not be saved for reuse."
+      );
     } finally {
       setSaving(false);
     }
@@ -233,19 +281,24 @@ export default function DeliveryAddressPicker({
         </button>
       ) : (
         <div className="newForm">
-          <div className="row2">
+            <div className="row2">
+              <input
+                placeholder="Full name *"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+              />
+              <input
+                placeholder="Phone *"
+                value={form.phone}
+                onChange={(e) => setForm({ ...form, phone: e.target.value })}
+              />
+            </div>
             <input
-              placeholder="Label (Home, Work…)"
+              placeholder="Label (Home, Work...)"
               value={form.label}
               onChange={(e) => setForm({ ...form, label: e.target.value })}
             />
             <input
-              placeholder="Phone"
-              value={form.phone}
-              onChange={(e) => setForm({ ...form, phone: e.target.value })}
-            />
-          </div>
-          <input
             placeholder="House/flat no., street *"
             value={form.line1}
             onChange={(e) => setForm({ ...form, line1: e.target.value })}

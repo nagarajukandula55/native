@@ -258,6 +258,7 @@ export default function CheckoutPage() {
 
           setForm((prev) => ({
             ...prev,
+            name: prev.name || preferred.name || "",
             address: [preferred.line1, preferred.line2].filter(Boolean).join(", "),
             city: preferred.city || prev.city,
             state: preferred.state || prev.state,
@@ -285,6 +286,7 @@ export default function CheckoutPage() {
 
     setForm((prev) => ({
       ...prev,
+      name: prev.name || addr.name || "",
       address: [addr.line1, addr.line2].filter(Boolean).join(", "),
       city: addr.city || "",
       state: addr.state || "",
@@ -693,6 +695,7 @@ useEffect(() => {
             try {
               const updatedAddresses = await addSavedAddress({
                 label: "Home",
+                name: form.name,
                 line1: form.address,
                 city: form.city,
                 state: form.state,

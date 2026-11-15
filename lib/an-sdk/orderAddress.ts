@@ -7,6 +7,7 @@
  * populated by the browser Geolocation API ("Use my current location").
  */
 export type OrderAddressInput = {
+  name?: string;
   line1: string;
   line2?: string;
   city?: string;
