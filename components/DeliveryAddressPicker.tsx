@@ -7,6 +7,7 @@ import {
   SavedAddress,
 } from "@/lib/an-sdk/addresses";
 import type { OrderAddressInput } from "@/lib/an-sdk/orderAddress";
+import { pincode as pincodeApi } from "@/lib/an-sdk";
 
 /**
  * Delivery address picker shared by Fresh/Live Market/Groceries/Santha
@@ -43,6 +44,39 @@ export default function DeliveryAddressPicker({
   });
   const [gps, setGps] = useState<{ lat: number; lng: number } | null>(null);
   const [gpsStatus, setGpsStatus] = useState<"idle" | "locating" | "done" | "error">("idle");
+  const [pincodeStatus, setPincodeStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
+
+  useEffect(() => {
+    const code = form.pincode.trim();
+    if (!/^\d{6}$/.test(code)) {
+      setPincodeStatus("idle");
+      return;
+    }
+
+    let cancelled = false;
+    setPincodeStatus("loading");
+    pincodeApi.lookupPincode(code)
+      .then((data: any) => {
+        if (cancelled) return;
+        if (data?.success) {
+          setForm((prev) => ({
+            ...prev,
+            city: data.city || prev.city,
+            state: data.state || prev.state,
+          }));
+          setPincodeStatus("done");
+        } else {
+          setPincodeStatus("error");
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setPincodeStatus("error");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [form.pincode]);
 
   useEffect(() => {
     let cancelled = false;
@@ -99,9 +133,28 @@ export default function DeliveryAddressPicker({
     }
     setGpsStatus("locating");
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
+      async (pos) => {
         setGps({ lat: pos.coords.latitude, lng: pos.coords.longitude });
         setGpsStatus("done");
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&zoom=18&addressdetails=1`,
+            { headers: { Accept: "application/json" } }
+          );
+          const data = await res.json();
+          const address = data?.address || {};
+          const postcode = String(address.postcode || "").replace(/\D/g, "").slice(0, 6);
+          if (postcode) {
+            setForm((prev) => ({ ...prev, pincode: postcode }));
+          }
+          setForm((prev) => ({
+            ...prev,
+            city: prev.city || address.city || address.town || address.village || address.county || "",
+            state: prev.state || address.state || "",
+          }));
+        } catch {
+          // GPS coordinates are still retained even if reverse geocoding is unavailable.
+        }
       },
       () => setGpsStatus("error"),
       { enableHighAccuracy: true, timeout: 10000 }
@@ -215,10 +268,14 @@ export default function DeliveryAddressPicker({
             />
             <input
               placeholder="Pincode"
+              inputMode="numeric"
+              maxLength={6}
               value={form.pincode}
-              onChange={(e) => setForm({ ...form, pincode: e.target.value })}
+              onChange={(e) => setForm({ ...form, pincode: e.target.value.replace(/\D/g, "") })}
             />
           </div>
+          {pincodeStatus === "loading" && <p className="lookupHint">Finding city and state...</p>}
+          {pincodeStatus === "error" && <p className="lookupError">We could not find that pincode. Please check it.</p>}
 
           <label className="bizToggle">
             <input
@@ -362,10 +419,16 @@ export default function DeliveryAddressPicker({
           cursor: wait;
         }
         .gpsError,
-        .formError {
+        .formError,
+        .lookupError {
           color: #e11d48;
           font-size: 12px;
           margin: 0;
+        }
+        .lookupHint {
+          color: #777;
+          font-size: 12px;
+          margin: -2px 0 0;
         }
         .formActions {
           display: flex;

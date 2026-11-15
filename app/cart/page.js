@@ -144,7 +144,6 @@ export default function CartPage() {
               </Link>
               <button
                 className="checkoutBtn"
-                disabled={belowMinimum}
                 onClick={() => router.push("/checkout")}
               >
                 Proceed to Checkout →

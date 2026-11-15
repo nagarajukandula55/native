@@ -29,6 +29,7 @@ export default function VerticalOrderPayment({
   const [paying, setPaying] = useState(false);
   const [error, setError] = useState("");
   const razorpayLoaded = useRef(false);
+  const razorpayLoadPromise = useRef<Promise<void> | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -49,16 +50,40 @@ export default function VerticalOrderPayment({
       razorpayLoaded.current = true;
       return Promise.resolve();
     }
-    return new Promise((resolve, reject) => {
-      const script = document.createElement("script");
-      script.src = "https://checkout.razorpay.com/v1/checkout.js";
-      script.onload = () => {
-        razorpayLoaded.current = true;
-        resolve();
+    if (razorpayLoadPromise.current) return razorpayLoadPromise.current;
+
+    razorpayLoadPromise.current = new Promise<void>((resolve, reject) => {
+      const src = "https://checkout.razorpay.com/v1/checkout.js";
+      const existing = document.querySelector(`script[src="${src}"]`) as HTMLScriptElement | null;
+      const script = existing || document.createElement("script");
+      let settled = false;
+      const onLoad = () => finish();
+      const onError = () => finish(new Error("Could not load Razorpay checkout"));
+      const finish = (loadError?: Error) => {
+        if (settled) return;
+        settled = true;
+        script.removeEventListener("load", onLoad);
+        script.removeEventListener("error", onError);
+        if (loadError) reject(loadError);
+        else if ((window as any).Razorpay) {
+          razorpayLoaded.current = true;
+          resolve();
+        } else reject(new Error("Razorpay loaded without its checkout API"));
       };
-      script.onerror = () => reject(new Error("Could not load Razorpay checkout"));
-      document.body.appendChild(script);
+
+      script.addEventListener("load", onLoad, { once: true });
+      script.addEventListener("error", onError, { once: true });
+      if (!existing) {
+        script.src = src;
+        script.async = true;
+        document.body.appendChild(script);
+      }
+    }).catch((error) => {
+      razorpayLoadPromise.current = null;
+      throw error;
     });
+
+    return razorpayLoadPromise.current;
   }
 
   async function handleRazorpayPay() {

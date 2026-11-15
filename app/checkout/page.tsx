@@ -77,6 +77,8 @@ export default function CheckoutPage() {
   } = useCart() as any;
 
   const razorpayLoaded = useRef(false);
+  const razorpayLoadPromise = useRef<Promise<boolean> | null>(null);
+  const [razorpayError, setRazorpayError] = useState("");
 
   /* =========================================================
      STATES
@@ -295,39 +297,53 @@ export default function CheckoutPage() {
      LOAD RAZORPAY
   ========================================================= */
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
+  const ensureRazorpayLoaded = () => {
+    if (typeof window === "undefined") return Promise.resolve(false);
     if (window.Razorpay) {
       razorpayLoaded.current = true;
-      return;
+      return Promise.resolve(true);
     }
+    if (razorpayLoadPromise.current) return razorpayLoadPromise.current;
 
-    const existingScript = document.querySelector(
-      'script[src="https://checkout.razorpay.com/v1/checkout.js"]'
-    );
+    razorpayLoadPromise.current = new Promise<boolean>((resolve, reject) => {
+      const src = "https://checkout.razorpay.com/v1/checkout.js";
+      const existing = document.querySelector(`script[src="${src}"]`) as HTMLScriptElement | null;
+      const script = existing || document.createElement("script");
+      let settled = false;
+      const onLoad = () => finish();
+      const onError = () => finish(new Error("Razorpay could not be loaded. Check your connection and try again."));
+      const finish = (error?: Error) => {
+        if (settled) return;
+        settled = true;
+        script.removeEventListener("load", onLoad);
+        script.removeEventListener("error", onError);
+        if (error) reject(error);
+        else if (window.Razorpay) {
+          razorpayLoaded.current = true;
+          resolve(true);
+        } else reject(new Error("Razorpay loaded without its checkout API."));
+      };
 
-    if (existingScript) {
-      razorpayLoaded.current = true;
-      return;
-    }
+      script.addEventListener("load", onLoad, { once: true });
+      script.addEventListener("error", onError, { once: true });
+      if (!existing) {
+        script.src = src;
+        script.async = true;
+        document.body.appendChild(script);
+      }
+    }).catch((error) => {
+      razorpayLoadPromise.current = null;
+      throw error;
+    });
 
-    const script = document.createElement("script");
+    return razorpayLoadPromise.current;
+  };
 
-    script.src =
-      "https://checkout.razorpay.com/v1/checkout.js";
-
-    script.async = true;
-
-    script.onload = () => {
-      razorpayLoaded.current = true;
-    };
-
-    document.body.appendChild(script);
-
-    return () => {
-      script.onload = null;
-    };
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    ensureRazorpayLoaded().catch((error: any) => {
+      setRazorpayError(error?.message || "Razorpay could not be loaded.");
+    });
   }, []);
 
   /* =========================================================
@@ -613,27 +629,16 @@ useEffect(() => {
   ========================================================= */
     
     const handlePay = async () => {
-      if (settingsStatus !== "ready") return;
+      if (settingsStatus === "loading") return;
       if (!validateForm()) return;
 
       // Defense-in-depth: the cart page already blocks "Proceed to Checkout"
       // below the minimum, but a stale cart state or direct navigation to
       // /checkout could still land here under the threshold, so re-check
       // before placing the order.
-      if (displaySummary.subtotal < storeSettings.minOrderValue) {
-        alert(
-          `Add ₹${(storeSettings.minOrderValue - displaySummary.subtotal).toFixed(2)} more to reach the ₹${storeSettings.minOrderValue} minimum order value`
-        );
-        return;
-      }
-
-      if (!razorpayLoaded.current) {
-        alert("Payment gateway loading...");
-        return;
-      }
-    
       try {
         setLoading(true);
+        await ensureRazorpayLoaded();
 
         let orderId: string;
         let razorpayOrder: any;
@@ -684,6 +689,30 @@ useEffect(() => {
           // createOrder() routes through the shared SDK client, which attaches
           // the businessId + bearer token (when one exists) automatically —
           // a raw fetch() here would silently drop both.
+          if (isLoggedIn() && saveThisAddress && addressMode === "new") {
+            try {
+              const updatedAddresses = await addSavedAddress({
+                label: "Home",
+                line1: form.address,
+                city: form.city,
+                state: form.state,
+                pincode: form.pincode,
+                phone: form.phone,
+              });
+              setSavedAddresses(updatedAddresses);
+              const savedAddress = updatedAddresses.find(
+                (address) => address.line1 === form.address && address.pincode === form.pincode
+              );
+              if (savedAddress) setSelectedAddressId(savedAddress._id);
+              setAddressMode("picker");
+              setSaveThisAddress(false);
+            } catch (error: any) {
+              setLoading(false);
+              alert(error?.message || "Could not save address. Please try again.");
+              return;
+            }
+          }
+
           const data: any = await createOrder({
             cart: cleanedCart,
             address: form,
@@ -804,23 +833,6 @@ useEffect(() => {
               );
 
               if (verifyData.success) {
-                // Best-effort: only when the customer is logged in, chose to
-                // save a freshly-typed address, and is actually still on
-                // "new" mode (not one already picked from the saved list,
-                // which needs no re-saving). Never blocks navigating to the
-                // success page on failure.
-                if (isLoggedIn() && saveThisAddress && addressMode === "new") {
-                  addSavedAddress({
-                    line1: form.address,
-                    city: form.city,
-                    state: form.state,
-                    pincode: form.pincode,
-                    phone: form.phone,
-                  }).catch((err) =>
-                    console.error("SAVE ADDRESS ERROR:", err)
-                  );
-                }
-
                 setPendingOrder(null);
                 setCart([]);
 
@@ -1190,7 +1202,7 @@ useEffect(() => {
             <button
               className="payBtn"
               onClick={handlePay}
-              disabled={loading || settingsStatus !== "ready" || displaySummary.subtotal < storeSettings.minOrderValue}
+              disabled={loading || settingsStatus === "loading"}
             >
               {loading
                 ? "Processing..."
@@ -1199,6 +1211,10 @@ useEffect(() => {
                 : `Pay ₹${displaySummary.grandTotal.toFixed(2)}`}
             </button>
             {settingsStatus === "loading" && <p role="status">Checking delivery charges…</p>}
+            {displaySummary.subtotal < storeSettings.minOrderValue && (
+              <p className="feeNotice">Small-cart fee applied to this order.</p>
+            )}
+            {razorpayError && <p role="alert" className="error">{razorpayError}</p>}
             {settingsStatus === "error" && <p role="alert">Unable to confirm delivery charges. <button onClick={() => window.location.reload()}>Try again</button></p>}
 
             <div className="secureNote">🔒 Protected by Razorpay Secure</div>
