@@ -1,5 +1,3 @@
-import { anGet } from "./client";
-
 export type Banner = {
   id?: string;
   imageUrl: string;
@@ -11,22 +9,26 @@ export type Banner = {
 };
 
 /**
- * Public, unauthenticated storefront banner list — mirrors the convention
- * used by GET /api/storefront/products (see lib/an-sdk/products.ts):
- * businessId-scoped, no auth required, safe to call from the homepage.
+ * Public homepage banners are owned by Native Admin, the same application
+ * where staff create, order and activate them. The browser uses this
+ * storefront's same-origin proxy, while server rendering calls Native Admin
+ * directly (relative fetch URLs are not valid during Next server rendering).
  *
- * Expected shape: { success: true, banners: [{ imageUrl, heading,
- * subheading, ctaText, ctaLink }, ...] } sorted by an admin-configured
- * order. This is a concurrently-developed ANgroup feature — if the route
- * path or shape turns out to differ once it ships, callers here already
- * treat any failure/empty response as "no dynamic banners" and fall back
- * to the static hero slides, so nothing on the storefront breaks either way.
+ * This deliberately does not read ANgroup's similarly named endpoint: that
+ * would make the Banner page in Native Admin look configured while the
+ * customer homepage continued to show a different data source.
  */
 export async function getBanners(): Promise<{ success: boolean; banners: Banner[] }> {
   try {
-    const data = await anGet(`/api/storefront/banners`);
+    const base = process.env.NATIVE_ADMIN_API_URL || "https://admin.shopnative.in";
+    const url = typeof window === "undefined"
+      ? `${base.replace(/\/$/, "")}/api/storefront/banners`
+      : "/api/storefront/banners";
+    const response = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(8000) });
+    if (!response.ok) throw new Error("Unable to load homepage banners");
+    const data = await response.json();
     const banners = Array.isArray(data?.banners) ? data.banners : [];
-    return { success: true, banners };
+    return { success: data?.success !== false, banners };
   } catch (err) {
     console.error("Banner fetch error:", err);
     return { success: false, banners: [] };

@@ -22,7 +22,7 @@ export default function Footer() {
     getStoreSettings().then((result) => {
       if (result.success && result.settings.socialLinks?.length) setSocialLinks(result.settings.socialLinks);
     }).catch(() => {});
-  });
+  }, []);
 
   async function handleSubscribe(e) {
     e.preventDefault();
